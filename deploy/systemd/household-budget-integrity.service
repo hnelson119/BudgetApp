@@ -1,0 +1,13 @@
+[Unit]
+Description=Verify Household Budget audit chains and write external checkpoints
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/household-budget
+EnvironmentFile=/etc/household-budget/household-budget.env
+ExecStart=/usr/bin/docker compose --profile maintenance run --rm integrity
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true

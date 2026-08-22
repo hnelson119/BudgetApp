@@ -23,6 +23,7 @@
         >
           <span aria-hidden="true">◐</span> Theme
         </button>
+        <a class="theme-toggle" href="{% url 'audit:history' %}">Audit history</a>
         <form method="post" action="{% url 'identity:logout' %}">
           {% csrf_token %}
           <button class="theme-toggle" type="submit">Sign out</button>

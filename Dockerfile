@@ -5,7 +5,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN addgroup --system budget && adduser --system --ingroup budget budget
+RUN groupadd --gid 10001 budget \
+    && useradd --uid 10001 --gid budget --no-create-home --shell /usr/sbin/nologin budget
 
 WORKDIR /app
 

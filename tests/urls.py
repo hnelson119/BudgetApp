@@ -17,5 +17,6 @@ handler500 = errors.server_error
 urlpatterns = [
     path("_test/error/", unsafe_error, name="unsafe-error"),
     path("accounts/", include("identity.urls")),
+    path("audit/", include("audit.urls")),
     path("", include("core.urls")),
 ]

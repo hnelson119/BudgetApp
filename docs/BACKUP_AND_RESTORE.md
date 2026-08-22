@@ -88,3 +88,40 @@ the failed system and logs until incident review is complete.
 
 Hyper-V checkpoints and Docker volume copies are secondary conveniences, not substitutes for the
 encrypted off-VM repository and a disconnected or independent copy.
+
+## Independent audit checkpoints
+
+Audit checkpoints are separate from Restic backups so restoring a modified database cannot silently
+establish a new history. `BUDGET_AUDIT_CHECKPOINT_DIRECTORY` must be an existing off-VM mount and is
+bound only into the short-lived `integrity` container. That container verifies each complete chain,
+writes a canonical HMAC-SHA256 checkpoint with mode `0600`, and records the external filename and
+signature metadata through a narrowly scoped database function.
+
+Run it manually after the first household is provisioned:
+
+```bash
+docker compose --profile maintenance run --rm integrity
+```
+
+Install the daily timer after reviewing its paths:
+
+```bash
+sudo install -m 0644 deploy/systemd/household-budget-integrity.service /etc/systemd/system/
+sudo install -m 0644 deploy/systemd/household-budget-integrity.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now household-budget-integrity.timer
+```
+
+Keep an independent protected copy of `audit_checkpoint_signing_key`, or mount that key read-only
+from outside the VM when practical. During restore, verify the selected checkpoint's signature and
+compare its household ID, event count, sequence, and chain head with the restored database before
+cutover. A missing, invalid, or mismatched checkpoint is an incident signal, not a condition to
+silently overwrite.
+
+With the integrity service pointed at the restored database, perform that comparison using the
+checkpoint filename (paths and traversal are rejected):
+
+```bash
+docker compose --profile maintenance run --rm integrity \
+  python manage.py verify_audit_checkpoint audit-<household>-<timestamp>-sequence-<n>.checkpoint.json
+```

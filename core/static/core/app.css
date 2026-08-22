@@ -255,6 +255,28 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .confirmation-check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
 .inline-action { margin-top: 18px; text-align: center; }
 .text-button { border: 0; background: transparent; color: var(--muted); cursor: pointer; text-decoration: underline; }
+.integrity-banner, .audit-panel {
+  margin-top: 28px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.integrity-banner div { font-weight: 800; }
+.integrity-banner p { margin: 8px 0 0; color: var(--muted); }
+.integrity-ok { border-color: rgba(80, 200, 150, .45); }
+.integrity-ok div { color: var(--accent); }
+.integrity-failed { border-color: #b95050; background: rgba(180, 55, 55, .12); }
+.integrity-failed div { color: #ef9696; }
+.audit-panel-heading { display: flex; justify-content: space-between; gap: 24px; align-items: end; }
+.audit-panel-heading h2 { margin: 0; }
+.audit-panel-heading > p { max-width: 440px; margin: 0; color: var(--muted); text-align: right; }
+.audit-table-scroll { overflow-x: auto; margin-top: 22px; }
+.audit-table { width: 100%; border-collapse: collapse; }
+.audit-table th, .audit-table td { padding: 13px 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.audit-table th { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+.audit-table td { font-size: .88rem; }
+.audit-table code { color: var(--accent); }
 
 @media (max-width: 850px) {
   .hero { grid-template-columns: 1fr; margin-top: 48px; }
@@ -269,4 +291,6 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .module-grid article { min-height: 150px; }
   .module-grid h3 { margin-top: 30px; }
   .enrollment-grid, .recovery-code-grid { grid-template-columns: 1fr; }
+  .audit-panel-heading { display: grid; align-items: start; }
+  .audit-panel-heading > p { text-align: left; }
 }

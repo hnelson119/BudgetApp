@@ -102,3 +102,72 @@ class AuditEvent(models.Model):
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
         raise ValidationError("Audit events cannot be deleted.")
+
+
+class ImmutableCheckpointQuerySet(models.QuerySet["AuditCheckpoint"]):
+    def create(self, **kwargs: Any) -> "AuditCheckpoint":
+        raise ValidationError("Audit checkpoints must use the checkpoint service.")
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        raise ValidationError("Audit checkpoints cannot be deleted.")
+
+    def update(self, **kwargs: Any) -> int:
+        raise ValidationError("Audit checkpoints cannot be updated.")
+
+    def bulk_create(self, *args: Any, **kwargs: Any) -> list["AuditCheckpoint"]:
+        raise ValidationError("Audit checkpoints must use the checkpoint service.")
+
+    def bulk_update(self, *args: Any, **kwargs: Any) -> int:
+        raise ValidationError("Audit checkpoints cannot be updated.")
+
+
+class ImmutableCheckpointManager(models.Manager["AuditCheckpoint"]):
+    def get_queryset(self) -> ImmutableCheckpointQuerySet:
+        return ImmutableCheckpointQuerySet(self.model, using=self._db)
+
+    def create(self, **kwargs: Any) -> "AuditCheckpoint":
+        raise ValidationError("Audit checkpoints must use the checkpoint service.")
+
+
+class AuditCheckpoint(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    household = models.ForeignKey(
+        Household,
+        on_delete=models.PROTECT,
+        related_name="audit_checkpoints",
+    )
+    last_sequence = models.PositiveBigIntegerField()
+    event_count = models.PositiveBigIntegerField()
+    chain_head = models.CharField(max_length=64)
+    verified_at = models.DateTimeField()
+    signature_algorithm = models.CharField(max_length=32)
+    signing_key_id = models.CharField(max_length=64)
+    signature = models.CharField(max_length=64)
+    external_copy_name = models.CharField(max_length=255)
+    external_copied_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = ImmutableCheckpointManager()
+
+    class Meta:
+        ordering = ("-verified_at",)
+        default_permissions = ()
+        indexes = [
+            models.Index(
+                fields=("household", "verified_at"),
+                name="audit_checkpoint_hh_time",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.household_id}:{self.last_sequence}:{self.verified_at.isoformat()}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if not getattr(self, "_append_authorized", False):
+            raise ValidationError("Audit checkpoints must use the checkpoint service.")
+        if not self._state.adding:
+            raise ValidationError("Audit checkpoints cannot be updated.")
+        super().save(*args, force_insert=True, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        raise ValidationError("Audit checkpoints cannot be deleted.")

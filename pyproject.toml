@@ -51,6 +51,7 @@ include = [
 ]
 
 [tool.setuptools.package-data]
+audit = ["templates/audit/*.html"]
 core = ["templates/core/*.html", "static/core/*"]
 identity = ["templates/identity/*.html"]
 

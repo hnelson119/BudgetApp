@@ -1,6 +1,6 @@
 # Household Budget Application — Implementation Plan
 
-Status: Milestone 2 in progress
+Status: Milestone 2 implementation complete; deployment verification pending
 Last updated: 2026-08-22
 
 ## 1. Locked architecture
@@ -84,8 +84,9 @@ Progress: distinct email/password identities, encrypted TOTP enrollment, hash-on
 recovery codes, generic and rate-limited authentication, idle/absolute session expiry,
 logout-all-devices, sensitive-action reauthentication, trusted-console two-user provisioning and
 emergency recovery, active-household authorization, and a canonical per-household SHA-256 audit
-chain are implemented with security tests. PostgreSQL schema/role enforcement, external
-checkpoints, and the read-only history UI remain in this milestone.
+chain, PostgreSQL-owned protected schema and append function, isolated signed-checkpoint job, and
+household-scoped read-only audit history are implemented with security tests. The remaining gate is
+a real PostgreSQL runtime-role privilege rehearsal plus private-ingress validation on the Linux VM.
 
 Exit criteria: authentication/recovery tests pass; a sample domain mutation and audit event commit or roll back together; tampering fails verification.
 

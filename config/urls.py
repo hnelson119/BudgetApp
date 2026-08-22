@@ -10,5 +10,6 @@ handler500 = "core.errors.server_error"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("identity.urls")),
+    path("audit/", include("audit.urls")),
     path("", include("core.urls")),
 ]

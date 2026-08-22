@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from audit.models import ZERO_HASH, AuditEvent, AuditHead
@@ -96,6 +96,36 @@ def _event_hash(event: AuditEvent) -> str:
     return hashlib.sha256(_canonical_bytes(event)).hexdigest()
 
 
+def _append_with_postgresql_function(event: AuditEvent) -> AuditEvent:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT budget_audit.append_event(
+                %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s::jsonb, %s::jsonb, %s, %s, %s, %s
+            )
+            """,
+            [
+                event.sequence,
+                event.id,
+                event.household_id,
+                event.actor_id,
+                event.occurred_at,
+                event.household_timezone,
+                event.action,
+                event.entity_type,
+                event.entity_id,
+                json.dumps(event.before_payload, sort_keys=True, separators=(",", ":")),
+                json.dumps(event.after_payload, sort_keys=True, separators=(",", ":")),
+                event.reason,
+                event.request_id,
+                event.previous_hash,
+                event.event_hash,
+            ],
+        )
+    return AuditEvent.objects.get(pk=event.pk)
+
+
 @transaction.atomic
 def append_event(
     *,
@@ -129,8 +159,9 @@ def append_event(
         raise PermissionDenied("The audit actor is not an active household member.")
 
     locked_household = Household.objects.select_for_update().get(pk=household.pk)
-    head, _ = AuditHead.objects.get_or_create(household=locked_household)
-    sequence = head.last_sequence + 1
+    head = AuditHead.objects.filter(household=locked_household).first()
+    sequence = 1 if head is None else head.last_sequence + 1
+    previous_hash = ZERO_HASH if head is None else head.chain_head
     event = AuditEvent(
         sequence=sequence,
         household=locked_household,
@@ -144,10 +175,16 @@ def append_event(
         after_payload=_normalize(after or {}),
         reason=reason,
         request_id=request_id,
-        previous_hash=head.chain_head,
+        previous_hash=previous_hash,
         event_hash=ZERO_HASH,
     )
     event.event_hash = _event_hash(event)
+
+    if connection.vendor == "postgresql":
+        return _append_with_postgresql_function(event)
+
+    if head is None:
+        head = AuditHead.objects.create(household=locked_household)
     event._append_authorized = True  # type: ignore[attr-defined]
     event.save()
 

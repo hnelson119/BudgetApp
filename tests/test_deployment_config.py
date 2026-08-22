@@ -37,6 +37,27 @@ def test_compose_separates_privileged_database_tasks() -> None:
     assert "recovery" in services["restore-verify"]["profiles"]
 
 
+def test_postgresql_audit_boundary_uses_owned_schema_and_capability_roles() -> None:
+    bootstrap = (PROJECT_ROOT / "deploy/postgres/bootstrap-roles.sh").read_text(encoding="utf-8")
+    migration = (PROJECT_ROOT / "audit/migrations/0002_postgresql_protected_schema.py").read_text(
+        encoding="utf-8"
+    )
+    service = (PROJECT_ROOT / "audit/services.py").read_text(encoding="utf-8")
+
+    assert "CREATE ROLE budget_audit_owner NOLOGIN" in bootstrap
+    assert "CREATE ROLE budget_runtime_access NOLOGIN" in bootstrap
+    assert "GRANT budget_audit_owner TO %I" in bootstrap
+    assert "REVOKE ALL ON ALL TABLES IN SCHEMA public" in bootstrap
+    assert "budget_audit.append_event" in migration
+    assert "SECURITY DEFINER" in migration
+    assert "SET search_path = pg_catalog, pg_temp" in migration
+    assert "BEFORE UPDATE OR DELETE" in migration
+    assert "BEFORE TRUNCATE" in migration
+    assert "REVOKE ALL ON TABLE budget_audit.audit_auditevent" in migration
+    assert "GRANT EXECUTE ON FUNCTION budget_audit.append_event" in migration
+    assert "SELECT budget_audit.append_event" in service
+
+
 def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     compose = yaml.safe_load((PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8"))
     web = compose["services"]["web"]
@@ -49,7 +70,12 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert compose["services"]["db"]["networks"] == ["backend"]
     assert not any(part in web["command"] for part in ("migrate", "collectstatic"))
 
-    forbidden_keys = {"DJANGO_SECRET_KEY", "DJANGO_MFA_ENCRYPTION_KEY", "POSTGRES_PASSWORD"}
+    forbidden_keys = {
+        "AUDIT_CHECKPOINT_SIGNING_KEY",
+        "DJANGO_SECRET_KEY",
+        "DJANGO_MFA_ENCRYPTION_KEY",
+        "POSTGRES_PASSWORD",
+    }
     for mapping in _walk_mappings(compose):
         assert forbidden_keys.isdisjoint(mapping)
 
@@ -63,6 +89,7 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     web = services["web"]
     backup = services["backup"]
     restore = services["restore-verify"]
+    integrity = services["integrity"]
 
     assert set(web["secrets"]) == {
         "django_secret_key",
@@ -90,6 +117,13 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     assert backup["volumes"][0]["bind"]["create_host_path"] is False
     assert restore["volumes"][0]["read_only"] is True
     assert restore["volumes"][0]["bind"]["create_host_path"] is False
+    assert set(integrity["secrets"]) == {
+        "postgres_audit_password",
+        "audit_checkpoint_signing_key",
+    }
+    assert integrity["networks"] == ["backend"]
+    assert integrity["volumes"][0]["bind"]["create_host_path"] is False
+    assert "audit_checkpoint_signing_key" not in web["secrets"]
 
 
 def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_target() -> None:
@@ -119,6 +153,7 @@ def test_container_does_not_enable_raw_access_logging() -> None:
     dockerignore = set((PROJECT_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines())
 
     assert "USER budget" in dockerfile
+    assert "useradd --uid 10001" in dockerfile
     assert "python:3.12-slim@sha256:" in dockerfile
     assert "--access-logfile" not in dockerfile
     assert {".env*", "secrets", "local-test-secrets"}.issubset(dockerignore)
@@ -146,6 +181,17 @@ def test_daily_backup_timer_uses_the_isolated_compose_service() -> None:
     assert "OnCalendar=*-*-* 03:15:00" in timer
     assert "Persistent=true" in timer
     assert "RandomizedDelaySec=30m" in timer
+
+    integrity_service = (
+        PROJECT_ROOT / "deploy/systemd/household-budget-integrity.service"
+    ).read_text(encoding="utf-8")
+    integrity_timer = (PROJECT_ROOT / "deploy/systemd/household-budget-integrity.timer").read_text(
+        encoding="utf-8"
+    )
+    assert "docker compose --profile maintenance run --rm integrity" in integrity_service
+    assert "UMask=0077" in integrity_service
+    assert "OnCalendar=*-*-* 02:45:00" in integrity_timer
+    assert "Persistent=true" in integrity_timer
 
 
 def test_ci_uses_read_only_permissions_and_immutable_official_actions() -> None:
@@ -177,6 +223,8 @@ def test_linux_entrypoints_are_forced_to_lf_in_git() -> None:
 def test_pytest_temporary_files_stay_inside_the_checkout() -> None:
     pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     gitignore = (PROJECT_ROOT / ".gitignore").read_text(encoding="utf-8")
+    secret_scan = (PROJECT_ROOT / "scripts/secret_scan.py").read_text(encoding="utf-8")
 
     assert "--basetemp=.pytest-tmp" in pyproject
     assert ".pytest-tmp/" in gitignore
+    assert "\\.pytest-tmp" in secret_scan

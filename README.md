@@ -14,8 +14,9 @@ Remote branch protection becomes enforceable when a private Git host is connecte
 Tailscale-only HTTPS configuration remains deployment-time work on the Linux VM. Milestone 2 is in
 progress: password authentication, encrypted TOTP enrollment, single-use recovery codes, login
 throttling, secure session controls, household authorization, trusted-console provisioning and
-recovery, and the canonical hash-chained audit service are implemented. PostgreSQL-enforced audit
-isolation, external checkpoints, and the read-only audit UI remain required before household
+recovery, PostgreSQL-enforced append-only audit isolation, signed external checkpoints, and a
+read-only household-scoped audit UI are implemented. A real PostgreSQL privilege rehearsal and
+the Linux VM's private Tailscale ingress remain deployment verification work before household
 financial data is entered.
 
 ## Local development
@@ -102,6 +103,7 @@ openssl rand -base64 48 > /etc/household-budget/secrets/postgres_runtime_passwor
 openssl rand -base64 48 > /etc/household-budget/secrets/postgres_migration_password
 openssl rand -base64 48 > /etc/household-budget/secrets/postgres_backup_password
 openssl rand -base64 48 > /etc/household-budget/secrets/postgres_audit_password
+openssl rand -base64 48 > /etc/household-budget/secrets/audit_checkpoint_signing_key
 openssl rand -base64 48 > /etc/household-budget/secrets/restic_repository_password
 ```
 
@@ -114,6 +116,23 @@ docker compose --profile maintenance run --rm migrate
 docker compose up --build -d db web
 ```
 
+The audit migrations move protected records into the separately owned `budget_audit` schema. The
+runtime role receives read access plus execution of one append function; it receives no direct
+insert, update, delete, truncate, DDL, ownership, or grant authority over audit records.
+
+Create `BUDGET_AUDIT_CHECKPOINT_DIRECTORY` on an already mounted off-VM filesystem, verify the
+mount with `findmnt`, and grant the container's fixed UID/GID 10001 access. Never let a missing
+mount fall back to the VM disk. After the first household exists, verify every chain and create a
+signed checkpoint with:
+
+```bash
+docker compose --profile maintenance run --rm integrity
+```
+
+The integrity container receives the read-only audit database identity and checkpoint signing key,
+but none of the web, migration, administrator, backup, Django, or MFA secrets. The signing-key file
+should live on an independently protected or read-only mounted location when practical.
+
 The runtime web process cannot migrate the schema and never receives the
 database administrator, migration, backup, or audit passwords. Both the application
 and database are on an internal Docker network; only web port 8000 is bound to
@@ -122,7 +141,8 @@ from the router.
 
 Encrypted backup creation and safe restore verification are documented in
 [`docs/BACKUP_AND_RESTORE.md`](docs/BACKUP_AND_RESTORE.md). The backup destination must be an
-existing off-VM mount; it is deliberately unavailable to the web container.
+existing off-VM mount; it is deliberately unavailable to the web container. The same runbook
+documents the independent audit-checkpoint timer and verification expectations.
 
 ## Quality commands
 

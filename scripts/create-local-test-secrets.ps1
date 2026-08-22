@@ -15,6 +15,7 @@ if (-not $secretDirectory.StartsWith($expectedPrefix, [StringComparison]::Ordina
 $secretSizes = @{
     "django_secret_key" = 64
     "django_mfa_encryption_key" = 32
+    "audit_checkpoint_signing_key" = 48
     "postgres_admin_password" = 48
     "postgres_runtime_password" = 48
     "postgres_migration_password" = 48

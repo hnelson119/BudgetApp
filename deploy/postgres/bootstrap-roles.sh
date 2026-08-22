@@ -42,16 +42,16 @@ validate_secret "$audit_password"
   printf "\\set audit_password '%s'\n" "$audit_password"
   cat <<'SQL'
 SELECT format(
-  'CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD %L',
+  'CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT PASSWORD %L',
   :'runtime_user', :'runtime_password'
 ) WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'runtime_user') \gexec
-SELECT format('ALTER ROLE %I PASSWORD %L', :'runtime_user', :'runtime_password') \gexec
+SELECT format('ALTER ROLE %I INHERIT PASSWORD %L', :'runtime_user', :'runtime_password') \gexec
 
 SELECT format(
-  'CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD %L',
+  'CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT PASSWORD %L',
   :'migration_user', :'migration_password'
 ) WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'migration_user') \gexec
-SELECT format('ALTER ROLE %I PASSWORD %L', :'migration_user', :'migration_password') \gexec
+SELECT format('ALTER ROLE %I INHERIT PASSWORD %L', :'migration_user', :'migration_password') \gexec
 
 SELECT format(
   'CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD %L',
@@ -60,10 +60,32 @@ SELECT format(
 SELECT format('ALTER ROLE %I PASSWORD %L', :'backup_user', :'backup_password') \gexec
 
 SELECT format(
-  'CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD %L',
+  'CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT PASSWORD %L',
   :'audit_user', :'audit_password'
 ) WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'audit_user') \gexec
-SELECT format('ALTER ROLE %I PASSWORD %L', :'audit_user', :'audit_password') \gexec
+SELECT format('ALTER ROLE %I INHERIT PASSWORD %L', :'audit_user', :'audit_password') \gexec
+
+SELECT 'CREATE ROLE budget_runtime_access NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE'
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'budget_runtime_access') \gexec
+SELECT 'CREATE ROLE budget_audit_reader NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE'
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'budget_audit_reader') \gexec
+SELECT 'CREATE ROLE budget_audit_owner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE'
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'budget_audit_owner') \gexec
+
+SELECT format(
+  'GRANT budget_runtime_access TO %I WITH INHERIT TRUE, SET FALSE', :'runtime_user'
+) \gexec
+SELECT format(
+  'GRANT budget_audit_reader TO %I WITH INHERIT TRUE, SET FALSE', :'audit_user'
+) \gexec
+SELECT format(
+  'GRANT budget_audit_owner TO %I WITH INHERIT TRUE, SET TRUE', :'migration_user'
+) \gexec
+
+CREATE SCHEMA IF NOT EXISTS budget_audit AUTHORIZATION budget_audit_owner;
+ALTER SCHEMA budget_audit OWNER TO budget_audit_owner;
+SELECT format('GRANT USAGE, CREATE ON SCHEMA budget_audit TO %I', :'migration_user') \gexec
+GRANT USAGE ON SCHEMA budget_audit TO budget_runtime_access, budget_audit_reader;
 
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'runtime_user') \gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'migration_user') \gexec
@@ -73,33 +95,39 @@ SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'audit_
 SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'runtime_user') \gexec
 SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'migration_user') \gexec
 SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'audit_user') \gexec
-SELECT format(
-  'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %I',
-  :'runtime_user'
-) \gexec
-SELECT format(
-  'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', :'runtime_user'
-) \gexec
+SELECT format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', :'runtime_user') \gexec
+SELECT format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', :'runtime_user') \gexec
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO budget_runtime_access;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO budget_runtime_access;
 SELECT format('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %I', :'backup_user') \gexec
 SELECT format(
   'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', :'backup_user'
 ) \gexec
 
 SELECT format(
-  'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public '
-  'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO %I',
+  'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON TABLES FROM %I',
+  :'migration_user', :'runtime_user'
+) \gexec
+SELECT format(
+  'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I',
   :'migration_user', :'runtime_user'
 ) \gexec
 SELECT format(
   'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public '
-  'GRANT USAGE, SELECT ON SEQUENCES TO %I',
-  :'migration_user', :'runtime_user'
+  'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO budget_runtime_access',
+  :'migration_user'
+) \gexec
+SELECT format(
+  'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public '
+  'GRANT USAGE, SELECT ON SEQUENCES TO budget_runtime_access',
+  :'migration_user'
 ) \gexec
 SELECT format(
   'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT SELECT ON TABLES TO %I',
   :'migration_user', :'backup_user'
 ) \gexec
 SELECT format('GRANT pg_read_all_data TO %I', :'backup_user') \gexec
+GRANT SELECT ON ALL TABLES IN SCHEMA budget_audit TO budget_audit_reader;
 SQL
 } | psql \
   --host "$DATABASE_HOST" \

@@ -30,6 +30,7 @@ mypy_extensions==1.1.0
 packageurl-python==0.17.6
 packaging==26.3
 pathspec==1.1.1
+pip==26.2.1
 pip-api==0.0.34
 pip-requirements-parser==32.0.1
 pip_audit==2.10.1

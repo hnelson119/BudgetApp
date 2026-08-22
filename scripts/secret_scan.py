@@ -14,7 +14,7 @@ def main() -> int:
         "--all-files",
         "--exclude-files",
         (
-            r"(^|[\\/])(\.git|\.venv|\.mypy_cache|\.pytest_cache|\.ruff_cache|"
+            r"(^|[\\/])(\.git|\.venv|\.mypy_cache|\.pytest_cache|\.pytest-tmp|\.ruff_cache|"
             r"design[\\/]mockups)([\\/]|$)|db\.sqlite3$"
         ),
     ]

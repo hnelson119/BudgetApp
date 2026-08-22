@@ -36,3 +36,11 @@ def test_production_django_security_check_passes(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "System check identified no issues" in result.stdout
+
+
+def test_production_database_search_path_includes_protected_audit_schema(tmp_path: Path) -> None:
+    settings_file = (
+        Path(__file__).resolve().parents[1] / "config/settings/production.py"
+    ).read_text(encoding="utf-8")
+
+    assert '"-c search_path=public,budget_audit"' in settings_file

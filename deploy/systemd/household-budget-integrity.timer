@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Household Budget protected audit verification
+
+[Timer]
+OnCalendar=*-*-* 02:45:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=household-budget-integrity.service
+
+[Install]
+WantedBy=timers.target

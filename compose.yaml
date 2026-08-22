@@ -148,6 +148,40 @@ services:
       - /tmp:rw,noexec,nosuid,size=128m
     logging: *log-policy
 
+  integrity:
+    build:
+      context: .
+    profiles: ["maintenance"]
+    command: ["python", "manage.py", "write_audit_checkpoints"]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.integrity
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-household_budget}
+      POSTGRES_USER: ${POSTGRES_AUDIT_USER:-budget_audit}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_audit_password
+      AUDIT_CHECKPOINT_SIGNING_KEY_FILE: /run/secrets/audit_checkpoint_signing_key
+      AUDIT_CHECKPOINT_DIRECTORY: /checkpoints
+      AUDIT_CHECKPOINT_KEY_ID: ${AUDIT_CHECKPOINT_KEY_ID:-home-v1}
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-production}
+      APP_RELEASE: ${APP_RELEASE:-development}
+    secrets:
+      - postgres_audit_password
+      - audit_checkpoint_signing_key
+    volumes:
+      - type: bind
+        source: ${BUDGET_AUDIT_CHECKPOINT_DIRECTORY:-/mnt/household-budget-audit-checkpoints}
+        target: /checkpoints
+        bind:
+          create_host_path: false
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    <<: *app-hardening
+    logging: *log-policy
+
   restore-verify:
     build:
       context: .
@@ -248,5 +282,7 @@ secrets:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_backup_password
   postgres_audit_password:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_audit_password
+  audit_checkpoint_signing_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/audit_checkpoint_signing_key
   restic_repository_password:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/restic_repository_password
