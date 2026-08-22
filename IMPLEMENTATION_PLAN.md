@@ -80,10 +80,11 @@ Exit criteria: a placeholder authenticated endpoint is reachable from an approve
 - Implement hash-chain verification and external checkpoint job
 - Add audit history UI foundation
 
-Progress: distinct email/password identities, generic login failures, HMAC-pseudonymized database
-rate limiting, idle/absolute session expiry, versioned logout-all-devices, active-household
-authorization, and a canonical per-household SHA-256 audit chain are implemented with security
-tests. MFA/recovery, first-household provisioning, PostgreSQL schema/role enforcement, external
+Progress: distinct email/password identities, encrypted TOTP enrollment, hash-only single-use
+recovery codes, generic and rate-limited authentication, idle/absolute session expiry,
+logout-all-devices, sensitive-action reauthentication, trusted-console two-user provisioning and
+emergency recovery, active-household authorization, and a canonical per-household SHA-256 audit
+chain are implemented with security tests. PostgreSQL schema/role enforcement, external
 checkpoints, and the read-only history UI remain in this milestone.
 
 Exit criteria: authentication/recovery tests pass; a sample domain mutation and audit event commit or roll back together; tampering fails verification.

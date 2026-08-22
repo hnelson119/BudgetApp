@@ -49,6 +49,7 @@ MIDDLEWARE = [
     "core.middleware.AuthenticatedNoStoreMiddleware",
     "core.middleware.ContentSecurityPolicyMiddleware",
     "core.middleware.ExceptionLoggingMiddleware",
+    "identity.middleware.MfaRequiredMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -119,6 +120,18 @@ SESSION_ACTIVITY_UPDATE_SECONDS = 60
 LOGIN_RATE_LIMIT_FAILURES = 5
 LOGIN_RATE_LIMIT_WINDOW_SECONDS = 15 * 60
 LOGIN_RATE_LIMIT_BLOCK_SECONDS = 15 * 60
+
+MFA_ENCRYPTION_KEY = os.getenv(
+    "DJANGO_MFA_ENCRYPTION_KEY",
+    "unsafe-development-mfa-key-not-for-production",
+)
+MFA_ENCRYPTION_KEY_VERSION = 1
+MFA_ISSUER = "Household Budget"
+MFA_PENDING_TIMEOUT_SECONDS = 5 * 60
+MFA_TOTP_PERIOD_SECONDS = 30
+MFA_TOTP_CLOCK_DRIFT_STEPS = 1
+MFA_RECOVERY_CODE_COUNT = 10
+RECENT_AUTH_TIMEOUT_SECONDS = 10 * 60
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024

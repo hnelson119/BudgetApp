@@ -1,0 +1,35 @@
+{% load static %}
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <title>Save recovery codes · Household Budget</title>
+    <link rel="stylesheet" href="{% static 'core/app.css' %}">
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="auth-card auth-card-wide" aria-labelledby="recovery-title">
+        <p class="eyebrow">Shown once</p>
+        <h1 id="recovery-title">Save your recovery codes</h1>
+        <p class="auth-intro">
+          Each code works once if your authenticator is unavailable. Store them in a password
+          manager or print them and keep them somewhere private. The app stores only hashes and
+          cannot show these codes again.
+        </p>
+
+        <ol class="recovery-code-grid" aria-label="One-time recovery codes">
+          {% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}
+        </ol>
+
+        <form method="post" action="{% url 'identity:mfa-recovery-confirm' %}" class="auth-form">
+          {% csrf_token %}
+          <label class="confirmation-check">{{ form.saved }} <span>{{ form.saved.label }}</span></label>
+          <button type="submit" class="primary-button">Finish secure setup</button>
+        </form>
+      </section>
+    </main>
+    <script src="{% static 'core/app.js' %}" defer></script>
+  </body>
+</html>

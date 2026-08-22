@@ -36,9 +36,8 @@ def test_home_page_loads_for_household_member(client) -> None:  # type: ignore[n
 
     response = client.get(reverse("core:home"))
 
-    assert response.status_code == 200
-    assert b"paycheck-to-paycheck" in response.content
-    assert b"Test Household" in response.content
+    assert response.status_code == 302
+    assert response.url == reverse("identity:mfa-enroll")
 
 
 def test_liveness_endpoint(client) -> None:  # type: ignore[no-untyped-def]

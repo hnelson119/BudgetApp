@@ -12,9 +12,11 @@ money rules.
 The local Milestone 0 baseline and encrypted backup/recovery portion of Milestone 1 are complete.
 Remote branch protection becomes enforceable when a private Git host is connected, and private
 Tailscale-only HTTPS configuration remains deployment-time work on the Linux VM. Milestone 2 is in
-progress: password authentication, login throttling, secure session controls, household
-authorization, and the canonical hash-chained audit service are implemented. MFA/recovery and
-PostgreSQL-enforced audit isolation remain required before household financial data is entered.
+progress: password authentication, encrypted TOTP enrollment, single-use recovery codes, login
+throttling, secure session controls, household authorization, trusted-console provisioning and
+recovery, and the canonical hash-chained audit service are implemented. PostgreSQL-enforced audit
+isolation, external checkpoints, and the read-only audit UI remain required before household
+financial data is entered.
 
 ## Local development
 
@@ -37,6 +39,25 @@ Open `http://127.0.0.1:8000/`. Run all local checks with:
 ```
 
 On Linux or macOS, activate `.venv/bin/activate` and use `./scripts/check.sh`.
+
+### First household provisioning
+
+After migrations, create the household and exactly two individual accounts from a trusted console.
+Passwords are prompted without echo and are never accepted as command-line arguments, environment
+variables, or configuration values:
+
+```powershell
+python manage.py bootstrap_household `
+  --household-name "Our Household" `
+  --user-email "first@example.com" --display-name "First person" `
+  --user-email "second@example.com" --display-name "Second person"
+```
+
+Each person is restricted to MFA enrollment at first login. TOTP seeds are encrypted with the
+separate `django_mfa_encryption_key` secret; recovery codes are displayed once and only salted
+password hashes are retained. If an authenticator and all recovery codes are lost, a VM
+administrator can run the interactive `reset_user_mfa <email> --reason "..."` command. That reset
+revokes every session, invalidates the old seed and codes, and creates a protected audit event.
 
 ### Local Docker verification on Windows
 
@@ -75,6 +96,7 @@ cp .env.example .env
 sudo install -d -m 0700 -o "$USER" -g "$USER" /etc/household-budget/secrets
 umask 077
 openssl rand -base64 64 > /etc/household-budget/secrets/django_secret_key
+openssl rand -base64 32 > /etc/household-budget/secrets/django_mfa_encryption_key
 openssl rand -base64 48 > /etc/household-budget/secrets/postgres_admin_password
 openssl rand -base64 48 > /etc/household-budget/secrets/postgres_runtime_password
 openssl rand -base64 48 > /etc/household-budget/secrets/postgres_migration_password

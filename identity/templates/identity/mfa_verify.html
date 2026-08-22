@@ -1,0 +1,40 @@
+{% load static %}
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <title>Verify sign-in · Household Budget</title>
+    <link rel="stylesheet" href="{% static 'core/app.css' %}">
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="auth-card" aria-labelledby="mfa-title">
+        <p class="eyebrow">Second verification step</p>
+        <h1 id="mfa-title">Verify it’s you</h1>
+        <p class="auth-intro">
+          Enter the current code from your authenticator, or use one of your saved recovery codes.
+        </p>
+
+        {% if form.non_field_errors %}
+          <div class="form-alert" role="alert">{{ form.non_field_errors.0 }}</div>
+        {% endif %}
+
+        <form method="post" action="{% url 'identity:mfa-verify' %}" class="auth-form">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          <div class="form-field">
+            <label for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+            {{ form.code }}
+            {% if form.code.errors %}<p class="field-error">{{ form.code.errors.0 }}</p>{% endif %}
+          </div>
+          <button type="submit" class="primary-button">Verify and sign in</button>
+        </form>
+
+        <p class="auth-help">Codes are checked locally and are never written to logs.</p>
+      </section>
+    </main>
+    <script src="{% static 'core/app.js' %}" defer></script>
+  </body>
+</html>

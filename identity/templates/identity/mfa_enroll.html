@@ -1,0 +1,49 @@
+{% load static %}
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <title>Set up MFA · Household Budget</title>
+    <link rel="stylesheet" href="{% static 'core/app.css' %}">
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="auth-card auth-card-wide" aria-labelledby="enroll-title">
+        <p class="eyebrow">Required account protection</p>
+        <h1 id="enroll-title">Set up an authenticator</h1>
+        <p class="auth-intro">
+          Scan this QR code with 1Password, Bitwarden, Microsoft Authenticator, Google
+          Authenticator, or another TOTP-compatible app. This seed is encrypted at rest and this
+          page is never cached.
+        </p>
+
+        <div class="enrollment-grid">
+          <img class="qr-code" src="{{ qr_data_uri }}" alt="Authenticator enrollment QR code">
+          <div>
+            <p class="form-label">Can’t scan it?</p>
+            <p class="auth-help auth-help-flush">Enter this setup key manually:</p>
+            <code class="setup-secret">{{ secret }}</code>
+          </div>
+        </div>
+
+        <form method="post" action="{% url 'identity:mfa-enroll' %}" class="auth-form">
+          {% csrf_token %}
+          <div class="form-field">
+            <label for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+            {{ form.code }}
+            {% if form.code.errors %}<p class="field-error">{{ form.code.errors.0 }}</p>{% endif %}
+          </div>
+          <button type="submit" class="primary-button">Verify authenticator</button>
+        </form>
+
+        <form method="post" action="{% url 'identity:logout' %}" class="inline-action">
+          {% csrf_token %}
+          <button type="submit" class="text-button">Sign out instead</button>
+        </form>
+      </section>
+    </main>
+    <script src="{% static 'core/app.js' %}" defer></script>
+  </body>
+</html>

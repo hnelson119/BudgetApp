@@ -1,0 +1,37 @@
+{% load static %}
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <title>Recovery-code confirmation · Household Budget</title>
+    <link rel="stylesheet" href="{% static 'core/app.css' %}">
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="auth-card" aria-labelledby="recovery-confirm-title">
+        <p class="eyebrow">Setup not yet complete</p>
+        <h1 id="recovery-confirm-title">Confirm your recovery codes</h1>
+        {% if can_confirm %}
+          <p class="auth-intro">Confirm that you saved the codes shown on the previous page.</p>
+          <form method="post" action="{% url 'identity:mfa-recovery-confirm' %}" class="auth-form">
+            {% csrf_token %}
+            <label class="confirmation-check">{{ form.saved }} <span>{{ form.saved.label }}</span></label>
+            <button type="submit" class="primary-button">Finish secure setup</button>
+          </form>
+        {% else %}
+          <div class="form-alert" role="alert">
+            Recovery codes cannot be displayed a second time. Restart setup to replace them with a
+            fresh set.
+          </div>
+          <form method="post" action="{% url 'identity:mfa-enrollment-restart' %}" class="auth-form">
+            {% csrf_token %}
+            <button type="submit" class="primary-button">Restart secure setup</button>
+          </form>
+        {% endif %}
+      </section>
+    </main>
+    <script src="{% static 'core/app.js' %}" defer></script>
+  </body>
+</html>

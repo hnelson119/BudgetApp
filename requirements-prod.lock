@@ -1,11 +1,16 @@
 # Production dependency lock for Python 3.12.
 # Regenerate and audit when pyproject.toml dependency constraints change.
 asgiref==3.12.1
+cffi==2.1.1
+colorama==0.4.6; sys_platform == "win32"
+cryptography==50.0.0
 Django==5.2.17
 gunicorn==23.0.0
 packaging==26.3
 psycopg==3.3.4
 psycopg-binary==3.3.4
+pycparser==3.0
+qrcode==8.2
 sqlparse==0.6.0
 tzdata==2026.3; sys_platform == "win32"
 whitenoise==6.12.0

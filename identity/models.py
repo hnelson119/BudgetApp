@@ -50,3 +50,43 @@ class LoginThrottle(models.Model):
 
     def __str__(self) -> str:
         return f"Login throttle {self.key_hash[:8]}"
+
+
+class MfaCredential(models.Model):
+    """Encrypted TOTP material and enrollment state for one user."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="mfa_credential",
+    )
+    encrypted_secret = models.TextField(editable=False)
+    key_version = models.PositiveSmallIntegerField(default=1, editable=False)
+    confirmed_at = models.DateTimeField(null=True, blank=True, editable=False)
+    recovery_codes_confirmed_at = models.DateTimeField(null=True, blank=True, editable=False)
+    last_used_step = models.BigIntegerField(null=True, blank=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"MFA credential for {self.user_id}"
+
+
+class RecoveryCode(models.Model):
+    """A single-use recovery code whose secret component is irreversibly hashed."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="recovery_codes")
+    identifier = models.CharField(max_length=8, unique=True, editable=False)
+    code_hash = models.CharField(max_length=256, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        ordering = ("created_at",)
+        indexes = [models.Index(fields=("user", "used_at"), name="recovery_code_user_state")]
+
+    def __str__(self) -> str:
+        state = "used" if self.used_at else "unused"
+        return f"Recovery code {self.identifier} ({state})"

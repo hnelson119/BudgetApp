@@ -13,6 +13,7 @@ STORAGES = {
 }
 
 SECRET_KEY = required_secret_file("DJANGO_SECRET_KEY", minimum_length=50)
+MFA_ENCRYPTION_KEY = required_secret_file("DJANGO_MFA_ENCRYPTION_KEY", minimum_length=43)
 
 required_database_values = {
     "POSTGRES_DB": required_environment("POSTGRES_DB"),

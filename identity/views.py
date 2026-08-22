@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
@@ -20,9 +21,34 @@ from audit.services import append_event
 from core.logging import current_request_id
 from households.models import HouseholdMembership
 from households.services.access import get_active_household
-from identity.forms import GENERIC_LOGIN_ERROR, SecureAuthenticationForm
-from identity.models import User
-from identity.services.sessions import establish_session_security
+from identity.forms import (
+    GENERIC_LOGIN_ERROR,
+    MfaVerificationForm,
+    ReauthenticationForm,
+    RecoveryCodesConfirmationForm,
+    SecureAuthenticationForm,
+    TotpEnrollmentForm,
+)
+from identity.models import MfaCredential, User
+from identity.services.mfa import (
+    begin_enrollment,
+    confirm_enrollment,
+    confirm_recovery_codes_saved,
+    mfa_is_ready,
+    mfa_verification_required,
+    provisioning_qr_data_uri,
+    reset_mfa,
+    verify_and_consume_recovery_code,
+    verify_and_consume_totp,
+)
+from identity.services.sessions import (
+    SESSION_RECOVERY_CONFIRMATION,
+    clear_pending_mfa,
+    establish_pending_mfa,
+    establish_session_security,
+    get_pending_mfa_user,
+    mark_recent_authentication,
+)
 from identity.services.throttling import (
     clear_login_failures,
     is_login_blocked,
@@ -31,6 +57,7 @@ from identity.services.throttling import (
 )
 
 security_logger = logging.getLogger("security")
+MFA_GENERIC_ERROR = "The verification code was not accepted."
 
 
 def _authenticated_user(request: HttpRequest) -> User:
@@ -57,6 +84,7 @@ def _record_protected_auth_event(
     action: str,
     request_id: str,
     authenticated_actor: bool,
+    method: str,
 ) -> None:
     memberships = HouseholdMembership.objects.filter(user=user, is_active=True).select_related(
         "household"
@@ -69,8 +97,32 @@ def _record_protected_auth_event(
             entity_type="identity.user",
             entity_id=user.pk,
             request_id=request_id,
-            after={"authentication_method": "password"},
+            after={"authentication_method": method},
         )
+
+
+def _set_active_household(request: HttpRequest, user: User) -> None:
+    memberships = list(
+        HouseholdMembership.objects.filter(user=user, is_active=True).order_by("joined_at")[:2]
+    )
+    if len(memberships) == 1:
+        request.session["active_household_id"] = str(memberships[0].household_id)
+
+
+def _complete_login(request: HttpRequest, user: User, *, method: str) -> None:
+    login(request, user)
+    clear_pending_mfa(request)
+    establish_session_security(request, user)
+    _set_active_household(request, user)
+    user.last_authenticated_at = timezone.now()
+    user.save(update_fields=("last_authenticated_at",))
+    _record_protected_auth_event(
+        user=user,
+        action="auth.login_succeeded",
+        request_id=current_request_id(),
+        authenticated_actor=True,
+        method=method,
+    )
 
 
 @sensitive_post_parameters("password")
@@ -97,36 +149,32 @@ def login_view(request: HttpRequest) -> HttpResponse:
             user = form.get_user()
             if not isinstance(user, User):
                 raise RuntimeError("The authentication backend returned an unexpected user type.")
+
+            if mfa_verification_required(user):
+                establish_pending_mfa(request, user)
+                security_logger.info(
+                    "Password authentication accepted; MFA is pending.",
+                    extra={"event": "auth.password_accepted"},
+                )
+                query = urlencode({"next": _safe_next_url(request)})
+                return redirect(f"{reverse('identity:mfa-verify')}?{query}")
+
             login(request, user)
             establish_session_security(request, user)
-            user.last_authenticated_at = timezone.now()
-            user.save(update_fields=("last_authenticated_at",))
-
-            memberships = list(
-                HouseholdMembership.objects.filter(user=user, is_active=True).order_by("joined_at")[
-                    :2
-                ]
-            )
-            if len(memberships) == 1:
-                request.session["active_household_id"] = str(memberships[0].household_id)
-
+            _set_active_household(request, user)
             try:
                 _record_protected_auth_event(
                     user=user,
-                    action="auth.login_succeeded",
+                    action="auth.mfa_enrollment_required",
                     request_id=current_request_id(),
                     authenticated_actor=True,
+                    method="password",
                 )
             except Exception:
                 logout(request)
                 raise
-
             clear_login_failures(keys)
-            security_logger.info(
-                "Authentication succeeded.",
-                extra={"event": "auth.login_succeeded", "method": "password"},
-            )
-            return redirect(_safe_next_url(request))
+            return redirect(reverse("identity:mfa-enroll"))
 
         if not blocked:
             blocked = register_login_failure(keys)
@@ -140,6 +188,7 @@ def login_view(request: HttpRequest) -> HttpResponse:
                 action="auth.login_failed",
                 request_id=current_request_id(),
                 authenticated_actor=False,
+                method="password",
             )
 
         if not form.non_field_errors():
@@ -154,6 +203,259 @@ def login_view(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "identity/login.html",
+        {"form": form, "next": _safe_next_url(request)},
+        status=status,
+    )
+
+
+@sensitive_post_parameters("code")
+@never_cache
+@require_http_methods(["GET", "POST"])
+def mfa_verify_view(request: HttpRequest) -> HttpResponse:
+    if request.user.is_authenticated:
+        return redirect(settings.LOGIN_REDIRECT_URL)
+    user = get_pending_mfa_user(request)
+    if user is None:
+        return redirect(reverse("identity:login"))
+
+    form = MfaVerificationForm(request.POST or None)
+    status = 200
+    if request.method == "POST" and form.is_valid():
+        keys = throttle_keys(request, str(user.pk), scope="mfa")
+        blocked = is_login_blocked(keys)
+        method = "totp"
+        verified = False
+        if not blocked:
+            code = form.cleaned_data["code"]
+            with transaction.atomic():
+                if len(code) == 6 and code.isdigit():
+                    verified = verify_and_consume_totp(user, code)
+                else:
+                    method = "recovery_code"
+                    verified = verify_and_consume_recovery_code(user, code)
+                if verified:
+                    _complete_login(request, user, method=f"password_{method}")
+
+        if verified:
+            clear_login_failures(keys)
+            clear_login_failures(throttle_keys(request, user.email))
+            security_logger.info(
+                "Multi-factor authentication succeeded.",
+                extra={"event": "auth.mfa_succeeded", "method": method},
+            )
+            return redirect(_safe_next_url(request))
+
+        if not blocked:
+            blocked = register_login_failure(keys)
+        _record_protected_auth_event(
+            user=user,
+            action="auth.mfa_failed",
+            request_id=current_request_id(),
+            authenticated_actor=False,
+            method="totp_or_recovery",
+        )
+        form.add_error(None, MFA_GENERIC_ERROR)
+        security_logger.warning(
+            "Multi-factor authentication failed.",
+            extra={"event": "auth.mfa_failed", "rate_limited": blocked},
+        )
+        if blocked:
+            status = 429
+
+    return render(
+        request,
+        "identity/mfa_verify.html",
+        {"form": form, "next": _safe_next_url(request)},
+        status=status,
+    )
+
+
+@login_required
+@sensitive_post_parameters("code")
+@never_cache
+@require_http_methods(["GET", "POST"])
+def mfa_enroll_view(request: HttpRequest) -> HttpResponse:
+    user = _authenticated_user(request)
+    if mfa_is_ready(user):
+        return redirect(settings.LOGIN_REDIRECT_URL)
+
+    enrollment = begin_enrollment(user)
+    if enrollment.credential.confirmed_at is not None:
+        return redirect(reverse("identity:mfa-recovery-confirm"))
+
+    form = TotpEnrollmentForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        household = get_active_household(request)
+        with transaction.atomic():
+            confirmed = confirm_enrollment(user, form.cleaned_data["code"])
+            if confirmed is not None:
+                user.refresh_from_db()
+                append_event(
+                    household=household,
+                    actor=user,
+                    action="auth.mfa_enrolled",
+                    entity_type="identity.user",
+                    entity_id=user.pk,
+                    request_id=current_request_id(),
+                    after={"method": "totp", "recovery_code_count": len(confirmed.recovery_codes)},
+                )
+        if confirmed is not None:
+            establish_session_security(request, user)
+            request.session[SESSION_RECOVERY_CONFIRMATION] = str(enrollment.credential.pk)
+            security_logger.warning(
+                "Multi-factor authentication was enrolled.",
+                extra={"event": "auth.mfa_enrolled", "method": "totp"},
+            )
+            return render(
+                request,
+                "identity/recovery_codes.html",
+                {
+                    "codes": confirmed.recovery_codes,
+                    "form": RecoveryCodesConfirmationForm(),
+                },
+            )
+        form.add_error("code", "That code was not accepted. Wait for a new code and try again.")
+
+    return render(
+        request,
+        "identity/mfa_enroll.html",
+        {
+            "form": form,
+            "secret": enrollment.secret,
+            "qr_data_uri": provisioning_qr_data_uri(user=user, secret=enrollment.secret),
+        },
+    )
+
+
+@login_required
+@never_cache
+@require_http_methods(["GET", "POST"])
+def mfa_recovery_confirm_view(request: HttpRequest) -> HttpResponse:
+    user = _authenticated_user(request)
+    if mfa_is_ready(user):
+        return redirect(settings.LOGIN_REDIRECT_URL)
+
+    credential = MfaCredential.objects.filter(user=user, confirmed_at__isnull=False).first()
+    if credential is None:
+        return redirect(reverse("identity:mfa-enroll"))
+
+    form = RecoveryCodesConfirmationForm(request.POST or None)
+    expected_credential = request.session.get(SESSION_RECOVERY_CONFIRMATION)
+    can_confirm = expected_credential == str(credential.pk)
+    if request.method == "POST" and can_confirm and form.is_valid():
+        household = get_active_household(request)
+        with transaction.atomic():
+            if not confirm_recovery_codes_saved(user):
+                raise RuntimeError("Recovery-code confirmation state is invalid.")
+            append_event(
+                household=household,
+                actor=user,
+                action="auth.recovery_codes_confirmed",
+                entity_type="identity.user",
+                entity_id=user.pk,
+                request_id=current_request_id(),
+                after={"stored_as": "one_way_hashes"},
+            )
+        request.session.pop(SESSION_RECOVERY_CONFIRMATION, None)
+        security_logger.warning(
+            "Recovery codes were confirmed.",
+            extra={"event": "auth.recovery_codes_confirmed"},
+        )
+        return redirect(settings.LOGIN_REDIRECT_URL)
+
+    return render(
+        request,
+        "identity/recovery_codes_confirm.html",
+        {"form": form, "can_confirm": can_confirm},
+    )
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def mfa_enrollment_restart_view(request: HttpRequest) -> HttpResponse:
+    user = _authenticated_user(request)
+    if mfa_is_ready(user):
+        raise PermissionDenied
+    household = get_active_household(request)
+    reset_mfa(user)
+    user.refresh_from_db()
+    append_event(
+        household=household,
+        actor=user,
+        action="auth.mfa_enrollment_restarted",
+        entity_type="identity.user",
+        entity_id=user.pk,
+        request_id=current_request_id(),
+    )
+    establish_session_security(request, user)
+    request.session.pop(SESSION_RECOVERY_CONFIRMATION, None)
+    return redirect(reverse("identity:mfa-enroll"))
+
+
+@login_required
+@sensitive_post_parameters("password", "code")
+@never_cache
+@require_http_methods(["GET", "POST"])
+def reauthenticate_view(request: HttpRequest) -> HttpResponse:
+    user = _authenticated_user(request)
+    household = get_active_household(request)
+    form = ReauthenticationForm(request.POST or None)
+    status = 200
+    if request.method == "POST" and form.is_valid():
+        keys = throttle_keys(request, str(user.pk), scope="reauthentication")
+        blocked = is_login_blocked(keys)
+        method = "totp"
+        verified = False
+        if not blocked and user.check_password(form.cleaned_data["password"]):
+            code = form.cleaned_data["code"]
+            with transaction.atomic():
+                if len(code) == 6 and code.isdigit():
+                    verified = verify_and_consume_totp(user, code)
+                else:
+                    method = "recovery_code"
+                    verified = verify_and_consume_recovery_code(user, code)
+                if verified:
+                    append_event(
+                        household=household,
+                        actor=user,
+                        action="auth.reauthentication_succeeded",
+                        entity_type="identity.user",
+                        entity_id=user.pk,
+                        request_id=current_request_id(),
+                        after={"method": f"password_{method}"},
+                    )
+
+        if verified:
+            clear_login_failures(keys)
+            mark_recent_authentication(request)
+            security_logger.info(
+                "Sensitive-action reauthentication succeeded.",
+                extra={"event": "auth.reauthentication_succeeded", "method": method},
+            )
+            return redirect(_safe_next_url(request))
+
+        if not blocked:
+            blocked = register_login_failure(keys)
+        append_event(
+            household=household,
+            actor=user,
+            action="auth.reauthentication_failed",
+            entity_type="identity.user",
+            entity_id=user.pk,
+            request_id=current_request_id(),
+        )
+        form.add_error(None, "Reauthentication was not accepted.")
+        security_logger.warning(
+            "Sensitive-action reauthentication failed.",
+            extra={"event": "auth.reauthentication_failed", "rate_limited": blocked},
+        )
+        if blocked:
+            status = 429
+
+    return render(
+        request,
+        "identity/reauthenticate.html",
         {"form": form, "next": _safe_next_url(request)},
         status=status,
     )

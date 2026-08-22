@@ -12,6 +12,12 @@ from households.models import Household, HouseholdMembership
 from households.services.access import require_household_membership
 from identity.forms import GENERIC_LOGIN_ERROR
 from identity.models import LoginThrottle
+from identity.services.mfa import (
+    begin_enrollment,
+    confirm_enrollment,
+    confirm_recovery_codes_saved,
+    totp_code,
+)
 from identity.services.sessions import SESSION_LAST_SEEN_AT
 
 TEST_PASSWORD = "correct-horse-battery-test"  # pragma: allowlist secret
@@ -27,6 +33,17 @@ def household_user(db):  # type: ignore[no-untyped-def]
     )
     HouseholdMembership.objects.create(household=household, user=user)
     return household, user
+
+
+@pytest.fixture
+def enrolled_household_user(household_user):  # type: ignore[no-untyped-def]
+    household, user = household_user
+    enrollment = begin_enrollment(user)
+    confirmed = confirm_enrollment(user, totp_code(enrollment.secret))
+    assert confirmed is not None
+    assert confirm_recovery_codes_saved(user) is True
+    user.refresh_from_db()
+    return household, user, confirmed.recovery_codes, enrollment.secret
 
 
 def _login(client: Client, *, email: str = "person@example.com", password: str = TEST_PASSWORD):
@@ -46,7 +63,7 @@ def test_login_page_is_not_cached(client: Client) -> None:
 
 
 @pytest.mark.django_db
-def test_successful_login_establishes_household_session_and_audit(
+def test_password_login_establishes_restricted_enrollment_session_and_audit(
     client: Client, household_user
 ) -> None:  # type: ignore[no-untyped-def]
     household, user = household_user
@@ -54,11 +71,11 @@ def test_successful_login_establishes_household_session_and_audit(
     response = _login(client)
 
     assert response.status_code == 302
-    assert response.url == reverse("core:home")
+    assert response.url == reverse("identity:mfa-enroll")
     session = client.session
     assert session["active_household_id"] == str(household.pk)
     assert session["security_user_version"] == user.session_version
-    event = AuditEvent.objects.get(action="auth.login_succeeded")
+    event = AuditEvent.objects.get(action="auth.mfa_enrollment_required")
     assert event.actor == user
     assert event.household == household
 
@@ -75,7 +92,7 @@ def test_login_rejects_external_redirect_target(client: Client, household_user) 
     )
 
     assert response.status_code == 302
-    assert response.url == reverse("core:home")
+    assert response.url == reverse("identity:mfa-enroll")
 
 
 @pytest.mark.django_db
@@ -166,11 +183,16 @@ def test_logout_is_post_only_and_audited(client: Client, household_user) -> None
 
 
 @pytest.mark.django_db
-def test_logout_all_devices_revokes_other_sessions_and_is_audited(household_user) -> None:  # type: ignore[no-untyped-def]
+def test_logout_all_devices_revokes_other_sessions_and_is_audited(
+    enrolled_household_user,
+) -> None:  # type: ignore[no-untyped-def]
+    _, _, codes, _ = enrolled_household_user
     first_client = Client()
     second_client = Client()
     _login(first_client)
+    first_client.post(reverse("identity:mfa-verify"), {"code": codes[0]})
     _login(second_client)
+    second_client.post(reverse("identity:mfa-verify"), {"code": codes[1]})
 
     response = first_client.post(reverse("identity:logout-all"))
     second_response = second_client.get(reverse("core:home"))

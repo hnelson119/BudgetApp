@@ -5,38 +5,33 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark light">
-    <title>Sign in · Household Budget</title>
+    <title>Confirm sensitive action · Household Budget</title>
     <link rel="stylesheet" href="{% static 'core/app.css' %}">
   </head>
   <body>
     <main class="auth-shell">
-      <section class="auth-card" aria-labelledby="sign-in-title">
-        <p class="eyebrow">Private household workspace</p>
-        <h1 id="sign-in-title">Sign in</h1>
-        <p class="auth-intro">Use your individual household account. Credentials are never shared.</p>
-
+      <section class="auth-card" aria-labelledby="reauth-title">
+        <p class="eyebrow">Sensitive action</p>
+        <h1 id="reauth-title">Confirm it’s you</h1>
+        <p class="auth-intro">
+          Re-enter your password and current authenticator code before continuing.
+        </p>
         {% if form.non_field_errors %}
           <div class="form-alert" role="alert">{{ form.non_field_errors.0 }}</div>
         {% endif %}
-
-        <form method="post" action="{% url 'identity:login' %}" class="auth-form">
+        <form method="post" action="{% url 'identity:reauthenticate' %}" class="auth-form">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ next }}">
-
-          <div class="form-field">
-            <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
-            {{ form.username }}
-          </div>
-
           <div class="form-field">
             <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
             {{ form.password }}
           </div>
-
-          <button type="submit" class="primary-button">Continue securely</button>
+          <div class="form-field">
+            <label for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+            {{ form.code }}
+          </div>
+          <button type="submit" class="primary-button">Confirm securely</button>
         </form>
-
-        <p class="auth-help">Your authenticator is required before household data can be opened.</p>
       </section>
     </main>
     <script src="{% static 'core/app.js' %}" defer></script>

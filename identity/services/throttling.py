@@ -19,7 +19,8 @@ class LoginThrottleKeys:
     network: str
 
     def ordered(self) -> tuple[str, str]:
-        return tuple(sorted((self.identifier, self.network)))  # type: ignore[return-value]
+        first, second = sorted((self.identifier, self.network))
+        return first, second
 
 
 def _pseudonymize(kind: str, value: str) -> str:
@@ -27,12 +28,17 @@ def _pseudonymize(kind: str, value: str) -> str:
     return hmac.new(settings.SECRET_KEY.encode(), message, hashlib.sha256).hexdigest()
 
 
-def throttle_keys(request: HttpRequest, email: str) -> LoginThrottleKeys:
-    normalized_email = email.strip().casefold()
+def throttle_keys(
+    request: HttpRequest,
+    subject: str,
+    *,
+    scope: str = "password",
+) -> LoginThrottleKeys:
+    normalized_subject = subject.strip().casefold()
     remote_address = str(request.META.get("REMOTE_ADDR") or "unknown")
     return LoginThrottleKeys(
-        identifier=_pseudonymize("identifier", normalized_email),
-        network=_pseudonymize("network", remote_address),
+        identifier=_pseudonymize(f"{scope}:identifier", normalized_subject),
+        network=_pseudonymize(f"{scope}:network", remote_address),
     )
 
 

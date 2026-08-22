@@ -187,6 +187,7 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 }
 
 .auth-card h1 { margin-bottom: 12px; font-size: clamp(2rem, 8vw, 3.2rem); }
+.auth-card-wide { width: min(700px, 100%); }
 .auth-intro, .auth-help { color: var(--muted); line-height: 1.55; }
 .auth-intro { margin-bottom: 28px; }
 .auth-help { margin: 24px 0 0; font-size: .86rem; }
@@ -219,6 +220,41 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   border-radius: 12px;
   background: rgba(180, 55, 55, .12);
 }
+.field-error { margin: 0; color: #ef9696; font-size: .82rem; }
+.form-label { margin: 0 0 6px; font-size: .85rem; font-weight: 750; }
+.auth-help-flush { margin-top: 0; }
+.enrollment-grid {
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) 1fr;
+  gap: 28px;
+  align-items: center;
+  margin: 0 0 28px;
+}
+.qr-code { width: 100%; border-radius: 12px; background: #fff; }
+.setup-secret {
+  display: block;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  line-height: 1.6;
+}
+.recovery-code-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 28px;
+  margin: 0 0 28px;
+  padding: 20px 20px 20px 46px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg);
+}
+.recovery-code-grid code { color: var(--text); font-size: .86rem; overflow-wrap: anywhere; }
+.confirmation-check { display: flex; gap: 10px; align-items: flex-start; line-height: 1.45; }
+.confirmation-check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); }
+.inline-action { margin-top: 18px; text-align: center; }
+.text-button { border: 0; background: transparent; color: var(--muted); cursor: pointer; text-decoration: underline; }
 
 @media (max-width: 850px) {
   .hero { grid-template-columns: 1fr; margin-top: 48px; }
@@ -232,4 +268,5 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .module-grid { grid-template-columns: 1fr; }
   .module-grid article { min-height: 150px; }
   .module-grid h3 { margin-top: 30px; }
+  .enrollment-grid, .recovery-code-grid { grid-template-columns: 1fr; }
 }

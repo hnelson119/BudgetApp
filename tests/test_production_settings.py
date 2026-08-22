@@ -17,9 +17,10 @@ def test_production_django_security_check_passes(tmp_path: Path) -> None:
         }
     )
     environment.pop("DJANGO_SECRET_KEY", None)
+    environment.pop("DJANGO_MFA_ENCRYPTION_KEY", None)
     environment.pop("POSTGRES_PASSWORD", None)
 
-    for name in ("DJANGO_SECRET_KEY", "POSTGRES_PASSWORD"):
+    for name in ("DJANGO_SECRET_KEY", "DJANGO_MFA_ENCRYPTION_KEY", "POSTGRES_PASSWORD"):
         secret_path = tmp_path / name.casefold()
         secret_path.write_text((f"value-for-{name}-9Z!" * 6), encoding="utf-8")
         environment[f"{name}_FILE"] = str(secret_path)

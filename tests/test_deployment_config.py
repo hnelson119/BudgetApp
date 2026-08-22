@@ -49,7 +49,7 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert compose["services"]["db"]["networks"] == ["backend"]
     assert not any(part in web["command"] for part in ("migrate", "collectstatic"))
 
-    forbidden_keys = {"DJANGO_SECRET_KEY", "POSTGRES_PASSWORD"}
+    forbidden_keys = {"DJANGO_SECRET_KEY", "DJANGO_MFA_ENCRYPTION_KEY", "POSTGRES_PASSWORD"}
     for mapping in _walk_mappings(compose):
         assert forbidden_keys.isdisjoint(mapping)
 
@@ -64,7 +64,11 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     backup = services["backup"]
     restore = services["restore-verify"]
 
-    assert set(web["secrets"]) == {"django_secret_key", "postgres_runtime_password"}
+    assert set(web["secrets"]) == {
+        "django_secret_key",
+        "django_mfa_encryption_key",
+        "postgres_runtime_password",
+    }
     assert "postgres_backup_password" not in web["secrets"]
     assert "restic_repository_password" not in web["secrets"]
     assert all("repository" not in str(volume) for volume in web["volumes"])

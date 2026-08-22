@@ -45,3 +45,60 @@ class SecureAuthenticationForm(AuthenticationForm):
     def confirm_login_allowed(self, user: Any) -> None:
         if not user.is_active:
             raise self.get_invalid_login_error()
+
+
+class MfaVerificationForm(forms.Form):
+    code = forms.CharField(
+        label="Authenticator or recovery code",
+        min_length=6,
+        max_length=64,
+        strip=True,
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "one-time-code",
+                "autofocus": True,
+                "spellcheck": "false",
+            }
+        ),
+    )
+
+    def clean_code(self) -> str:
+        return str(self.cleaned_data["code"]).strip()
+
+
+class TotpEnrollmentForm(forms.Form):
+    code = forms.RegexField(
+        label="6-digit code",
+        regex=r"^[0-9]{6}$",
+        error_messages={"invalid": "Enter the 6-digit code from your authenticator app."},
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "one-time-code",
+                "autofocus": True,
+                "inputmode": "numeric",
+                "pattern": "[0-9]{6}",
+            }
+        ),
+    )
+
+
+class RecoveryCodesConfirmationForm(forms.Form):
+    saved = forms.BooleanField(
+        label="I saved these recovery codes somewhere secure.",
+        required=True,
+    )
+
+
+class ReauthenticationForm(forms.Form):
+    password = forms.CharField(
+        label="Password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
+    code = forms.CharField(
+        label="Authenticator or recovery code",
+        min_length=6,
+        max_length=64,
+        strip=True,
+        widget=forms.TextInput(attrs={"autocomplete": "one-time-code", "spellcheck": "false"}),
+    )
