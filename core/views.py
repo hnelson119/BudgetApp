@@ -1,10 +1,15 @@
+from django.contrib.auth.decorators import login_required
 from django.db import connection
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 
+from households.services.access import get_active_household
 
+
+@login_required
 def home(request: HttpRequest) -> HttpResponse:
-    return render(request, "core/home.html")
+    household = get_active_household(request)
+    return render(request, "core/home.html", {"household": household})
 
 
 def live(request: HttpRequest) -> JsonResponse:

@@ -9,11 +9,12 @@ money rules.
 
 ## Current milestone
 
-The local Milestone 0 baseline and the encrypted backup/recovery portion of Milestone 1 are
-complete. Remote branch protection becomes enforceable when a private Git host is connected. The
-remaining private deployment work is Tailscale-only HTTPS configuration on the Linux VM.
-Application work then moves to authentication, household authorization, and the protected audit
-foundation before household financial data is entered.
+The local Milestone 0 baseline and encrypted backup/recovery portion of Milestone 1 are complete.
+Remote branch protection becomes enforceable when a private Git host is connected, and private
+Tailscale-only HTTPS configuration remains deployment-time work on the Linux VM. Milestone 2 is in
+progress: password authentication, login throttling, secure session controls, household
+authorization, and the canonical hash-chained audit service are implemented. MFA/recovery and
+PostgreSQL-enforced audit isolation remain required before household financial data is entered.
 
 ## Local development
 
@@ -107,7 +108,7 @@ existing off-VM mount; it is deliberately unavailable to the web container.
 python -m pytest
 python -m ruff check .
 python -m ruff format --check .
-python -m mypy budgets core debts households identity spending
+python -m mypy audit budgets core debts households identity spending
 python manage.py makemigrations --check --dry-run --settings=config.settings.test
 python scripts/secret_scan.py
 python -m bandit -c pyproject.toml -r audit budgets config core debts goals households identity imports ledger notifications periods reserves schedules spending

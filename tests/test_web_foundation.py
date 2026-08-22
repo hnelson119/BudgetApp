@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.urls import reverse
 
+from households.models import Household, HouseholdMembership
+
 TEST_PASSWORD = "safe-test-pass"  # pragma: allowlist secret
 
 
@@ -17,11 +19,26 @@ def test_email_is_normalized_and_case_insensitively_unique() -> None:
         user_model.objects.create_user(email="Person@example.com", password=TEST_PASSWORD)
 
 
-def test_home_page_loads(client) -> None:  # type: ignore[no-untyped-def]
+@pytest.mark.django_db
+def test_home_page_requires_authentication(client) -> None:  # type: ignore[no-untyped-def]
+    response = client.get(reverse("core:home"))
+
+    assert response.status_code == 302
+    assert response.url.startswith(reverse("identity:login"))
+
+
+@pytest.mark.django_db
+def test_home_page_loads_for_household_member(client) -> None:  # type: ignore[no-untyped-def]
+    user = get_user_model().objects.create_user(email="member@example.com", password=TEST_PASSWORD)
+    household = Household.objects.create(name="Test Household")
+    HouseholdMembership.objects.create(user=user, household=household)
+    client.force_login(user)
+
     response = client.get(reverse("core:home"))
 
     assert response.status_code == 200
     assert b"paycheck-to-paycheck" in response.content
+    assert b"Test Household" in response.content
 
 
 def test_liveness_endpoint(client) -> None:  # type: ignore[no-untyped-def]

@@ -1,6 +1,6 @@
 # Household Budget Application — Implementation Plan
 
-Status: Milestone 1 in progress
+Status: Milestone 2 in progress
 Last updated: 2026-08-22
 
 ## 1. Locked architecture
@@ -79,6 +79,12 @@ Exit criteria: a placeholder authenticated endpoint is reachable from an approve
 - Implement append-only audit writes in the same transaction as domain changes
 - Implement hash-chain verification and external checkpoint job
 - Add audit history UI foundation
+
+Progress: distinct email/password identities, generic login failures, HMAC-pseudonymized database
+rate limiting, idle/absolute session expiry, versioned logout-all-devices, active-household
+authorization, and a canonical per-household SHA-256 audit chain are implemented with security
+tests. MFA/recovery, first-household provisioning, PostgreSQL schema/role enforcement, external
+checkpoints, and the read-only history UI remain in this milestone.
 
 Exit criteria: authentication/recovery tests pass; a sample domain mutation and audit event commit or roll back together; tampering fails verification.
 

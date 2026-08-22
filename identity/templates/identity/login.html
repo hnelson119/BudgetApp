@@ -1,0 +1,44 @@
+{% load static %}
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <title>Sign in · Household Budget</title>
+    <link rel="stylesheet" href="{% static 'core/app.css' %}">
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="auth-card" aria-labelledby="sign-in-title">
+        <p class="eyebrow">Private household workspace</p>
+        <h1 id="sign-in-title">Sign in</h1>
+        <p class="auth-intro">Use your individual household account. Credentials are never shared.</p>
+
+        {% if form.non_field_errors %}
+          <div class="form-alert" role="alert">{{ form.non_field_errors.0 }}</div>
+        {% endif %}
+
+        <form method="post" action="{% url 'identity:login' %}" class="auth-form">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+
+          <div class="form-field">
+            <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+            {{ form.username }}
+          </div>
+
+          <div class="form-field">
+            <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+            {{ form.password }}
+          </div>
+
+          <button type="submit" class="primary-button">Continue securely</button>
+        </form>
+
+        <p class="auth-help">MFA enrollment will be required before household data is entered.</p>
+      </section>
+    </main>
+    <script src="{% static 'core/app.js' %}" defer></script>
+  </body>
+</html>

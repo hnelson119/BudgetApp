@@ -7,11 +7,11 @@ from .models import User
 @admin.register(User)
 class HouseholdUserAdmin(UserAdmin):
     ordering = ("email",)
-    list_display = ("email", "first_name", "last_name", "is_staff", "is_active")
-    search_fields = ("email", "first_name", "last_name")
+    list_display = ("email", "display_name", "is_staff", "is_active", "mfa_enrolled_at")
+    search_fields = ("email", "display_name", "first_name", "last_name")
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Personal information", {"fields": ("first_name", "last_name")}),
+        ("Personal information", {"fields": ("display_name", "first_name", "last_name")}),
         (
             "Permissions",
             {
@@ -24,7 +24,18 @@ class HouseholdUserAdmin(UserAdmin):
                 )
             },
         ),
-        ("Important dates", {"fields": ("last_login", "date_joined")}),
+        (
+            "Security state",
+            {
+                "fields": (
+                    "session_version",
+                    "mfa_enrolled_at",
+                    "last_authenticated_at",
+                    "last_login",
+                    "date_joined",
+                )
+            },
+        ),
     )
     add_fieldsets = (
         (

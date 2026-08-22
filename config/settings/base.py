@@ -44,6 +44,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "identity.middleware.SecureSessionMiddleware",
     "core.middleware.ActorContextMiddleware",
     "core.middleware.AuthenticatedNoStoreMiddleware",
     "core.middleware.ContentSecurityPolicyMiddleware",
@@ -108,9 +109,16 @@ LOGOUT_REDIRECT_URL = "/accounts/login/"
 # application middleware in the authentication milestone.
 SESSION_COOKIE_AGE = 60 * 60 * 12
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "Strict"
 CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Strict"
+SESSION_IDLE_TIMEOUT_SECONDS = 60 * 60
+SESSION_ABSOLUTE_TIMEOUT_SECONDS = 60 * 60 * 12
+SESSION_ACTIVITY_UPDATE_SECONDS = 60
+
+LOGIN_RATE_LIMIT_FAILURES = 5
+LOGIN_RATE_LIMIT_WINDOW_SECONDS = 15 * 60
+LOGIN_RATE_LIMIT_BLOCK_SECONDS = 15 * 60
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024

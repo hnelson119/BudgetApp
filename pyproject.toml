@@ -49,6 +49,7 @@ include = [
 
 [tool.setuptools.package-data]
 core = ["templates/core/*.html", "static/core/*"]
+identity = ["templates/identity/*.html"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
