@@ -54,7 +54,7 @@ core = ["templates/core/*.html", "static/core/*"]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py", "*_test.py"]
 testpaths = ["tests"]
-addopts = "--strict-markers --strict-config"
+addopts = "--strict-markers --strict-config --basetemp=.pytest-tmp"
 
 [tool.coverage.run]
 branch = true

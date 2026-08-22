@@ -168,3 +168,11 @@ def test_linux_entrypoints_are_forced_to_lf_in_git() -> None:
     assert "*.sh text eol=lf" in attributes
     assert "Dockerfile* text eol=lf" in attributes
     assert "*.yml text eol=lf" in attributes
+
+
+def test_pytest_temporary_files_stay_inside_the_checkout() -> None:
+    pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    gitignore = (PROJECT_ROOT / ".gitignore").read_text(encoding="utf-8")
+
+    assert "--basetemp=.pytest-tmp" in pyproject
+    assert ".pytest-tmp/" in gitignore
