@@ -1,0 +1,56 @@
+name: Quality and security
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Python, Django, and security checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      BUDGET_SECRET_DIR: /tmp/household-budget-ci-secrets
+      BUDGET_BACKUP_REPOSITORY: /tmp/household-budget-ci-backups
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      DJANGO_CSRF_TRUSTED_ORIGINS: https://localhost,https://127.0.0.1
+
+    steps:
+      - name: Check out the source without persisted credentials
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install the supported Python runtime
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+
+      - name: Install locked development dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --requirement requirements-dev.lock
+          .venv/bin/python -m pip install --no-deps --editable .
+
+      - name: Run application quality and security checks
+        run: sh scripts/check.sh
+
+      - name: Audit the locked dependency set
+        run: >-
+          .venv/bin/python -m pip_audit --requirement requirements-dev.lock
+          --cache-dir .pip-audit-cache --no-deps --disable-pip --strict
+
+      - name: Validate every Compose profile without starting services
+        run: docker compose --profile maintenance --profile recovery config --quiet

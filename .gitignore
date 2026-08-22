@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pip-audit-cache/
+.coverage
+htmlcov/
+
+# Virtual environments and local configuration
+.venv/
+.env
+.env.*
+!.env.example
+secrets/
+local-test-secrets/
+
+# Django runtime files
+db.sqlite3
+media/
+staticfiles/
+logs/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Front-end dependencies (reserved for a later milestone)
+node_modules/
+
+# Local database and backup data
+postgres-data/
+backups/

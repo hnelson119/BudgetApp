@@ -1,0 +1,185 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b1118;
+  --surface: #121b25;
+  --surface-raised: #182431;
+  --text: #eff6f3;
+  --muted: #9cacb5;
+  --line: #2a3947;
+  --accent: #49d6a6;
+  --accent-soft: rgba(73, 214, 166, 0.13);
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.25);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #edf2f0;
+  --surface: #ffffff;
+  --surface-raised: #f7faf9;
+  --text: #14221e;
+  --muted: #60716b;
+  --line: #d7e1dd;
+  --accent: #087c5b;
+  --accent-soft: rgba(8, 124, 91, 0.09);
+  --shadow: 0 24px 70px rgba(40, 72, 61, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 80% 5%, var(--accent-soft), transparent 30%), var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button { font: inherit; }
+a { color: inherit; }
+
+.shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 32px 0 64px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+h1, h2, h3, p { margin-top: 0; }
+h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
+
+.eyebrow {
+  margin-bottom: 6px;
+  color: var(--accent);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.theme-toggle {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  margin-top: 72px;
+  padding: clamp(28px, 5vw, 60px);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: linear-gradient(135deg, var(--surface), var(--surface-raised));
+  box-shadow: var(--shadow);
+}
+
+.hero h2 {
+  max-width: 700px;
+  margin-bottom: 16px;
+  font-size: clamp(2.1rem, 5vw, 4.2rem);
+  line-height: 1.02;
+  letter-spacing: -.045em;
+}
+
+.hero > div > p:not(.status) {
+  max-width: 680px;
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  color: var(--accent);
+  font-size: .82rem;
+  font-weight: 750;
+}
+
+.status span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 18px var(--accent);
+}
+
+.period-card {
+  align-self: end;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--bg);
+}
+
+.period-card p, .period-card small { color: var(--muted); }
+.period-card p { margin-bottom: 10px; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+.period-card strong { display: block; margin-bottom: 10px; font-size: 1.25rem; }
+.period-card small { line-height: 1.5; }
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.module-grid article {
+  min-height: 190px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.module-grid span { color: var(--accent); font: 700 .75rem/1 monospace; }
+.module-grid h3 { margin: 44px 0 8px; font-size: 1.1rem; }
+.module-grid p { margin-bottom: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
+
+.error-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+}
+
+.error-card {
+  width: min(620px, 100%);
+  padding: clamp(28px, 6vw, 56px);
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.error-card h1 { margin-bottom: 16px; font-size: clamp(2rem, 5vw, 3.4rem); }
+.error-card > p:not(.eyebrow) { color: var(--muted); line-height: 1.6; }
+.error-reference { margin: 28px 0; }
+.error-reference code { color: var(--text); overflow-wrap: anywhere; }
+.home-link { color: var(--accent); font-weight: 750; }
+
+@media (max-width: 850px) {
+  .hero { grid-template-columns: 1fr; margin-top: 48px; }
+  .module-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 520px) {
+  .shell { width: min(100% - 24px, 1180px); padding-top: 20px; }
+  .topbar { align-items: flex-start; }
+  .hero { margin-top: 32px; padding: 24px; border-radius: 22px; }
+  .module-grid { grid-template-columns: 1fr; }
+  .module-grid article { min-height: 150px; }
+  .module-grid h3 { margin-top: 30px; }
+}

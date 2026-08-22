@@ -1,0 +1,56 @@
+# Development dependency lock for Python 3.12.
+# Includes requirements-prod.lock transitively plus the [dev] toolchain.
+asgiref==3.12.1
+bandit==1.9.4
+boolean.py==5.0
+CacheControl==0.14.4
+certifi==2026.7.22
+charset-normalizer==3.5.1
+colorama==0.4.6; sys_platform == "win32"
+coverage==7.15.4
+cyclonedx-python-lib==11.12.0
+defusedxml==0.7.1
+detect-secrets==1.5.0
+Django==5.2.17
+django-stubs==5.2.9
+django-stubs-ext==6.1.0
+filelock==3.32.3
+gunicorn==23.0.0
+idna==3.19
+iniconfig==2.3.0
+librt==0.15.0; sys_platform == "win32"
+license-expression==30.4.4
+markdown-it-py==4.2.0
+mdurl==0.1.2
+msgpack==1.2.1
+mypy==1.20.2
+mypy_extensions==1.1.0
+packageurl-python==0.17.6
+packaging==26.3
+pathspec==1.1.1
+pip-api==0.0.34
+pip-requirements-parser==32.0.1
+pip_audit==2.10.1
+platformdirs==4.11.3
+pluggy==1.6.0
+psycopg==3.3.4
+psycopg-binary==3.3.4
+py-serializable==2.1.0
+Pygments==2.21.0
+pyparsing==3.3.2
+pytest==9.1.1
+pytest-django==4.14.0
+PyYAML==6.0.3
+requests==2.34.2
+rich==15.0.0
+ruff==0.16.4
+sortedcontainers==2.4.0
+sqlparse==0.6.0
+stevedore==5.9.1
+tomli==2.4.1
+tomli_w==1.2.0
+types-PyYAML==6.0.12.20260815
+typing_extensions==4.16.0
+tzdata==2026.3; sys_platform == "win32"
+urllib3==2.7.0
+whitenoise==6.12.0

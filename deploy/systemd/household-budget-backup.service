@@ -1,0 +1,18 @@
+[Unit]
+Description=Create and verify the encrypted Household Budget PostgreSQL backup
+Documentation=file:/opt/household-budget/docs/BACKUP_AND_RESTORE.md
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+ConditionPathIsDirectory=/opt/household-budget
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/household-budget
+EnvironmentFile=/etc/household-budget/household-budget.env
+Environment=COMPOSE_PROJECT_NAME=household-budget
+ExecStart=/usr/bin/docker compose --profile maintenance run --rm backup
+TimeoutStartSec=2h
+UMask=0077
+StandardOutput=journal
+StandardError=journal

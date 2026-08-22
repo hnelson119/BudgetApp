@@ -1,0 +1,247 @@
+x-app-environment: &app-environment
+  DJANGO_SETTINGS_MODULE: config.settings.production
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?Set DJANGO_ALLOWED_HOSTS}
+  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:?Set DJANGO_CSRF_TRUSTED_ORIGINS}
+  DJANGO_TIME_ZONE: ${DJANGO_TIME_ZONE:-America/New_York}
+  DJANGO_LOG_LEVEL: ${DJANGO_LOG_LEVEL:-INFO}
+  APP_ENVIRONMENT: ${APP_ENVIRONMENT:-production}
+  APP_RELEASE: ${APP_RELEASE:-development}
+  DATABASE_HOST: db
+  DATABASE_PORT: "5432"
+  DATABASE_CONN_MAX_AGE: ${DATABASE_CONN_MAX_AGE:-60}
+  POSTGRES_DB: ${POSTGRES_DB:-household_budget}
+  DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
+
+x-app-hardening: &app-hardening
+  read_only: true
+  init: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+
+x-log-policy: &log-policy
+  driver: local
+  options:
+    max-size: 20m
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-household_budget}
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER:-budget_admin}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin_password
+    secrets:
+      - postgres_admin_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+    logging: *log-policy
+
+  db-bootstrap:
+    image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+    profiles: ["maintenance"]
+    entrypoint: ["/bin/sh", "/usr/local/bin/bootstrap-roles.sh"]
+    environment:
+      DATABASE_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-household_budget}
+      POSTGRES_ADMIN_USER: ${POSTGRES_ADMIN_USER:-budget_admin}
+      POSTGRES_RUNTIME_USER: ${POSTGRES_RUNTIME_USER:-budget_runtime}
+      POSTGRES_MIGRATION_USER: ${POSTGRES_MIGRATION_USER:-budget_migration}
+      POSTGRES_BACKUP_USER: ${POSTGRES_BACKUP_USER:-budget_backup}
+      POSTGRES_AUDIT_USER: ${POSTGRES_AUDIT_USER:-budget_audit}
+    secrets:
+      - postgres_admin_password
+      - postgres_runtime_password
+      - postgres_migration_password
+      - postgres_backup_password
+      - postgres_audit_password
+    volumes:
+      - ./deploy/postgres/bootstrap-roles.sh:/usr/local/bin/bootstrap-roles.sh:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    read_only: true
+    user: postgres
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    logging: *log-policy
+
+  migrate:
+    build:
+      context: .
+    profiles: ["maintenance"]
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    environment:
+      <<: *app-environment
+      POSTGRES_USER: ${POSTGRES_MIGRATION_USER:-budget_migration}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_migration_password
+    secrets:
+      - django_secret_key
+      - postgres_migration_password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    <<: *app-hardening
+    logging: *log-policy
+
+  backup:
+    build:
+      context: .
+      dockerfile: deploy/backup/Dockerfile
+    profiles: ["maintenance"]
+    command: ["/usr/local/bin/backup.sh"]
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-household_budget}
+      POSTGRES_BACKUP_USER: ${POSTGRES_BACKUP_USER:-budget_backup}
+      APP_RELEASE: ${APP_RELEASE:-development}
+      RESTIC_REPOSITORY: /repository
+      RESTIC_PASSWORD_FILE: /run/secrets/restic_repository_password
+      RESTIC_CACHE_DIR: /tmp/restic-cache
+      BACKUP_RETENTION_DAILY: ${BACKUP_RETENTION_DAILY:-7}
+      BACKUP_RETENTION_WEEKLY: ${BACKUP_RETENTION_WEEKLY:-4}
+      BACKUP_RETENTION_MONTHLY: ${BACKUP_RETENTION_MONTHLY:-12}
+    secrets:
+      - postgres_backup_password
+      - restic_repository_password
+    volumes:
+      - type: bind
+        source: ${BUDGET_BACKUP_REPOSITORY:-/mnt/household-budget-backups}
+        target: /repository
+        bind:
+          create_host_path: false
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    read_only: true
+    user: postgres
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    logging: *log-policy
+
+  restore-verify:
+    build:
+      context: .
+      dockerfile: deploy/backup/Dockerfile
+    profiles: ["recovery"]
+    command: ["/usr/local/bin/restore-verify.sh"]
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-household_budget}
+      POSTGRES_ADMIN_USER: ${POSTGRES_ADMIN_USER:-budget_admin}
+      RESTIC_REPOSITORY: /repository
+      RESTIC_PASSWORD_FILE: /run/secrets/restic_repository_password
+      RESTIC_CACHE_DIR: /tmp/restic-cache
+      RESTORE_SNAPSHOT_ID: ${RESTORE_SNAPSHOT_ID:-latest}
+      RESTORE_TARGET_DB: ${RESTORE_TARGET_DB:-}
+    secrets:
+      - postgres_admin_password
+      - restic_repository_password
+    volumes:
+      - type: bind
+        source: ${BUDGET_BACKUP_REPOSITORY:-/mnt/household-budget-backups}
+        target: /repository
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    read_only: true
+    user: postgres
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    logging: *log-policy
+
+  web:
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+      POSTGRES_USER: ${POSTGRES_RUNTIME_USER:-budget_runtime}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+    secrets:
+      - django_secret_key
+      - postgres_runtime_password
+    command:
+      - gunicorn
+      - config.wsgi:application
+      - --bind
+      - 0.0.0.0:8000
+      - --workers
+      - "2"
+      - --error-logfile
+      - "-"
+      - --capture-output
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - media_data:/app/media
+    networks:
+      - frontend
+      - backend
+    <<: *app-hardening
+    logging: *log-policy
+
+volumes:
+  postgres_data:
+  media_data:
+
+networks:
+  frontend:
+  backend:
+    internal: true
+
+secrets:
+  django_secret_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/django_secret_key
+  postgres_admin_password:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_admin_password
+  postgres_runtime_password:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_runtime_password
+  postgres_migration_password:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_migration_password
+  postgres_backup_password:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_backup_password
+  postgres_audit_password:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_audit_password
+  restic_repository_password:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/restic_repository_password

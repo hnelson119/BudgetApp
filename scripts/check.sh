@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+set -eu
+
+project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+python_path="$project_root/.venv/bin/python"
+
+if [ ! -x "$python_path" ]; then
+  echo "Virtual environment not found. Create .venv and install the development dependencies first." >&2
+  exit 1
+fi
+
+cd "$project_root"
+"$python_path" manage.py check --settings=config.settings.test
+"$python_path" manage.py makemigrations --check --dry-run --settings=config.settings.test
+"$python_path" -m ruff check .
+"$python_path" -m ruff format --check .
+"$python_path" -m mypy budgets core debts households identity spending
+"$python_path" scripts/secret_scan.py
+"$python_path" -m bandit -q -c pyproject.toml -r \
+  audit budgets config core debts goals households identity imports ledger \
+  notifications periods reserves schedules spending
+"$python_path" -m pytest

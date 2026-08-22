@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the encrypted Household Budget backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+RandomizedDelaySec=30m
+Persistent=true
+AccuracySec=1m
+Unit=household-budget-backup.service
+
+[Install]
+WantedBy=timers.target
