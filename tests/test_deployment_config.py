@@ -70,6 +70,10 @@ def test_parameterless_postgresql_migration_sql_escapes_percent_literals() -> No
             "audit.migrations.0004_postgresql_protect_checkpoints",
             ("PROTECT_CHECKPOINT_SQL", "UNPROTECT_CHECKPOINT_SQL"),
         ),
+        (
+            "ledger.migrations.0002_postgresql_protect_history",
+            ("PROTECT_LEDGER_HISTORY_SQL", "UNPROTECT_LEDGER_HISTORY_SQL"),
+        ),
     )
 
     for module_name, attribute_names in migration_sql:
@@ -77,6 +81,19 @@ def test_parameterless_postgresql_migration_sql_escapes_percent_literals() -> No
         for attribute_name in attribute_names:
             sql = getattr(module, attribute_name)
             assert re.search(r"(?<!%)%(?!%)", sql) is None
+
+
+def test_postgresql_committed_ledger_history_has_database_mutation_guards() -> None:
+    migration = (PROJECT_ROOT / "ledger/migrations/0002_postgresql_protect_history.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "ledger_journalentry" in migration
+    assert "ledger_journalposting" in migration
+    assert "ledger_balancesnapshot" in migration
+    assert migration.count("BEFORE UPDATE OR DELETE") == 3
+    assert migration.count("BEFORE TRUNCATE") == 3
+    assert "committed ledger records cannot be %%" in migration
 
 
 def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:

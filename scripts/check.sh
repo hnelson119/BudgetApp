@@ -14,7 +14,7 @@ cd "$project_root"
 "$python_path" manage.py makemigrations --check --dry-run --settings=config.settings.test
 "$python_path" -m ruff check .
 "$python_path" -m ruff format --check .
-"$python_path" -m mypy audit budgets core debts households identity spending
+"$python_path" -m mypy audit budgets core debts households identity ledger spending
 "$python_path" scripts/secret_scan.py
 "$python_path" -m bandit -q -c pyproject.toml -r \
   audit budgets config core debts goals households identity imports ledger \
