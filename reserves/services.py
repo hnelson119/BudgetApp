@@ -91,3 +91,63 @@ def record_period_closing_delta(
         reason=reason.strip(),
     )
     return entry
+
+
+@transaction.atomic
+def allocate_reserve(
+    *,
+    household: Household,
+    actor: User,
+    posting_period: PayPeriod,
+    amount: Decimal,
+    allocation_label: str,
+    request_id: str,
+    reason: str = "",
+) -> ReserveEntry:
+    require_household_membership(actor, household)
+    Household.objects.select_for_update().get(pk=household.pk)
+    period = PayPeriod.objects.select_for_update().get(pk=posting_period.pk)
+    if period.household_id != household.pk:
+        raise ValidationError("The reserve allocation period belongs to another household.")
+    if period.status == PayPeriod.Status.CLOSED:
+        raise ValidationError("Reserve allocations cannot post to a closed paycheck period.")
+    normalized = _signed_money(amount)
+    if normalized <= 0:
+        raise ValidationError("Reserve allocations must be positive amounts.")
+    label = allocation_label.strip()
+    if not label:
+        raise ValidationError("Reserve allocations require a destination label.")
+    if len(label) > 120:
+        raise ValidationError("Reserve allocation labels may contain at most 120 characters.")
+    available = reserve_balance(household)
+    if normalized > available:
+        raise ValidationError("The allocation cannot exceed the current Household Reserve.")
+    entry = ReserveEntry(
+        household=household,
+        source_period=period,
+        posting_period=period,
+        entry_type=ReserveEntry.EntryType.EXPLICIT_ALLOCATION,
+        amount=-normalized,
+        allocation_label=label,
+        reason=reason.strip(),
+        created_by=actor,
+    )
+    entry.full_clean()
+    entry._service_authorized = True  # type: ignore[attr-defined]
+    entry.save()
+    append_event(
+        household=household,
+        actor=actor,
+        action="reserve.explicit_allocation_recorded",
+        entity_type="reserve_entry",
+        entity_id=entry.pk,
+        request_id=request_id,
+        after={
+            "posting_period_id": period.pk,
+            "amount": entry.amount,
+            "allocation_label": entry.allocation_label,
+            "remaining_reserve": available - normalized,
+        },
+        reason=reason.strip(),
+    )
+    return entry

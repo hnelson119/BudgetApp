@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import IncomeSourceDetail, Occurrence, RecurringSource, SourceRevision
+from .models import (
+    ExpenseSourceDetail,
+    IncomeSourceDetail,
+    Occurrence,
+    RecurringSource,
+    SourceRevision,
+)
 
 
 class ReadOnlyScheduleAdmin(admin.ModelAdmin):
@@ -25,6 +31,12 @@ class RecurringSourceAdmin(ReadOnlyScheduleAdmin):
 class IncomeSourceDetailAdmin(ReadOnlyScheduleAdmin):
     list_display = ("source", "starts_budget_period", "is_variable")
     list_filter = ("starts_budget_period", "is_variable")
+
+
+@admin.register(ExpenseSourceDetail)
+class ExpenseSourceDetailAdmin(ReadOnlyScheduleAdmin):
+    list_display = ("source", "category", "is_required")
+    list_filter = ("is_required",)
 
 
 @admin.register(SourceRevision)

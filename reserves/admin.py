@@ -11,6 +11,7 @@ class ReserveEntryAdmin(admin.ModelAdmin):
         "amount",
         "source_period",
         "posting_period",
+        "allocation_label",
         "created_at",
     )
     list_filter = ("entry_type",)

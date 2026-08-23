@@ -1,0 +1,65 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}Budget · {{ period.start_date|date:'M j' }}{% endblock %}
+{% block page_title %}Budget{% endblock %}
+
+{% block content %}
+  <section class="period-switcher" aria-label="Selected paycheck period">
+    {% if previous_period %}<a class="period-arrow" href="{% url 'budgets:detail' previous_period.pk %}" aria-label="Previous paycheck period">‹</a>{% else %}<span class="period-arrow is-disabled" aria-hidden="true">‹</span>{% endif %}
+    <div><span>Paycheck period</span><strong>{{ period.start_date|date:'M j' }}–{{ period.display_end_date|date:'M j, Y' }}</strong></div>
+    {% if next_period %}<a class="period-arrow" href="{% url 'budgets:detail' next_period.pk %}" aria-label="Next paycheck period">›</a>{% else %}<span class="period-arrow is-disabled" aria-hidden="true">›</span>{% endif %}
+  </section>
+
+  <div class="dashboard-heading budget-heading">
+    <div><p class="eyebrow">Paycheck-to-paycheck plan</p><h2>{{ summary.unallocated_excess|money }} unallocated</h2><p class="muted">Changes to generated rows affect this pay period only.</p></div>
+    <div class="action-row"><a class="secondary-button" href="{% url 'budgets:variable-create' period.pk %}">Add category budget</a><a class="primary-link" href="{% url 'budgets:fixed-create' period.pk %}">Add fixed expense</a></div>
+  </div>
+
+  {% if period.status == 'closed' %}<div class="notice-card">This period is closed. Reopen it before changing planned amounts or reconciliation.</div>{% endif %}
+
+  <form class="filter-bar" method="get">
+    <label><span>Search</span><input type="search" name="q" value="{{ filters.q }}" maxlength="120" placeholder="Name"></label>
+    <label><span>Group</span><select name="kind"><option value="">All groups</option>{% for value, label in kind_choices %}<option value="{{ value }}"{% if filters.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label><span>Status</span><select name="status"><option value="">All statuses</option>{% for value, label in status_choices %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label><span>Category</span><select name="category"><option value="">All categories</option>{% for category in categories %}<option value="{{ category.pk }}"{% if filters.category == category.pk|stringformat:'s' %} selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></label>
+    <button class="secondary-button" type="submit">Filter</button>
+  </form>
+
+  {% for group in groups %}
+    <details class="budget-group" open>
+      <summary><span>{{ group.label }}</span><strong>{{ group.items|length }} item{{ group.items|length|pluralize }}</strong></summary>
+      {% if group.items %}
+        <div class="budget-table-scroll">
+          <table class="budget-table">
+            <thead><tr><th>Item</th><th>Planned</th><th>Actual</th><th>Due / available</th><th>Category</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+            <tbody>
+              {% for occurrence in group.items %}
+                <tr>
+                  <td><strong>{{ occurrence.source.name }}</strong><small>From {{ occurrence.source_revision.frequency|cut:'_' }} schedule{% if occurrence.original_pay_period %} · moved from {{ occurrence.original_pay_period.start_date|date:'M j' }}{% endif %}</small></td>
+                  <td>{{ occurrence.planned_amount|money }}</td>
+                  <td>{% if occurrence.actual_amount != None %}{{ occurrence.actual_amount|money }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                  <td>{{ occurrence.expected_date|date:'M j, Y' }}</td>
+                  <td>{% if occurrence.source.expense_detail %}<span class="category-chip">{{ occurrence.source.expense_detail.category.name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                  <td><span class="row-status">{{ occurrence|occurrence_status:today }}</span></td>
+                  <td><div class="row-actions">{% if occurrence.status != 'completed' and occurrence.status != 'corrected' and occurrence.status != 'cancelled' %}<a href="{% url 'budgets:occurrence-edit' occurrence.pk %}">Edit</a><a href="{% url 'budgets:occurrence-move' occurrence.pk %}">Move</a><a class="danger-link" href="{% url 'budgets:occurrence-cancel' occurrence.pk %}">Cancel</a>{% endif %}{% if occurrence.status != 'cancelled' %}<a href="{% url 'budgets:occurrence-reconcile' occurrence.pk %}">Reconcile</a>{% endif %}</div></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}<div class="empty-panel group-empty"><strong>No matching {{ group.label|lower }}</strong><span>Adjust the filters or add a schedule.</span></div>{% endif %}
+    </details>
+  {% endfor %}
+
+  <section class="variable-section">
+    <div class="section-title"><div><p class="eyebrow">Flexible spending</p><h3>Variable category budgets</h3></div><a class="text-link" href="{% url 'budgets:category-create' period.pk %}">Create a category</a></div>
+    {% if summary.category_budgets %}
+      <div class="category-budget-grid">
+        {% for row in summary.category_budgets %}
+          <article><div><span class="category-swatch" aria-hidden="true"></span><strong>{{ row.budget.category.name }}</strong></div><p>{{ row.remaining|money }} remaining</p><small>{{ row.actual|money }} spent of {{ row.budget.planned_amount|money }}</small><div class="row-actions"><a href="{% url 'budgets:variable-edit' row.budget.pk %}">Edit</a><a class="danger-link" href="{% url 'budgets:variable-delete' row.budget.pk %}">Remove</a></div></article>
+        {% endfor %}
+      </div>
+    {% else %}<div class="empty-panel"><strong>No variable budgets in this paycheck period</strong><span>Add a category limit without changing any recurring schedule.</span></div>{% endif %}
+  </section>
+{% endblock %}

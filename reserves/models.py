@@ -76,9 +76,12 @@ class ReserveEntry(models.Model):
         PayPeriodClosingRevision,
         on_delete=models.PROTECT,
         related_name="reserve_entry",
+        null=True,
+        blank=True,
     )
     entry_type = models.CharField(max_length=24, choices=EntryType.choices)
     amount = models.DecimalField(max_digits=18, decimal_places=2)
+    allocation_label = models.CharField(max_length=120, blank=True)
     reason = models.CharField(max_length=500, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -94,6 +97,23 @@ class ReserveEntry(models.Model):
         indexes = [
             models.Index(fields=("household", "created_at"), name="reserves_entry_hh_created")
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        entry_type__in=("period_close", "period_correction"),
+                        closing_revision__isnull=False,
+                        allocation_label="",
+                    )
+                    | models.Q(
+                        entry_type="explicit_allocation",
+                        closing_revision__isnull=True,
+                        amount__lt=0,
+                    )
+                ),
+                name="reserves_entry_type_fields_valid",
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.household_id}: {self.amount} ({self.entry_type})"
@@ -103,6 +123,8 @@ class ReserveEntry(models.Model):
             raise ValidationError("Reserve entries must use a reserve service.")
         if not self._state.adding:
             raise ValidationError("Reserve entries cannot be updated.")
+        self.allocation_label = self.allocation_label.strip()
+        self.reason = self.reason.strip()
         super().save(*args, force_insert=True, **kwargs)
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:

@@ -1,0 +1,25 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}{{ action }} · Household Budget{% endblock %}
+{% block page_title %}{{ action }}{% endblock %}
+
+{% block content %}
+  <section class="form-page">
+    <a class="back-link" href="{% url 'budgets:detail' period.pk %}">← Back to paycheck budget</a>
+    <div class="form-card">
+      <p class="eyebrow">Period-only action</p>
+      <h2>{{ occurrence.source.name }}</h2>
+      <div class="item-context"><span>{{ occurrence.planned_amount|money }}</span><span>{{ occurrence.expected_date|date:'M j, Y' }}</span><span>From revision {{ occurrence.source_revision.revision_number }}</span></div>
+      <p class="notice-card">Changes here affect this pay period only. The source schedule remains unchanged unless you choose “this and all future occurrences.”</p>
+      <form class="app-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}
+          <div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">{{ field.label_tag }}{{ field }}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>
+        {% endfor %}
+        <button class="{% if is_destructive %}danger-button{% else %}primary-button{% endif %}" type="submit">{{ action }}</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

@@ -18,5 +18,6 @@ urlpatterns = [
     path("_test/error/", unsafe_error, name="unsafe-error"),
     path("accounts/", include("identity.urls")),
     path("audit/", include("audit.urls")),
+    path("budget/", include("budgets.urls")),
     path("", include("core.urls")),
 ]

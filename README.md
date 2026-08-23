@@ -9,17 +9,20 @@ Docker deployment files, health checks, and tested core money rules.
 
 ## Current milestone
 
-The code-deliverable portions of Milestones 0 through 4 are complete and locally verified. The
+The code-deliverable portions of Milestones 0 through 5 are complete and locally verified. The
 private GitHub remote, read-only quality workflow, SHA-pinned GitHub-owned action policy, and
 Dependabot alerts are active. Enforced branch protection remains unavailable on the current free
 private-repository plan, so short-lived pull requests and passing checks remain an operational rule.
 Identity, MFA, recovery, household authorization, protected audit history, manual accounts,
 categories, database-protected committed ledger history, reversals, balance reconciliation,
 structured recurrence, immutable schedule revisions, paycheck-anchored periods, occurrence
-overrides, and append-only period-closing reserve corrections are implemented. The local PostgreSQL
+overrides, append-only period-closing reserve corrections, fixed-expense schedules, variable
+category budgets, planned/actual reconciliation, responsive paycheck-period dashboard, and
+explicit Household Reserve allocation are implemented. The local PostgreSQL
 rehearsal passes with the dedicated migration identity and least-privilege runtime role, including
-database rejection of history tampering and overlapping periods. Milestone 5—the budget and
-dashboard vertical slice—is next. Private Tailscale-only HTTPS, firewall/device checks, and
+database rejection of history tampering, reconciliation mutation, and overlapping periods.
+Milestone 6—manual spending, CSV import, and credit-card payment reserve—is next. Private
+Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before
 household financial data is entered.
 
