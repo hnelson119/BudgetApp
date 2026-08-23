@@ -1,0 +1,22 @@
+{% extends 'core/app_base.html' %}
+
+{% block title %}Map CSV columns · Household Budget{% endblock %}
+{% block page_title %}Map CSV columns{% endblock %}
+
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% url 'imports:history' %}">← Back to imports</a>
+    <div class="form-card">
+      <p class="eyebrow">Step 2 of 4 · Mapping</p>
+      <h2>{{ batch.original_filename }}</h2>
+      <div class="item-context"><span>{{ batch.target_account.name }}</span><span>{{ batch.staged_count }} staged rows</span><span>No ledger entries yet</span></div>
+      <p>Select how the statement columns should become expenses. Mapping again safely replaces the prior preview.</p>
+      <form class="app-form schedule-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}<div class="form-field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+        <button class="primary-link" type="submit">Build preview</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

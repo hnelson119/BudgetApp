@@ -21,7 +21,7 @@ try {
     & $pythonPath -m ruff format --check .
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    & $pythonPath -m mypy audit budgets core debts households identity ledger periods reserves schedules spending
+    & $pythonPath -m mypy audit budgets core debts households identity imports ledger periods reserves schedules spending
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     & $pythonPath scripts\secret_scan.py

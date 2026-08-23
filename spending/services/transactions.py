@@ -193,6 +193,7 @@ def record_spending_expense(
     request_id: str,
     note: str = "",
     receipt_reference: str = "",
+    provenance: str = JournalEntry.Provenance.MANUAL,
     idempotency_key: str = "",
 ) -> JournalEntry:
     entry = record_ledger_expense(
@@ -206,6 +207,7 @@ def record_spending_expense(
         request_id=request_id,
         note=note,
         receipt_reference=receipt_reference,
+        provenance=provenance,
         idempotency_key=idempotency_key,
     )
     card = _card_from_entry(entry)

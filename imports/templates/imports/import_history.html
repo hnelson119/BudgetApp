@@ -1,0 +1,36 @@
+{% extends 'core/app_base.html' %}
+
+{% block title %}CSV imports · Household Budget{% endblock %}
+{% block page_title %}CSV imports{% endblock %}
+
+{% block content %}
+  <div class="dashboard-heading budget-heading">
+    <div><p class="eyebrow">Staged transaction intake</p><h2>Import history</h2><p class="muted">Uploads remain non-financial until you map, preview, and explicitly confirm them.</p></div>
+    <div class="action-row"><a class="primary-link" href="{% url 'imports:upload' %}">Upload CSV</a><a class="secondary-button" href="{% url 'spending:transaction-list' %}">Transactions</a></div>
+  </div>
+
+  <section class="transaction-panel" aria-label="CSV import history">
+    {% if batches %}
+      <div class="budget-table-scroll">
+        <table class="budget-table import-history-table">
+          <thead><tr><th>Uploaded</th><th>File</th><th>Account</th><th>Rows</th><th>Committed</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {% for batch in batches %}
+              <tr>
+                <td>{{ batch.uploaded_at|date:'M j, Y' }}</td>
+                <td><strong>{{ batch.original_filename }}</strong><small>By {{ batch.created_by.display_name|default:batch.created_by.email }}</small></td>
+                <td>{{ batch.target_account.name }}</td>
+                <td>{{ batch.staged_count }}</td>
+                <td>{{ batch.committed_count }}</td>
+                <td><span class="row-status status-{{ batch.status }}">{{ batch.get_status_display }}</span></td>
+                <td class="row-actions"><a href="{% if batch.status == 'uploaded' %}{% url 'imports:batch-map' batch.pk %}{% else %}{% url 'imports:batch-preview' batch.pk %}{% endif %}">View</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-panel group-empty"><strong>No CSV imports yet</strong><span>Upload a statement export when you are ready to stage transactions.</span></div>
+    {% endif %}
+  </section>
+{% endblock %}

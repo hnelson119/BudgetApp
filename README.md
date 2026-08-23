@@ -29,7 +29,10 @@ consume reserved purchase money first and expose only any excess as current-inco
 preventing double-counted spending. The reserve is separately visible on the dashboard and its
 history is protected from runtime-role mutation in PostgreSQL. Append-only partial card refunds are
 also implemented, including multiple-refund limits, category/liability corrections, and
-refund-aware reserve reallocation. Hardened CSV import/export remains.
+refund-aware reserve reallocation. Hardened expense CSV import now provides bounded, nonpersistent
+UTF-8 upload parsing, column/sign/date mapping, preview-only staging, category gaps, normalized duplicate detection,
+atomic and idempotent confirmation, import provenance, and raw-row cleanup. Formula-safe CSV export
+remains in Milestone 6.
 Private
 Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before

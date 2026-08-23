@@ -260,6 +260,10 @@ The import workflow includes:
 
 Mappings may be saved per file format. Duplicate detection uses a normalized fingerprint of transaction date, amount, description, and optional account. Nothing is committed until confirmation. The import batch and resulting transactions are audited.
 
+The initial importer creates categorized expenses against one selected account. A configurable sign
+rule excludes income, credits, or unlinked card refunds from a statement preview; those transaction
+types remain explicit manual workflows until a safe reconciliation/linking design is added.
+
 ## 13. Spending and surplus calculations
 
 All currency calculations use exact decimal arithmetic and round to cents at defined boundaries.

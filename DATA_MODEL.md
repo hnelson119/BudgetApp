@@ -325,12 +325,22 @@ Goal contributions are actual JournalEntries and may also satisfy planned goal-c
 
 - Household, user, target account, and uploaded timestamp
 - Original filename metadata without server path
-- File checksum and saved mapping ID
-- Staged/new/duplicate/rejected counts
-- Pending, committed, failed, or abandoned status
-- Completion and raw-file deletion timestamps
+- File checksum, selected column mapping, date format, and expense-sign rule
+- Staged, ready, duplicate, category-required, rejected, and committed counts
+- Uploaded, previewed, committed, or abandoned status
+- Idempotent submission/confirmation tokens and completion/raw-data-deletion timestamps
 
-Staged rows live in temporary import storage and are not JournalEntries until confirmation.
+### ImportRow
+
+- Batch and source row number
+- Temporary bounded raw-cell mapping used only for preview
+- Normalized date, description, positive expense amount, category, and duplicate fingerprint
+- Staged, ready, duplicate, category-required, rejected, or committed status
+- Optional resulting JournalEntry link after confirmation
+
+Staged rows are not JournalEntries until confirmation. The uploaded file itself is never persisted.
+Commit scrubs every staged raw-cell mapping while retaining normalized provenance and links to the
+append-only JournalEntries.
 
 ## 9. Protected audit entities
 

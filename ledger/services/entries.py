@@ -168,6 +168,7 @@ def _commit_entry(
             "entry_type": entry.entry_type,
             "amount": total,
             "category_id": category.pk if category else None,
+            "provenance": entry.provenance,
             "reversal_of_id": reversal_of.pk if reversal_of else None,
             "adjustment_for_id": adjustment_for.pk if adjustment_for else None,
         },
@@ -227,6 +228,7 @@ def record_expense(
     request_id: str,
     note: str = "",
     receipt_reference: str = "",
+    provenance: str = JournalEntry.Provenance.MANUAL,
     idempotency_key: str = "",
 ) -> JournalEntry:
     account = _active_account(account, household)
@@ -241,6 +243,7 @@ def record_expense(
         category=category,
         note=note,
         receipt_reference=receipt_reference,
+        provenance=provenance,
         idempotency_key=idempotency_key,
         request_id=request_id,
         postings=(

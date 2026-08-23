@@ -178,6 +178,9 @@ stateDiagram-v2
 ```
 
 No JournalEntry is created before `Committed`. Repeating a committed batch with the same idempotency key cannot duplicate transactions.
+The file is parsed under byte/row/column/cell limits and is never retained as an upload. Confirmation
+commits every accepted expense and its audit history atomically, then scrubs staged raw cells. A
+failure rolls back the whole financial commit and leaves the reviewed staging data available.
 
 ## 9. Audit write and verification
 
