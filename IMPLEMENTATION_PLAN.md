@@ -1,6 +1,6 @@
 # Household Budget Application — Implementation Plan
 
-Status: Milestone 3 implementation and local PostgreSQL verification complete; private-ingress deployment verification pending
+Status: Milestone 4 implementation and local PostgreSQL verification complete; private-ingress deployment verification pending
 Last updated: 2026-08-22
 
 ## 1. Locked architecture
@@ -117,6 +117,14 @@ Exit criteria: transfer and card-payment tests prove that spending is not double
 - Add weekend/holiday policy and boundary-difference confirmation
 - Add occurrence generation, move, override, cancellation, and safe series deletion
 - Add period closing, reopening, and reserve-delta corrections
+
+Progress: deterministic structured recurrence rules, immutable effective-dated revisions,
+same-day-deduplicated income anchors, half-open paycheck periods, preview-confirmed projection and
+boundary changes, one-way occurrence generation, protected one-off changes, series cancellation,
+period state transitions, and append-only closing/reserve corrections are implemented. Application
+guards and PostgreSQL runtime-role triggers protect revisions and closing history from mutation and
+prevent overlapping household periods. Golden, randomized boundary, rollback, authorization,
+secret-rejection, and rollback-only PostgreSQL runtime rehearsals pass.
 
 Exit criteria: paycheck-boundary and recurrence golden cases pass, including same-day anchors and schedule changes.
 

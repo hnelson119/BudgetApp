@@ -74,6 +74,18 @@ def test_parameterless_postgresql_migration_sql_escapes_percent_literals() -> No
             "ledger.migrations.0002_postgresql_protect_history",
             ("PROTECT_LEDGER_HISTORY_SQL", "UNPROTECT_LEDGER_HISTORY_SQL"),
         ),
+        (
+            "periods.migrations.0002_postgresql_period_guards",
+            ("PROTECT_PERIOD_SQL", "UNPROTECT_PERIOD_SQL"),
+        ),
+        (
+            "schedules.migrations.0002_postgresql_protect_revisions",
+            ("PROTECT_SOURCE_REVISIONS_SQL", "UNPROTECT_SOURCE_REVISIONS_SQL"),
+        ),
+        (
+            "reserves.migrations.0002_postgresql_protect_entries",
+            ("PROTECT_RESERVE_ENTRIES_SQL", "UNPROTECT_RESERVE_ENTRIES_SQL"),
+        ),
     )
 
     for module_name, attribute_names in migration_sql:
@@ -94,6 +106,28 @@ def test_postgresql_committed_ledger_history_has_database_mutation_guards() -> N
     assert migration.count("BEFORE UPDATE OR DELETE") == 3
     assert migration.count("BEFORE TRUNCATE") == 3
     assert "committed ledger records cannot be %%" in migration
+
+
+def test_postgresql_schedule_and_period_history_has_database_guards() -> None:
+    period_migration = (
+        PROJECT_ROOT / "periods/migrations/0002_postgresql_period_guards.py"
+    ).read_text(encoding="utf-8")
+    schedule_migration = (
+        PROJECT_ROOT / "schedules/migrations/0002_postgresql_protect_revisions.py"
+    ).read_text(encoding="utf-8")
+    reserve_migration = (
+        PROJECT_ROOT / "reserves/migrations/0002_postgresql_protect_entries.py"
+    ).read_text(encoding="utf-8")
+
+    assert "pg_advisory_xact_lock" in period_migration
+    assert "pay periods for one household cannot overlap" in period_migration
+    assert "BEFORE UPDATE OR DELETE" in period_migration
+    assert "BEFORE TRUNCATE" in period_migration
+    assert "source revisions cannot be %%" in schedule_migration
+    assert "reserve entries cannot be %%" in reserve_migration
+    for migration in (schedule_migration, reserve_migration):
+        assert "BEFORE UPDATE OR DELETE" in migration
+        assert "BEFORE TRUNCATE" in migration
 
 
 def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
