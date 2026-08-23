@@ -64,6 +64,7 @@ addopts = "--strict-markers --strict-config --basetemp=.pytest-tmp"
 
 [tool.coverage.run]
 branch = true
+omit = ["*/migrations/*"]
 source = [
   "audit",
   "budgets",

@@ -19,4 +19,7 @@ cd "$project_root"
 "$python_path" -m bandit -q -c pyproject.toml -r \
   audit budgets config core debts goals households identity imports ledger \
   notifications periods reserves schedules spending
-"$python_path" -m pytest
+"$python_path" -m coverage erase
+"$python_path" -m coverage run -m pytest
+"$python_path" -m coverage report
+"$python_path" scripts/check_branch_coverage.py --fail-under 80

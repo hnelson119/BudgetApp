@@ -154,7 +154,9 @@ documents the independent audit-checkpoint timer and verification expectations.
 ## Quality commands
 
 ```powershell
-python -m pytest
+python -m coverage run -m pytest
+python -m coverage report
+python scripts/check_branch_coverage.py --fail-under 80
 python -m ruff check .
 python -m ruff format --check .
 python -m mypy audit budgets core debts households identity ledger periods reserves schedules spending
@@ -163,6 +165,10 @@ python scripts/secret_scan.py
 python -m bandit -c pyproject.toml -r audit budgets config core debts goals households identity imports ledger notifications periods reserves schedules spending
 python -m pip_audit --requirement requirements-dev.lock --cache-dir .pip-audit-cache --no-deps --disable-pip --strict
 ```
+
+Coverage excludes Django migration modules, which are verified separately through migration and
+PostgreSQL rehearsal tests. The quality gate requires at least 80% combined coverage and 80%
+branch-only coverage.
 
 Production container dependencies are installed from `requirements-prod.lock`.
 Regenerate and audit both lock files whenever dependency constraints change.

@@ -1,11 +1,13 @@
 import json
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 
+import audit.checkpoints as checkpoint_services
 from audit.checkpoints import verify_checkpoint_document, write_household_checkpoint
 from audit.models import AuditCheckpoint, AuditHead
 from audit.services import append_event
@@ -118,3 +120,59 @@ def test_checkpoint_document_signature_detects_external_tampering() -> None:
     }
 
     assert verify_checkpoint_document(document, SIGNING_KEY) is False
+
+
+def test_checkpoint_document_rejects_malformed_envelopes() -> None:
+    assert verify_checkpoint_document({}, SIGNING_KEY) is False
+    assert (
+        verify_checkpoint_document(
+            {
+                "checkpoint": {},
+                "signature": {"algorithm": "SHA256", "value": 123},
+            },
+            SIGNING_KEY,
+        )
+        is False
+    )
+
+
+def test_checkpoint_destination_validation_and_failed_write_cleanup(tmp_path: Path) -> None:
+    with pytest.raises(ValidationError, match="must be absolute"):
+        checkpoint_services._checkpoint_directory(Path("relative/checkpoints"))
+    with pytest.raises(ValidationError, match="unavailable"):
+        checkpoint_services._checkpoint_directory(tmp_path / "missing")
+
+    file_destination = tmp_path / "not-a-directory"
+    file_destination.write_text("not a directory", encoding="utf-8")
+    with pytest.raises(ValidationError, match="not a directory"):
+        checkpoint_services._checkpoint_directory(file_destination)
+
+    output_path = tmp_path / "checkpoint.json"
+    with (
+        patch("audit.checkpoints.os.fdopen", side_effect=OSError("write setup failed")),
+        pytest.raises(OSError, match="write setup failed"),
+    ):
+        checkpoint_services._write_external_document(output_path, {"checkpoint": {}})
+    assert list(tmp_path.glob(".*.tmp")) == []
+
+
+@pytest.mark.django_db
+def test_checkpoint_rejects_weak_keys_and_unsafe_key_identifiers(
+    checkpoint_household,
+    tmp_path: Path,
+) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(ValidationError, match="too short"):
+        write_household_checkpoint(
+            household=checkpoint_household,
+            directory=tmp_path,
+            signing_key=b"short",
+            signing_key_id="test-key-v1",
+        )
+    with pytest.raises(ValidationError, match="ID is invalid"):
+        write_household_checkpoint(
+            household=checkpoint_household,
+            directory=tmp_path,
+            signing_key=SIGNING_KEY,
+            signing_key_id="../unsafe-key",
+        )
+    assert AuditCheckpoint.objects.count() == 0

@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 
 import pytest
@@ -185,3 +186,108 @@ def test_empty_household_chain_is_valid() -> None:
 
     assert result.valid is True
     assert result.event_count == 0
+
+
+@pytest.mark.django_db
+def test_audit_normalization_rejects_ambiguous_or_unsupported_values(
+    household_and_user,
+) -> None:  # type: ignore[no-untyped-def]
+    household, user = household_and_user
+    invalid_payloads = (
+        {"occurred_at": datetime(2026, 8, 20, 12)},
+        {1: "non-string key"},
+        {"unsupported": object()},
+    )
+    for payload in invalid_payloads:
+        with pytest.raises(ValidationError):
+            append_event(
+                household=household,
+                actor=user,
+                action="audit.invalid_payload",
+                entity_type="audit.test",
+                entity_id="invalid-payload",
+                request_id=REQUEST_ID,
+                after=payload,  # type: ignore[arg-type]
+            )
+
+    event = append_event(
+        household=household,
+        actor=user,
+        action="audit.list_payload",
+        entity_type="audit.test",
+        entity_id="list-payload",
+        request_id="request-audit-list",
+        after={"values": [Decimal("1.00"), "safe"]},
+    )
+    assert event.after_payload == {"values": ["1.00", "safe"]}
+
+
+@pytest.mark.django_db
+def test_audit_event_metadata_validation_rejects_unsafe_identifiers(
+    household_and_user,
+) -> None:  # type: ignore[no-untyped-def]
+    household, user = household_and_user
+    invalid_arguments = (
+        {"action": "unsafe action"},
+        {"request_id": "short"},
+        {"entity_id": ""},
+        {"reason": "x" * 501},
+    )
+    for overrides in invalid_arguments:
+        arguments = {
+            "household": household,
+            "actor": user,
+            "action": "audit.valid",
+            "entity_type": "audit.test",
+            "entity_id": "entity-1",
+            "request_id": REQUEST_ID,
+            "reason": "",
+            **overrides,
+        }
+        with pytest.raises(ValidationError):
+            append_event(**arguments)  # type: ignore[arg-type]
+    assert AuditEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_audit_chain_detects_sequence_and_head_tampering(household_and_user) -> None:  # type: ignore[no-untyped-def]
+    household, user = household_and_user
+    event = append_event(
+        household=household,
+        actor=user,
+        action="audit.sequence_test",
+        entity_type="audit.test",
+        entity_id="sequence-test",
+        request_id=REQUEST_ID,
+    )
+    event_table = connection.ops.quote_name(AuditEvent._meta.db_table)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"UPDATE {event_table} SET sequence = %s WHERE id = %s",
+            [2, event.pk.hex],
+        )
+    sequence_result = verify_household_chain(household)
+    assert sequence_result.valid is False
+    assert sequence_result.failure_sequence == 2
+
+
+@pytest.mark.django_db
+def test_audit_chain_detects_head_tampering(household_and_user) -> None:  # type: ignore[no-untyped-def]
+    household, user = household_and_user
+    append_event(
+        household=household,
+        actor=user,
+        action="audit.head_test",
+        entity_type="audit.test",
+        entity_id="head-test",
+        request_id="request-audit-head",
+    )
+    head_table = connection.ops.quote_name("audit_audithead")
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"UPDATE {head_table} SET event_count = %s WHERE household_id = %s",
+            [99, household.pk.hex],
+        )
+    head_result = verify_household_chain(household)
+    assert head_result.valid is False
+    assert head_result.failure_sequence == 2

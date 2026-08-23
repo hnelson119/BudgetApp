@@ -23,6 +23,7 @@ from periods.services import (
     refresh_period_states,
     reopen_period,
 )
+from periods.services.lifecycle import _signed_money as _period_signed_money
 from reserves.models import ReserveEntry
 from reserves.services import reserve_balance
 from schedules.models import Occurrence, RecurringSource, SourceRevision
@@ -35,6 +36,7 @@ from schedules.recurrence import (
 )
 from schedules.services import (
     RevisionSpec,
+    cancel_occurrence,
     cancel_occurrence_and_future,
     complete_occurrence,
     create_recurring_source,
@@ -43,6 +45,14 @@ from schedules.services import (
     preview_revision,
     revise_recurring_source,
     synchronize_occurrences,
+)
+from schedules.services.occurrences import _amount as _occurrence_amount
+from schedules.services.sources import (
+    _configuration,
+    _validate_json_value,
+)
+from schedules.services.sources import (
+    _money as _schedule_money,
 )
 
 TEST_PASSWORD = "correct-horse-battery-test"  # pragma: allowlist secret
@@ -837,3 +847,573 @@ def test_scheduling_mutations_are_household_authorized_and_secrets_are_rejected(
         )
     assert RecurringSource.objects.count() == 0
     assert AuditEvent.objects.count() == 0
+
+
+def test_schedule_configuration_and_revision_specs_reject_unsafe_values() -> None:
+    with pytest.raises(ValidationError, match="finite Decimal"):
+        _schedule_money(Decimal("NaN"))
+    with pytest.raises(ValidationError, match="nonnegative"):
+        _schedule_money(Decimal("-0.01"))
+
+    _validate_json_value(None)
+    _validate_json_value([1, {"label": True}])
+    with pytest.raises(ValidationError, match="Floating-point"):
+        _validate_json_value(3.14)
+    with pytest.raises(ValidationError, match="keys must be strings"):
+        _validate_json_value({1: "value"})
+    with pytest.raises(ValidationError, match="Sensitive"):
+        _validate_json_value({"token": "value"})
+    with pytest.raises(ValidationError, match="Unsupported"):
+        _validate_json_value({date(2026, 8, 20)})
+    with pytest.raises(ValidationError, match="must be an object"):
+        _configuration(["not", "an", "object"])  # type: ignore[arg-type]
+    with pytest.raises(ValidationError, match="too large"):
+        _configuration({"payload": "x" * 10_001})
+
+    rule = RecurrenceRule(Frequency.ONCE, date(2026, 8, 20))
+    with pytest.raises(ValidationError, match="before it becomes effective"):
+        preview_revision(
+            RevisionSpec(
+                effective_from=date(2026, 8, 21),
+                expected_amount=Decimal("1.00"),
+                rule=rule,
+            ),
+            preview_from=date(2026, 8, 21),
+        )
+    with pytest.raises(ValidationError, match="adjustment policy is invalid"):
+        preview_revision(
+            RevisionSpec(
+                effective_from=rule.start_date,
+                expected_amount=Decimal("1.00"),
+                rule=rule,
+                adjustment_policy="invalid",  # type: ignore[arg-type]
+            ),
+            preview_from=rule.start_date,
+        )
+    too_many_holidays = tuple(date(2026, 1, 1) + timedelta(days=index) for index in range(367))
+    with pytest.raises(ValidationError, match="more than 366"):
+        preview_revision(
+            RevisionSpec(
+                effective_from=rule.start_date,
+                expected_amount=Decimal("1.00"),
+                rule=rule,
+                holiday_dates=too_many_holidays,
+            ),
+            preview_from=rule.start_date,
+        )
+    with pytest.raises(ValidationError, match="repeat a holiday"):
+        preview_revision(
+            RevisionSpec(
+                effective_from=rule.start_date,
+                expected_amount=Decimal("1.00"),
+                rule=rule,
+                holiday_dates=(date(2026, 8, 21), date(2026, 8, 21)),
+            ),
+            preview_from=rule.start_date,
+        )
+
+
+@pytest.mark.parametrize(
+    "rule",
+    (
+        RecurrenceRule(Frequency.DAILY, date(2026, 8, 20), interval=0),
+        RecurrenceRule(
+            Frequency.DAILY,
+            date(2026, 8, 20),
+            end_date=date(2026, 8, 19),
+        ),
+        RecurrenceRule(Frequency.WEEKLY, date(2026, 8, 20), weekdays=(7,)),
+        RecurrenceRule(Frequency.WEEKLY, date(2026, 8, 20), weekdays=(3, 3)),
+        RecurrenceRule(Frequency.DAILY, date(2026, 8, 20), weekdays=(3,)),
+        RecurrenceRule(Frequency.MONTHLY_DAY, date(2026, 8, 20)),
+        RecurrenceRule(Frequency.DAILY, date(2026, 8, 20), day_of_month=20),
+        RecurrenceRule(Frequency.MONTHLY_NTH_WEEKDAY, date(2026, 8, 20), ordinal=2),
+        RecurrenceRule(Frequency.DAILY, date(2026, 8, 20), weekday=3),
+        RecurrenceRule(Frequency.MONTHLY_NTH_WEEKDAY, date(2026, 8, 20), weekday=3),
+        RecurrenceRule(Frequency.DAILY, date(2026, 8, 20), ordinal=2),
+        RecurrenceRule(Frequency.ANNUAL, date(2026, 8, 20), day_of_month=20),
+        RecurrenceRule(Frequency.DAILY, date(2026, 8, 20), month_of_year=8),
+    ),
+)
+def test_recurrence_rule_rejects_fields_outside_their_frequency(rule: RecurrenceRule) -> None:
+    with pytest.raises(ValidationError):
+        rule.validate()
+
+
+def test_recurrence_generation_rejects_invalid_windows_limits_and_overflow() -> None:
+    rule = RecurrenceRule(Frequency.ONCE, date(2026, 8, 20))
+    with pytest.raises(ValidationError, match="end cannot precede"):
+        occurrences_between(
+            rule,
+            window_start=date(2026, 8, 21),
+            window_end=date(2026, 8, 20),
+        )
+    with pytest.raises(ValidationError, match="cannot exceed 25 years"):
+        occurrences_between(
+            rule,
+            window_start=date(2026, 1, 1),
+            window_end=date(2052, 1, 1),
+        )
+    with pytest.raises(ValidationError, match="limit is invalid"):
+        occurrences_between(
+            rule,
+            window_start=date(2026, 8, 20),
+            window_end=date(2026, 8, 20),
+            limit=0,
+        )
+    assert (
+        occurrences_between(
+            RecurrenceRule(
+                Frequency.ONCE,
+                date(2026, 8, 20),
+                end_date=date(2026, 8, 20),
+            ),
+            window_start=date(2026, 8, 21),
+            window_end=date(2026, 8, 22),
+        )
+        == ()
+    )
+    with pytest.raises(ValidationError, match="more occurrences"):
+        occurrences_between(
+            RecurrenceRule(Frequency.DAILY, date(2026, 8, 20)),
+            window_start=date(2026, 8, 20),
+            window_end=date(2026, 8, 22),
+            limit=2,
+        )
+
+
+@pytest.mark.django_db
+def test_period_and_occurrence_sync_reject_invalid_generation_windows(
+    schedule_context: ScheduleContext,
+) -> None:
+    with pytest.raises(ValidationError, match="end cannot precede"):
+        preview_period_sync(
+            household=schedule_context.household,
+            window_start=date(2026, 8, 21),
+            window_end=date(2026, 8, 20),
+        )
+    with pytest.raises(ValidationError, match="cannot exceed five years"):
+        preview_period_sync(
+            household=schedule_context.household,
+            window_start=date(2026, 1, 1),
+            window_end=date(2032, 1, 1),
+        )
+    with pytest.raises(ValidationError, match="end cannot precede"):
+        synchronize_occurrences(
+            household=schedule_context.household,
+            actor=schedule_context.user,
+            window_start=date(2026, 8, 21),
+            window_end=date(2026, 8, 20),
+            request_id="request-invalid-occurrence-window",
+        )
+    with pytest.raises(ValidationError, match="cannot exceed five years"):
+        synchronize_occurrences(
+            household=schedule_context.household,
+            actor=schedule_context.user,
+            window_start=date(2026, 1, 1),
+            window_end=date(2032, 1, 1),
+            request_id="request-long-occurrence-window",
+        )
+
+
+@pytest.mark.django_db
+def test_boundary_preview_rejects_invalid_anchor_and_period_states(
+    schedule_context: ScheduleContext,
+) -> None:
+    anchor, _ = create_weekly_anchor(schedule_context)
+    create_source(
+        schedule_context,
+        name="Boundary validation bill",
+        rule=RecurrenceRule(Frequency.ONCE, date(2026, 8, 22)),
+    )
+    generate_periods(schedule_context)
+    synchronize_occurrences(
+        household=schedule_context.household,
+        actor=schedule_context.user,
+        window_start=date(2026, 8, 20),
+        window_end=date(2026, 9, 10),
+        request_id="request-boundary-validation-sync",
+    )
+    first_period = PayPeriod.objects.get(start_date=date(2026, 8, 20))
+    previous = first_period
+    current = PayPeriod.objects.get(start_date=date(2026, 8, 27))
+    first_paycheck = Occurrence.objects.get(source=anchor, nominal_date=date(2026, 8, 20))
+    paycheck = Occurrence.objects.get(source=anchor, nominal_date=date(2026, 8, 27))
+    bill = Occurrence.objects.get(source__name="Boundary validation bill")
+
+    with pytest.raises(ValidationError, match="Only an anchor"):
+        preview_boundary_change(
+            occurrence=bill,
+            actor=schedule_context.user,
+            actual_date=date(2026, 8, 21),
+        )
+
+    Occurrence.objects.filter(pk=paycheck.pk).update(
+        pay_period=None,
+        status=Occurrence.Status.CANCELLED,
+    )
+    with pytest.raises(ValidationError, match="not assigned"):
+        preview_boundary_change(
+            occurrence=paycheck,
+            actor=schedule_context.user,
+            actual_date=date(2026, 8, 26),
+        )
+    Occurrence.objects.filter(pk=paycheck.pk).update(
+        pay_period=current,
+        status=Occurrence.Status.SCHEDULED,
+    )
+
+    Occurrence.objects.filter(pk=paycheck.pk).update(expected_date=date(2026, 8, 28))
+    with pytest.raises(ValidationError, match="does not represent"):
+        preview_boundary_change(
+            occurrence=paycheck,
+            actor=schedule_context.user,
+            actual_date=date(2026, 8, 26),
+        )
+    Occurrence.objects.filter(pk=paycheck.pk).update(expected_date=date(2026, 8, 27))
+
+    with pytest.raises(ValidationError, match="already matches"):
+        preview_boundary_change(
+            occurrence=paycheck,
+            actor=schedule_context.user,
+            actual_date=date(2026, 8, 27),
+        )
+
+    current.status = PayPeriod.Status.CLOSED
+    current.save(update_fields=("status",))
+    with pytest.raises(ValidationError, match="historical workflow"):
+        preview_boundary_change(
+            occurrence=paycheck,
+            actor=schedule_context.user,
+            actual_date=date(2026, 8, 26),
+        )
+    current.status = PayPeriod.Status.PROJECTED
+    current.save(update_fields=("status",))
+
+    with pytest.raises(ValidationError, match="preceding paycheck period"):
+        preview_boundary_change(
+            occurrence=first_paycheck,
+            actor=schedule_context.user,
+            actual_date=date(2026, 8, 19),
+        )
+
+    previous.status = PayPeriod.Status.CLOSED
+    previous.save(update_fields=("status",))
+    with pytest.raises(ValidationError, match="adjoining a closed period"):
+        preview_boundary_change(
+            occurrence=paycheck,
+            actor=schedule_context.user,
+            actual_date=date(2026, 8, 26),
+        )
+    previous.status = PayPeriod.Status.PROJECTED
+    previous.save(update_fields=("status",))
+
+    with pytest.raises(ValidationError, match="between adjacent outer boundaries"):
+        preview_boundary_change(
+            occurrence=paycheck,
+            actor=schedule_context.user,
+            actual_date=previous.start_date,
+        )
+
+    preview = preview_boundary_change(
+        occurrence=paycheck,
+        actor=schedule_context.user,
+        actual_date=date(2026, 8, 28),
+    )
+    complete_occurrence(
+        occurrence=paycheck,
+        actor=schedule_context.user,
+        actual_amount=Decimal("1500.00"),
+        actual_date=date(2026, 8, 28),
+        boundary_decision="move",
+        boundary_preview_fingerprint=preview.fingerprint,
+        request_id="request-later-boundary-move",
+    )
+    assert PayPeriod.objects.filter(start_date=date(2026, 8, 28)).exists()
+
+
+@pytest.mark.django_db
+def test_period_lifecycle_rejects_invalid_closing_and_correction_states(
+    schedule_context: ScheduleContext,
+) -> None:
+    with pytest.raises(ValidationError, match="finite Decimal"):
+        _period_signed_money(Decimal("NaN"))
+    with pytest.raises(ValidationError, match="two decimal"):
+        _period_signed_money(Decimal("1.001"))
+    assert refresh_period_states(
+        household=schedule_context.household,
+        actor=schedule_context.user,
+        today=date(2026, 1, 1),
+        request_id="request-empty-state-refresh",
+    ) == (0, 0)
+
+    period = PayPeriod.objects.create(
+        household=schedule_context.household,
+        start_date=date(2026, 8, 20),
+        next_start_date=date(2026, 8, 27),
+        status=PayPeriod.Status.PROJECTED,
+        created_by=schedule_context.user,
+    )
+    with pytest.raises(ValidationError, match="Only a closed"):
+        reopen_period(
+            pay_period=period,
+            actor=schedule_context.user,
+            request_id="request-reopen-projected",
+            reason="Invalid state",
+        )
+    with pytest.raises(ValidationError, match="cannot be closed"):
+        close_period(
+            pay_period=period,
+            actor=schedule_context.user,
+            closing_surplus=Decimal("10.00"),
+            request_id="request-close-projected",
+        )
+
+    period.status = PayPeriod.Status.OPEN
+    period.save(update_fields=("status",))
+    close_period(
+        pay_period=period,
+        actor=schedule_context.user,
+        closing_surplus=Decimal("10.00"),
+        request_id="request-initial-lifecycle-close",
+    )
+    with pytest.raises(ValidationError, match="requires a reason"):
+        reopen_period(
+            pay_period=period,
+            actor=schedule_context.user,
+            request_id="request-blank-reopen-reason",
+            reason="   ",
+        )
+    reopen_period(
+        pay_period=period,
+        actor=schedule_context.user,
+        request_id="request-valid-lifecycle-reopen",
+        reason="Correction required",
+    )
+
+    PayPeriod.objects.filter(pk=period.pk).update(status=PayPeriod.Status.OPEN)
+    with pytest.raises(ValidationError, match="must be reopened"):
+        close_period(
+            pay_period=period,
+            actor=schedule_context.user,
+            closing_surplus=Decimal("9.00"),
+            request_id="request-correction-without-reopened-state",
+            reason="Correction",
+        )
+    PayPeriod.objects.filter(pk=period.pk).update(status=PayPeriod.Status.REOPENED)
+
+    with pytest.raises(ValidationError, match="requires a reason"):
+        close_period(
+            pay_period=period,
+            actor=schedule_context.user,
+            closing_surplus=Decimal("9.00"),
+            request_id="request-blank-correction-reason",
+        )
+    with pytest.raises(ValidationError, match="requires the current posting period"):
+        close_period(
+            pay_period=period,
+            actor=schedule_context.user,
+            closing_surplus=Decimal("9.00"),
+            request_id="request-missing-correction-posting",
+            reason="Correction",
+        )
+
+    other_household = Household.objects.create(name="Other correction household")
+    other_user = User.objects.create_user(
+        email="other-correction@example.com", password=TEST_PASSWORD
+    )
+    HouseholdMembership.objects.create(household=other_household, user=other_user)
+    other_period = PayPeriod.objects.create(
+        household=other_household,
+        start_date=date(2026, 8, 27),
+        next_start_date=date(2026, 9, 3),
+        status=PayPeriod.Status.OPEN,
+        created_by=other_user,
+    )
+    with pytest.raises(ValidationError, match="another household"):
+        close_period(
+            pay_period=period,
+            actor=schedule_context.user,
+            closing_surplus=Decimal("9.00"),
+            posting_period=other_period,
+            request_id="request-other-correction-posting",
+            reason="Correction",
+        )
+    with pytest.raises(ValidationError, match="current active period"):
+        close_period(
+            pay_period=period,
+            actor=schedule_context.user,
+            closing_surplus=Decimal("9.00"),
+            posting_period=period,
+            request_id="request-inactive-correction-posting",
+            reason="Correction",
+        )
+
+
+@pytest.mark.django_db
+def test_occurrence_mutations_reject_invalid_moves_overrides_and_cancellations(
+    schedule_context: ScheduleContext,
+) -> None:
+    with pytest.raises(ValidationError, match="finite Decimal"):
+        _occurrence_amount(Decimal("NaN"))
+    with pytest.raises(ValidationError, match="nonnegative"):
+        _occurrence_amount(Decimal("-0.01"))
+
+    current = PayPeriod.objects.create(
+        household=schedule_context.household,
+        start_date=date(2026, 8, 20),
+        next_start_date=date(2026, 8, 27),
+        status=PayPeriod.Status.OPEN,
+        created_by=schedule_context.user,
+    )
+    target = PayPeriod.objects.create(
+        household=schedule_context.household,
+        start_date=date(2026, 8, 27),
+        next_start_date=date(2026, 9, 3),
+        status=PayPeriod.Status.OPEN,
+        created_by=schedule_context.user,
+    )
+    other_household = Household.objects.create(name="Other occurrence household")
+    other_user = User.objects.create_user(
+        email="other-occurrence@example.com", password=TEST_PASSWORD
+    )
+    HouseholdMembership.objects.create(household=other_household, user=other_user)
+    other_period = PayPeriod.objects.create(
+        household=other_household,
+        start_date=date(2026, 8, 27),
+        next_start_date=date(2026, 9, 3),
+        status=PayPeriod.Status.OPEN,
+        created_by=other_user,
+    )
+    source, revision = create_source(
+        schedule_context,
+        name="Occurrence validation source",
+        rule=RecurrenceRule(Frequency.ONCE, date(2026, 8, 22)),
+    )
+
+    def make_occurrence(nominal_date: date) -> Occurrence:
+        return Occurrence.objects.create(
+            source=source,
+            source_revision=revision,
+            nominal_date=nominal_date,
+            generated_expected_date=nominal_date,
+            expected_date=nominal_date,
+            generated_amount=Decimal("100.00"),
+            planned_amount=Decimal("100.00"),
+            pay_period=current,
+        )
+
+    moving = make_occurrence(date(2026, 8, 22))
+    with pytest.raises(ValidationError, match="another household"):
+        move_occurrence(
+            occurrence=moving,
+            target_period=other_period,
+            actor=schedule_context.user,
+            request_id="request-move-other-period",
+            reason="Invalid household",
+        )
+
+    target.status = PayPeriod.Status.CLOSED
+    target.save(update_fields=("status",))
+    with pytest.raises(ValidationError, match="target paycheck period"):
+        move_occurrence(
+            occurrence=moving,
+            target_period=target,
+            actor=schedule_context.user,
+            request_id="request-move-closed-target",
+            reason="Invalid target",
+        )
+    target.status = PayPeriod.Status.OPEN
+    target.save(update_fields=("status",))
+
+    with pytest.raises(ValidationError, match="already assigned"):
+        move_occurrence(
+            occurrence=moving,
+            target_period=current,
+            actor=schedule_context.user,
+            request_id="request-move-same-period",
+            reason="No change",
+        )
+    Occurrence.objects.filter(pk=moving.pk).update(original_pay_period=current)
+    with pytest.raises(ValidationError, match="only once"):
+        move_occurrence(
+            occurrence=moving,
+            target_period=target,
+            actor=schedule_context.user,
+            request_id="request-move-twice",
+            reason="Second move",
+        )
+    Occurrence.objects.filter(pk=moving.pk).update(original_pay_period=None)
+
+    Occurrence.objects.filter(pk=moving.pk).update(status=Occurrence.Status.COMPLETED)
+    with pytest.raises(ValidationError, match="state cannot be moved"):
+        move_occurrence(
+            occurrence=moving,
+            target_period=target,
+            actor=schedule_context.user,
+            request_id="request-move-completed",
+            reason="Invalid state",
+        )
+    Occurrence.objects.filter(pk=moving.pk).update(status=Occurrence.Status.SCHEDULED)
+
+    with pytest.raises(ValidationError, match="requires a reason"):
+        move_occurrence(
+            occurrence=moving,
+            target_period=target,
+            actor=schedule_context.user,
+            request_id="request-move-without-reason",
+            reason="   ",
+        )
+    Occurrence.objects.filter(pk=moving.pk).update(status=Occurrence.Status.OVERRIDDEN)
+    moved = move_occurrence(
+        occurrence=moving,
+        target_period=target,
+        actor=schedule_context.user,
+        request_id="request-move-overridden",
+        reason="Valid overridden move",
+    )
+    assert moved.status == Occurrence.Status.OVERRIDDEN
+
+    editable = make_occurrence(date(2026, 8, 23))
+    Occurrence.objects.filter(pk=editable.pk).update(status=Occurrence.Status.COMPLETED)
+    with pytest.raises(ValidationError, match="cannot be overridden"):
+        override_occurrence(
+            occurrence=editable,
+            actor=schedule_context.user,
+            request_id="request-override-completed",
+            reason="Invalid state",
+            planned_amount=Decimal("90.00"),
+        )
+    Occurrence.objects.filter(pk=editable.pk).update(status=Occurrence.Status.SCHEDULED)
+    with pytest.raises(ValidationError, match="must change"):
+        override_occurrence(
+            occurrence=editable,
+            actor=schedule_context.user,
+            request_id="request-override-without-change",
+            reason="No values",
+        )
+    with pytest.raises(ValidationError, match="requires a reason"):
+        override_occurrence(
+            occurrence=editable,
+            actor=schedule_context.user,
+            request_id="request-override-without-reason",
+            reason="   ",
+            planned_amount=Decimal("90.00"),
+        )
+
+    Occurrence.objects.filter(pk=editable.pk).update(status=Occurrence.Status.COMPLETED)
+    with pytest.raises(ValidationError, match="cannot be cancelled"):
+        cancel_occurrence(
+            occurrence=editable,
+            actor=schedule_context.user,
+            request_id="request-cancel-completed",
+            reason="Invalid state",
+        )
+    Occurrence.objects.filter(pk=editable.pk).update(status=Occurrence.Status.SCHEDULED)
+    with pytest.raises(ValidationError, match="requires a reason"):
+        cancel_occurrence(
+            occurrence=editable,
+            actor=schedule_context.user,
+            request_id="request-cancel-without-reason",
+            reason="   ",
+        )

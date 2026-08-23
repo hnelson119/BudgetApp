@@ -35,7 +35,16 @@ try {
     & $pythonPath -m bandit -q -c pyproject.toml -r @sourceDirectories
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    & $pythonPath -m pytest
+    & $pythonPath -m coverage erase
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    & $pythonPath -m coverage run -m pytest
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    & $pythonPath -m coverage report
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    & $pythonPath scripts\check_branch_coverage.py --fail-under 80
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 finally {

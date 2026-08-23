@@ -1,6 +1,6 @@
 # Household Budget Application — Implementation Plan
 
-Status: Milestone 5 implementation and local PostgreSQL verification complete; private-ingress deployment verification pending
+Status: Milestone 5 implementation, coverage hardening, and local PostgreSQL verification complete; private-ingress deployment verification pending
 Last updated: 2026-08-23
 
 ## 1. Locked architecture
@@ -146,6 +146,12 @@ financial mutation is household-scoped and audited. Reconciliation and reserve h
 append-only in the application and protected from runtime-role mutation by PostgreSQL. Golden
 calculation, authorization, deletion-confirmation, responsive-render, migration, and rollback-only
 PostgreSQL runtime rehearsals pass.
+
+The M5.1 hardening pass added rejection-path coverage for audit checkpoints, household selection,
+ledger postings and snapshots, paycheck-boundary changes, period corrections, recurrence
+configuration, and occurrence mutations. CI enforces at least 80% combined coverage and 80%
+branch-only coverage, excluding migration modules that have dedicated migration and PostgreSQL
+rehearsal tests.
 
 Exit criteria: Golden cases A–D, I–N pass and the dashboard matches the approved information hierarchy.
 

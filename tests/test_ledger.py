@@ -32,6 +32,7 @@ from ledger.services import (
     reverse_entry,
     update_financial_account,
 )
+from ledger.services.entries import PostingSpec, _positive_amount, _validate_postings
 
 TEST_PASSWORD = "correct-horse-battery-test"  # pragma: allowlist secret
 
@@ -603,6 +604,20 @@ def test_archived_accounts_and_categories_retain_history_but_reject_new_activity
         description="Before archive",
         request_id="request-before-archive",
     )
+    with pytest.raises(ValidationError, match="requires a reason"):
+        archive_category(
+            category=groceries,
+            actor=ledger_context.user,
+            request_id="request-category-archive-without-reason",
+            reason="   ",
+        )
+    with pytest.raises(ValidationError, match="requires a reason"):
+        archive_financial_account(
+            account=checking,
+            actor=ledger_context.user,
+            request_id="request-account-archive-without-reason",
+            reason="   ",
+        )
     archive_category(
         category=groceries,
         actor=ledger_context.user,
@@ -614,6 +629,24 @@ def test_archived_accounts_and_categories_retain_history_but_reject_new_activity
         actor=ledger_context.user,
         request_id="request-account-archive",
         reason="Account closed",
+    )
+    assert (
+        archive_category(
+            category=groceries,
+            actor=ledger_context.user,
+            request_id="request-category-already-archived",
+            reason="Already archived",
+        ).pk
+        == groceries.pk
+    )
+    assert (
+        archive_financial_account(
+            account=checking,
+            actor=ledger_context.user,
+            request_id="request-account-already-archived",
+            reason="Already archived",
+        ).pk
+        == checking.pk
     )
 
     with pytest.raises(ValidationError, match="Archived financial accounts"):
@@ -646,3 +679,336 @@ def test_archived_accounts_and_categories_retain_history_but_reject_new_activity
 
     assert JournalEntry.objects.filter(pk=recorded.pk).exists()
     assert recorded.postings.count() == 2
+
+
+@pytest.mark.django_db
+def test_ledger_posting_validation_rejects_malformed_and_cross_household_specs(
+    ledger_context: LedgerContext,
+) -> None:
+    checking = make_account(ledger_context, name="Posting checking")
+    other_household = Household.objects.create(name="Posting other household")
+    HouseholdMembership.objects.create(household=other_household, user=ledger_context.user)
+    other_account = create_financial_account(
+        household=other_household,
+        actor=ledger_context.user,
+        name="Posting other checking",
+        account_type=FinancialAccount.AccountType.CHECKING,
+        classification=FinancialAccount.Classification.ASSET,
+        request_id="request-posting-other-account",
+    )
+
+    with pytest.raises(ValidationError, match="Decimal values"):
+        _positive_amount("1.00")  # type: ignore[arg-type]
+    with pytest.raises(ValidationError, match="at least two"):
+        _validate_postings(
+            ledger_context.household,
+            (PostingSpec(JournalPosting.Side.DEBIT, Decimal("1.00"), checking),),
+        )
+    with pytest.raises(ValidationError, match="balance exactly"):
+        _validate_postings(
+            ledger_context.household,
+            (
+                PostingSpec(JournalPosting.Side.DEBIT, Decimal("2.00"), checking),
+                PostingSpec(
+                    JournalPosting.Side.CREDIT,
+                    Decimal("1.00"),
+                    internal_account=JournalPosting.InternalAccount.INCOME,
+                ),
+            ),
+        )
+    with pytest.raises(ValidationError, match="exactly one"):
+        _validate_postings(
+            ledger_context.household,
+            (
+                PostingSpec(
+                    JournalPosting.Side.DEBIT,
+                    Decimal("1.00"),
+                    checking,
+                    JournalPosting.InternalAccount.INCOME,
+                ),
+                PostingSpec(
+                    JournalPosting.Side.CREDIT,
+                    Decimal("1.00"),
+                    internal_account=JournalPosting.InternalAccount.INCOME,
+                ),
+            ),
+        )
+    with pytest.raises(ValidationError, match="side is invalid"):
+        _validate_postings(
+            ledger_context.household,
+            (
+                PostingSpec("invalid", Decimal("1.00"), checking),
+                PostingSpec(
+                    JournalPosting.Side.DEBIT,
+                    Decimal("1.00"),
+                    internal_account=JournalPosting.InternalAccount.EXPENSE,
+                ),
+                PostingSpec(
+                    JournalPosting.Side.CREDIT,
+                    Decimal("1.00"),
+                    internal_account=JournalPosting.InternalAccount.INCOME,
+                ),
+            ),
+        )
+    with pytest.raises(ValidationError, match="another household"):
+        _validate_postings(
+            ledger_context.household,
+            (
+                PostingSpec(JournalPosting.Side.DEBIT, Decimal("1.00"), other_account),
+                PostingSpec(
+                    JournalPosting.Side.CREDIT,
+                    Decimal("1.00"),
+                    internal_account=JournalPosting.InternalAccount.INCOME,
+                ),
+            ),
+        )
+    with pytest.raises(ValidationError, match="Internal ledger account"):
+        _validate_postings(
+            ledger_context.household,
+            (
+                PostingSpec(JournalPosting.Side.DEBIT, Decimal("1.00"), checking),
+                PostingSpec(
+                    JournalPosting.Side.CREDIT,
+                    Decimal("1.00"),
+                    internal_account="invalid",
+                ),
+            ),
+        )
+
+
+@pytest.mark.django_db
+def test_ledger_services_reject_invalid_accounts_metadata_and_movements(
+    ledger_context: LedgerContext,
+) -> None:
+    checking = make_account(ledger_context, name="Validation checking")
+    savings = make_account(
+        ledger_context,
+        name="Validation savings",
+        account_type=FinancialAccount.AccountType.SAVINGS,
+    )
+    card = make_account(
+        ledger_context,
+        name="Validation card",
+        account_type=FinancialAccount.AccountType.CREDIT_CARD,
+        classification=FinancialAccount.Classification.LIABILITY,
+    )
+    category = make_category(ledger_context, name="Validation category")
+    effective_at = timezone.now()
+
+    with pytest.raises(ValidationError, match="asset account"):
+        record_income(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            destination=card,
+            amount=Decimal("10.00"),
+            effective_at=effective_at,
+            description="Invalid income destination",
+            request_id="request-invalid-income-destination",
+        )
+    with pytest.raises(ValidationError, match="include a timezone"):
+        record_income(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            destination=checking,
+            amount=Decimal("10.00"),
+            effective_at=effective_at.replace(tzinfo=None),
+            description="Naive income",
+            request_id="request-naive-income",
+        )
+    with pytest.raises(ValidationError, match="description is required"):
+        record_income(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            destination=checking,
+            amount=Decimal("10.00"),
+            effective_at=effective_at,
+            description="   ",
+            request_id="request-blank-description",
+        )
+    with pytest.raises(ValidationError, match="must be different"):
+        record_transfer(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            source=checking,
+            destination=checking,
+            amount=Decimal("10.00"),
+            effective_at=effective_at,
+            description="Same account transfer",
+            request_id="request-same-account-transfer",
+        )
+    with pytest.raises(ValidationError, match="source account classification"):
+        record_transfer(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            source=card,
+            destination=savings,
+            amount=Decimal("10.00"),
+            effective_at=effective_at,
+            description="Liability source transfer",
+            request_id="request-liability-source-transfer",
+        )
+    with pytest.raises(ValidationError, match="direction is invalid"):
+        record_balance_adjustment(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            account=checking,
+            amount=Decimal("10.00"),
+            direction="sideways",  # type: ignore[arg-type]
+            effective_at=effective_at,
+            description="Invalid direction",
+            request_id="request-invalid-adjustment-direction",
+            reason="Testing validation",
+        )
+    with pytest.raises(ValidationError, match="require a reason"):
+        record_balance_adjustment(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            account=checking,
+            amount=Decimal("10.00"),
+            direction="increase",
+            effective_at=effective_at,
+            description="Missing reason",
+            request_id="request-blank-adjustment-reason",
+            reason="   ",
+        )
+
+    entry = record_expense(
+        household=ledger_context.household,
+        actor=ledger_context.user,
+        account=checking,
+        category=category,
+        amount=Decimal("10.00"),
+        effective_at=effective_at,
+        description="Reversal validation",
+        request_id="request-reversal-validation-entry",
+    )
+    with pytest.raises(ValidationError, match="requires a reason"):
+        reverse_entry(
+            entry=entry,
+            actor=ledger_context.user,
+            effective_at=effective_at,
+            request_id="request-blank-reversal-reason",
+            reason="   ",
+        )
+
+
+@pytest.mark.django_db
+def test_ledger_services_reject_cross_household_and_archived_objects(
+    ledger_context: LedgerContext,
+) -> None:
+    checking = make_account(ledger_context, name="Archive checking")
+    active_checking = make_account(ledger_context, name="Active checking")
+    category = make_category(ledger_context, name="Archive category")
+    other_household = Household.objects.create(name="Ledger object other household")
+    HouseholdMembership.objects.create(household=other_household, user=ledger_context.user)
+    other_account = create_financial_account(
+        household=other_household,
+        actor=ledger_context.user,
+        name="Other household checking",
+        account_type=FinancialAccount.AccountType.CHECKING,
+        classification=FinancialAccount.Classification.ASSET,
+        request_id="request-other-household-checking",
+    )
+
+    with pytest.raises(ValidationError, match="active household"):
+        record_income(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            destination=other_account,
+            amount=Decimal("10.00"),
+            effective_at=timezone.now(),
+            description="Cross-household income",
+            request_id="request-cross-household-income",
+        )
+
+    archive_financial_account(
+        account=checking,
+        actor=ledger_context.user,
+        request_id="request-archive-validation-checking",
+        reason="Account closed",
+    )
+    with pytest.raises(ValidationError, match="Archived financial accounts"):
+        record_income(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            destination=checking,
+            amount=Decimal("10.00"),
+            effective_at=timezone.now(),
+            description="Archived account income",
+            request_id="request-archived-account-income",
+        )
+
+    archive_category(
+        category=category,
+        actor=ledger_context.user,
+        request_id="request-archive-validation-category",
+        reason="Category retired",
+    )
+    with pytest.raises(ValidationError, match="Archived categories"):
+        record_expense(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            account=active_checking,
+            category=category,
+            amount=Decimal("10.00"),
+            effective_at=timezone.now(),
+            description="Archived category expense",
+            request_id="request-archived-category-expense",
+        )
+
+
+@pytest.mark.django_db
+def test_balance_queries_and_snapshots_reject_invalid_inputs(
+    ledger_context: LedgerContext,
+) -> None:
+    checking = make_account(ledger_context, name="Snapshot checking")
+    other_household = Household.objects.create(name="Snapshot other household")
+    HouseholdMembership.objects.create(household=other_household, user=ledger_context.user)
+    other_account = create_financial_account(
+        household=other_household,
+        actor=ledger_context.user,
+        name="Snapshot other checking",
+        account_type=FinancialAccount.AccountType.CHECKING,
+        classification=FinancialAccount.Classification.ASSET,
+        request_id="request-snapshot-other-account",
+    )
+    observed_at = timezone.now()
+
+    assert account_reconciliation(checking).snapshot is None
+    with pytest.raises(ValidationError, match="include a timezone"):
+        calculated_account_balance(checking, as_of=observed_at.replace(tzinfo=None))
+    with pytest.raises(ValidationError, match="another household"):
+        record_balance_snapshot(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            account=other_account,
+            observed_balance=Decimal("1.00"),
+            observed_at=observed_at,
+            request_id="request-cross-household-snapshot",
+        )
+
+    invalid_balances = (
+        ("1.00", "Decimal values"),
+        (Decimal("NaN"), "invalid"),
+        (Decimal("1.001"), "two decimal places"),
+    )
+    for observed_balance, message in invalid_balances:
+        with pytest.raises(ValidationError, match=message):
+            record_balance_snapshot(
+                household=ledger_context.household,
+                actor=ledger_context.user,
+                account=checking,
+                observed_balance=observed_balance,  # type: ignore[arg-type]
+                observed_at=observed_at,
+                request_id=f"request-invalid-snapshot-{message}",
+            )
+
+    with pytest.raises(ValidationError, match="include a timezone"):
+        record_balance_snapshot(
+            household=ledger_context.household,
+            actor=ledger_context.user,
+            account=checking,
+            observed_balance=Decimal("1.00"),
+            observed_at=observed_at.replace(tzinfo=None),
+            request_id="request-naive-snapshot",
+        )

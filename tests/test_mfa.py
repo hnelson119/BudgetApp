@@ -18,6 +18,8 @@ from identity.services.mfa import (
     decrypt_secret,
     mfa_is_ready,
     totp_code,
+    verify_and_consume_recovery_code,
+    verify_and_consume_totp,
 )
 from identity.services.sessions import (
     SESSION_AUTH_VERIFIED_AT,
@@ -81,6 +83,27 @@ def test_totp_seed_is_encrypted_and_bound_to_its_user(mfa_household_user) -> Non
     )
     with pytest.raises(ImproperlyConfigured, match="invalid"):
         decrypt_secret(other_credential)
+
+
+@pytest.mark.django_db
+def test_mfa_services_reject_incomplete_replayed_and_malformed_credentials(
+    mfa_household_user,
+) -> None:  # type: ignore[no-untyped-def]
+    _, user = mfa_household_user
+    assert confirm_enrollment(user, "000000") is None
+    assert confirm_recovery_codes_saved(user) is False
+    assert verify_and_consume_totp(user, "000000") is False
+    assert verify_and_consume_recovery_code(user, "not-a-recovery-code") is False
+
+    enrollment = begin_enrollment(user)
+    assert confirm_enrollment(user, "invalid") is None
+    confirmed = confirm_enrollment(user, totp_code(enrollment.secret))
+    assert confirmed is not None
+    assert confirm_enrollment(user, totp_code(enrollment.secret)) is None
+
+    RecoveryCode.objects.filter(user=user).delete()
+    assert confirm_recovery_codes_saved(user) is False
+    assert verify_and_consume_recovery_code(user, "not-a-recovery-code") is False
 
 
 @pytest.mark.django_db

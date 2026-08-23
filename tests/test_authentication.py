@@ -1,15 +1,18 @@
 import time
+import uuid
+from types import SimpleNamespace
 
 import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
 from django.test import Client
 from django.urls import reverse
 
 from audit.models import AuditEvent
 from households.models import Household, HouseholdMembership
-from households.services.access import require_household_membership
+from households.services.access import get_active_household, require_household_membership
 from identity.forms import GENERIC_LOGIN_ERROR
 from identity.models import LoginThrottle
 from identity.services.mfa import (
@@ -60,6 +63,68 @@ def test_login_page_is_not_cached(client: Client) -> None:
     assert response.status_code == 200
     assert "no-cache" in response.headers["Cache-Control"]
     assert b"Credentials are never shared" in response.content
+
+
+@pytest.mark.django_db
+def test_household_access_rejects_unauthenticated_ambiguous_and_stale_selection(
+    household_user,
+) -> None:  # type: ignore[no-untyped-def]
+    household, user = household_user
+    anonymous = AnonymousUser()
+    with pytest.raises(PermissionDenied):
+        require_household_membership(anonymous, household)  # type: ignore[arg-type]
+    with pytest.raises(PermissionDenied):
+        get_active_household(  # type: ignore[arg-type]
+            SimpleNamespace(user=anonymous, session={})
+        )
+
+    invalid_session: dict[str, str] = {"active_household_id": "not-a-uuid"}
+    selected = get_active_household(  # type: ignore[arg-type]
+        SimpleNamespace(user=user, session=invalid_session)
+    )
+    assert selected == household
+    assert invalid_session["active_household_id"] == str(household.pk)
+
+    stale_session = {"active_household_id": str(uuid.uuid4())}
+    selected = get_active_household(  # type: ignore[arg-type]
+        SimpleNamespace(user=user, session=stale_session)
+    )
+    assert selected == household
+    assert stale_session["active_household_id"] == str(household.pk)
+
+    second_household = Household.objects.create(name="Second household")
+    HouseholdMembership.objects.create(household=second_household, user=user)
+    with pytest.raises(PermissionDenied):
+        get_active_household(  # type: ignore[arg-type]
+            SimpleNamespace(user=user, session={})
+        )
+
+
+@pytest.mark.django_db
+def test_user_manager_rejects_invalid_superuser_flags_and_missing_email() -> None:
+    users = get_user_model().objects
+    with pytest.raises(ValueError, match="email address"):
+        users.create_user(email="", password=TEST_PASSWORD)
+    with pytest.raises(ValueError, match="is_staff"):
+        users.create_superuser(
+            email="invalid-staff@example.com",
+            password=TEST_PASSWORD,
+            is_staff=False,
+        )
+    with pytest.raises(ValueError, match="is_superuser"):
+        users.create_superuser(
+            email="invalid-superuser@example.com",
+            password=TEST_PASSWORD,
+            is_superuser=False,
+        )
+
+    administrator = users.create_superuser(
+        email="ADMINISTRATOR@EXAMPLE.COM",
+        password=TEST_PASSWORD,
+    )
+    assert administrator.email == "administrator@example.com"
+    assert administrator.is_staff is True
+    assert administrator.is_superuser is True
 
 
 @pytest.mark.django_db
