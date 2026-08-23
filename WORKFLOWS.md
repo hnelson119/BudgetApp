@@ -1,7 +1,7 @@
 # Household Budget Application — Workflow and State Models
 
-Status: Pre-build baseline
-Last updated: 2026-08-21
+Status: Milestone 4 scheduling and paycheck-period workflows implemented
+Last updated: 2026-08-22
 
 ## 1. Paycheck-period lifecycle
 

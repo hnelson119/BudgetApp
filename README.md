@@ -9,16 +9,19 @@ Docker deployment files, health checks, and tested core money rules.
 
 ## Current milestone
 
-The code-deliverable portions of Milestones 0 through 3 are complete and locally verified. The
+The code-deliverable portions of Milestones 0 through 4 are complete and locally verified. The
 private GitHub remote, read-only quality workflow, SHA-pinned GitHub-owned action policy, and
 Dependabot alerts are active. Enforced branch protection remains unavailable on the current free
 private-repository plan, so short-lived pull requests and passing checks remain an operational rule.
 Identity, MFA, recovery, household authorization, protected audit history, manual accounts,
-categories, database-protected committed ledger history, reversals, and balance reconciliation are implemented. The local
-PostgreSQL rehearsal passes with the dedicated migration identity and least-privilege runtime role.
-Milestone 4—scheduling and paycheck-anchored period generation—is next. Private Tailscale-only HTTPS,
-firewall/device checks, and provisioning the two real household accounts remain deployment-time work
-on the Linux VM before household financial data is entered.
+categories, database-protected committed ledger history, reversals, balance reconciliation,
+structured recurrence, immutable schedule revisions, paycheck-anchored periods, occurrence
+overrides, and append-only period-closing reserve corrections are implemented. The local PostgreSQL
+rehearsal passes with the dedicated migration identity and least-privilege runtime role, including
+database rejection of history tampering and overlapping periods. Milestone 5—the budget and
+dashboard vertical slice—is next. Private Tailscale-only HTTPS, firewall/device checks, and
+provisioning the two real household accounts remain deployment-time work on the Linux VM before
+household financial data is entered.
 
 ## Local development
 
@@ -151,7 +154,7 @@ documents the independent audit-checkpoint timer and verification expectations.
 python -m pytest
 python -m ruff check .
 python -m ruff format --check .
-python -m mypy audit budgets core debts households identity ledger spending
+python -m mypy audit budgets core debts households identity ledger periods reserves schedules spending
 python manage.py makemigrations --check --dry-run --settings=config.settings.test
 python scripts/secret_scan.py
 python -m bandit -c pyproject.toml -r audit budgets config core debts goals households identity imports ledger notifications periods reserves schedules spending
