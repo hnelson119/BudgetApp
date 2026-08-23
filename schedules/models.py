@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.functions import Lower
 
-from households.models import Household
+from households.models import Category, Household
 from periods.models import PayPeriod
 from schedules.recurrence import BusinessDayAdjustment, Frequency
 
@@ -125,6 +125,31 @@ class IncomeSourceDetail(models.Model):
     def clean(self) -> None:
         if self.source_id and self.source.kind != RecurringSource.Kind.INCOME:
             raise ValidationError("Income details require an income recurring source.")
+
+
+class ExpenseSourceDetail(models.Model):
+    source = models.OneToOneField(
+        RecurringSource,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="expense_detail",
+    )
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name="fixed_expense_sources",
+    )
+    is_required = models.BooleanField(default=True)
+
+    def __str__(self) -> str:
+        return f"Expense settings for {self.source_id}"
+
+    def clean(self) -> None:
+        if self.source_id:
+            if self.source.kind != RecurringSource.Kind.FIXED_EXPENSE:
+                raise ValidationError("Expense details require a fixed-expense recurring source.")
+            if self.category_id and self.category.household_id != self.source.household_id:
+                raise ValidationError("The expense category must belong to the source household.")
 
 
 class SourceRevision(models.Model):

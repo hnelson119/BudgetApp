@@ -1,0 +1,22 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}Remove category budget{% endblock %}
+{% block page_title %}Confirm removal{% endblock %}
+
+{% block content %}
+  <section class="form-page">
+    <a class="back-link" href="{% url 'budgets:detail' period.pk %}">← Back to paycheck budget</a>
+    <div class="form-card danger-card">
+      <p class="eyebrow">Confirmation required</p><h2>Remove {{ budget.category.name }}?</h2>
+      <p>This removes the {{ budget.planned_amount|money }} plan only from this paycheck period. The protected audit history will retain who removed it and why.</p>
+      {% if error %}<div class="form-alert">{{ error }}</div>{% endif %}
+      <form class="app-form" method="post">
+        {% csrf_token %}
+        <div class="form-field"><label for="id_reason">Reason</label><textarea id="id_reason" name="reason" maxlength="500" rows="3" required></textarea></div>
+        <label class="confirmation-check"><input type="checkbox" name="confirm" required> I understand this category budget will be removed.</label>
+        <button class="danger-button" type="submit">Remove category budget</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

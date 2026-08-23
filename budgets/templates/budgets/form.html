@@ -1,0 +1,28 @@
+{% extends 'core/app_base.html' %}
+
+{% block title %}{{ title }} · Household Budget{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <section class="form-page">
+    <a class="back-link" href="{% url 'budgets:detail' period.pk %}">← Back to paycheck budget</a>
+    <div class="form-card">
+      <p class="eyebrow">{{ period.start_date|date:'M j' }}–{{ period.display_end_date|date:'M j, Y' }}</p>
+      <h2>{{ title }}</h2>
+      {% if help_text %}<p class="muted">{{ help_text }}</p>{% endif %}
+      <form class="app-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}
+          <div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">
+            {{ field.label_tag }}{{ field }}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+        <button class="primary-button" type="submit">Save</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

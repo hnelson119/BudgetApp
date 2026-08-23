@@ -202,15 +202,17 @@ Examples:
 - Checking-to-Savings transfer: debit Savings, credit Checking.
 - Paycheck: debit Checking, credit Income.
 
-### ReconciliationLink
+### OccurrenceReconciliation
 
 Many-to-many link between actual JournalEntries and planned Occurrences.
 
-- Occurrence ID and JournalEntry ID
+- Household, Occurrence, and JournalEntry IDs
 - Amount applied
-- Matching method: manual, import rule, or explicit reconciliation
+- Created-by and created timestamp
 
-This supports one payment satisfying multiple installments or one scheduled obligation being paid in parts.
+The initial workflow creates explicit manual links. The records are append-only and PostgreSQL
+rejects runtime-role update, delete, and truncate attempts. This supports one payment satisfying
+multiple installments or one scheduled obligation being paid in parts.
 
 ### BalanceSnapshot
 
@@ -232,6 +234,7 @@ Credit cards act as liability accounts. Categorized purchases are expenses on th
 - Optional credit-card debt/account ID
 - Exact positive or negative amount
 - Reason and source JournalEntry/closing revision
+- Destination label for an explicit Household Reserve allocation
 - Created-by and timestamps
 
 Rules:

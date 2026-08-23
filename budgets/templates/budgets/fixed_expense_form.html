@@ -1,0 +1,28 @@
+{% extends 'core/app_base.html' %}
+
+{% block title %}Add fixed expense · Household Budget{% endblock %}
+{% block page_title %}Add fixed expense{% endblock %}
+
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% url 'budgets:detail' period.pk %}">← Back to paycheck budget</a>
+    <div class="form-card">
+      <p class="eyebrow">Recurring schedule</p><h2>Describe the bill cadence</h2>
+      <p class="muted">Previewing the next three due dates is required before saving. Bills automatically enter the paycheck period containing each due date.</p>
+      <form class="app-form schedule-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}<div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+        {% if preview %}<input type="hidden" name="preview_fingerprint" value="{{ preview.fingerprint }}">{% else %}{{ form.preview_fingerprint }}{% endif %}
+        {% if preview %}
+          <section class="preview-card" aria-live="polite">
+            <p class="eyebrow">Confirm schedule</p><h3>Next due dates</h3>
+            <ol>{% for item in preview.next_occurrences %}<li><strong>{{ item.expected_date|date:'M j, Y' }}</strong>{% if item.nominal_date != item.expected_date %}<span>Adjusted from {{ item.nominal_date|date:'M j' }}</span>{% endif %}</li>{% empty %}<li>No occurrences fall in the ten-year preview window.</li>{% endfor %}</ol>
+            <p>Review these dates, then save. Later schedule edits create a new revision and never rewrite protected history.</p>
+          </section>
+          <div class="action-row"><button class="secondary-button" type="submit" name="action" value="preview">Refresh preview</button><button class="primary-button" type="submit" name="action" value="confirm">Confirm and save schedule</button></div>
+        {% else %}<button class="primary-button" type="submit" name="action" value="preview">Preview next due dates</button>{% endif %}
+      </form>
+    </div>
+  </section>
+{% endblock %}

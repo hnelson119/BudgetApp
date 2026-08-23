@@ -1,0 +1,71 @@
+{% load static %}
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <title>{% block title %}Household Budget{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'core/app.css' %}">
+  </head>
+  <body>
+    <div class="app-frame">
+      <aside class="app-sidebar" aria-label="Primary navigation">
+        <a class="brand" href="{% url 'core:home' %}">
+          <span class="brand-mark" aria-hidden="true">H</span>
+          <span>{{ household.name }}</span>
+        </a>
+        <nav class="app-nav">
+          <a{% if current_nav == 'overview' %} class="is-active" aria-current="page"{% endif %} href="{% url 'core:home' %}{% if period %}?period={{ period.pk }}{% endif %}"><span aria-hidden="true">⌂</span> Overview</a>
+          {% if period %}
+            <a{% if current_nav == 'budget' %} class="is-active" aria-current="page"{% endif %} href="{% url 'budgets:detail' period.pk %}"><span aria-hidden="true">◔</span> Budget</a>
+          {% else %}
+            <a href="#" aria-disabled="true"><span aria-hidden="true">◔</span> Budget</a>
+          {% endif %}
+          <a href="#" aria-disabled="true"><span aria-hidden="true">▣</span> Income</a>
+          <a href="#" aria-disabled="true"><span aria-hidden="true">◫</span> Spending</a>
+          <a href="#" aria-disabled="true"><span aria-hidden="true">▤</span> Debts</a>
+          <a href="#" aria-disabled="true"><span aria-hidden="true">◎</span> Goals</a>
+        </nav>
+        <div class="sidebar-footer">
+          <a href="{% url 'audit:history' %}">Protected audit history</a>
+          <p>{{ request.user.display_name|default:request.user.email }}</p>
+        </div>
+      </aside>
+
+      <main class="app-main">
+        <header class="app-topbar">
+          <div>
+            <p class="eyebrow">Private household workspace</p>
+            <h1>{% block page_title %}Overview{% endblock %}</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false">
+              <span aria-hidden="true">◐</span><span class="button-label"> Theme</span>
+            </button>
+            <form method="post" action="{% url 'identity:logout' %}">
+              {% csrf_token %}
+              <button class="quiet-button" type="submit">Sign out</button>
+            </form>
+          </div>
+        </header>
+
+        {% if messages %}
+          <div class="message-stack" aria-live="polite">
+            {% for message in messages %}<p class="app-message">{{ message }}</p>{% endfor %}
+          </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+      </main>
+
+      <nav class="mobile-nav" aria-label="Mobile navigation">
+        <a{% if current_nav == 'overview' %} class="is-active" aria-current="page"{% endif %} href="{% url 'core:home' %}{% if period %}?period={{ period.pk }}{% endif %}"><span aria-hidden="true">⌂</span>Overview</a>
+        {% if period %}<a{% if current_nav == 'budget' %} class="is-active" aria-current="page"{% endif %} href="{% url 'budgets:detail' period.pk %}"><span aria-hidden="true">◔</span>Budget</a>{% else %}<a href="#" aria-disabled="true"><span aria-hidden="true">◔</span>Budget</a>{% endif %}
+        <a href="#" aria-disabled="true"><span aria-hidden="true">◫</span>Spending</a>
+        <a href="{% url 'audit:history' %}"><span aria-hidden="true">☰</span>Audit</a>
+      </nav>
+    </div>
+    <script src="{% static 'core/app.js' %}" defer></script>
+  </body>
+</html>

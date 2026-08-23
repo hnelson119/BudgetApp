@@ -53,6 +53,7 @@ include = [
 [tool.setuptools.package-data]
 audit = ["templates/audit/*.html"]
 core = ["templates/core/*.html", "static/core/*"]
+budgets = ["templates/budgets/*.html", "templatetags/*.py"]
 identity = ["templates/identity/*.html"]
 
 [tool.pytest.ini_options]

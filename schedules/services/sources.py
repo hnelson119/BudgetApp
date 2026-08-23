@@ -11,10 +11,15 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from audit.services import append_event
-from households.models import Household
+from households.models import Category, Household
 from households.services.access import require_household_membership
 from identity.models import User
-from schedules.models import IncomeSourceDetail, RecurringSource, SourceRevision
+from schedules.models import (
+    ExpenseSourceDetail,
+    IncomeSourceDetail,
+    RecurringSource,
+    SourceRevision,
+)
 from schedules.recurrence import (
     BusinessDayAdjustment,
     Frequency,
@@ -218,6 +223,8 @@ def create_recurring_source(
     notes: str = "",
     starts_budget_period: bool = False,
     is_variable_income: bool = False,
+    expense_category: Category | None = None,
+    is_required_expense: bool = True,
 ) -> tuple[RecurringSource, SourceRevision]:
     require_household_membership(actor, household)
     if kind not in RecurringSource.Kind.values:
@@ -235,15 +242,33 @@ def create_recurring_source(
     source.full_clean()
     source.save()
     if kind == RecurringSource.Kind.INCOME:
-        detail = IncomeSourceDetail(
+        if expense_category is not None:
+            raise ValidationError("Income sources cannot use an expense category.")
+        income_detail = IncomeSourceDetail(
             source=source,
             starts_budget_period=starts_budget_period,
             is_variable=is_variable_income,
         )
-        detail.full_clean()
-        detail.save()
+        income_detail.full_clean()
+        income_detail.save()
+    elif kind == RecurringSource.Kind.FIXED_EXPENSE:
+        if expense_category is not None:
+            category = Category.objects.select_for_update().get(pk=expense_category.pk)
+            if category.household_id != household.pk:
+                raise ValidationError("The expense category belongs to another household.")
+            if category.is_archived:
+                raise ValidationError("Archived categories cannot be used for new fixed expenses.")
+            expense_detail = ExpenseSourceDetail(
+                source=source,
+                category=category,
+                is_required=is_required_expense,
+            )
+            expense_detail.full_clean()
+            expense_detail.save()
     elif starts_budget_period or is_variable_income:
         raise ValidationError("Only income sources can use income schedule settings.")
+    elif expense_category is not None:
+        raise ValidationError("Only fixed expenses can use an expense category.")
     revision = _create_revision(
         source=source,
         actor=actor,
@@ -262,6 +287,8 @@ def create_recurring_source(
             "name": source.name,
             "revision_id": revision.pk,
             "starts_budget_period": starts_budget_period,
+            "category_id": expense_category.pk if expense_category else None,
+            "is_required_expense": is_required_expense if expense_category else None,
         },
     )
     return source, revision

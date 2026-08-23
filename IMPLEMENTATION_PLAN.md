@@ -1,7 +1,7 @@
 # Household Budget Application — Implementation Plan
 
-Status: Milestone 4 implementation and local PostgreSQL verification complete; private-ingress deployment verification pending
-Last updated: 2026-08-22
+Status: Milestone 5 implementation and local PostgreSQL verification complete; private-ingress deployment verification pending
+Last updated: 2026-08-23
 
 ## 1. Locked architecture
 
@@ -136,6 +136,16 @@ Exit criteria: paycheck-boundary and recurrence golden cases pass, including sam
 - Implement current-period dashboard, upcoming bills, status, and unallocated excess
 - Implement Household Reserve display and explicit allocation
 - Implement mobile responsive navigation and light/dark themes
+
+Progress: fixed-expense category metadata and preview-confirmed recurring schedule creation,
+period-specific variable category budgets, grouped planned/actual budget rows, explicit
+occurrence-to-ledger reconciliation, period-only edit/move/cancellation workflows, current-period
+status and cash-flow calculations, upcoming bills, scheduled goal funding, recent transactions,
+Household Reserve display/allocation, and previous/next paycheck navigation are implemented. Every
+financial mutation is household-scoped and audited. Reconciliation and reserve history are
+append-only in the application and protected from runtime-role mutation by PostgreSQL. Golden
+calculation, authorization, deletion-confirmation, responsive-render, migration, and rollback-only
+PostgreSQL runtime rehearsals pass.
 
 Exit criteria: Golden cases A–D, I–N pass and the dashboard matches the approved information hierarchy.
 
