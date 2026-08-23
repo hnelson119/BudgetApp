@@ -13,10 +13,12 @@ The GitHub quality workflow runs the same checks, audits the complete developmen
 validates every Docker Compose profile. Third-party workflow actions must be official, reviewed,
 and pinned to an immutable full commit SHA.
 
-Once the private remote is created, protect the default branch by requiring pull requests, the
-`Python, Django, and security checks` status check, resolution of review conversations, and branch
-currency before merge. Disable force pushes and branch deletion. The two household users do not
-need repository access unless both will participate in development or deployment.
+When the repository plan supports private branch protection, protect the default branch by
+requiring pull requests, the `Python, Django, and security checks` status check, resolution of review
+conversations, and branch currency before merge. Disable force pushes and branch deletion. Until
+then, treat these requirements as mandatory operating procedure and never force-push or delete
+`main`. The two household users do not need repository access unless both will participate in
+development or deployment.
 
 Do not commit `.env`, real financial data, database files, CSV imports,
 credentials, recovery material, backups, or production logs.

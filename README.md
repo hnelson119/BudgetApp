@@ -10,9 +10,11 @@ money rules.
 ## Current milestone
 
 The local Milestone 0 baseline and encrypted backup/recovery portion of Milestone 1 are complete.
-Remote branch protection becomes enforceable when a private Git host is connected, and private
-Tailscale-only HTTPS configuration remains deployment-time work on the Linux VM. Milestone 2 is in
-progress: password authentication, encrypted TOTP enrollment, single-use recovery codes, login
+The private GitHub remote, read-only quality workflow, SHA-pinned GitHub-owned action policy, and
+Dependabot alerts are active. Enforced branch protection remains unavailable on the current free
+private-repository plan, so short-lived pull requests and passing checks remain an operational rule.
+Private Tailscale-only HTTPS configuration remains deployment-time work on the Linux VM. Milestone 2
+is in progress: password authentication, encrypted TOTP enrollment, single-use recovery codes, login
 throttling, secure session controls, household authorization, trusted-console provisioning and
 recovery, PostgreSQL-enforced append-only audit isolation, signed external checkpoints, and a
 read-only household-scoped audit UI are implemented. The local PostgreSQL privilege rehearsal now

@@ -53,8 +53,10 @@ Exit criteria: a clean checkout can run formatting and an empty test suite repro
 
 Progress: the local repository structure, locked dependencies, documentation, migration policy,
 quality/security checks, immutable-action CI workflow, and dependency-update configuration are
-implemented. Remote branch-protection enforcement remains pending until a private Git host is
-connected.
+implemented. The private GitHub remote enforces read-only workflow tokens, GitHub-owned actions,
+and full-SHA action pinning. The current free private-repository plan does not provide enforced
+branch protection, so short-lived pull requests and passing checks remain an operational rule until
+the repository moves to a plan that supports protection for private branches.
 
 ### Milestone 1 — Secure private deployment skeleton
 
