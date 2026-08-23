@@ -63,6 +63,12 @@
         <p class="muted">Unassigned money retained from closed periods. This is an allocation balance, not a bank balance.</p>
         {% if summary.household_reserve > 0 %}<a class="secondary-button" href="{% url 'budgets:reserve-allocate' period.pk %}">Allocate reserve</a>{% else %}<div class="empty-panel"><strong>No reserve available yet</strong><span>Period surplus is added only after closing review.</span></div>{% endif %}
       </article>
+      <article class="dashboard-card card-payment-reserve-card">
+        <p class="eyebrow">Already counted as spending</p><h3>Card Payment Reserve</h3>
+        <p class="large-value">{{ summary.card_payment_reserve|money }}</p>
+        <p class="muted">Cash allocated to settle categorized credit-card purchases. It is separate from Household Reserve and is not a verified bank balance.</p>
+        <a class="secondary-button" href="{% url 'spending:transaction-list' %}">Review cards</a>
+      </article>
     </section>
 
     <section class="dashboard-split">

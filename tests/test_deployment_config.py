@@ -87,6 +87,10 @@ def test_parameterless_postgresql_migration_sql_escapes_percent_literals() -> No
             ("PROTECT_RESERVE_ENTRIES_SQL", "UNPROTECT_RESERVE_ENTRIES_SQL"),
         ),
         (
+            "reserves.migrations.0004_cardpaymentreserveentry",
+            ("PROTECT_CARD_RESERVE_SQL", "UNPROTECT_CARD_RESERVE_SQL"),
+        ),
+        (
             "budgets.migrations.0002_postgresql_protect_reconciliations",
             ("PROTECT_RECONCILIATIONS_SQL", "UNPROTECT_RECONCILIATIONS_SQL"),
         ),
@@ -125,6 +129,9 @@ def test_postgresql_schedule_and_period_history_has_database_guards() -> None:
     reconciliation_migration = (
         PROJECT_ROOT / "budgets/migrations/0002_postgresql_protect_reconciliations.py"
     ).read_text(encoding="utf-8")
+    card_reserve_migration = (
+        PROJECT_ROOT / "reserves/migrations/0004_cardpaymentreserveentry.py"
+    ).read_text(encoding="utf-8")
 
     assert "pg_advisory_xact_lock" in period_migration
     assert "pay periods for one household cannot overlap" in period_migration
@@ -134,7 +141,13 @@ def test_postgresql_schedule_and_period_history_has_database_guards() -> None:
     assert "reserve entries cannot be %%" in reserve_migration
     assert "budget reconciliations cannot be %%" in reconciliation_migration
     assert "budgets_occurrencereconciliation" in reconciliation_migration
-    for migration in (schedule_migration, reserve_migration, reconciliation_migration):
+    assert "reserves_cardpaymentreserveentry" in card_reserve_migration
+    for migration in (
+        schedule_migration,
+        reserve_migration,
+        reconciliation_migration,
+        card_reserve_migration,
+    ):
         assert "BEFORE UPDATE OR DELETE" in migration
         assert "BEFORE TRUNCATE" in migration
 

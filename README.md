@@ -21,11 +21,14 @@ category budgets, planned/actual reconciliation, responsive paycheck-period dash
 explicit Household Reserve allocation are implemented. The local PostgreSQL
 rehearsal passes with the dedicated migration identity and least-privilege runtime role, including
 database rejection of history tampering, reconciliation mutation, and overlapping periods.
-Milestone 6 is in progress. Its first vertical slice adds responsive, paycheck-period-scoped
-transaction history; manual expense and one-off income entry; basic checking, savings, cash,
-credit-card, and other account setup; duplicate-submit protection; and confirmed full
-refunds/reversals that preserve the original entry and protected audit history. Partial refunds,
-the Credit-card Payment Reserve, debt-settlement allocation, and hardened CSV import/export remain.
+Milestone 6 is in progress. Its manual-spending and credit-card slices add responsive,
+paycheck-period-scoped transaction history; manual expense, one-off income, and card-payment entry;
+basic checking, savings, cash, credit-card, and other account setup; duplicate-submit protection;
+confirmed full refunds/reversals; and an append-only Credit-card Payment Reserve. Card payments
+consume reserved purchase money first and expose only any excess as current-income debt payoff,
+preventing double-counted spending. The reserve is separately visible on the dashboard and its
+history is protected from runtime-role mutation in PostgreSQL. Partial refunds and hardened CSV
+import/export remain.
 Private
 Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before

@@ -11,7 +11,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.urls import reverse
 
 from audit.models import AuditEvent
-from budgets.forms import FixedExpenseScheduleForm, OccurrenceMoveForm
+from budgets.forms import FixedExpenseScheduleForm, OccurrenceMoveForm, ReconciliationForm
 from budgets.models import OccurrenceReconciliation, VariableBudget
 from budgets.services import (
     build_period_summary,
@@ -50,6 +50,7 @@ from schedules.services import (
     create_recurring_source,
     preview_revision,
 )
+from spending.services import record_card_payment, record_spending_expense
 
 TEST_PASSWORD = "budget-dashboard-test-password"  # pragma: allowlist secret
 
@@ -366,6 +367,103 @@ def test_reconciliation_links_actual_entry_and_is_append_only(
             actor=budget_context.user,
             request_id="budget-power-reconcile-twice",
         )
+
+
+@pytest.mark.django_db
+def test_card_payment_reconciliation_uses_only_current_income_debt_payoff(
+    budget_context: BudgetContext,
+) -> None:
+    card = create_financial_account(
+        household=budget_context.household,
+        actor=budget_context.user,
+        name="Visa",
+        account_type=FinancialAccount.AccountType.CREDIT_CARD,
+        classification=FinancialAccount.Classification.LIABILITY,
+        request_id="budget-card-reconciliation-account",
+    )
+    first_purchase = record_spending_expense(
+        household=budget_context.household,
+        actor=budget_context.user,
+        account=card,
+        category=budget_context.category,
+        amount=Decimal("40.00"),
+        effective_at=datetime(2026, 8, 21, 8, tzinfo=ZoneInfo("America/New_York")),
+        description="Covered purchase",
+        request_id="budget-card-covered-purchase",
+    )
+    covered_payment = record_card_payment(
+        household=budget_context.household,
+        actor=budget_context.user,
+        source=budget_context.checking,
+        card=card,
+        amount=Decimal("40.00"),
+        effective_at=datetime(2026, 8, 21, 9, tzinfo=ZoneInfo("America/New_York")),
+        description="Covered card payment",
+        request_id="budget-card-covered-payment",
+    )
+    record_spending_expense(
+        household=budget_context.household,
+        actor=budget_context.user,
+        account=card,
+        category=budget_context.category,
+        amount=Decimal("50.00"),
+        effective_at=datetime(2026, 8, 22, 8, tzinfo=ZoneInfo("America/New_York")),
+        description="Mixed purchase",
+        request_id="budget-card-mixed-purchase",
+    )
+    mixed_payment = record_card_payment(
+        household=budget_context.household,
+        actor=budget_context.user,
+        source=budget_context.checking,
+        card=card,
+        amount=Decimal("75.00"),
+        effective_at=datetime(2026, 8, 22, 9, tzinfo=ZoneInfo("America/New_York")),
+        description="Mixed card payment",
+        request_id="budget-card-mixed-payment",
+    )
+    scheduled_debt = _source_occurrence(
+        budget_context,
+        kind=RecurringSource.Kind.DEBT_PAYMENT,
+        name="Visa old balance",
+        amount="25.00",
+    )
+
+    form = ReconciliationForm(household=budget_context.household, occurrence=scheduled_debt)
+    entry_ids = set(form.fields["journal_entry"].queryset.values_list("pk", flat=True))  # type: ignore[attr-defined]
+
+    assert first_purchase.pk not in entry_ids
+    assert covered_payment.journal_entry.pk not in entry_ids
+    assert mixed_payment.journal_entry.pk in entry_ids
+    link = reconcile_occurrence(
+        occurrence=scheduled_debt,
+        journal_entry=mixed_payment.journal_entry,
+        amount=Decimal("25.00"),
+        actor=budget_context.user,
+        request_id="budget-card-mixed-reconcile",
+    )
+    assert link.amount == Decimal("25.00")
+
+    another_debt = _source_occurrence(
+        budget_context,
+        kind=RecurringSource.Kind.DEBT_PAYMENT,
+        name="Visa excess link",
+        amount="1.00",
+    )
+    with pytest.raises(ValidationError, match="cannot exceed"):
+        reconcile_occurrence(
+            occurrence=another_debt,
+            journal_entry=mixed_payment.journal_entry,
+            amount=Decimal("0.01"),
+            actor=budget_context.user,
+            request_id="budget-card-over-reconcile",
+        )
+
+    summary = build_period_summary(
+        household=budget_context.household,
+        period=budget_context.period,
+        today=date(2026, 8, 22),
+    )
+    assert summary.actual_debt_payments == Decimal("25.00")
 
 
 @pytest.mark.django_db

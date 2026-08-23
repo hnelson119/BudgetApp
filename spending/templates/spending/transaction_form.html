@@ -10,6 +10,7 @@
       <p class="eyebrow">{{ eyebrow }}</p>
       <h2>{{ title }}</h2>
       <p>{{ help_text }}</p>
+      {% if context_items %}<div class="item-context">{% for label, value in context_items %}<span>{{ label }}: {{ value }}</span>{% endfor %}</div>{% endif %}
       <form class="app-form" method="post">
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}

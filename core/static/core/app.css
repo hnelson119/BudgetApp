@@ -341,7 +341,7 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .allocation-legend span { display: flex; align-items: center; gap: 7px; }
 .allocation-legend i { width: 9px; height: 9px; border-radius: 50%; }
 .bills-dot { background: #f5a623; }.goals-dot { background: #8b70e7; }.spend-dot { background: #25c29e; }.free-dot { background: #7b8997; }
-.dashboard-columns { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 16px; margin-top: 16px; }
+.dashboard-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
 .dashboard-card { min-height: 300px; padding: 24px; }
 .large-value { margin: 20px 0 6px; color: var(--accent); font-size: clamp(2rem, 4vw, 3rem); font-weight: 850; letter-spacing: -.04em; }
 .muted { color: var(--muted); }
@@ -452,6 +452,8 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .account-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
 .account-grid article { display: grid; padding: 16px; gap: 7px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-raised); }
 .account-grid span { color: var(--muted); font-size: .76rem; }
+.account-grid .card-reserve-value { color: var(--accent); font-weight: 750; }
+.account-grid .text-link { margin-top: 4px; font-size: .78rem; }
 .transaction-detail-card { width: 100%; }
 .detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 26px 0 0; gap: 12px; }
 .detail-grid div { padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
@@ -461,6 +463,9 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .detail-note p { margin: 7px 0 0; color: var(--muted); line-height: 1.55; }
 .posting-heading { margin-top: 28px; }
 .detail-actions { margin-top: 24px; }
+.card-allocation-card { margin-top: 22px; padding: 18px; border: 1px solid rgba(73, 214, 166, .38); border-radius: 14px; background: var(--accent-soft); }
+.card-allocation-card h3 { margin-top: 6px; }
+.allocation-values-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .pagination { display: flex; padding: 16px; align-items: center; justify-content: center; gap: 14px; border-top: 1px solid var(--line); }
 .pagination span { color: var(--muted); font-size: .8rem; }
 

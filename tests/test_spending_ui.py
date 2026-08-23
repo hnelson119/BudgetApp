@@ -26,7 +26,15 @@ from identity.services.mfa import (
 from ledger.models import FinancialAccount, JournalEntry
 from ledger.services import create_financial_account, record_expense, reverse_entry
 from periods.models import PayPeriod
-from spending.forms import ExpenseForm, FinancialAccountForm, IncomeForm, ReversalForm
+from reserves.models import CardPaymentReserveEntry
+from spending.forms import (
+    CardPaymentForm,
+    ExpenseForm,
+    FinancialAccountForm,
+    IncomeForm,
+    ReversalForm,
+)
+from spending.services import credit_card_payment_reserve
 
 TEST_PASSWORD = "spending-ui-test-password"  # pragma: allowlist secret
 
@@ -234,6 +242,83 @@ def test_manual_income_and_account_setup_succeed(
 
 
 @pytest.mark.django_db
+def test_card_purchase_and_payment_ui_show_persistent_allocation(
+    client: Client,
+    spending_context: SpendingContext,
+) -> None:
+    card = create_financial_account(
+        household=spending_context.household,
+        actor=spending_context.user,
+        name="Visa",
+        account_type=FinancialAccount.AccountType.CREDIT_CARD,
+        classification=FinancialAccount.Classification.LIABILITY,
+        last_four="4242",
+        request_id="spending-ui-card",
+    )
+    _mfa_ready(spending_context.user)
+    client.force_login(spending_context.user)
+    purchase_payload = _expense_payload(spending_context)
+    purchase_payload["account"] = str(card.pk)
+    purchase_payload["amount"] = "75.00"
+    purchase_payload["description"] = "Visa groceries"
+
+    purchase_response = client.post(reverse("spending:expense-create"), purchase_payload)
+    assert purchase_response.status_code == 302
+    purchase = JournalEntry.objects.get(description="Visa groceries")
+    assert credit_card_payment_reserve(card) == Decimal("75.00")
+    assert CardPaymentReserveEntry.objects.get(journal_entry=purchase).amount == Decimal("75.00")
+
+    detail = client.get(reverse("spending:transaction-detail", args=(purchase.pk,)))
+    assert detail.status_code == 200
+    assert b"Credit-card Payment Reserve" in detail.content
+    assert b"$75.00" in detail.content
+
+    transaction_list = client.get(
+        reverse("spending:transaction-list"),
+        {"period": str(spending_context.period.pk)},
+    )
+    payment_url = reverse("spending:card-payment-create", args=(card.pk,))
+    assert b"$75.00 reserved for payment" in transaction_list.content
+    assert payment_url.encode() in transaction_list.content
+
+    payment_form = client.get(payment_url)
+    assert payment_form.status_code == 200
+    assert b"Available payment reserve: $75.00" in payment_form.content
+    payment_response = client.post(
+        payment_url,
+        {
+            "description": "Visa payment",
+            "amount": "100.00",
+            "source": str(spending_context.checking.pk),
+            "effective_date": "2026-08-24",
+            "effective_time": "09:15",
+            "note": "Includes old-debt payoff",
+            "submission_token": str(uuid.uuid4()),
+        },
+    )
+    assert payment_response.status_code == 302
+    payment = JournalEntry.objects.get(description="Visa payment")
+    allocation = CardPaymentReserveEntry.objects.get(journal_entry=payment)
+    assert allocation.reserve_settlement == Decimal("75.00")
+    assert allocation.debt_payoff == Decimal("25.00")
+    assert credit_card_payment_reserve(card) == Decimal("0.00")
+
+    payment_detail = client.get(reverse("spending:transaction-detail", args=(payment.pk,)))
+    assert b"Reserved purchase settlement" in payment_detail.content
+    assert b"Current-income debt payoff" in payment_detail.content
+    assert b"$25.00" in payment_detail.content
+
+    payment_form_object = CardPaymentForm(household=spending_context.household)
+    source_accounts = cast(
+        forms.ModelChoiceField,
+        payment_form_object.fields["source"],
+    ).queryset
+    assert source_accounts is not None
+    assert spending_context.checking in source_accounts
+    assert card not in source_accounts
+
+
+@pytest.mark.django_db
 def test_transaction_list_defaults_to_paycheck_period_and_filters(
     client: Client,
     spending_context: SpendingContext,
@@ -396,8 +481,10 @@ def test_direct_object_access_and_form_choices_fail_closed(
 
     detail_url = reverse("spending:transaction-detail", args=(other_entry.pk,))
     reverse_url = reverse("spending:transaction-reverse", args=(other_entry.pk,))
+    payment_url = reverse("spending:card-payment-create", args=(other_account.pk,))
     assert client.get(detail_url).status_code == 404
     assert client.get(reverse_url).status_code == 404
+    assert client.get(payment_url).status_code == 404
     list_response = client.get(reverse("spending:transaction-list"), {"scope": "all"})
     assert b"Private other-household entry" not in list_response.content
 

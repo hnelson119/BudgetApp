@@ -21,14 +21,23 @@ from households.models import Household
 from households.services.access import get_active_household
 from identity.models import User
 from ledger.models import FinancialAccount, JournalEntry, JournalPosting
-from ledger.services import create_financial_account, record_expense, record_income, reverse_entry
+from ledger.services import create_financial_account, record_income
 from periods.models import PayPeriod
+from reserves.models import CardPaymentReserveEntry
 from spending.forms import (
+    CardPaymentForm,
     ExpenseForm,
     FinancialAccountForm,
     IncomeForm,
     ReversalForm,
     TransactionFilterForm,
+)
+from spending.services import (
+    credit_card_payment_reserve,
+    household_card_payment_reserve,
+    record_card_payment,
+    record_spending_expense,
+    reverse_spending_entry,
 )
 
 
@@ -40,6 +49,12 @@ class TransactionRow:
     status: str
     can_reverse: bool
     local_effective_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class AccountRow:
+    account: FinancialAccount
+    card_payment_reserve: Decimal | None
 
 
 def _actor(request: HttpRequest) -> User:
@@ -177,10 +192,22 @@ def transaction_list(request: HttpRequest) -> HttpResponse:
         household=household,
         archived_at__isnull=True,
     ).order_by("name")
+    account_rows = tuple(
+        AccountRow(
+            account=account,
+            card_payment_reserve=(
+                credit_card_payment_reserve(account)
+                if account.account_type == FinancialAccount.AccountType.CREDIT_CARD
+                else None
+            ),
+        )
+        for account in accounts
+    )
     context: dict[str, Any] = {
         "household": household,
         "rows": rows,
-        "accounts": accounts,
+        "account_rows": account_rows,
+        "card_payment_reserve_total": household_card_payment_reserve(household),
         "filter_form": filter_form,
         "scope": scope,
         "page": page,
@@ -198,7 +225,7 @@ def expense_create(request: HttpRequest) -> HttpResponse:
     form = ExpenseForm(request.POST or None, household=household)
     if request.method == "POST" and form.is_valid():
         try:
-            entry = record_expense(
+            entry = record_spending_expense(
                 household=household,
                 actor=_actor(request),
                 account=form.cleaned_data["account"],
@@ -314,6 +341,70 @@ def account_create(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@require_http_methods(("GET", "POST"))
+def card_payment_create(request: HttpRequest, account_id: str) -> HttpResponse:
+    household = get_active_household(request)
+    card = get_object_or_404(
+        FinancialAccount,
+        pk=account_id,
+        household=household,
+        archived_at__isnull=True,
+        account_type=FinancialAccount.AccountType.CREDIT_CARD,
+        classification=FinancialAccount.Classification.LIABILITY,
+    )
+    form = CardPaymentForm(
+        request.POST or None,
+        household=household,
+        initial={"description": f"Payment to {card.name}"},
+    )
+    opening_reserve = credit_card_payment_reserve(card)
+    if request.method == "POST" and form.is_valid():
+        try:
+            result = record_card_payment(
+                household=household,
+                actor=_actor(request),
+                source=form.cleaned_data["source"],
+                card=card,
+                amount=form.cleaned_data["amount"],
+                effective_at=form.effective_at(),
+                description=form.cleaned_data["description"],
+                note=form.cleaned_data["note"],
+                idempotency_key=form.idempotency_key(),
+                request_id=_request_id(request),
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(
+                request,
+                "Card payment recorded and split between reserved settlement and debt payoff.",
+            )
+            return redirect(
+                "spending:transaction-detail",
+                entry_id=result.journal_entry.pk,
+            )
+    return render(
+        request,
+        "spending/transaction_form.html",
+        {
+            "household": household,
+            "form": form,
+            "title": "Record card payment",
+            "eyebrow": "Debt settlement",
+            "help_text": (
+                "The payment consumes money already reserved for purchases first. Only any "
+                "remaining amount is current-income-funded debt payoff."
+            ),
+            "context_items": (
+                ("Credit card", card.name),
+                ("Available payment reserve", f"${opening_reserve:,.2f}"),
+            ),
+            "current_nav": "spending",
+        },
+    )
+
+
+@login_required
 @require_GET
 def transaction_detail(request: HttpRequest, entry_id: str) -> HttpResponse:
     household = get_active_household(request)
@@ -325,6 +416,7 @@ def transaction_detail(request: HttpRequest, entry_id: str) -> HttpResponse:
         pk=entry_id,
     )
     reversal = JournalEntry.objects.filter(reversal_of=entry).first()
+    reserve_entry = CardPaymentReserveEntry.objects.filter(journal_entry=entry).first()
     return render(
         request,
         "spending/transaction_detail.html",
@@ -333,6 +425,7 @@ def transaction_detail(request: HttpRequest, entry_id: str) -> HttpResponse:
             "row": _row(entry, household),
             "postings": entry.postings.all(),
             "reversal": reversal,
+            "reserve_entry": reserve_entry,
             "current_nav": "spending",
         },
     )
@@ -354,7 +447,7 @@ def transaction_reverse(request: HttpRequest, entry_id: str) -> HttpResponse:
     form = ReversalForm(request.POST or None, household=household)
     if request.method == "POST" and form.is_valid():
         try:
-            reversal = reverse_entry(
+            reversal = reverse_spending_entry(
                 entry=entry,
                 actor=_actor(request),
                 effective_at=form.effective_at(),

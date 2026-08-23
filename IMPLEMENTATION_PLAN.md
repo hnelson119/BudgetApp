@@ -163,13 +163,16 @@ Exit criteria: Golden cases A–D, I–N pass and the dashboard matches the appr
 - Implement CSV upload limits, staging, mapping, preview, duplicates, category review, and idempotent commit
 - Implement formula-safe CSV exports
 
-Progress: the first M6 vertical slice is implemented. Spending now has a responsive, household-
-scoped UI for manual expense and one-off income entry, basic financial-account setup, paycheck-
-period and all-history views, account/type/text filtering, pagination, household-timezone display,
-idempotent form submissions, transaction detail with balanced postings, and confirmed full
-refunds/reversals. Ledger and audit history remain append-only; a reversal is linked to the original
-and a reversal entry cannot itself be reversed. Partial refunds, card-payment reserve persistence,
-debt-settlement allocation, and CSV workflows remain in this milestone.
+Progress: the manual-spending and credit-card reserve slices are implemented. Spending has a
+responsive, household-scoped UI for manual expense, one-off income, card-payment entry, basic
+financial-account setup, paycheck-period and all-history views, account/type/text filtering,
+pagination, household-timezone display, idempotent form submissions, transaction detail with
+balanced postings, and confirmed full refunds/reversals. Categorized card purchases now create
+append-only payment-reserve entries; card payments consume that reserve first and classify only the
+excess as current-income debt payoff. The dashboard, transaction detail, budget summary, and
+scheduled-debt reconciliation preserve that separation, including refund/payment-reversal ordering.
+Ledger, reserve, and audit history remain append-only in the application and protected by
+PostgreSQL runtime-role triggers. Partial refunds and CSV workflows remain in this milestone.
 
 Exit criteria: Golden cases E–G pass; malformed/import security tests pass; repeating an import does not duplicate transactions.
 

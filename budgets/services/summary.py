@@ -6,13 +6,14 @@ from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Sum
 
 from budgets.models import OccurrenceReconciliation, VariableBudget
 from budgets.services.calculations import PeriodActuals, PeriodPlan, money, spending_remaining
 from households.models import Household
 from ledger.models import JournalEntry
 from periods.models import PayPeriod
+from reserves.models import CardPaymentReserveEntry
 from reserves.services import reserve_balance
 from schedules.models import Occurrence, RecurringSource
 
@@ -50,6 +51,7 @@ class PeriodBudgetSummary:
     spending_remaining: Decimal
     projected_closing_surplus: Decimal
     household_reserve: Decimal
+    card_payment_reserve: Decimal
     status: str
     status_label: str
     upcoming_bills: tuple[Occurrence, ...]
@@ -129,11 +131,20 @@ def _unlinked_entry_total(
     entries: list[JournalEntry],
     linked_entry_ids: set[UUID],
     entry_type: str,
+    card_allocations: dict[UUID, CardPaymentReserveEntry] | None = None,
 ) -> Decimal:
+    def amount(entry: JournalEntry) -> Decimal:
+        allocation = (card_allocations or {}).get(entry.pk)
+        if allocation is None:
+            return _entry_amount(entry)
+        if allocation.entry_type == CardPaymentReserveEntry.EntryType.PAYMENT_REVERSAL:
+            return -allocation.debt_payoff
+        return allocation.debt_payoff
+
     return money(
         sum(
             (
-                _entry_amount(entry)
+                amount(entry)
                 for entry in entries
                 if entry.entry_type == entry_type and entry.pk not in linked_entry_ids
             ),
@@ -169,6 +180,13 @@ def build_period_summary(
         raise ValueError("The paycheck period belongs to another household.")
     occurrences = list(period_occurrences(period))
     entries = _period_entries(household, period)
+    card_allocations = {
+        item.journal_entry_id: item
+        for item in CardPaymentReserveEntry.objects.filter(
+            household=household,
+            journal_entry_id__in=(entry.pk for entry in entries),
+        )
+    }
     reconciliations = list(
         OccurrenceReconciliation.objects.filter(
             household=household,
@@ -197,7 +215,12 @@ def build_period_summary(
     actual_fixed = _occurrence_sum(occurrences, RecurringSource.Kind.FIXED_EXPENSE, "actual_amount")
     actual_debt = money(
         _occurrence_sum(occurrences, RecurringSource.Kind.DEBT_PAYMENT, "actual_amount")
-        + _unlinked_entry_total(entries, linked_entry_ids, JournalEntry.EntryType.DEBT_PAYMENT)
+        + _unlinked_entry_total(
+            entries,
+            linked_entry_ids,
+            JournalEntry.EntryType.DEBT_PAYMENT,
+            card_allocations,
+        )
     )
     actual_goals = money(
         _occurrence_sum(occurrences, RecurringSource.Kind.GOAL_CONTRIBUTION, "actual_amount")
@@ -300,6 +323,12 @@ def build_period_summary(
     recent = tuple(
         RecentTransaction(entry=entry, amount=_entry_amount(entry)) for entry in entries[:6]
     )
+    card_payment_reserve = (
+        CardPaymentReserveEntry.objects.filter(household=household).aggregate(total=Sum("amount"))[
+            "total"
+        ]
+        or ZERO
+    )
     return PeriodBudgetSummary(
         period=period,
         planned_income=planned_income,
@@ -317,6 +346,7 @@ def build_period_summary(
         spending_remaining=spending_left,
         projected_closing_surplus=actuals.closing_surplus(),
         household_reserve=reserve_balance(household),
+        card_payment_reserve=money(card_payment_reserve),
         status=status,
         status_label=status_label,
         upcoming_bills=upcoming,

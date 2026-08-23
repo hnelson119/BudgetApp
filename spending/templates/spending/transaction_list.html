@@ -67,10 +67,10 @@
   </section>
 
   <section class="accounts-panel">
-    <div class="section-title"><div><p class="eyebrow">Manual accounts</p><h3>Available accounts &amp; cards</h3></div><a class="secondary-button" href="{% url 'spending:account-create' %}">Add account</a></div>
-    {% if accounts %}
+    <div class="section-title"><div><p class="eyebrow">Manual accounts</p><h3>Available accounts &amp; cards</h3><p class="muted">Total card-payment reserve: {{ card_payment_reserve_total|money }} · allocation balance, not a bank balance</p></div><a class="secondary-button" href="{% url 'spending:account-create' %}">Add account</a></div>
+    {% if account_rows %}
       <div class="account-grid">
-        {% for account in accounts %}<article><strong>{{ account.name }}</strong><span>{{ account.get_account_type_display }} · {{ account.get_classification_display }}{% if account.last_four %} · •••• {{ account.last_four }}{% endif %}</span></article>{% endfor %}
+        {% for row in account_rows %}<article><strong>{{ row.account.name }}</strong><span>{{ row.account.get_account_type_display }} · {{ row.account.get_classification_display }}{% if row.account.last_four %} · •••• {{ row.account.last_four }}{% endif %}</span>{% if row.card_payment_reserve != None %}<span class="card-reserve-value">{{ row.card_payment_reserve|money }} reserved for payment</span><a class="text-link" href="{% url 'spending:card-payment-create' row.account.pk %}">Record card payment</a>{% endif %}</article>{% endfor %}
       </div>
     {% else %}
       <div class="empty-panel"><strong>No financial accounts yet</strong><span>Add checking, savings, cash, credit-card, or other accounts before recording transactions.</span></div>

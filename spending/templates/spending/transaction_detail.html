@@ -21,6 +21,24 @@
       {% if row.entry.receipt_reference %}<div class="detail-note"><strong>Receipt reference</strong><p>{{ row.entry.receipt_reference }}</p></div>{% endif %}
       {% if row.entry.reversal_of %}<p class="notice-card">This entry reverses <a class="text-link" href="{% url 'spending:transaction-detail' row.entry.reversal_of.pk %}">{{ row.entry.reversal_of.description }}</a>.</p>{% elif reversal %}<p class="notice-card">This entry was reversed by <a class="text-link" href="{% url 'spending:transaction-detail' reversal.pk %}">{{ reversal.description }}</a>.</p>{% endif %}
 
+      {% if reserve_entry %}
+        <section class="card-allocation-card">
+          <p class="eyebrow">Credit-card Payment Reserve</p>
+          {% if reserve_entry.entry_type == 'payment' or reserve_entry.entry_type == 'payment_reversal' %}
+            <h3>Payment allocation</h3>
+            <dl class="allocation-values{% if reserve_entry.neutral_correction == 0 %} allocation-values-three{% endif %}">
+              <div><dt>Total payment</dt><dd>{{ reserve_entry.payment_amount|money }}</dd></div>
+              <div><dt>Reserved purchase settlement</dt><dd>{{ reserve_entry.reserve_settlement|money }}</dd></div>
+              <div><dt>Current-income debt payoff</dt><dd>{{ reserve_entry.debt_payoff|money }}</dd></div>
+              {% if reserve_entry.neutral_correction != 0 %}<div><dt>Refund-adjusted correction</dt><dd>{{ reserve_entry.neutral_correction|money }}</dd></div>{% endif %}
+            </dl>
+          {% else %}
+            <h3>{{ reserve_entry.get_entry_type_display }}</h3>
+            <p class="muted">Reserve change: {{ reserve_entry.amount|money }} for {{ reserve_entry.card_account.name }}. This allocation is not a verified bank balance.</p>
+          {% endif %}
+        </section>
+      {% endif %}
+
       <h3 class="posting-heading">Balanced postings</h3>
       <div class="audit-table-scroll">
         <table class="audit-table"><thead><tr><th>Side</th><th>Ledger account</th><th>Amount</th></tr></thead><tbody>{% for posting in postings %}<tr><td>{{ posting.get_side_display }}</td><td>{% if posting.financial_account %}{{ posting.financial_account.name }}{% else %}{{ posting.get_internal_account_display }}{% endif %}</td><td>{{ posting.amount|money }} {{ posting.currency }}</td></tr>{% endfor %}</tbody></table>

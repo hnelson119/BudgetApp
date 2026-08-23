@@ -103,7 +103,10 @@ stateDiagram-v2
     Empty --> [*]
 ```
 
-Reserve states are derived from append-only entries. If a card payment exceeds its reserve, the excess is debt payoff funded by the current period or Household Reserve as explicitly selected.
+Reserve states are derived from append-only entries. If a card payment exceeds its reserve, the
+excess is debt payoff funded by the current period or Household Reserve as explicitly selected.
+Reversals also append corrections: a returned payment restores only the amount still backed by
+active card purchases, while any portion already canceled by a refund remains budget-neutral.
 
 ## 6. Twice-monthly mortgage workflow
 

@@ -227,15 +227,23 @@ Snapshots help reconciliation but do not replace ledger history or paycheck-peri
 
 Credit cards act as liability accounts. Categorized purchases are expenses on the purchase date; later payments are liability settlements.
 
-### ReserveEntry
+### ReserveEntry (Household Reserve)
 
-- Household ID and pay-period ID
-- Reserve type: Household Reserve or Credit-card Payment Reserve
-- Optional credit-card debt/account ID
+- Household ID, source pay-period ID, and posting pay-period ID
 - Exact positive or negative amount
-- Reason and source JournalEntry/closing revision
+- Reason and source closing revision
 - Destination label for an explicit Household Reserve allocation
 - Created-by and timestamps
+
+### CardPaymentReserveEntry
+
+- Household ID, pay-period ID, and credit-card FinancialAccount ID
+- One-to-one source JournalEntry ID
+- Type: purchase, purchase reversal, payment, or payment reversal
+- Signed reserve change
+- Payment total, reserved-purchase settlement, and current-income debt-payoff split
+- Optional budget-neutral correction for reversal ordering after a settled purchase is refunded
+- Reason, created-by, and timestamps
 
 Rules:
 
@@ -244,6 +252,10 @@ Rules:
 - Payment beyond available card reserve is current-income-funded debt payoff.
 - A refund or reversed purchase reduces both categorized spending and the card reserve.
 - Reserve entries are append-only corrections; current balances are derived sums.
+- A payment reversal restores only reserve still backed by active purchases; any refund-adjusted
+  remainder stays budget-neutral rather than creating a phantom reserve or debt payoff.
+- The application blocks direct create/update/delete operations, and PostgreSQL rejects update,
+  delete, and truncate attempts by the runtime role.
 
 ## 6. Debts and split mortgage payments
 

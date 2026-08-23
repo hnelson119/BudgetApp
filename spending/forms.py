@@ -143,6 +143,32 @@ class IncomeForm(ManualEntryForm):
         ).order_by("name")
 
 
+class CardPaymentForm(ManualEntryForm):
+    source = AccountChoiceField(
+        queryset=FinancialAccount.objects.none(),
+        label="Pay from",
+        help_text="Choose the checking, savings, or cash account funding this payment.",
+    )
+
+    field_order = (
+        "description",
+        "amount",
+        "source",
+        "effective_date",
+        "effective_time",
+        "note",
+        "submission_token",
+    )
+
+    def __init__(self, *args: Any, household: Household, **kwargs: Any) -> None:
+        super().__init__(*args, household=household, **kwargs)
+        cast(AccountChoiceField, self.fields["source"]).queryset = FinancialAccount.objects.filter(
+            household=household,
+            archived_at__isnull=True,
+            classification=FinancialAccount.Classification.ASSET,
+        ).order_by("name")
+
+
 class FinancialAccountForm(forms.Form):
     class Kind:
         CHECKING = "checking"
