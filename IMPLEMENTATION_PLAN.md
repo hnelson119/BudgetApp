@@ -1,6 +1,6 @@
 # Household Budget Application — Implementation Plan
 
-Status: Milestone 2 implementation and local PostgreSQL verification complete; private-ingress deployment verification pending
+Status: Milestone 3 implementation and local PostgreSQL verification complete; private-ingress deployment verification pending
 Last updated: 2026-08-22
 
 ## 1. Locked architecture
@@ -100,6 +100,12 @@ Exit criteria: authentication/recovery tests pass; a sample domain mutation and 
 - Add expense, income, transfer, debt-payment, goal, fee, and adjustment transaction builders
 - Add manual balance snapshots and reconciliation variance
 - Add category management
+
+Progress: household-scoped accounts and categories, application- and PostgreSQL-protected append-only balanced entries/postings, audited
+transaction builders, corrections through linked reversals, manual balance snapshots, reconciliation
+variance, and net expense/category reporting are implemented. SQLite acceptance tests and a
+rollback-only PostgreSQL runtime-role rehearsal confirm that transfers, goal contributions, and card
+payments do not become categorized spending; card purchases do, exactly once.
 
 Exit criteria: transfer and card-payment tests prove that spending is not double-counted.
 
