@@ -21,7 +21,12 @@ category budgets, planned/actual reconciliation, responsive paycheck-period dash
 explicit Household Reserve allocation are implemented. The local PostgreSQL
 rehearsal passes with the dedicated migration identity and least-privilege runtime role, including
 database rejection of history tampering, reconciliation mutation, and overlapping periods.
-Milestone 6—manual spending, CSV import, and credit-card payment reserve—is next. Private
+Milestone 6 is in progress. Its first vertical slice adds responsive, paycheck-period-scoped
+transaction history; manual expense and one-off income entry; basic checking, savings, cash,
+credit-card, and other account setup; duplicate-submit protection; and confirmed full
+refunds/reversals that preserve the original entry and protected audit history. Partial refunds,
+the Credit-card Payment Reserve, debt-settlement allocation, and hardened CSV import/export remain.
+Private
 Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before
 household financial data is entered.

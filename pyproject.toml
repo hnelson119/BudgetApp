@@ -55,6 +55,7 @@ audit = ["templates/audit/*.html"]
 core = ["templates/core/*.html", "static/core/*"]
 budgets = ["templates/budgets/*.html", "templatetags/*.py"]
 identity = ["templates/identity/*.html"]
+spending = ["templates/spending/*.html"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"

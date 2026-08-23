@@ -498,6 +498,8 @@ def reverse_entry(
     require_household_membership(actor, original.household)
     if not reason.strip():
         raise ValidationError("Reversing a journal entry requires a reason.")
+    if original.reversal_of_id is not None:
+        raise ValidationError("A reversal entry cannot itself be reversed.")
     if JournalEntry.objects.filter(reversal_of=original).exists():
         raise ValidationError("The journal entry has already been reversed.")
     postings = tuple(

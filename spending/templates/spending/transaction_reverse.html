@@ -1,0 +1,23 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}Refund or reverse · Household Budget{% endblock %}
+{% block page_title %}Refund or reverse transaction{% endblock %}
+
+{% block content %}
+  <section class="form-page">
+    <a class="back-link" href="{% url 'spending:transaction-detail' row.entry.pk %}">← Back to transaction</a>
+    <div class="form-card danger-card">
+      <p class="eyebrow">Protected correction</p>
+      <h2>{{ row.entry.description }}</h2>
+      <div class="item-context"><span>{{ row.entry.get_entry_type_display }}</span><span>{{ row.amount|money }}</span><span>{{ row.local_effective_at|date:'M j, Y' }}</span></div>
+      <p class="notice-card">This records a full, linked refund/reversal. It does not edit or delete the original transaction. Partial refunds will use a separate workflow.</p>
+      <form class="app-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}<div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+        <button class="danger-button" type="submit">Record full reversal</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

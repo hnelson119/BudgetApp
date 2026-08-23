@@ -438,6 +438,32 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .item-context span { padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: .76rem; }
 .danger-card { border-color: rgba(185, 80, 80, .7); }
 
+.transaction-filter-bar { grid-template-columns: minmax(180px, 1.5fr) minmax(150px, .8fr) minmax(180px, 1fr) auto; }
+.scope-links { display: flex; margin-top: 14px; gap: 10px; }
+.scope-links a { padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: .76rem; font-weight: 750; text-decoration: none; }
+.scope-links a.is-active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.transaction-panel, .accounts-panel { margin-top: 20px; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--surface); }
+.transaction-table { min-width: 1050px; }
+.transaction-table td:first-child small { display: block; margin-top: 5px; color: var(--muted); font-size: .7rem; }
+.transaction-amount { color: var(--accent); font-weight: 850; }
+.transaction-amount.is-reversal { color: #ef9696; }
+.status-reversal, .status-reversed { border-color: rgba(239, 107, 107, .42); color: #ef9696; }
+.accounts-panel { padding: 22px; overflow: visible; }
+.account-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.account-grid article { display: grid; padding: 16px; gap: 7px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-raised); }
+.account-grid span { color: var(--muted); font-size: .76rem; }
+.transaction-detail-card { width: 100%; }
+.detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 26px 0 0; gap: 12px; }
+.detail-grid div { padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
+.detail-grid dt { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
+.detail-grid dd { margin: 7px 0 0; font-weight: 750; }
+.detail-note { margin-top: 16px; padding: 16px; border-left: 3px solid var(--accent); background: var(--surface-raised); }
+.detail-note p { margin: 7px 0 0; color: var(--muted); line-height: 1.55; }
+.posting-heading { margin-top: 28px; }
+.detail-actions { margin-top: 24px; }
+.pagination { display: flex; padding: 16px; align-items: center; justify-content: center; gap: 14px; border-top: 1px solid var(--line); }
+.pagination span { color: var(--muted); font-size: .8rem; }
+
 @media (max-width: 850px) {
   .hero { grid-template-columns: 1fr; margin-top: 48px; }
   .module-grid { grid-template-columns: repeat(2, 1fr); }
@@ -449,6 +475,7 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .dashboard-split { grid-template-columns: 1fr; }
   .filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .category-budget-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .account-grid, .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mobile-nav { position: fixed; z-index: 20; inset: auto 0 0; display: grid; grid-template-columns: repeat(4, 1fr); min-height: 72px; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 96%, transparent); }
   .mobile-nav a { display: grid; padding: 9px 4px; place-content: center; gap: 2px; color: var(--muted); font-size: .68rem; text-align: center; text-decoration: none; }
   .mobile-nav a span { font-size: 1.35rem; }
@@ -476,7 +503,7 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .metric-icon { width: 36px; height: 36px; flex-basis: 36px; font-size: 1rem; }
   .allocation-card, .dashboard-card { padding: 20px; }
   .section-title { align-items: start; flex-direction: column; gap: 8px; }
-  .allocation-values, .filter-bar, .category-budget-grid, .schedule-form { grid-template-columns: 1fr; }
+  .allocation-values, .filter-bar, .category-budget-grid, .schedule-form, .account-grid, .detail-grid { grid-template-columns: 1fr; }
   .budget-heading { align-items: flex-start; flex-direction: column; }
   .budget-heading .action-row, .budget-heading .action-row a { width: 100%; }
   .form-card { padding: 22px 18px; }
