@@ -258,6 +258,68 @@ class ReversalForm(HouseholdForm):
         return datetime.combine(local_date, local_time, tzinfo=ZoneInfo(self.household.time_zone))
 
 
+class CardPurchaseRefundForm(HouseholdForm):
+    amount = forms.DecimalField(min_value=Decimal("0.01"), max_digits=18, decimal_places=2)
+    effective_date = forms.DateField(
+        label="Refund date",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    effective_time = forms.TimeField(
+        label="Time",
+        widget=forms.TimeInput(attrs={"type": "time"}),
+        input_formats=("%H:%M",),
+    )
+    reason = forms.CharField(
+        max_length=500,
+        widget=forms.Textarea(attrs={"rows": 4}),
+        help_text="The reason is retained in the protected audit trail.",
+    )
+    confirm = forms.BooleanField(
+        label="I understand this creates a permanent linked refund entry.",
+    )
+    submission_token = forms.UUIDField(widget=forms.HiddenInput)
+
+    def __init__(
+        self,
+        *args: Any,
+        household: Household,
+        remaining: Decimal,
+        **kwargs: Any,
+    ) -> None:
+        self.remaining = remaining
+        super().__init__(*args, household=household, **kwargs)
+        self.fields["amount"].help_text = f"Up to ${remaining:,.2f} remains refundable."
+        self.fields["amount"].widget.attrs["max"] = str(remaining)
+        if not self.is_bound:
+            local_now = timezone.localtime(timezone.now(), ZoneInfo(household.time_zone))
+            self.initial.setdefault("amount", remaining)
+            self.initial.setdefault("effective_date", local_now.date())
+            self.initial.setdefault(
+                "effective_time",
+                local_now.time().replace(second=0, microsecond=0),
+            )
+            self.initial.setdefault("submission_token", uuid.uuid4())
+
+    def clean_amount(self) -> Decimal:
+        amount = cast(Decimal, self.cleaned_data["amount"])
+        if amount > self.remaining:
+            raise ValidationError("The refund cannot exceed the remaining purchase amount.")
+        return amount
+
+    def effective_at(self) -> datetime:
+        if not self.is_valid():
+            raise ValidationError("Correct the refund before saving it.")
+        local_date = cast(date, self.cleaned_data["effective_date"])
+        local_time = cast(time, self.cleaned_data["effective_time"])
+        return datetime.combine(local_date, local_time, tzinfo=ZoneInfo(self.household.time_zone))
+
+    def idempotency_key(self) -> str:
+        if not self.is_valid():
+            raise ValidationError("Correct the refund before saving it.")
+        token = cast(uuid.UUID, self.cleaned_data["submission_token"])
+        return f"manual-refund-{token.hex}"
+
+
 class TransactionFilterForm(forms.Form):
     q = forms.CharField(required=False, max_length=120, label="Search")
     entry_type = forms.ChoiceField(

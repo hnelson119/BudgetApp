@@ -27,8 +27,9 @@ basic checking, savings, cash, credit-card, and other account setup; duplicate-s
 confirmed full refunds/reversals; and an append-only Credit-card Payment Reserve. Card payments
 consume reserved purchase money first and expose only any excess as current-income debt payoff,
 preventing double-counted spending. The reserve is separately visible on the dashboard and its
-history is protected from runtime-role mutation in PostgreSQL. Partial refunds and hardened CSV
-import/export remain.
+history is protected from runtime-role mutation in PostgreSQL. Append-only partial card refunds are
+also implemented, including multiple-refund limits, category/liability corrections, and
+refund-aware reserve reallocation. Hardened CSV import/export remains.
 Private
 Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before

@@ -36,6 +36,7 @@ class CardPaymentReserveEntryAdmin(admin.ModelAdmin):
         "payment_amount",
         "reserve_settlement",
         "debt_payoff",
+        "purchase_refund_amount",
         "pay_period",
         "created_at",
     )

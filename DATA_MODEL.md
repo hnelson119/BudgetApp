@@ -177,13 +177,17 @@ Full account, routing, and card numbers are not stored.
 Header describing one actual financial event.
 
 - Household ID and effective date/time
-- Type: income, expense, transfer, debt payment, goal contribution, interest/fee, or balance adjustment
+- Type: income, expense, expense refund, transfer, debt payment, goal contribution, interest/fee,
+  or balance adjustment
 - Description, category when applicable, and pay-period ID
 - Manual/imported provenance
-- Reversal/correction relationship
+- One-to-one full-reversal relationship and many-to-one refund-adjustment relationship
 - Created-by and timestamps
 
 Committed entries are corrected through linked reversal/replacement entries rather than destructive editing of ledger postings.
+An expense-refund entry credits the original expense category and debits the original financial
+account. Multiple refunds may link to one purchase, but their cumulative amount cannot exceed the
+original purchase.
 
 ### JournalPosting
 
@@ -241,6 +245,7 @@ Credit cards act as liability accounts. Categorized purchases are expenses on th
 - One-to-one source JournalEntry ID
 - Type: purchase, purchase reversal, payment, or payment reversal
 - Signed reserve change
+- Gross purchase-refund amount, retained even when a prior payment means no reserve is released
 - Payment total, reserved-purchase settlement, and current-income debt-payoff split
 - Optional budget-neutral correction for reversal ordering after a settled purchase is refunded
 - Reason, created-by, and timestamps
@@ -251,6 +256,8 @@ Rules:
 - A card payment consumes that reserve first.
 - Payment beyond available card reserve is current-income-funded debt payoff.
 - A refund or reversed purchase reduces both categorized spending and the card reserve.
+- Multiple partial refunds are allowed up to the original purchase amount. Each creates a linked
+  expense-refund JournalEntry plus its own protected reserve correction.
 - Reserve entries are append-only corrections; current balances are derived sums.
 - A payment reversal restores only reserve still backed by active purchases; any refund-adjusted
   remainder stays budget-neutral rather than creating a phantom reserve or debt payoff.

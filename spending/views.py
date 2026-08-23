@@ -26,6 +26,7 @@ from periods.models import PayPeriod
 from reserves.models import CardPaymentReserveEntry
 from spending.forms import (
     CardPaymentForm,
+    CardPurchaseRefundForm,
     ExpenseForm,
     FinancialAccountForm,
     IncomeForm,
@@ -36,7 +37,9 @@ from spending.services import (
     credit_card_payment_reserve,
     household_card_payment_reserve,
     record_card_payment,
+    record_card_purchase_refund,
     record_spending_expense,
+    refundable_card_purchase_amount,
     reverse_spending_entry,
 )
 
@@ -48,6 +51,9 @@ class TransactionRow:
     accounts: str
     status: str
     can_reverse: bool
+    can_refund: bool
+    refund_total: Decimal
+    refundable_remaining: Decimal
     local_effective_at: datetime
 
 
@@ -119,7 +125,12 @@ def _entry_amount(entry: JournalEntry) -> Decimal:
         ),
         Decimal("0.00"),
     )
-    return -amount if entry.reversal_of_id is not None else amount
+    return (
+        -amount
+        if entry.reversal_of_id is not None
+        or entry.entry_type == JournalEntry.EntryType.EXPENSE_REFUND
+        else amount
+    )
 
 
 def _account_names(entry: JournalEntry) -> str:
@@ -131,20 +142,61 @@ def _account_names(entry: JournalEntry) -> str:
     return " → ".join(names) if names else "Internal ledger"
 
 
+def _refund_total(entry: JournalEntry) -> Decimal:
+    return sum(
+        (
+            reserve_entry.purchase_refund_amount
+            for adjustment in entry.adjustment_entries.all()
+            if (
+                (reserve_entry := getattr(adjustment, "card_payment_reserve_entry", None))
+                is not None
+                and reserve_entry.entry_type == CardPaymentReserveEntry.EntryType.PURCHASE_REVERSAL
+            )
+        ),
+        Decimal("0.00"),
+    )
+
+
 def _row(entry: JournalEntry, household: Household) -> TransactionRow:
     has_reversal = bool(getattr(entry, "has_reversal", False))
+    refund_total = _refund_total(entry)
+    entry_amount = _entry_amount(entry)
+    reserve_entry = getattr(entry, "card_payment_reserve_entry", None)
+    is_card_purchase = (
+        reserve_entry is not None
+        and reserve_entry.entry_type == CardPaymentReserveEntry.EntryType.PURCHASE
+    )
+    refundable_remaining = (
+        max(entry_amount - refund_total, Decimal("0.00"))
+        if is_card_purchase and not has_reversal
+        else Decimal("0.00")
+    )
     if entry.reversal_of_id is not None:
         status = "Reversal"
+    elif entry.entry_type == JournalEntry.EntryType.EXPENSE_REFUND:
+        status = "Refund"
     elif has_reversal:
         status = "Reversed"
+    elif refund_total >= entry_amount and refund_total > 0:
+        status = "Refunded"
+    elif refund_total > 0:
+        status = "Partially refunded"
     else:
         status = "Committed"
     return TransactionRow(
         entry=entry,
-        amount=_entry_amount(entry),
+        amount=entry_amount,
         accounts=_account_names(entry),
         status=status,
-        can_reverse=entry.reversal_of_id is None and not has_reversal,
+        can_reverse=(
+            entry.reversal_of_id is None
+            and entry.adjustment_for_id is None
+            and not has_reversal
+            and refund_total == 0
+        ),
+        can_refund=is_card_purchase and refundable_remaining > 0,
+        refund_total=refund_total,
+        refundable_remaining=refundable_remaining,
         local_effective_at=timezone.localtime(
             entry.effective_at,
             ZoneInfo(household.time_zone),
@@ -160,8 +212,17 @@ def transaction_list(request: HttpRequest) -> HttpResponse:
     filter_form = TransactionFilterForm(request.GET or None, household=household)
     entries = (
         JournalEntry.objects.filter(household=household)
-        .select_related("category", "created_by", "reversal_of")
-        .prefetch_related("postings__financial_account")
+        .select_related(
+            "category",
+            "created_by",
+            "reversal_of",
+            "adjustment_for",
+            "card_payment_reserve_entry",
+        )
+        .prefetch_related(
+            "postings__financial_account",
+            "adjustment_entries__card_payment_reserve_entry",
+        )
         .annotate(has_reversal=Exists(JournalEntry.objects.filter(reversal_of_id=OuterRef("pk"))))
     )
     scope = request.GET.get("scope", "period")
@@ -410,13 +471,27 @@ def transaction_detail(request: HttpRequest, entry_id: str) -> HttpResponse:
     household = get_active_household(request)
     entry = get_object_or_404(
         JournalEntry.objects.filter(household=household)
-        .select_related("category", "created_by", "reversal_of")
-        .prefetch_related("postings__financial_account")
+        .select_related(
+            "category",
+            "created_by",
+            "reversal_of",
+            "adjustment_for",
+            "card_payment_reserve_entry",
+        )
+        .prefetch_related(
+            "postings__financial_account",
+            "adjustment_entries__card_payment_reserve_entry",
+        )
         .annotate(has_reversal=Exists(JournalEntry.objects.filter(reversal_of_id=OuterRef("pk")))),
         pk=entry_id,
     )
     reversal = JournalEntry.objects.filter(reversal_of=entry).first()
     reserve_entry = CardPaymentReserveEntry.objects.filter(journal_entry=entry).first()
+    refund_entries = tuple(
+        adjustment
+        for adjustment in entry.adjustment_entries.all()
+        if adjustment.entry_type == JournalEntry.EntryType.EXPENSE_REFUND
+    )
     return render(
         request,
         "spending/transaction_detail.html",
@@ -426,6 +501,7 @@ def transaction_detail(request: HttpRequest, entry_id: str) -> HttpResponse:
             "postings": entry.postings.all(),
             "reversal": reversal,
             "reserve_entry": reserve_entry,
+            "refund_entries": refund_entries,
             "current_nav": "spending",
         },
     )
@@ -437,7 +513,11 @@ def transaction_reverse(request: HttpRequest, entry_id: str) -> HttpResponse:
     household = get_active_household(request)
     entry = get_object_or_404(
         JournalEntry.objects.filter(household=household)
-        .prefetch_related("postings__financial_account")
+        .select_related("adjustment_for", "card_payment_reserve_entry")
+        .prefetch_related(
+            "postings__financial_account",
+            "adjustment_entries__card_payment_reserve_entry",
+        )
         .annotate(has_reversal=Exists(JournalEntry.objects.filter(reversal_of_id=OuterRef("pk")))),
         pk=entry_id,
     )
@@ -468,6 +548,58 @@ def transaction_reverse(request: HttpRequest, entry_id: str) -> HttpResponse:
         {
             "household": household,
             "row": row,
+            "form": form,
+            "current_nav": "spending",
+        },
+    )
+
+
+@login_required
+@require_http_methods(("GET", "POST"))
+def card_purchase_refund(request: HttpRequest, entry_id: str) -> HttpResponse:
+    household = get_active_household(request)
+    entry = get_object_or_404(
+        JournalEntry.objects.filter(
+            household=household,
+            entry_type=JournalEntry.EntryType.EXPENSE,
+            card_payment_reserve_entry__entry_type=CardPaymentReserveEntry.EntryType.PURCHASE,
+        ).prefetch_related("postings__financial_account"),
+        pk=entry_id,
+    )
+    remaining = refundable_card_purchase_amount(entry)
+    if remaining <= 0:
+        raise Http404("This card purchase has no refundable amount remaining.")
+    form = CardPurchaseRefundForm(
+        request.POST or None,
+        household=household,
+        remaining=remaining,
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            result = record_card_purchase_refund(
+                entry=entry,
+                actor=_actor(request),
+                amount=form.cleaned_data["amount"],
+                effective_at=form.effective_at(),
+                request_id=_request_id(request),
+                reason=form.cleaned_data["reason"],
+                idempotency_key=form.idempotency_key(),
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(
+                request,
+                "Card refund recorded; spending, liability, and payment reserve were corrected.",
+            )
+            return redirect("spending:transaction-detail", entry_id=result.journal_entry.pk)
+    return render(
+        request,
+        "spending/transaction_refund.html",
+        {
+            "household": household,
+            "entry": entry,
+            "remaining": remaining,
             "form": form,
             "current_nav": "spending",
         },

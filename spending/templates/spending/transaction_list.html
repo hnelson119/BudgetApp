@@ -47,8 +47,8 @@
                 <td>{{ row.accounts }}</td>
                 <td>{% if row.entry.category %}<span class="category-chip">{{ row.entry.category.name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
                 <td class="transaction-amount{% if row.amount < 0 %} is-reversal{% endif %}">{{ row.amount|money }}</td>
-                <td><span class="row-status status-{{ row.status|lower }}">{{ row.status }}</span></td>
-                <td class="row-actions"><a href="{% url 'spending:transaction-detail' row.entry.pk %}">View</a>{% if row.can_reverse %}<a class="danger-link" href="{% url 'spending:transaction-reverse' row.entry.pk %}">Reverse</a>{% endif %}</td>
+                <td><span class="row-status status-{{ row.status|slugify }}">{{ row.status }}</span></td>
+                <td class="row-actions"><a href="{% url 'spending:transaction-detail' row.entry.pk %}">View</a>{% if row.can_refund %}<a href="{% url 'spending:card-purchase-refund' row.entry.pk %}">Refund</a>{% endif %}{% if row.can_reverse %}<a class="danger-link" href="{% url 'spending:transaction-reverse' row.entry.pk %}">Reverse</a>{% endif %}</td>
               </tr>
             {% endfor %}
           </tbody>

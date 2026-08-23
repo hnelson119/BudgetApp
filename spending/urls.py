@@ -15,5 +15,6 @@ urlpatterns = [
         name="card-payment-create",
     ),
     path("<uuid:entry_id>/", views.transaction_detail, name="transaction-detail"),
+    path("<uuid:entry_id>/refund/", views.card_purchase_refund, name="card-purchase-refund"),
     path("<uuid:entry_id>/reverse/", views.transaction_reverse, name="transaction-reverse"),
 ]

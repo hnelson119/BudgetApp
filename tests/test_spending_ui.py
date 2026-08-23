@@ -29,12 +29,13 @@ from periods.models import PayPeriod
 from reserves.models import CardPaymentReserveEntry
 from spending.forms import (
     CardPaymentForm,
+    CardPurchaseRefundForm,
     ExpenseForm,
     FinancialAccountForm,
     IncomeForm,
     ReversalForm,
 )
-from spending.services import credit_card_payment_reserve
+from spending.services import credit_card_payment_reserve, record_spending_expense
 
 TEST_PASSWORD = "spending-ui-test-password"  # pragma: allowlist secret
 
@@ -319,6 +320,116 @@ def test_card_purchase_and_payment_ui_show_persistent_allocation(
 
 
 @pytest.mark.django_db
+def test_partial_card_refund_ui_requires_confirmation_and_tracks_remaining_amount(
+    client: Client,
+    spending_context: SpendingContext,
+) -> None:
+    card = create_financial_account(
+        household=spending_context.household,
+        actor=spending_context.user,
+        name="Refund Visa",
+        account_type=FinancialAccount.AccountType.CREDIT_CARD,
+        classification=FinancialAccount.Classification.LIABILITY,
+        request_id="spending-ui-refund-card",
+    )
+    purchase = record_spending_expense(
+        household=spending_context.household,
+        actor=spending_context.user,
+        account=card,
+        category=spending_context.category,
+        amount=Decimal("75.00"),
+        effective_at=datetime(2026, 8, 22, 12, tzinfo=ZoneInfo("America/New_York")),
+        description="Partially returned groceries",
+        request_id="spending-ui-refundable-purchase",
+    )
+    _mfa_ready(spending_context.user)
+    client.force_login(spending_context.user)
+    refund_url = reverse("spending:card-purchase-refund", args=(purchase.pk,))
+
+    refund_page = client.get(refund_url)
+    assert refund_page.status_code == 200
+    assert b"$75.00 refundable" in refund_page.content
+    assert b"permanent linked refund entry" in refund_page.content
+    missing_confirmation = client.post(
+        refund_url,
+        {
+            "amount": "25.00",
+            "effective_date": "2026-08-23",
+            "effective_time": "09:00",
+            "reason": "One item was returned",
+            "submission_token": str(uuid.uuid4()),
+        },
+    )
+    assert missing_confirmation.status_code == 200
+    assert b"This field is required" in missing_confirmation.content
+    assert not JournalEntry.objects.filter(adjustment_for=purchase).exists()
+
+    excessive = client.post(
+        refund_url,
+        {
+            "amount": "75.01",
+            "effective_date": "2026-08-23",
+            "effective_time": "09:00",
+            "reason": "Invalid excessive refund",
+            "confirm": "on",
+            "submission_token": str(uuid.uuid4()),
+        },
+    )
+    assert excessive.status_code == 200
+    assert b"cannot exceed the remaining purchase amount" in excessive.content
+
+    response = client.post(
+        refund_url,
+        {
+            "amount": "25.00",
+            "effective_date": "2026-08-23",
+            "effective_time": "09:00",
+            "reason": "One item was returned",
+            "confirm": "on",
+            "submission_token": str(uuid.uuid4()),
+        },
+    )
+    assert response.status_code == 302
+    refund = JournalEntry.objects.get(adjustment_for=purchase)
+    assert response.headers["Location"] == reverse(
+        "spending:transaction-detail",
+        args=(refund.pk,),
+    )
+    refund_detail = client.get(response.headers["Location"])
+    assert b"This refund adjusts" in refund_detail.content
+    assert b"Refund amount: $25.00" in refund_detail.content
+
+    purchase_detail_url = reverse("spending:transaction-detail", args=(purchase.pk,))
+    purchase_detail = client.get(purchase_detail_url)
+    assert b"Partially refunded" in purchase_detail.content
+    assert b"$50.00 remains refundable" in purchase_detail.content
+    assert refund_url.encode() in purchase_detail.content
+    assert reverse("spending:transaction-reverse", args=(purchase.pk,)).encode() not in (
+        purchase_detail.content
+    )
+    assert (
+        client.get(reverse("spending:transaction-reverse", args=(purchase.pk,))).status_code == 404
+    )
+
+    final_response = client.post(
+        refund_url,
+        {
+            "amount": "50.00",
+            "effective_date": "2026-08-24",
+            "effective_time": "09:00",
+            "reason": "Remaining items were returned",
+            "confirm": "on",
+            "submission_token": str(uuid.uuid4()),
+        },
+    )
+    assert final_response.status_code == 302
+    fully_refunded_detail = client.get(purchase_detail_url)
+    assert b">Refunded<" in fully_refunded_detail.content
+    assert refund_url.encode() not in fully_refunded_detail.content
+    assert client.get(refund_url).status_code == 404
+
+
+@pytest.mark.django_db
 def test_transaction_list_defaults_to_paycheck_period_and_filters(
     client: Client,
     spending_context: SpendingContext,
@@ -481,9 +592,11 @@ def test_direct_object_access_and_form_choices_fail_closed(
 
     detail_url = reverse("spending:transaction-detail", args=(other_entry.pk,))
     reverse_url = reverse("spending:transaction-reverse", args=(other_entry.pk,))
+    refund_url = reverse("spending:card-purchase-refund", args=(other_entry.pk,))
     payment_url = reverse("spending:card-payment-create", args=(other_account.pk,))
     assert client.get(detail_url).status_code == 404
     assert client.get(reverse_url).status_code == 404
+    assert client.get(refund_url).status_code == 404
     assert client.get(payment_url).status_code == 404
     list_response = client.get(reverse("spending:transaction-list"), {"scope": "all"})
     assert b"Private other-household entry" not in list_response.content
@@ -540,6 +653,16 @@ def test_spending_forms_render_and_invalid_period_or_filters_fail_safely(
     invalid_reversal = ReversalForm(data={}, household=spending_context.household)
     with pytest.raises(ValidationError, match="Correct the reversal"):
         invalid_reversal.effective_at()
+
+    invalid_refund = CardPurchaseRefundForm(
+        data={},
+        household=spending_context.household,
+        remaining=Decimal("10.00"),
+    )
+    with pytest.raises(ValidationError, match="Correct the refund"):
+        invalid_refund.effective_at()
+    with pytest.raises(ValidationError, match="Correct the refund"):
+        invalid_refund.idempotency_key()
 
 
 @pytest.mark.django_db

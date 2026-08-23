@@ -25,6 +25,7 @@ from ledger.services import (
     record_balance_snapshot,
     record_debt_payment,
     record_expense,
+    record_expense_refund,
     record_goal_contribution,
     record_income,
     record_interest_or_fee,
@@ -420,6 +421,160 @@ def test_balance_snapshot_reports_latest_variance(ledger_context: LedgerContext)
     snapshot_event = AuditEvent.objects.get(action="account.balance_observed")
     assert snapshot_event.after_payload["calculated_balance"] == "900.00"
     assert snapshot_event.after_payload["variance"] == "25.50"
+
+
+@pytest.mark.django_db
+def test_expense_refunds_are_linked_cumulative_and_append_only(
+    ledger_context: LedgerContext,
+) -> None:
+    checking = make_account(ledger_context, name="Refund checking")
+    groceries = make_category(ledger_context)
+    purchased_at = timezone.now()
+    purchase = record_expense(
+        household=ledger_context.household,
+        actor=ledger_context.user,
+        account=checking,
+        category=groceries,
+        amount=Decimal("100.00"),
+        effective_at=purchased_at,
+        description="Refundable purchase",
+        request_id="ledger-refundable-purchase",
+    )
+    refund = record_expense_refund(
+        original=purchase,
+        actor=ledger_context.user,
+        amount=Decimal("40.00"),
+        effective_at=purchased_at + timedelta(hours=1),
+        description="Partial refund: Refundable purchase",
+        request_id="ledger-partial-refund",
+        reason="Returned one item",
+    )
+
+    assert refund.entry_type == JournalEntry.EntryType.EXPENSE_REFUND
+    assert refund.adjustment_for_id == purchase.pk
+    assert refund.category_id == groceries.pk
+    assert calculated_account_balance(checking) == Decimal("-60.00")
+    assert categorized_spending_total(ledger_context.household) == Decimal("60.00")
+    assert expense_total(ledger_context.household) == Decimal("60.00")
+    assert AuditEvent.objects.filter(
+        action="ledger.expense_refund_recorded",
+        entity_id=str(refund.pk),
+        reason="Returned one item",
+    ).exists()
+
+    with pytest.raises(ValidationError, match="cannot exceed"):
+        record_expense_refund(
+            original=purchase,
+            actor=ledger_context.user,
+            amount=Decimal("60.01"),
+            effective_at=purchased_at + timedelta(hours=2),
+            description="Excess refund",
+            request_id="ledger-excess-refund",
+            reason="Too much",
+        )
+    with pytest.raises(ValidationError, match="refund workflow"):
+        reverse_entry(
+            entry=purchase,
+            actor=ledger_context.user,
+            effective_at=purchased_at + timedelta(hours=2),
+            request_id="ledger-reverse-refunded-purchase",
+            reason="Invalid full reversal",
+        )
+    with pytest.raises(ValidationError, match="refund entry"):
+        reverse_entry(
+            entry=refund,
+            actor=ledger_context.user,
+            effective_at=purchased_at + timedelta(hours=2),
+            request_id="ledger-reverse-refund",
+            reason="Invalid refund reversal",
+        )
+
+
+@pytest.mark.django_db
+def test_expense_refunds_reject_invalid_originals_dates_and_reasons(
+    ledger_context: LedgerContext,
+) -> None:
+    checking = make_account(ledger_context, name="Refund validation checking")
+    groceries = make_category(ledger_context, name="Refund validation groceries")
+    purchased_at = timezone.now()
+    income = record_income(
+        household=ledger_context.household,
+        actor=ledger_context.user,
+        destination=checking,
+        amount=Decimal("100.00"),
+        effective_at=purchased_at,
+        description="Not a purchase",
+        request_id="ledger-refund-income",
+    )
+    purchase = record_expense(
+        household=ledger_context.household,
+        actor=ledger_context.user,
+        account=checking,
+        category=groceries,
+        amount=Decimal("50.00"),
+        effective_at=purchased_at,
+        description="Refund validation purchase",
+        request_id="ledger-refund-validation-purchase",
+    )
+
+    with pytest.raises(ValidationError, match="Only an expense or purchase"):
+        record_expense_refund(
+            original=income,
+            actor=ledger_context.user,
+            amount=Decimal("1.00"),
+            effective_at=purchased_at + timedelta(minutes=1),
+            description="Invalid income refund",
+            request_id="ledger-refund-invalid-income",
+            reason="Not an expense",
+        )
+    with pytest.raises(ValidationError, match="include a timezone"):
+        record_expense_refund(
+            original=purchase,
+            actor=ledger_context.user,
+            amount=Decimal("1.00"),
+            effective_at=purchased_at.replace(tzinfo=None),
+            description="Naive refund",
+            request_id="ledger-refund-naive",
+            reason="Invalid timestamp",
+        )
+    with pytest.raises(ValidationError, match="before the original purchase"):
+        record_expense_refund(
+            original=purchase,
+            actor=ledger_context.user,
+            amount=Decimal("1.00"),
+            effective_at=purchased_at - timedelta(minutes=1),
+            description="Backdated refund",
+            request_id="ledger-refund-backdated",
+            reason="Invalid date",
+        )
+    with pytest.raises(ValidationError, match="require a reason"):
+        record_expense_refund(
+            original=purchase,
+            actor=ledger_context.user,
+            amount=Decimal("1.00"),
+            effective_at=purchased_at + timedelta(minutes=1),
+            description="Reasonless refund",
+            request_id="ledger-refund-no-reason",
+            reason="   ",
+        )
+
+    reverse_entry(
+        entry=purchase,
+        actor=ledger_context.user,
+        effective_at=purchased_at + timedelta(minutes=1),
+        request_id="ledger-refund-validation-reversal",
+        reason="Purchase was entered in error",
+    )
+    with pytest.raises(ValidationError, match="fully reversed"):
+        record_expense_refund(
+            original=purchase,
+            actor=ledger_context.user,
+            amount=Decimal("1.00"),
+            effective_at=purchased_at + timedelta(minutes=2),
+            description="Refund after reversal",
+            request_id="ledger-refund-after-reversal",
+            reason="Invalid adjustment",
+        )
 
 
 @pytest.mark.django_db

@@ -132,6 +132,8 @@ def test_postgresql_schedule_and_period_history_has_database_guards() -> None:
     card_reserve_migration = (
         PROJECT_ROOT / "reserves/migrations/0004_cardpaymentreserveentry.py"
     ).read_text(encoding="utf-8")
+    card_refund_migration_path = next((PROJECT_ROOT / "reserves/migrations").glob("0005_*.py"))
+    card_refund_migration = card_refund_migration_path.read_text(encoding="utf-8")
 
     assert "pg_advisory_xact_lock" in period_migration
     assert "pay periods for one household cannot overlap" in period_migration
@@ -142,6 +144,9 @@ def test_postgresql_schedule_and_period_history_has_database_guards() -> None:
     assert "budget reconciliations cannot be %%" in reconciliation_migration
     assert "budgets_occurrencereconciliation" in reconciliation_migration
     assert "reserves_cardpaymentreserveentry" in card_reserve_migration
+    assert "backfill_purchase_refund_amount" in card_refund_migration
+    assert "purchase_refund_amount" in card_refund_migration
+    assert "migrations.RunPython(backfill_purchase_refund_amount" in card_refund_migration
     for migration in (
         schedule_migration,
         reserve_migration,

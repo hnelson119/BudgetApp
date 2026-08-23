@@ -448,6 +448,8 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .transaction-amount { color: var(--accent); font-weight: 850; }
 .transaction-amount.is-reversal { color: #ef9696; }
 .status-reversal, .status-reversed { border-color: rgba(239, 107, 107, .42); color: #ef9696; }
+.status-refund, .status-refunded { border-color: rgba(73, 214, 166, .42); color: var(--accent); }
+.status-partially-refunded { border-color: rgba(245, 166, 35, .5); color: #f5a623; }
 .accounts-panel { padding: 22px; overflow: visible; }
 .account-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
 .account-grid article { display: grid; padding: 16px; gap: 7px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-raised); }
@@ -465,6 +467,9 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .detail-actions { margin-top: 24px; }
 .card-allocation-card { margin-top: 22px; padding: 18px; border: 1px solid rgba(73, 214, 166, .38); border-radius: 14px; background: var(--accent-soft); }
 .card-allocation-card h3 { margin-top: 6px; }
+.refund-history-card { margin-top: 22px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-raised); }
+.refund-history-card h3 { margin-top: 6px; }
+.refund-history-card .compact-list { margin-top: 12px; }
 .allocation-values-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .pagination { display: flex; padding: 16px; align-items: center; justify-content: center; gap: 14px; border-top: 1px solid var(--line); }
 .pagination span { color: var(--muted); font-size: .8rem; }

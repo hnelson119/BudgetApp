@@ -88,7 +88,10 @@ def categorized_spending_total(
     """Return purchase spending without counting transfers or debt payments."""
 
     postings = _expense_postings(household).filter(
-        entry__entry_type=JournalEntry.EntryType.EXPENSE,
+        entry__entry_type__in=(
+            JournalEntry.EntryType.EXPENSE,
+            JournalEntry.EntryType.EXPENSE_REFUND,
+        ),
     )
     if category is not None:
         if category.household_id != household.pk:

@@ -22,6 +22,9 @@ from ledger.services import (
     record_expense as record_ledger_expense,
 )
 from ledger.services import (
+    record_expense_refund as record_ledger_expense_refund,
+)
+from ledger.services import (
     reverse_entry as reverse_ledger_entry,
 )
 from periods.models import PayPeriod
@@ -34,6 +37,15 @@ class CardPaymentResult:
     journal_entry: JournalEntry
     reserve_entry: CardPaymentReserveEntry
     allocation: CardPaymentAllocation
+
+
+@dataclass(frozen=True, slots=True)
+class CardPurchaseRefundResult:
+    journal_entry: JournalEntry
+    reserve_entry: CardPaymentReserveEntry
+    refund_amount: Decimal
+    reserve_released: Decimal
+    remaining_refundable: Decimal
 
 
 def _request_period(household: Household, effective_at: datetime) -> PayPeriod:
@@ -92,6 +104,7 @@ def _create_reserve_entry(
     payment_amount: Decimal = Decimal("0.00"),
     reserve_settlement: Decimal = Decimal("0.00"),
     debt_payoff: Decimal = Decimal("0.00"),
+    purchase_refund_amount: Decimal = Decimal("0.00"),
     neutral_correction: Decimal = Decimal("0.00"),
     reason: str = "",
 ) -> CardPaymentReserveEntry:
@@ -105,6 +118,7 @@ def _create_reserve_entry(
         payment_amount=payment_amount,
         reserve_settlement=reserve_settlement,
         debt_payoff=debt_payoff,
+        purchase_refund_amount=purchase_refund_amount,
         neutral_correction=neutral_correction,
         reason=reason.strip(),
         created_by=actor,
@@ -134,12 +148,30 @@ def household_card_payment_reserve(household: Household) -> Decimal:
     return total or Decimal("0.00")
 
 
+def refundable_card_purchase_amount(entry: JournalEntry) -> Decimal:
+    purchase = CardPaymentReserveEntry.objects.filter(
+        journal_entry=entry,
+        entry_type=CardPaymentReserveEntry.EntryType.PURCHASE,
+    ).first()
+    if purchase is None or JournalEntry.objects.filter(reversal_of=entry).exists():
+        return Decimal("0.00")
+    refunded = CardPaymentReserveEntry.objects.filter(
+        journal_entry__adjustment_for=entry,
+        entry_type=CardPaymentReserveEntry.EntryType.PURCHASE_REVERSAL,
+    ).aggregate(total=Sum("purchase_refund_amount"))["total"] or Decimal("0.00")
+    return max(purchase.amount - refunded, Decimal("0.00"))
+
+
 def _active_purchase_reserve_target(card: FinancialAccount) -> Decimal:
-    active_purchases = CardPaymentReserveEntry.objects.filter(
+    purchases = CardPaymentReserveEntry.objects.filter(
         card_account=card,
         entry_type=CardPaymentReserveEntry.EntryType.PURCHASE,
-        journal_entry__reversal_entry__isnull=True,
     ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    refunds = CardPaymentReserveEntry.objects.filter(
+        card_account=card,
+        entry_type=CardPaymentReserveEntry.EntryType.PURCHASE_REVERSAL,
+    ).aggregate(total=Sum("purchase_refund_amount"))["total"] or Decimal("0.00")
+    active_purchases = max(purchases - refunds, Decimal("0.00"))
     active_settlements = CardPaymentReserveEntry.objects.filter(
         card_account=card,
         entry_type=CardPaymentReserveEntry.EntryType.PAYMENT,
@@ -280,6 +312,86 @@ def record_card_payment(
 
 
 @transaction.atomic
+def record_card_purchase_refund(
+    *,
+    entry: JournalEntry,
+    actor: User,
+    amount: Decimal,
+    effective_at: datetime,
+    request_id: str,
+    reason: str,
+    idempotency_key: str = "",
+) -> CardPurchaseRefundResult:
+    purchase_reserve = (
+        CardPaymentReserveEntry.objects.select_for_update()
+        .select_related("household", "card_account", "journal_entry")
+        .filter(
+            journal_entry_id=entry.pk,
+            entry_type=CardPaymentReserveEntry.EntryType.PURCHASE,
+        )
+        .first()
+    )
+    if purchase_reserve is None:
+        raise ValidationError("Only a categorized credit-card purchase can receive this refund.")
+    require_household_membership(actor, purchase_reserve.household)
+    card = FinancialAccount.objects.select_for_update().get(pk=purchase_reserve.card_account_id)
+    refund = record_ledger_expense_refund(
+        original=purchase_reserve.journal_entry,
+        actor=actor,
+        amount=amount,
+        effective_at=effective_at,
+        description=f"Refund: {purchase_reserve.journal_entry.description}",
+        request_id=request_id,
+        reason=reason,
+        idempotency_key=idempotency_key,
+    )
+    refund_amount = _entry_amount(refund)
+    period = _request_period(purchase_reserve.household, refund.effective_at)
+    available = credit_card_payment_reserve(card)
+    if available < 0:
+        raise ValidationError("The card-payment reserve history is inconsistent.")
+    released = min(available, refund_amount)
+    reserve_entry = _create_reserve_entry(
+        household=purchase_reserve.household,
+        period=period,
+        card=card,
+        journal_entry=refund,
+        entry_type=CardPaymentReserveEntry.EntryType.PURCHASE_REVERSAL,
+        amount=-released,
+        purchase_refund_amount=refund_amount,
+        actor=actor,
+        reason=reason,
+    )
+    remaining = refundable_card_purchase_amount(purchase_reserve.journal_entry)
+    append_event(
+        household=purchase_reserve.household,
+        actor=actor,
+        action="card_reserve.purchase_refunded",
+        entity_type="card_payment_reserve_entry",
+        entity_id=reserve_entry.pk,
+        request_id=request_id,
+        after={
+            "journal_entry_id": refund.pk,
+            "original_journal_entry_id": purchase_reserve.journal_entry_id,
+            "card_account_id": card.pk,
+            "pay_period_id": period.pk,
+            "refund_amount": refund_amount,
+            "reserve_change": reserve_entry.amount,
+            "reserve_balance": credit_card_payment_reserve(card),
+            "remaining_refundable": remaining,
+        },
+        reason=reason.strip(),
+    )
+    return CardPurchaseRefundResult(
+        refund,
+        reserve_entry,
+        refund_amount,
+        released,
+        remaining,
+    )
+
+
+@transaction.atomic
 def reverse_spending_entry(
     *,
     entry: JournalEntry,
@@ -317,6 +429,7 @@ def reverse_spending_entry(
             journal_entry=reversal,
             entry_type=CardPaymentReserveEntry.EntryType.PURCHASE_REVERSAL,
             amount=-released,
+            purchase_refund_amount=_entry_amount(reversal),
             actor=actor,
             reason=reason,
         )

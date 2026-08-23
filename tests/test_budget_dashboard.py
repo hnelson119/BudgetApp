@@ -50,7 +50,11 @@ from schedules.services import (
     create_recurring_source,
     preview_revision,
 )
-from spending.services import record_card_payment, record_spending_expense
+from spending.services import (
+    record_card_payment,
+    record_card_purchase_refund,
+    record_spending_expense,
+)
 
 TEST_PASSWORD = "budget-dashboard-test-password"  # pragma: allowlist secret
 
@@ -464,6 +468,60 @@ def test_card_payment_reconciliation_uses_only_current_income_debt_payoff(
         today=date(2026, 8, 22),
     )
     assert summary.actual_debt_payments == Decimal("25.00")
+
+
+@pytest.mark.django_db
+def test_refund_of_reconciled_card_bill_reduces_fixed_actual_not_variable_spending(
+    budget_context: BudgetContext,
+) -> None:
+    card = create_financial_account(
+        household=budget_context.household,
+        actor=budget_context.user,
+        name="Bill card",
+        account_type=FinancialAccount.AccountType.CREDIT_CARD,
+        classification=FinancialAccount.Classification.LIABILITY,
+        request_id="budget-refunded-bill-card",
+    )
+    bill = _source_occurrence(
+        budget_context,
+        kind=RecurringSource.Kind.FIXED_EXPENSE,
+        name="Refunded annual fee",
+        amount="100.00",
+        category=budget_context.category,
+    )
+    purchase = record_spending_expense(
+        household=budget_context.household,
+        actor=budget_context.user,
+        account=card,
+        category=budget_context.category,
+        amount=Decimal("100.00"),
+        effective_at=datetime(2026, 8, 21, 8, tzinfo=ZoneInfo("America/New_York")),
+        description="Annual service fee",
+        request_id="budget-refunded-bill-purchase",
+    )
+    reconcile_occurrence(
+        occurrence=bill,
+        journal_entry=purchase,
+        amount=Decimal("100.00"),
+        actor=budget_context.user,
+        request_id="budget-refunded-bill-reconcile",
+    )
+    record_card_purchase_refund(
+        entry=purchase,
+        actor=budget_context.user,
+        amount=Decimal("25.00"),
+        effective_at=datetime(2026, 8, 22, 8, tzinfo=ZoneInfo("America/New_York")),
+        request_id="budget-fixed-card-refund",
+        reason="Vendor credited part of the annual fee",
+    )
+
+    summary = build_period_summary(
+        household=budget_context.household,
+        period=budget_context.period,
+        today=date(2026, 8, 22),
+    )
+    assert summary.actual_fixed_expenses == Decimal("75.00")
+    assert summary.actual_variable_spending == Decimal("0.00")
 
 
 @pytest.mark.django_db

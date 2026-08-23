@@ -7,6 +7,7 @@ from typing import Literal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from audit.services import append_event
@@ -101,6 +102,7 @@ def _commit_entry(
     provenance: str = JournalEntry.Provenance.MANUAL,
     idempotency_key: str = "",
     reversal_of: JournalEntry | None = None,
+    adjustment_for: JournalEntry | None = None,
     replacement_for: JournalEntry | None = None,
     audit_action: str = "ledger.entry_recorded",
     audit_reason: str = "",
@@ -130,6 +132,7 @@ def _commit_entry(
         receipt_reference=receipt_reference.strip(),
         idempotency_key=idempotency_key.strip(),
         reversal_of=reversal_of,
+        adjustment_for=adjustment_for,
         replacement_for=replacement_for,
         created_by=actor,
         committed_at=timezone.now(),
@@ -166,6 +169,7 @@ def _commit_entry(
             "amount": total,
             "category_id": category.pk if category else None,
             "reversal_of_id": reversal_of.pk if reversal_of else None,
+            "adjustment_for_id": adjustment_for.pk if adjustment_for else None,
         },
         reason=audit_reason,
     )
@@ -248,6 +252,87 @@ def record_expense(
             PostingSpec(JournalPosting.Side.CREDIT, amount, financial_account=account),
         ),
         audit_action="ledger.expense_recorded",
+    )
+
+
+@transaction.atomic
+def record_expense_refund(
+    *,
+    original: JournalEntry,
+    actor: User,
+    amount: Decimal,
+    effective_at: datetime,
+    description: str,
+    request_id: str,
+    reason: str,
+    idempotency_key: str = "",
+) -> JournalEntry:
+    locked_original = (
+        JournalEntry.objects.select_for_update()
+        .select_related("household", "category")
+        .get(pk=original.pk)
+    )
+    require_household_membership(actor, locked_original.household)
+    if locked_original.entry_type != JournalEntry.EntryType.EXPENSE:
+        raise ValidationError("Only an expense or purchase can receive a refund.")
+    if locked_original.reversal_of_id is not None:
+        raise ValidationError("A reversal entry cannot receive a refund.")
+    if JournalEntry.objects.filter(reversal_of=locked_original).exists():
+        raise ValidationError("A fully reversed expense cannot receive a refund.")
+    if timezone.is_naive(effective_at):
+        raise ValidationError("Journal entry timestamps must include a timezone.")
+    if effective_at < locked_original.effective_at:
+        raise ValidationError("A refund cannot be dated before the original purchase.")
+    if not reason.strip():
+        raise ValidationError("Expense refunds require a reason.")
+    normalized = _positive_amount(amount)
+    original_amount = locked_original.postings.filter(
+        side=JournalPosting.Side.DEBIT,
+        internal_account=JournalPosting.InternalAccount.EXPENSE,
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    refunded_amount = JournalPosting.objects.filter(
+        entry__adjustment_for=locked_original,
+        entry__entry_type=JournalEntry.EntryType.EXPENSE_REFUND,
+        side=JournalPosting.Side.CREDIT,
+        internal_account=JournalPosting.InternalAccount.EXPENSE,
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    remaining = original_amount - refunded_amount
+    if normalized > remaining:
+        raise ValidationError("Refunds cannot exceed the remaining purchase amount.")
+    account_posting = (
+        locked_original.postings.select_related("financial_account")
+        .filter(financial_account__isnull=False)
+        .first()
+    )
+    if account_posting is None or account_posting.financial_account is None:
+        raise ValidationError("The original expense does not identify a financial account.")
+    if locked_original.category is None:
+        raise ValidationError("The original expense does not identify a spending category.")
+    return _commit_entry(
+        household=locked_original.household,
+        actor=actor,
+        effective_at=effective_at,
+        entry_type=JournalEntry.EntryType.EXPENSE_REFUND,
+        description=description,
+        category=locked_original.category,
+        note=reason,
+        idempotency_key=idempotency_key,
+        request_id=request_id,
+        postings=(
+            PostingSpec(
+                JournalPosting.Side.DEBIT,
+                normalized,
+                financial_account=account_posting.financial_account,
+            ),
+            PostingSpec(
+                JournalPosting.Side.CREDIT,
+                normalized,
+                internal_account=JournalPosting.InternalAccount.EXPENSE,
+            ),
+        ),
+        adjustment_for=locked_original,
+        audit_action="ledger.expense_refund_recorded",
+        audit_reason=reason.strip(),
     )
 
 
@@ -500,8 +585,12 @@ def reverse_entry(
         raise ValidationError("Reversing a journal entry requires a reason.")
     if original.reversal_of_id is not None:
         raise ValidationError("A reversal entry cannot itself be reversed.")
+    if original.entry_type == JournalEntry.EntryType.EXPENSE_REFUND:
+        raise ValidationError("A refund entry cannot itself be reversed.")
     if JournalEntry.objects.filter(reversal_of=original).exists():
         raise ValidationError("The journal entry has already been reversed.")
+    if JournalEntry.objects.filter(adjustment_for=original).exists():
+        raise ValidationError("An expense with refunds must use the refund workflow.")
     postings = tuple(
         PostingSpec(
             JournalPosting.Side.CREDIT

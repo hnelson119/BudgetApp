@@ -173,6 +173,11 @@ excess as current-income debt payoff. The dashboard, transaction detail, budget 
 scheduled-debt reconciliation preserve that separation, including refund/payment-reversal ordering.
 Ledger, reserve, and audit history remain append-only in the application and protected by
 PostgreSQL runtime-role triggers. Partial refunds and CSV workflows remain in this milestone.
+Multiple partial card refunds are now also implemented as append-only expense-refund entries. Each
+refund links to the original purchase, cumulative service validation prevents over-refunding, and
+the reserve correction releases only cash that remains reserved. Refunds after card settlement and
+later payment reversals remain budget-neutral where appropriate. CSV workflows are the remaining
+M6 deliverable.
 
 Exit criteria: Golden cases E–G pass; malformed/import security tests pass; repeating an import does not duplicate transactions.
 

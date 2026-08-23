@@ -82,6 +82,8 @@ flowchart TD
     P --> Q[Consume card-payment reserve first]
     Q --> D[Excess payment becomes current-income-funded debt payoff]
     K -->|Interest or fee| F[Increase card liability and expense]
+    K -->|Partial card refund| U[Reduce card liability and category spending]
+    U --> V[Release only payment reserve still available]
     K -->|Goal contribution| G[Move value and update goal progress]
     K -->|Balance adjustment| B[Reconciliation-only ledger adjustment]
 ```
@@ -107,6 +109,8 @@ Reserve states are derived from append-only entries. If a card payment exceeds i
 excess is debt payoff funded by the current period or Household Reserve as explicitly selected.
 Reversals also append corrections: a returned payment restores only the amount still backed by
 active card purchases, while any portion already canceled by a refund remains budget-neutral.
+Multiple partial refunds link to the original purchase and accumulate only to its original amount;
+neither the purchase nor an earlier refund is edited.
 
 ## 6. Twice-monthly mortgage workflow
 

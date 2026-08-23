@@ -108,7 +108,11 @@ def _entry_amount(entry: JournalEntry) -> Decimal:
         (posting.amount for posting in entry.postings.all() if posting.side == "debit"),
         ZERO,
     )
-    return money(-total if entry.reversal_of_id else total)
+    return money(
+        -total
+        if entry.reversal_of_id or entry.entry_type == JournalEntry.EntryType.EXPENSE_REFUND
+        else total
+    )
 
 
 def _period_entries(household: Household, period: PayPeriod) -> list[JournalEntry]:
@@ -212,7 +216,21 @@ def build_period_summary(
         _occurrence_sum(occurrences, RecurringSource.Kind.INCOME, "actual_amount")
         + _unlinked_entry_total(entries, linked_entry_ids, JournalEntry.EntryType.INCOME)
     )
-    actual_fixed = _occurrence_sum(occurrences, RecurringSource.Kind.FIXED_EXPENSE, "actual_amount")
+    fixed_refunds = money(
+        sum(
+            (
+                _entry_amount(entry)
+                for entry in entries
+                if entry.entry_type == JournalEntry.EntryType.EXPENSE_REFUND
+                and entry.adjustment_for_id in fixed_entry_ids
+            ),
+            ZERO,
+        )
+    )
+    actual_fixed = money(
+        _occurrence_sum(occurrences, RecurringSource.Kind.FIXED_EXPENSE, "actual_amount")
+        + fixed_refunds
+    )
     actual_debt = money(
         _occurrence_sum(occurrences, RecurringSource.Kind.DEBT_PAYMENT, "actual_amount")
         + _unlinked_entry_total(
@@ -229,7 +247,13 @@ def build_period_summary(
     variable_entries = [
         entry
         for entry in entries
-        if entry.entry_type == JournalEntry.EntryType.EXPENSE and entry.pk not in fixed_entry_ids
+        if entry.entry_type
+        in (JournalEntry.EntryType.EXPENSE, JournalEntry.EntryType.EXPENSE_REFUND)
+        and entry.pk not in fixed_entry_ids
+        and not (
+            entry.entry_type == JournalEntry.EntryType.EXPENSE_REFUND
+            and entry.adjustment_for_id in fixed_entry_ids
+        )
     ]
     actual_variable = money(sum((_entry_amount(entry) for entry in variable_entries), ZERO))
 

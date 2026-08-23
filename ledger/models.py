@@ -148,6 +148,7 @@ class JournalEntry(ServiceCreatedModel):
     class EntryType(models.TextChoices):
         INCOME = "income", "Income"
         EXPENSE = "expense", "Expense or purchase"
+        EXPENSE_REFUND = "expense_refund", "Expense refund"
         TRANSFER = "transfer", "Account transfer"
         DEBT_PAYMENT = "debt_payment", "Debt payment"
         GOAL_CONTRIBUTION = "goal_contribution", "Goal contribution"
@@ -190,6 +191,13 @@ class JournalEntry(ServiceCreatedModel):
         null=True,
         blank=True,
     )
+    adjustment_for = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="adjustment_entries",
+        null=True,
+        blank=True,
+    )
     replacement_for = models.ForeignKey(
         "self",
         on_delete=models.PROTECT,
@@ -215,16 +223,36 @@ class JournalEntry(ServiceCreatedModel):
                 name="ledger_entry_description_not_empty",
             ),
             models.CheckConstraint(
-                condition=(models.Q(category__isnull=False) | ~models.Q(entry_type="expense")),
+                condition=(
+                    models.Q(category__isnull=False)
+                    | ~models.Q(entry_type__in=("expense", "expense_refund"))
+                ),
                 name="ledger_expense_category_required",
             ),
             models.CheckConstraint(
-                condition=(models.Q(category__isnull=True) | models.Q(entry_type="expense")),
+                condition=(
+                    models.Q(category__isnull=True)
+                    | models.Q(entry_type__in=("expense", "expense_refund"))
+                ),
                 name="ledger_category_only_for_expense",
             ),
             models.CheckConstraint(
                 condition=~models.Q(id=models.F("reversal_of")),
                 name="ledger_entry_not_self_reversal",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(id=models.F("adjustment_for")),
+                name="ledger_entry_not_self_adjustment",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(entry_type="expense_refund", adjustment_for__isnull=False)
+                    | (
+                        ~models.Q(entry_type="expense_refund")
+                        & models.Q(adjustment_for__isnull=True)
+                    )
+                ),
+                name="ledger_refund_adjustment_required",
             ),
             models.UniqueConstraint(
                 fields=("household", "idempotency_key"),

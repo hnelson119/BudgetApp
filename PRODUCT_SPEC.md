@@ -233,6 +233,7 @@ Initial transaction types are:
 
 - Income
 - Expense/purchase
+- Expense refund (append-only correction)
 - Account transfer
 - Debt payment
 - Goal contribution

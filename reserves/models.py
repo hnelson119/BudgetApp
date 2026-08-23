@@ -210,6 +210,11 @@ class CardPaymentReserveEntry(models.Model):
         default=Decimal("0.00"),
     )
     debt_payoff = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    purchase_refund_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
     neutral_correction = models.DecimalField(
         max_digits=18,
         decimal_places=2,
@@ -243,6 +248,7 @@ class CardPaymentReserveEntry(models.Model):
                     models.Q(payment_amount__gte=Decimal("0.00"))
                     & models.Q(reserve_settlement__gte=Decimal("0.00"))
                     & models.Q(debt_payoff__gte=Decimal("0.00"))
+                    & models.Q(purchase_refund_amount__gte=Decimal("0.00"))
                     & models.Q(neutral_correction__gte=Decimal("0.00"))
                 ),
                 name="reserves_card_amounts_nonnegative",
@@ -255,11 +261,13 @@ class CardPaymentReserveEntry(models.Model):
                         payment_amount=Decimal("0.00"),
                         reserve_settlement=Decimal("0.00"),
                         debt_payoff=Decimal("0.00"),
+                        purchase_refund_amount=Decimal("0.00"),
                         neutral_correction=Decimal("0.00"),
                     )
                     | models.Q(
                         entry_type="purchase_reversal",
                         amount__lte=Decimal("0.00"),
+                        purchase_refund_amount__gt=Decimal("0.00"),
                         payment_amount=Decimal("0.00"),
                         reserve_settlement=Decimal("0.00"),
                         debt_payoff=Decimal("0.00"),
@@ -272,6 +280,7 @@ class CardPaymentReserveEntry(models.Model):
                         + models.F("debt_payoff")
                         + models.F("neutral_correction"),
                         payment_amount__gt=Decimal("0.00"),
+                        purchase_refund_amount=Decimal("0.00"),
                         neutral_correction=Decimal("0.00"),
                     )
                     | models.Q(
@@ -281,6 +290,7 @@ class CardPaymentReserveEntry(models.Model):
                         + models.F("debt_payoff")
                         + models.F("neutral_correction"),
                         payment_amount__gt=Decimal("0.00"),
+                        purchase_refund_amount=Decimal("0.00"),
                     )
                 ),
                 name="reserves_card_entry_type_amounts_valid",

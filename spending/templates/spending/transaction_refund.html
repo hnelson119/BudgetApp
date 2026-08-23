@@ -1,0 +1,24 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}Record card refund · Household Budget{% endblock %}
+{% block page_title %}Record card purchase refund{% endblock %}
+
+{% block content %}
+  <section class="form-page">
+    <a class="back-link" href="{% url 'spending:transaction-detail' entry.pk %}">← Back to transaction</a>
+    <div class="form-card">
+      <p class="eyebrow">Append-only correction</p>
+      <h2>{{ entry.description }}</h2>
+      <div class="item-context"><span>{{ entry.category.name }}</span><span>{{ remaining|money }} refundable</span><span>{{ entry.effective_at|date:'M j, Y' }}</span></div>
+      <p class="notice-card">This adds a linked refund without editing the original purchase. It reduces categorized spending and card liability, and releases only payment reserve that is still available.</p>
+      <form class="app-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}<div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+        {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+        <button class="primary-link" type="submit">Record refund</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

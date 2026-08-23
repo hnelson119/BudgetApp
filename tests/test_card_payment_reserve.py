@@ -29,7 +29,9 @@ from spending.services import (
     credit_card_payment_reserve,
     household_card_payment_reserve,
     record_card_payment,
+    record_card_purchase_refund,
     record_spending_expense,
+    refundable_card_purchase_amount,
     reverse_spending_entry,
 )
 
@@ -217,6 +219,153 @@ def test_golden_case_g_interest_and_fees_do_not_change_card_reserve(
     assert credit_card_payment_reserve(card_context.card) == Decimal("75.00")
     assert categorized_spending_total(card_context.household) == Decimal("75.00")
     assert expense_total(card_context.household) == Decimal("100.00")
+
+
+@pytest.mark.django_db
+def test_multiple_partial_refunds_reduce_spending_liability_and_available_reserve(
+    card_context: CardContext,
+) -> None:
+    purchase = _purchase(card_context)
+    first_refund = record_card_purchase_refund(
+        entry=purchase,
+        actor=card_context.user,
+        amount=Decimal("25.00"),
+        effective_at=datetime(2026, 8, 23, 10, tzinfo=ZONE),
+        request_id="card-partial-refund-25",
+        reason="One grocery item was returned",
+    )
+
+    assert first_refund.journal_entry.entry_type == JournalEntry.EntryType.EXPENSE_REFUND
+    assert first_refund.journal_entry.adjustment_for_id == purchase.pk
+    assert first_refund.refund_amount == Decimal("25.00")
+    assert first_refund.reserve_released == Decimal("25.00")
+    assert first_refund.remaining_refundable == Decimal("50.00")
+    assert first_refund.reserve_entry.amount == Decimal("-25.00")
+    assert first_refund.reserve_entry.purchase_refund_amount == Decimal("25.00")
+    assert credit_card_payment_reserve(card_context.card) == Decimal("50.00")
+    assert calculated_account_balance(card_context.card) == Decimal("50.00")
+    assert categorized_spending_total(card_context.household) == Decimal("50.00")
+    assert expense_total(card_context.household) == Decimal("50.00")
+    assert refundable_card_purchase_amount(purchase) == Decimal("50.00")
+
+    summary = build_period_summary(
+        household=card_context.household,
+        period=card_context.first_period,
+        today=date(2026, 8, 23),
+    )
+    assert summary.actual_variable_spending == Decimal("50.00")
+    with pytest.raises(ValidationError, match="must use the refund workflow"):
+        reverse_spending_entry(
+            entry=purchase,
+            actor=card_context.user,
+            effective_at=datetime(2026, 8, 23, 11, tzinfo=ZONE),
+            request_id="card-reject-full-reversal-after-partial",
+            reason="Invalid full reversal after a partial refund",
+        )
+
+    second_refund = record_card_purchase_refund(
+        entry=purchase,
+        actor=card_context.user,
+        amount=Decimal("50.00"),
+        effective_at=datetime(2026, 8, 24, 10, tzinfo=ZONE),
+        request_id="card-final-refund-50",
+        reason="The remaining items were returned",
+    )
+    assert second_refund.remaining_refundable == Decimal("0.00")
+    assert credit_card_payment_reserve(card_context.card) == Decimal("0.00")
+    assert calculated_account_balance(card_context.card) == Decimal("0.00")
+    assert categorized_spending_total(card_context.household) == Decimal("0.00")
+    assert refundable_card_purchase_amount(purchase) == Decimal("0.00")
+    with pytest.raises(ValidationError, match="cannot exceed"):
+        record_card_purchase_refund(
+            entry=purchase,
+            actor=card_context.user,
+            amount=Decimal("0.01"),
+            effective_at=datetime(2026, 8, 24, 11, tzinfo=ZONE),
+            request_id="card-over-refund",
+            reason="No refundable amount remains",
+        )
+    assert AuditEvent.objects.filter(action="card_reserve.purchase_refunded").count() == 2
+
+
+@pytest.mark.django_db
+def test_partial_refund_after_payment_stays_neutral_when_payment_is_reversed(
+    card_context: CardContext,
+) -> None:
+    purchase = _purchase(card_context)
+    payment = record_card_payment(
+        household=card_context.household,
+        actor=card_context.user,
+        source=card_context.checking,
+        card=card_context.card,
+        amount=Decimal("75.00"),
+        effective_at=datetime(2026, 8, 23, 9, tzinfo=ZONE),
+        description="Visa purchase settlement",
+        request_id="card-payment-before-partial-refund",
+    )
+    refund = record_card_purchase_refund(
+        entry=purchase,
+        actor=card_context.user,
+        amount=Decimal("30.00"),
+        effective_at=datetime(2026, 8, 24, 10, tzinfo=ZONE),
+        request_id="card-partial-refund-after-payment",
+        reason="Part of the settled purchase was returned",
+    )
+
+    assert refund.reserve_released == Decimal("0.00")
+    assert refund.reserve_entry.amount == Decimal("0.00")
+    assert refund.reserve_entry.purchase_refund_amount == Decimal("30.00")
+    assert calculated_account_balance(card_context.card) == Decimal("-30.00")
+    assert categorized_spending_total(card_context.household) == Decimal("45.00")
+
+    payment_reversal = reverse_spending_entry(
+        entry=payment.journal_entry,
+        actor=card_context.user,
+        effective_at=datetime(2026, 8, 25, 9, tzinfo=ZONE),
+        request_id="card-payment-reversal-after-partial-refund",
+        reason="The card payment was returned",
+    )
+    correction = CardPaymentReserveEntry.objects.get(journal_entry=payment_reversal)
+    assert correction.reserve_settlement == Decimal("45.00")
+    assert correction.neutral_correction == Decimal("30.00")
+    assert credit_card_payment_reserve(card_context.card) == Decimal("45.00")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_partial_refund_rolls_back_when_reserve_audit_or_period_validation_fails(
+    card_context: CardContext,
+) -> None:
+    purchase = _purchase(card_context)
+    initial_entries = JournalEntry.objects.count()
+    with (
+        patch(
+            "spending.services.transactions.append_event",
+            side_effect=RuntimeError("refund reserve audit failed"),
+        ),
+        pytest.raises(RuntimeError, match="refund reserve audit failed"),
+    ):
+        record_card_purchase_refund(
+            entry=purchase,
+            actor=card_context.user,
+            amount=Decimal("10.00"),
+            effective_at=datetime(2026, 8, 23, 10, tzinfo=ZONE),
+            request_id="card-refund-audit-rollback",
+            reason="Exercise atomic audit rollback",
+        )
+    assert JournalEntry.objects.count() == initial_entries
+    assert refundable_card_purchase_amount(purchase) == Decimal("75.00")
+
+    with pytest.raises(ValidationError, match="generated paycheck period"):
+        record_card_purchase_refund(
+            entry=purchase,
+            actor=card_context.user,
+            amount=Decimal("10.00"),
+            effective_at=datetime(2026, 9, 10, 10, tzinfo=ZONE),
+            request_id="card-refund-period-rollback",
+            reason="Refund falls outside generated periods",
+        )
+    assert JournalEntry.objects.count() == initial_entries
+    assert refundable_card_purchase_amount(purchase) == Decimal("75.00")
 
 
 @pytest.mark.django_db
