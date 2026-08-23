@@ -15,9 +15,10 @@ Tailscale-only HTTPS configuration remains deployment-time work on the Linux VM.
 progress: password authentication, encrypted TOTP enrollment, single-use recovery codes, login
 throttling, secure session controls, household authorization, trusted-console provisioning and
 recovery, PostgreSQL-enforced append-only audit isolation, signed external checkpoints, and a
-read-only household-scoped audit UI are implemented. A real PostgreSQL privilege rehearsal and
-the Linux VM's private Tailscale ingress remain deployment verification work before household
-financial data is entered.
+read-only household-scoped audit UI are implemented. The local PostgreSQL privilege rehearsal now
+passes for runtime append isolation, audit-tamper denial, and signed-checkpoint verification. The
+Linux VM's private Tailscale ingress remains deployment verification work before household financial
+data is entered.
 
 ## Local development
 

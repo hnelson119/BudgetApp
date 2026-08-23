@@ -30,7 +30,7 @@ BEGIN
         END IF;
         RETURN NEW;
     END IF;
-    RAISE EXCEPTION 'protected audit records cannot be % by this database role', lower(TG_OP)
+    RAISE EXCEPTION 'protected audit records cannot be %% by this database role', lower(TG_OP)
         USING ERRCODE = '42501';
 END
 $function$;

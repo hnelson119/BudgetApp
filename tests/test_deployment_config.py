@@ -1,3 +1,4 @@
+import importlib
 import re
 from collections.abc import Iterator
 from pathlib import Path
@@ -53,9 +54,29 @@ def test_postgresql_audit_boundary_uses_owned_schema_and_capability_roles() -> N
     assert "SET search_path = pg_catalog, pg_temp" in migration
     assert "BEFORE UPDATE OR DELETE" in migration
     assert "BEFORE TRUNCATE" in migration
+    assert "protected audit records cannot be %% by this database role" in migration
     assert "REVOKE ALL ON TABLE budget_audit.audit_auditevent" in migration
     assert "GRANT EXECUTE ON FUNCTION budget_audit.append_event" in migration
     assert "SELECT budget_audit.append_event" in service
+
+
+def test_parameterless_postgresql_migration_sql_escapes_percent_literals() -> None:
+    migration_sql = (
+        (
+            "audit.migrations.0002_postgresql_protected_schema",
+            ("PROTECT_AUDIT_SQL", "UNPROTECT_AUDIT_SQL"),
+        ),
+        (
+            "audit.migrations.0004_postgresql_protect_checkpoints",
+            ("PROTECT_CHECKPOINT_SQL", "UNPROTECT_CHECKPOINT_SQL"),
+        ),
+    )
+
+    for module_name, attribute_names in migration_sql:
+        module = importlib.import_module(module_name)
+        for attribute_name in attribute_names:
+            sql = getattr(module, attribute_name)
+            assert re.search(r"(?<!%)%(?!%)", sql) is None
 
 
 def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:

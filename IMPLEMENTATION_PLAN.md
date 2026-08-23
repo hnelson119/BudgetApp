@@ -1,6 +1,6 @@
 # Household Budget Application — Implementation Plan
 
-Status: Milestone 2 implementation complete; deployment verification pending
+Status: Milestone 2 implementation and local PostgreSQL verification complete; private-ingress deployment verification pending
 Last updated: 2026-08-22
 
 ## 1. Locked architecture
@@ -85,8 +85,9 @@ recovery codes, generic and rate-limited authentication, idle/absolute session e
 logout-all-devices, sensitive-action reauthentication, trusted-console two-user provisioning and
 emergency recovery, active-household authorization, and a canonical per-household SHA-256 audit
 chain, PostgreSQL-owned protected schema and append function, isolated signed-checkpoint job, and
-household-scoped read-only audit history are implemented with security tests. The remaining gate is
-a real PostgreSQL runtime-role privilege rehearsal plus private-ingress validation on the Linux VM.
+household-scoped read-only audit history are implemented with security tests. A clean PostgreSQL 17
+rehearsal confirms runtime append isolation, direct audit-mutation denial, least-privilege role
+flags, and signed-checkpoint verification. Private-ingress validation remains for the Linux VM.
 
 Exit criteria: authentication/recovery tests pass; a sample domain mutation and audit event commit or roll back together; tampering fails verification.
 
