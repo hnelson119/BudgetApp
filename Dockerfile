@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
-FROM python:3.12-slim@sha256:2c941e860699f878900b0edc2403613c234d4b32eda3cc9fa7036991a2a63c4a AS runtime
+FROM python:3.12-alpine@sha256:d09d15e60962ca365d1cd544a48773bac9d33f2fb1b00f2aa0deec78ade7dc31 AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN groupadd --gid 10001 budget \
-    && useradd --uid 10001 --gid budget --no-create-home --shell /usr/sbin/nologin budget
+RUN addgroup -g 10001 -S budget \
+    && adduser -u 10001 -S -D -H -G budget -s /sbin/nologin budget
 
 WORKDIR /app
 

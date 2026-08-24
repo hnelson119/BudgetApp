@@ -266,8 +266,8 @@ def test_container_does_not_enable_raw_access_logging() -> None:
     dockerignore = set((PROJECT_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines())
 
     assert "USER budget" in dockerfile
-    assert "useradd --uid 10001" in dockerfile
-    assert "python:3.12-slim@sha256:" in dockerfile
+    assert "adduser -u 10001" in dockerfile
+    assert "python:3.12-alpine@sha256:" in dockerfile
     assert "--access-logfile" not in dockerfile
     assert {".env*", "secrets", "local-test-secrets"}.issubset(dockerignore)
 
@@ -327,11 +327,17 @@ def test_ci_uses_read_only_permissions_and_immutable_official_actions() -> None:
     assert "pip_audit --requirement requirements-dev.lock" in workflow
     assert "--cache-dir .pip-audit-cache --no-deps --disable-pip --strict" in workflow
     assert "docker compose --profile maintenance --profile recovery config --quiet" in workflow
+    assert "docker build --tag household-budget:${{ github.sha }} ." in workflow
+    assert "scan-type: image" in workflow
+    assert "severity: HIGH,CRITICAL" in workflow
+    assert 'exit-code: "1"' in workflow
+    assert "scanners: vuln,secret" in workflow
 
     action_references = re.findall(r"uses: ([^\s#]+)", workflow)
     assert {reference.split("@")[0] for reference in action_references} == {
         "actions/checkout",
         "actions/setup-python",
+        "aquasecurity/trivy-action",
     }
     assert all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", reference) for reference in action_references)
 

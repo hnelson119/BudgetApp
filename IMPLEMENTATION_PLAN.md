@@ -1,6 +1,6 @@
 # Household Budget Application — Implementation Plan
 
-Status: Milestones 0–7 code-deliverable work and local verification complete; private-ingress deployment verification pending
+Status: Milestones 0–9 code-deliverable work and local verification complete; Milestone 10 release hardening in progress
 Last updated: 2026-08-24
 
 ## 1. Locked architecture
@@ -271,6 +271,14 @@ Exit criteria: alert and audit-access tests pass; no UI path offers audit mutati
 - Perform quarterly-style restore rehearsal and audit-checkpoint comparison
 - Perform lost-device and credential-rotation exercise
 - Document upgrades, rollback, backup, restore, and incident response
+
+Progress: the M10 evidence baseline now inventories every ASVS 5.0.0 chapter, required security
+test, and release gate without claiming unperformed release passes. Local and CI quality gates
+validate that inventory. CI also builds the release image without runtime secrets and fails on
+high/critical operating-system or Python-package vulnerabilities using an immutable pinned Trivy
+action. Raw security-tool output is ignored by default and must remain outside source control;
+only sanitized findings and retest summaries may be committed. ZAP automation, synthetic
+penetration-test data, cross-browser automation, and operational rehearsals remain in progress.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

@@ -54,3 +54,31 @@ jobs:
 
       - name: Validate every Compose profile without starting services
         run: docker compose --profile maintenance --profile recovery config --quiet
+
+  container-security:
+    name: Release image vulnerability scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the source without persisted credentials
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Build the release image without runtime secrets
+        run: docker build --tag household-budget:${{ github.sha }} .
+
+      - name: Fail on high or critical release-image vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: household-budget:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: false
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          scanners: vuln,secret

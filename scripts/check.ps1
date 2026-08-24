@@ -27,6 +27,9 @@ try {
     & $pythonPath scripts\secret_scan.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $pythonPath scripts\check_release_evidence.py
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     $sourceDirectories = @(
         "audit", "budgets", "config", "core", "debts", "goals", "households",
         "identity", "imports", "ledger", "notifications", "periods", "reserves",

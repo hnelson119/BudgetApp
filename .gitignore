@@ -36,3 +36,6 @@ node_modules/
 # Local database and backup data
 postgres-data/
 backups/
+
+# Security tools may record internal URLs, package paths, and attack evidence.
+security-reports/
