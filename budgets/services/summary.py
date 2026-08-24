@@ -136,6 +136,7 @@ def _unlinked_entry_total(
     linked_entry_ids: set[UUID],
     entry_type: str,
     card_allocations: dict[UUID, CardPaymentReserveEntry] | None = None,
+    excluded_entry_ids: set[UUID] | None = None,
 ) -> Decimal:
     def amount(entry: JournalEntry) -> Decimal:
         allocation = (card_allocations or {}).get(entry.pk)
@@ -150,7 +151,9 @@ def _unlinked_entry_total(
             (
                 amount(entry)
                 for entry in entries
-                if entry.entry_type == entry_type and entry.pk not in linked_entry_ids
+                if entry.entry_type == entry_type
+                and entry.pk not in linked_entry_ids
+                and entry.pk not in (excluded_entry_ids or set())
             ),
             ZERO,
         )
@@ -198,6 +201,12 @@ def build_period_summary(
         ).select_related("occurrence__source")
     )
     linked_entry_ids = {item.journal_entry_id for item in reconciliations}
+    reserve_funded_goal_entry_ids = set(
+        JournalEntry.objects.filter(
+            pk__in=(entry.pk for entry in entries),
+            goal_progress_contribution__reserve_entry__isnull=False,
+        ).values_list("pk", flat=True)
+    )
     fixed_entry_ids = {
         item.journal_entry_id
         for item in reconciliations
@@ -238,11 +247,17 @@ def build_period_summary(
             linked_entry_ids,
             JournalEntry.EntryType.DEBT_PAYMENT,
             card_allocations,
+            reserve_funded_goal_entry_ids,
         )
     )
     actual_goals = money(
         _occurrence_sum(occurrences, RecurringSource.Kind.GOAL_CONTRIBUTION, "actual_amount")
-        + _unlinked_entry_total(entries, linked_entry_ids, JournalEntry.EntryType.GOAL_CONTRIBUTION)
+        + _unlinked_entry_total(
+            entries,
+            linked_entry_ids,
+            JournalEntry.EntryType.GOAL_CONTRIBUTION,
+            excluded_entry_ids=reserve_funded_goal_entry_ids,
+        )
     )
     variable_entries = [
         entry

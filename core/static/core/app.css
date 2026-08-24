@@ -506,6 +506,19 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .import-decision-grid .form-card { padding: 24px; }
 .import-decision-grid .form-card h3 { margin-top: 6px; }
 .primary-link:disabled, .primary-button:disabled { cursor: not-allowed; opacity: .48; }
+.goal-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.goal-card { min-height: auto; }
+.goal-card .large-value { margin-top: 18px; }
+.goal-card-details { display: grid; margin: 18px 0; gap: 10px; }
+.goal-card-details div { display: flex; justify-content: space-between; gap: 16px; }
+.goal-card-details dt { color: var(--muted); font-size: .78rem; }
+.goal-card-details dd { margin: 0; font-size: .8rem; font-weight: 750; text-align: right; }
+.goal-detail-progress { width: 100%; height: 12px; margin: 18px 0 24px; accent-color: var(--accent); }
+.allocation-preview-list { display: grid; margin: 18px 0; padding-left: 22px; gap: 10px; }
+.allocation-preview-list li { padding-left: 6px; }
+.allocation-preview-list li span { margin-right: 16px; }
+.status-paused { color: var(--warning); }
+.status-completed { border-color: rgba(73, 214, 166, .45); color: var(--accent); }
 
 @media (max-width: 850px) {
   .hero { grid-template-columns: 1fr; margin-top: 48px; }
@@ -515,6 +528,7 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .import-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dashboard-columns { grid-template-columns: 1fr; }
+  .goal-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-card { min-height: auto; }
   .dashboard-split { grid-template-columns: 1fr; }
   .filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -548,7 +562,7 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .metric-icon { width: 36px; height: 36px; flex-basis: 36px; font-size: 1rem; }
   .allocation-card, .dashboard-card { padding: 20px; }
   .section-title { align-items: start; flex-direction: column; gap: 8px; }
-  .allocation-values, .filter-bar, .category-budget-grid, .schedule-form, .account-grid, .detail-grid, .import-summary-grid, .import-decision-grid, .debt-summary-grid, .mortgage-preview-grid { grid-template-columns: 1fr; }
+  .allocation-values, .filter-bar, .category-budget-grid, .schedule-form, .account-grid, .detail-grid, .import-summary-grid, .import-decision-grid, .debt-summary-grid, .mortgage-preview-grid, .goal-card-grid { grid-template-columns: 1fr; }
   .budget-heading { align-items: flex-start; flex-direction: column; }
   .budget-heading .action-row, .budget-heading .action-row a { width: 100%; }
   .form-card { padding: 22px 18px; }

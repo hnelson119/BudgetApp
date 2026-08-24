@@ -61,7 +61,7 @@
         <p class="eyebrow">Separate from paycheck income</p><h3>Household Reserve</h3>
         <p class="large-value">{{ summary.household_reserve|money }}</p>
         <p class="muted">Unassigned money retained from closed periods. This is an allocation balance, not a bank balance.</p>
-        {% if summary.household_reserve > 0 %}<a class="secondary-button" href="{% url 'budgets:reserve-allocate' period.pk %}">Allocate reserve</a>{% else %}<div class="empty-panel"><strong>No reserve available yet</strong><span>Period surplus is added only after closing review.</span></div>{% endif %}
+        {% if summary.household_reserve > 0 %}<div class="action-row"><a class="secondary-button" href="{% url 'goals:priority-allocate' period.pk %}">Allocate to goals</a><a class="text-link" href="{% url 'budgets:reserve-allocate' period.pk %}">Other allocation</a></div>{% else %}<div class="empty-panel"><strong>No reserve available yet</strong><span>Period surplus is added only after closing review.</span></div>{% endif %}
       </article>
       <article class="dashboard-card card-payment-reserve-card">
         <p class="eyebrow">Already counted as spending</p><h3>Card Payment Reserve</h3>
@@ -73,12 +73,12 @@
 
     <section class="dashboard-split">
       <article class="dashboard-card goal-progress-card">
-        <div class="section-title"><div><p class="eyebrow">This period</p><h3>Goal progress</h3></div><span class="muted">Scheduled funding</span></div>
-        {% if summary.goal_items %}
+        <div class="section-title"><div><p class="eyebrow">Protected actual progress</p><h3>Goal progress</h3></div><a class="text-link" href="{% url 'goals:list' %}">All goals →</a></div>
+        {% if goal_progress %}
           <ul class="compact-list">
-            {% for goal in summary.goal_items %}<li><span><strong>{{ goal.source.name }}</strong><small>{{ goal.actual_amount|default_if_none:0|money }} contributed</small></span><span class="goal-meter"><strong>{{ goal.planned_amount|money }}</strong><progress max="{{ goal.planned_amount }}" value="{{ goal.actual_amount|default_if_none:0 }}">{{ goal.actual_amount|default_if_none:0|money }}</progress></span></li>{% endfor %}
+            {% for row in goal_progress %}<li><span><strong><a class="text-link" href="{% url 'goals:detail' row.goal.pk %}">{{ row.revision.name }}</a></strong><small>{{ row.current_amount|money }} of {{ row.revision.target_amount|money }} · {{ row.revision.get_status_display }}</small></span><span class="goal-meter"><strong>{{ row.progress_percent }}%</strong><progress max="{{ row.revision.target_amount }}" value="{{ row.current_amount }}">{{ row.progress_percent }}%</progress></span></li>{% endfor %}
           </ul>
-        {% else %}<div class="empty-panel"><strong>No scheduled goal funding</strong><span>Goal targets and priorities arrive in the dedicated Goals milestone.</span></div>{% endif %}
+        {% else %}<div class="empty-panel"><strong>No goals configured</strong><span><a class="text-link" href="{% url 'goals:create' %}">Add a goal</a> for saving, investing, or debt payoff.</span></div>{% endif %}
       </article>
       <article class="dashboard-card recent-card">
         <div class="section-title"><div><p class="eyebrow">Actual activity</p><h3>Recent transactions</h3></div><span class="muted">This paycheck period</span></div>

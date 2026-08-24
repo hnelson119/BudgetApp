@@ -78,6 +78,25 @@ def _planned_occurrences(
                 nominal_end = min(nominal_end, effective_end)
             if nominal_end < nominal_start:
                 continue
+            if revision.configuration.get("cadence") == "pay_period_start":
+                if revision.configuration.get("goal_status") != "active":
+                    continue
+                for period in periods:
+                    if not nominal_start <= period.start_date <= nominal_end:
+                        continue
+                    if not window_start <= period.start_date <= window_end:
+                        continue
+                    planned.append(
+                        PlannedOccurrence(
+                            source,
+                            revision,
+                            period.start_date,
+                            period.start_date,
+                            revision.expected_amount,
+                            period,
+                        )
+                    )
+                continue
             projected = project_occurrences(
                 rule_from_revision(revision),
                 window_start=nominal_start,

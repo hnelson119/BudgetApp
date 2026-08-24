@@ -8,6 +8,7 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from budgets.services.summary import build_period_summary
+from goals.services import goal_progress_rows
 from households.services.access import get_active_household
 from periods.models import PayPeriod
 
@@ -48,6 +49,10 @@ def home(request: HttpRequest) -> HttpResponse:
                     household=household,
                     period=period,
                     today=today,
+                ),
+                "goal_progress": goal_progress_rows(
+                    household=household,
+                    on_date=period.start_date,
                 ),
                 "previous_period": PayPeriod.objects.filter(
                     household=household,

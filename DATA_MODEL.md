@@ -342,13 +342,35 @@ one-off extra-principal overrides are one way and do not alter either source sch
 
 ### Goal
 
-- Household ID, name, and type
-- Current amount and target amount
-- Optional target date
-- Priority, active/paused/completed state
-- Automatic-excess-allocation setting
+- Stable household-owned identity and immutable opening amount
+- Creating actor and timestamp
 
-Goal contributions are actual JournalEntries and may also satisfy planned goal-contribution Occurrences.
+### GoalRevision
+
+- Effective date, revision number, name, and Savings/Debt Payoff/Investing type
+- Target amount and optional target date
+- Recurring contribution per generated paycheck period
+- Priority, active/paused/completed state, and automatic-excess-allocation eligibility
+- Protected source asset plus destination asset or linked debt liability
+- Creating actor and timestamp
+
+### GoalFundingPlan
+
+- Stable one-to-one link from a goal to a Goal Contribution `RecurringSource`
+- Source revisions use the generated paycheck-period boundary cadence
+
+### GoalContribution
+
+- Goal, paycheck period, amount, effective timestamp, and contribution type
+- Required JournalEntry and optional planned Occurrence
+- Optional Household Reserve entry for explicit or priority allocation
+- Creating actor, timestamp, and reason
+
+Current progress derives from the immutable opening amount plus append-only contributions. Goal
+contributions are actual JournalEntries and may also satisfy planned goal-contribution Occurrences.
+Savings and investing use asset-to-asset goal transfers; payoff goals use asset-to-liability debt
+payments. Neither path creates income or categorized spending. Reserve-funded entries are excluded
+from current-paycheck-funded actuals because the linked ReserveEntry already records their funding.
 
 ## 8. CSV imports
 
@@ -410,3 +432,5 @@ Audit entities live in a separately owned schema and follow the controls in `PRO
     than rewriting or deleting history.
 12. Mortgage plans, revisions, components, and installment rules reject update, delete, and
     truncate at the PostgreSQL layer; changes append a new effective-dated revision.
+13. Goals, revisions, funding plans, and contributions reject update, delete, and truncate at the
+    PostgreSQL layer; goal progress derives from append-only records.

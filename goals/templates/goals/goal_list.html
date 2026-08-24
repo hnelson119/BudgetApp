@@ -1,0 +1,38 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}Goals · Household Budget{% endblock %}
+{% block page_title %}Goals{% endblock %}
+
+{% block content %}
+  <div class="dashboard-heading budget-heading">
+    <div><p class="eyebrow">Saving, investing, and payoff</p><h2>Goal overview</h2><p class="muted">Recurring funding follows paycheck boundaries. Progress is based on protected transfers and debt payments—not new income or spending.</p></div>
+    <div class="action-row"><a class="primary-link" href="{% url 'goals:create' %}">Add goal</a>{% if household_reserve > 0 and eligible_count %}<a class="secondary-button" href="{% url 'goals:priority-allocate' period.pk %}">Allocate reserve by priority</a>{% endif %}</div>
+  </div>
+
+  <section class="summary-grid" aria-label="Goal summary">
+    <article><span class="metric-icon goals-icon" aria-hidden="true">◎</span><div><p>Current progress</p><strong>{{ total_current|money }}</strong><small>Opening progress plus recorded contributions</small></div></article>
+    <article><span class="metric-icon income-icon" aria-hidden="true">◇</span><div><p>Combined targets</p><strong>{{ total_target|money }}</strong><small>Across active, paused, and completed goals</small></div></article>
+    <article><span class="metric-icon spend-icon" aria-hidden="true">#</span><div><p>Active goals</p><strong>{{ active_count }}</strong><small>{{ eligible_count }} eligible for priority reserve allocation</small></div></article>
+    <article><span class="metric-icon bills-icon" aria-hidden="true">↥</span><div><p>Household Reserve</p><strong>{{ household_reserve|money }}</strong><small>Separate allocation balance</small></div></article>
+  </section>
+
+  <section class="goal-card-grid" aria-label="Household goals">
+    {% for row in rows %}
+      <article class="dashboard-card goal-card">
+        <div class="section-title"><div><p class="eyebrow">Priority {{ row.revision.priority }} · {{ row.revision.get_goal_type_display }}</p><h3>{{ row.revision.name }}</h3></div><span class="row-status status-{{ row.revision.status }}">{{ row.revision.get_status_display }}</span></div>
+        <p class="large-value">{{ row.current_amount|money }}</p>
+        <p class="muted">{{ row.remaining_amount|money }} remaining of {{ row.revision.target_amount|money }}</p>
+        <progress max="{{ row.revision.target_amount }}" value="{{ row.current_amount }}">{{ row.progress_percent }}%</progress>
+        <dl class="goal-card-details">
+          <div><dt>Per paycheck</dt><dd>{{ row.revision.contribution_per_period|money }}</dd></div>
+          <div><dt>Projection</dt><dd>{{ row.projected_completion_date|date:'M j, Y'|default:'Not projected' }}</dd></div>
+          <div><dt>Excess allocation</dt><dd>{% if row.revision.automatic_excess_allocation %}Eligible{% else %}Off{% endif %}</dd></div>
+        </dl>
+        <a class="secondary-button" href="{% url 'goals:detail' row.goal.pk %}">View goal</a>
+      </article>
+    {% empty %}
+      <div class="blank-slate"><p class="eyebrow">Start with a purpose</p><h2>No goals yet</h2><p>Add an emergency fund, investment target, or debt-payoff goal. Automatic excess allocation stays off unless you explicitly enable it.</p><a class="primary-link" href="{% url 'goals:create' %}">Add your first goal</a></div>
+    {% endfor %}
+  </section>
+{% endblock %}
