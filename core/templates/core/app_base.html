@@ -25,7 +25,7 @@
           <a href="#" aria-disabled="true"><span aria-hidden="true">▣</span> Income</a>
           <a{% if current_nav == 'spending' %} class="is-active" aria-current="page"{% endif %} href="{% url 'spending:transaction-list' %}"><span aria-hidden="true">◫</span> Spending</a>
           <a{% if current_nav == 'debts' %} class="is-active" aria-current="page"{% endif %} href="{% url 'debts:list' %}"><span aria-hidden="true">▤</span> Debts</a>
-          <a href="#" aria-disabled="true"><span aria-hidden="true">◎</span> Goals</a>
+          <a{% if current_nav == 'goals' %} class="is-active" aria-current="page"{% endif %} href="{% url 'goals:list' %}"><span aria-hidden="true">◎</span> Goals</a>
         </nav>
         <div class="sidebar-footer">
           <a href="{% url 'audit:history' %}">Protected audit history</a>
@@ -64,7 +64,7 @@
         {% if period %}<a{% if current_nav == 'budget' %} class="is-active" aria-current="page"{% endif %} href="{% url 'budgets:detail' period.pk %}"><span aria-hidden="true">◔</span>Budget</a>{% else %}<a href="#" aria-disabled="true"><span aria-hidden="true">◔</span>Budget</a>{% endif %}
         <a{% if current_nav == 'spending' %} class="is-active" aria-current="page"{% endif %} href="{% url 'spending:transaction-list' %}"><span aria-hidden="true">◫</span>Spending</a>
         <a{% if current_nav == 'debts' %} class="is-active" aria-current="page"{% endif %} href="{% url 'debts:list' %}"><span aria-hidden="true">▤</span>Debts</a>
-        <a href="{% url 'audit:history' %}"><span aria-hidden="true">☰</span>Audit</a>
+        <a{% if current_nav == 'goals' %} class="is-active" aria-current="page"{% endif %} href="{% url 'goals:list' %}"><span aria-hidden="true">◎</span>Goals</a>
       </nav>
     </div>
     <script src="{% static 'core/app.js' %}" defer></script>

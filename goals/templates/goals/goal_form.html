@@ -1,0 +1,25 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}{{ title }} · Household Budget{% endblock %}
+{% block page_title %}Goals{% endblock %}
+
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% if goal %}{% url 'goals:detail' goal.pk %}{% else %}{% url 'goals:list' %}{% endif %}">← Back to goals</a>
+    <div class="form-card">
+      <p class="eyebrow">Protected, effective-dated plan</p><h2>{{ title }}</h2>
+      <p class="muted">A preview is required before saving. “Per paycheck” always follows generated paycheck periods, even when an employer schedule changes.</p>
+      <form class="app-form goal-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}<div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+        {% if preview %}<input type="hidden" name="preview_fingerprint" value="{{ preview.fingerprint }}">{% else %}{{ form.preview_fingerprint }}{% endif %}
+        {% if preview %}
+          <section class="preview-card" aria-live="polite"><p class="eyebrow">Confirm goal and funding</p><h3>Next paycheck periods</h3>{% if preview.next_period_starts %}<ol>{% for start in preview.next_period_starts %}<li>{{ start|date:'M j, Y' }}</li>{% endfor %}</ol>{% else %}<p>No recurring contribution will be scheduled while the amount is zero or the goal is not active.</p>{% endif %}<p>Saving appends protected goal history. Future Budget items sync one way; moved, overridden, and completed occurrences stay unchanged.</p></section>
+          <div class="action-row"><button class="secondary-button" type="submit" name="action" value="preview">Refresh preview</button><button class="primary-button" type="submit" name="action" value="confirm">Confirm and save</button></div>
+        {% else %}<button class="primary-button" type="submit" name="action" value="preview">Preview goal</button>{% endif %}
+      </form>
+    </div>
+  </section>
+{% endblock %}

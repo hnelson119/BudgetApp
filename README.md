@@ -43,7 +43,12 @@ workflow stores protected effective-dated payment components, enforces exactly t
 installments, assigns each installment to the paycheck period containing its due date, and supports
 period-only moves, edits, and extra-principal overrides without changing future schedules. Mortgage
 projections amortize principal-and-interest and extra principal while keeping escrow, PMI, and fees
-out of principal reduction.
+out of principal reduction. Milestone 8 adds protected Savings, Debt Payoff, and Investing goals;
+paycheck-period-based recurring funding; target dates, priorities, status revisions, progress and
+completion projections; actual transfer/debt-payment recording; and preview-confirmed Household
+Reserve allocation. Automatic excess eligibility is off by default, and priority batches remain
+explicitly confirmed. Reserve-funded goal activity is excluded from current-paycheck actuals to
+prevent double counting.
 Private
 Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before
@@ -182,7 +187,7 @@ python -m coverage report
 python scripts/check_branch_coverage.py --fail-under 80
 python -m ruff check .
 python -m ruff format --check .
-python -m mypy audit budgets core debts households identity ledger periods reserves schedules spending
+python -m mypy audit budgets core debts goals households identity imports ledger periods reserves schedules spending
 python manage.py makemigrations --check --dry-run --settings=config.settings.test
 python scripts/secret_scan.py
 python -m bandit -c pyproject.toml -r audit budgets config core debts goals households identity imports ledger notifications periods reserves schedules spending

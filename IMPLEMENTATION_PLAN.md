@@ -227,6 +227,16 @@ Exit criteria: Golden case H and debt projection comparison tests pass; escrow n
 - Keep automatic excess allocation off by default
 - Implement explicit and optional automatic Household Reserve allocations
 
+Implementation note: recurring goal funding uses generated paycheck-period starts rather than a
+calendar weekly rule, so future occurrences follow employer/paycheck boundary changes. Goal,
+revision, funding-plan, and contribution records are append-only in application code and reject
+update, delete, and truncate through PostgreSQL runtime credentials. Automatic excess eligibility
+remains off by default; eligible goals are calculated in priority order and the household previews
+and confirms each reserve-allocation batch. Reserve-funded transfers and debt payments are excluded
+from current-paycheck-funded actuals so reserve is never counted twice.
+
+Status: the code-deliverable portions of Milestone 8 are complete and locally verified.
+
 Exit criteria: goal contribution and reserve-allocation tests pass without creating income or categorized spending.
 
 ### Milestone 9 — Notifications and complete audit UI

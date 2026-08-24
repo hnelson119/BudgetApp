@@ -25,7 +25,10 @@ _COMPATIBLE_ENTRY_TYPES: dict[str, set[str]] = {
         JournalEntry.EntryType.INTEREST_FEE,
     },
     RecurringSource.Kind.DEBT_PAYMENT: {JournalEntry.EntryType.DEBT_PAYMENT},
-    RecurringSource.Kind.GOAL_CONTRIBUTION: {JournalEntry.EntryType.GOAL_CONTRIBUTION},
+    RecurringSource.Kind.GOAL_CONTRIBUTION: {
+        JournalEntry.EntryType.GOAL_CONTRIBUTION,
+        JournalEntry.EntryType.DEBT_PAYMENT,
+    },
 }
 
 
