@@ -14,6 +14,7 @@ from households.services.access import require_household_membership
 from identity.models import User
 from ledger.models import JournalEntry, JournalPosting
 from periods.models import PayPeriod
+from reserves.models import CardPaymentReserveEntry
 from schedules.models import Occurrence, RecurringSource
 
 _CENT = Decimal("0.01")
@@ -41,6 +42,12 @@ def _positive_money(value: Decimal) -> Decimal:
 
 
 def _entry_amount(entry: JournalEntry) -> Decimal:
+    allocation = CardPaymentReserveEntry.objects.filter(journal_entry=entry).first()
+    if allocation is not None and allocation.entry_type in (
+        CardPaymentReserveEntry.EntryType.PAYMENT,
+        CardPaymentReserveEntry.EntryType.PAYMENT_REVERSAL,
+    ):
+        return allocation.debt_payoff
     total = entry.postings.filter(side=JournalPosting.Side.DEBIT).aggregate(total=Sum("amount"))[
         "total"
     ]

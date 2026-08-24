@@ -1,0 +1,81 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}Spending · Household Budget{% endblock %}
+{% block page_title %}Spending &amp; transactions{% endblock %}
+
+{% block content %}
+  {% if period and scope == 'period' %}
+    <section class="period-switcher" aria-label="Selected paycheck period">
+      {% if previous_period %}<a class="period-arrow" href="?period={{ previous_period.pk }}" aria-label="Previous paycheck period">‹</a>{% else %}<span class="period-arrow is-disabled" aria-hidden="true">‹</span>{% endif %}
+      <div><span>Paycheck period</span><strong>{{ period.start_date|date:'M j' }}–{{ period.display_end_date|date:'M j, Y' }}</strong></div>
+      {% if next_period %}<a class="period-arrow" href="?period={{ next_period.pk }}" aria-label="Next paycheck period">›</a>{% else %}<span class="period-arrow is-disabled" aria-hidden="true">›</span>{% endif %}
+    </section>
+  {% endif %}
+
+  <div class="dashboard-heading budget-heading">
+    <div><p class="eyebrow">Protected ledger</p><h2>{% if scope == 'period' and period %}This pay period{% else %}All transaction history{% endif %}</h2><p class="muted">Committed entries are corrected with linked reversals, never erased.</p></div>
+    <div class="action-row">
+      <a class="primary-link" href="{% url 'spending:expense-create' %}">Record expense</a>
+      <a class="secondary-button" href="{% url 'spending:income-create' %}">Record income</a>
+      <a class="secondary-button" href="{% url 'imports:upload' %}">Import CSV</a>
+      <a class="secondary-button" href="{% url 'spending:transaction-export' %}{% if export_query %}?{{ export_query }}{% endif %}">Export CSV</a>
+    </div>
+  </div>
+
+  <form class="filter-bar transaction-filter-bar" method="get">
+    {% if scope == 'all' %}<input type="hidden" name="scope" value="all">{% elif period %}<input type="hidden" name="period" value="{{ period.pk }}">{% endif %}
+    <label>{{ filter_form.q.label }}{{ filter_form.q }}</label>
+    <label>{{ filter_form.entry_type.label }}{{ filter_form.entry_type }}</label>
+    <label>{{ filter_form.account.label }}{{ filter_form.account }}</label>
+    <button class="secondary-button" type="submit">Apply</button>
+  </form>
+  <div class="scope-links" aria-label="Transaction date scope">
+    {% if period %}<a{% if scope == 'period' %} class="is-active"{% endif %} href="?period={{ period.pk }}">Selected pay period</a>{% endif %}
+    <a{% if scope == 'all' %} class="is-active"{% endif %} href="?scope=all">All history</a>
+  </div>
+
+  <section class="transaction-panel" aria-label="Transaction history">
+    {% if rows %}
+      <div class="budget-table-scroll">
+        <table class="budget-table transaction-table">
+          <thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Account</th><th>Category</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>{{ row.local_effective_at|date:'M j, Y' }}<small>{{ row.local_effective_at|date:'g:i A' }}</small></td>
+                <td><strong>{{ row.entry.description }}</strong><small>By {{ row.entry.created_by.display_name|default:row.entry.created_by.email }}</small></td>
+                <td>{{ row.entry.get_entry_type_display }}</td>
+                <td>{{ row.accounts }}</td>
+                <td>{% if row.entry.category %}<span class="category-chip">{{ row.entry.category.name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td class="transaction-amount{% if row.amount < 0 %} is-reversal{% endif %}">{{ row.amount|money }}</td>
+                <td><span class="row-status status-{{ row.status|slugify }}">{{ row.status }}</span></td>
+                <td class="row-actions"><a href="{% url 'spending:transaction-detail' row.entry.pk %}">View</a>{% if row.can_refund %}<a href="{% url 'spending:card-purchase-refund' row.entry.pk %}">Refund</a>{% endif %}{% if row.can_reverse %}<a class="danger-link" href="{% url 'spending:transaction-reverse' row.entry.pk %}">Reverse</a>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page.has_other_pages %}
+        <nav class="pagination" aria-label="Transaction history pages">
+          {% if page.has_previous %}<a class="secondary-button" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
+          <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+          {% if page.has_next %}<a class="secondary-button" href="?{% if page_query %}{{ page_query }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
+        </nav>
+      {% endif %}
+    {% else %}
+      <div class="empty-panel group-empty"><strong>No transactions found</strong><span>Record an expense or income item, or adjust the filters.</span></div>
+    {% endif %}
+  </section>
+
+  <section class="accounts-panel">
+    <div class="section-title"><div><p class="eyebrow">Manual accounts</p><h3>Available accounts &amp; cards</h3><p class="muted">Total card-payment reserve: {{ card_payment_reserve_total|money }} · allocation balance, not a bank balance</p></div><a class="secondary-button" href="{% url 'spending:account-create' %}">Add account</a></div>
+    {% if account_rows %}
+      <div class="account-grid">
+        {% for row in account_rows %}<article><strong>{{ row.account.name }}</strong><span>{{ row.account.get_account_type_display }} · {{ row.account.get_classification_display }}{% if row.account.last_four %} · •••• {{ row.account.last_four }}{% endif %}</span>{% if row.card_payment_reserve != None %}<span class="card-reserve-value">{{ row.card_payment_reserve|money }} reserved for payment</span><a class="text-link" href="{% url 'spending:card-payment-create' row.account.pk %}">Record card payment</a>{% endif %}</article>{% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-panel"><strong>No financial accounts yet</strong><span>Add checking, savings, cash, credit-card, or other accounts before recording transactions.</span></div>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -163,6 +163,30 @@ Exit criteria: Golden cases A–D, I–N pass and the dashboard matches the appr
 - Implement CSV upload limits, staging, mapping, preview, duplicates, category review, and idempotent commit
 - Implement formula-safe CSV exports
 
+Progress: the manual-spending and credit-card reserve slices are implemented. Spending has a
+responsive, household-scoped UI for manual expense, one-off income, card-payment entry, basic
+financial-account setup, paycheck-period and all-history views, account/type/text filtering,
+pagination, household-timezone display, idempotent form submissions, transaction detail with
+balanced postings, and confirmed full refunds/reversals. Categorized card purchases now create
+append-only payment-reserve entries; card payments consume that reserve first and classify only the
+excess as current-income debt payoff. The dashboard, transaction detail, budget summary, and
+scheduled-debt reconciliation preserve that separation, including refund/payment-reversal ordering.
+Ledger, reserve, and audit history remain append-only in the application and protected by
+PostgreSQL runtime-role triggers.
+Multiple partial card refunds are now also implemented as append-only expense-refund entries. Each
+refund links to the original purchase, cumulative service validation prevents over-refunding, and
+the reserve correction releases only cash that remains reserved. Refunds after card settlement and
+later payment reversals remain budget-neutral where appropriate. Expense CSV import is now also
+implemented with bounded UTF-8 parsing, nonpersistent upload handling, mapping and preview, category-gap
+review, cross-file and in-file duplicate fingerprints, household scoping, atomic/idempotent commit,
+imported ledger provenance, audit events, and raw-row cleanup. Formula-safe transaction export is
+also implemented. It mirrors the current household-scoped pay-period/all-history filters, requires
+recent password-plus-MFA verification, verifies audit integrity before generation, streams directly
+without a temporary file, preserves Decimal amounts as numeric cells, neutralizes untrusted formula-like
+text, and appends an export-scope audit event without retaining the file or transaction contents.
+
+Status: the code-deliverable portions of Milestone 6 are complete and locally verified.
+
 Exit criteria: Golden cases E–G pass; malformed/import security tests pass; repeating an import does not duplicate transactions.
 
 ### Milestone 7 — Debts and split mortgage

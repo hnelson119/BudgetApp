@@ -82,6 +82,8 @@ flowchart TD
     P --> Q[Consume card-payment reserve first]
     Q --> D[Excess payment becomes current-income-funded debt payoff]
     K -->|Interest or fee| F[Increase card liability and expense]
+    K -->|Partial card refund| U[Reduce card liability and category spending]
+    U --> V[Release only payment reserve still available]
     K -->|Goal contribution| G[Move value and update goal progress]
     K -->|Balance adjustment| B[Reconciliation-only ledger adjustment]
 ```
@@ -103,7 +105,12 @@ stateDiagram-v2
     Empty --> [*]
 ```
 
-Reserve states are derived from append-only entries. If a card payment exceeds its reserve, the excess is debt payoff funded by the current period or Household Reserve as explicitly selected.
+Reserve states are derived from append-only entries. If a card payment exceeds its reserve, the
+excess is debt payoff funded by the current period or Household Reserve as explicitly selected.
+Reversals also append corrections: a returned payment restores only the amount still backed by
+active card purchases, while any portion already canceled by a refund remains budget-neutral.
+Multiple partial refunds link to the original purchase and accumulate only to its original amount;
+neither the purchase nor an earlier refund is edited.
 
 ## 6. Twice-monthly mortgage workflow
 
@@ -171,8 +178,38 @@ stateDiagram-v2
 ```
 
 No JournalEntry is created before `Committed`. Repeating a committed batch with the same idempotency key cannot duplicate transactions.
+The file is parsed under byte/row/column/cell limits and is never retained as an upload. Confirmation
+commits every accepted expense and its audit history atomically, then scrubs staged raw cells. A
+failure rolls back the whole financial commit and leaves the reviewed staging data available.
 
-## 9. Audit write and verification
+## 9. CSV transaction export
+
+```mermaid
+sequenceDiagram
+    participant U as Household member
+    participant A as Application
+    participant L as Protected audit chain
+    participant C as CSV response
+
+    U->>A: Export current transaction scope and filters
+    A->>A: Require recent password + MFA verification
+    A->>L: Verify household audit integrity
+    alt verification succeeds
+        A->>L: Append actor, scope, filters, and row-count event
+        A->>C: Stream formula-safe rows with no-store headers
+        C-->>U: Download attachment
+    else verification fails
+        A-->>U: Block export and report integrity warning
+    end
+```
+
+The export query is household-scoped and mirrors the selected pay-period or all-history view. All
+untrusted text cells are neutralized when they resemble spreadsheet formulas after leading
+whitespace. Decimal amount cells remain numeric, including negative refunds and reversals. The app
+does not create or retain a temporary export file, and neither search text nor transaction contents
+are copied into audit or operational logs.
+
+## 10. Audit write and verification
 
 ```mermaid
 sequenceDiagram
@@ -197,7 +234,7 @@ sequenceDiagram
     L-->>C: Copy/sign chain-head checkpoint outside VM
 ```
 
-## 10. Goal and reserve allocation
+## 11. Goal and reserve allocation
 
 ```mermaid
 flowchart TD

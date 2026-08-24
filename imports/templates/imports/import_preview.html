@@ -1,0 +1,66 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}CSV import preview · Household Budget{% endblock %}
+{% block page_title %}{% if batch.status == 'committed' %}Import summary{% elif batch.status == 'abandoned' %}Abandoned import{% else %}Review CSV import{% endif %}{% endblock %}
+
+{% block content %}
+  <div class="dashboard-heading budget-heading">
+    <div><p class="eyebrow">{% if batch.status == 'committed' %}Step 4 of 4 · Complete{% else %}Step 3 of 4 · Preview{% endif %}</p><h2>{{ batch.original_filename }}</h2><p class="muted">{{ batch.target_account.name }} · uploaded {{ batch.uploaded_at|date:'M j, Y g:i A' }}</p></div>
+    <div class="action-row"><a class="secondary-button" href="{% url 'imports:history' %}">Import history</a>{% if batch.status == 'previewed' %}<a class="secondary-button" href="{% url 'imports:batch-map' batch.pk %}">Change mapping</a>{% endif %}</div>
+  </div>
+
+  <section class="summary-grid import-summary-grid" aria-label="Import totals">
+    <article><span>Staged</span><strong>{{ batch.staged_count }}</strong><small>Parsed rows</small></article>
+    <article><span>{% if batch.status == 'committed' %}Committed{% else %}Ready{% endif %}</span><strong>{% if batch.status == 'committed' %}{{ batch.committed_count }}{% else %}{{ batch.ready_count }}{% endif %}</strong><small>Protected expenses</small></article>
+    <article><span>Duplicates</span><strong>{{ batch.duplicate_count }}</strong><small>Skipped safely</small></article>
+    <article><span>Need category</span><strong>{{ batch.category_required_count }}</strong><small>Blocks confirmation</small></article>
+    <article><span>Rejected</span><strong>{{ batch.rejected_count }}</strong><small>Invalid or excluded</small></article>
+  </section>
+
+  {% if batch.status == 'previewed' and batch.category_required_count %}<p class="notice-card">Choose a fallback category under “Change mapping” before confirming. No rows have been committed.</p>{% elif batch.status == 'committed' %}<p class="notice-card">The uploaded file and staged raw cells have been removed. Normalized provenance and protected ledger entries remain.</p>{% endif %}
+
+  <section class="transaction-panel" aria-label="CSV row preview">
+    <div class="budget-table-scroll">
+      <table class="budget-table import-preview-table">
+        <thead><tr><th>CSV row</th><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Result</th><th></th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.row_number }}</td>
+              <td>{{ row.effective_date|date:'M j, Y'|default:'—' }}</td>
+              <td><strong>{{ row.description|default:'Not normalized' }}</strong>{% if row.rejection_reason %}<small>{{ row.rejection_reason }}</small>{% endif %}</td>
+              <td>{% if row.category %}<span class="category-chip">{{ row.category.name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+              <td>{% if row.amount != None %}<span class="transaction-amount">{{ row.amount|money }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+              <td><span class="row-status status-{{ row.status|slugify }}">{{ row.get_status_display }}</span></td>
+              <td class="row-actions">{% if row.journal_entry %}<a href="{% url 'spending:transaction-detail' row.journal_entry.pk %}">Transaction</a>{% endif %}</td>
+            </tr>
+          {% empty %}<tr><td colspan="7">Staged row details were removed.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if rows_truncated %}<p class="table-note">Showing the first 100 rows. All {{ batch.staged_count }} rows are included in the counts and confirmation.</p>{% endif %}
+  </section>
+
+  {% if batch.status == 'previewed' %}
+    <div class="import-decision-grid">
+      <section class="form-card">
+        <p class="eyebrow">Explicit confirmation</p><h3>Commit ready rows</h3>
+        <p>Accepted rows are committed together. If any financial write or audit event fails, none of them are saved.</p>
+        <form class="app-form" method="post" action="{% url 'imports:batch-commit' batch.pk %}">
+          {% csrf_token %}
+          {% for field in commit_form.visible_fields %}<div class="form-field checkbox-field">{{ field.label_tag }}{{ field }}</div>{% endfor %}{% for field in commit_form.hidden_fields %}{{ field }}{% endfor %}
+          <button class="primary-link" type="submit"{% if batch.category_required_count %} disabled{% endif %}>Commit import</button>
+        </form>
+      </section>
+      <section class="form-card danger-card">
+        <p class="eyebrow">Discard staging</p><h3>Abandon import</h3><p>This removes the uncommitted raw row data and creates an audit record.</p>
+        <form class="app-form" method="post" action="{% url 'imports:batch-abandon' batch.pk %}">
+          {% csrf_token %}
+          {% for field in abandon_form.visible_fields %}<div class="form-field checkbox-field">{{ field.label_tag }}{{ field }}</div>{% endfor %}
+          <button class="danger-button" type="submit">Abandon staged import</button>
+        </form>
+      </section>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -5,11 +5,12 @@ from typing import Any, cast
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 from households.models import Category, Household
 from ledger.models import JournalEntry
 from periods.models import PayPeriod
-from schedules.models import Occurrence
+from schedules.models import Occurrence, RecurringSource
 from schedules.recurrence import BusinessDayAdjustment, Frequency, RecurrenceRule
 from schedules.services import RevisionSpec
 
@@ -105,13 +106,19 @@ class ReconciliationForm(HouseholdForm):
             "debt_payment": (JournalEntry.EntryType.DEBT_PAYMENT,),
             "goal_contribution": (JournalEntry.EntryType.GOAL_CONTRIBUTION,),
         }[occurrence.source.kind]
-        cast(
-            forms.ModelChoiceField, self.fields["journal_entry"]
-        ).queryset = JournalEntry.objects.filter(
+        entries = JournalEntry.objects.filter(
             household=household,
             entry_type__in=compatible,
             reversal_of__isnull=True,
-        ).order_by("-effective_at")
+        )
+        if occurrence.source.kind == RecurringSource.Kind.DEBT_PAYMENT:
+            entries = entries.filter(
+                Q(card_payment_reserve_entry__isnull=True)
+                | Q(card_payment_reserve_entry__debt_payoff__gt=0)
+            )
+        cast(forms.ModelChoiceField, self.fields["journal_entry"]).queryset = entries.order_by(
+            "-effective_at"
+        )
 
 
 class ReserveAllocationForm(forms.Form):

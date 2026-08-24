@@ -1,0 +1,23 @@
+{% extends 'core/app_base.html' %}
+
+{% block title %}Upload CSV · Household Budget{% endblock %}
+{% block page_title %}Upload transaction CSV{% endblock %}
+
+{% block content %}
+  <section class="form-page">
+    <a class="back-link" href="{% url 'imports:history' %}">← Back to imports</a>
+    <div class="form-card">
+      <p class="eyebrow">Step 1 of 4 · Upload</p>
+      <h2>Stage a CSV safely</h2>
+      <p>The file is validated in memory and is never saved as an uploaded file. Only bounded row data is staged for your review.</p>
+      <p class="notice-card">Choose the account represented by this statement. The importer currently accepts expenses; income, credits, and unlinked card refunds can be excluded using the amount-sign rule in the next step.</p>
+      <form class="app-form" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}<div class="form-field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+        {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+        <button class="primary-link" type="submit">Validate and stage</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

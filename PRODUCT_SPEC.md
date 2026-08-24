@@ -233,6 +233,7 @@ Initial transaction types are:
 
 - Income
 - Expense/purchase
+- Expense refund (append-only correction)
 - Account transfer
 - Debt payment
 - Goal contribution
@@ -258,6 +259,20 @@ The import workflow includes:
 7. Completion summary
 
 Mappings may be saved per file format. Duplicate detection uses a normalized fingerprint of transaction date, amount, description, and optional account. Nothing is committed until confirmation. The import batch and resulting transactions are audited.
+
+The initial importer creates categorized expenses against one selected account. A configurable sign
+rule excludes income, credits, or unlinked card refunds from a statement preview; those transaction
+types remain explicit manual workflows until a safe reconciliation/linking design is added.
+
+### CSV export
+
+Transaction export uses the selected paycheck-period or all-history scope and the active search,
+type, and account filters. It requires recent password-plus-MFA verification and a valid protected
+audit chain. The response is a streamed, non-cacheable attachment; no export file is retained.
+Untrusted text that begins with a spreadsheet-formula prefix after leading whitespace is emitted as
+literal text, while validated Decimal amounts—including negative refunds and reversals—remain
+numeric. Protected audit history records the member, scope, filters, row count, and time without
+recording the exported financial contents.
 
 ## 13. Spending and surplus calculations
 
@@ -417,7 +432,7 @@ Material events include:
 - Schedule and boundary changes
 - Moving an occurrence between periods
 - Marking income received or an expense paid
-- Manual and CSV transaction creation
+- Manual and CSV transaction creation, plus transaction exports
 - CSV import batches and duplicate decisions
 - Debt, goal, and category changes
 - Login, logout, failed login, audit export, and integrity-check results

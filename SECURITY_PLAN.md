@@ -181,6 +181,11 @@ Require recent password/MFA verification before:
 - Commit no transactions until the user reviews mapping, preview, duplicate results, and category gaps.
 - Use an idempotent import-batch identifier and normalized transaction fingerprints.
 
+Implementation note: CSV uploads are parsed from a bounded Django upload stream and closed without
+being copied into application media storage. Only bounded cells are staged; commit or abandonment
+scrubs those raw cells. Household scoping is enforced again in the domain service, and the final
+ledger writes plus batch audit event share one database transaction.
+
 ### 7.2 Export
 
 - Treat all text fields as untrusted when generating CSV.
@@ -190,6 +195,13 @@ Require recent password/MFA verification before:
 - Prefer streaming generation; securely remove any temporary export file.
 - Require recent reauthentication for full household and audit exports.
 - Audit who exported what scope and when, without storing the exported file in the audit log.
+
+Implementation note: transaction CSV export requires recent password-plus-MFA verification and
+successfully verifies the household audit chain before generation. It reuses the server-enforced
+transaction filters, streams directly from the household-scoped query without a temporary file,
+neutralizes every untrusted text field, and leaves Decimal amount cells numeric. The attachment is
+marked `no-store`; its protected audit event contains only the actor, export identifier, scope,
+filter metadata, row count, and time—not the file, search text, or transaction contents.
 
 ## 8. Data minimization and encryption
 

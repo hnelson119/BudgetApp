@@ -177,13 +177,17 @@ Full account, routing, and card numbers are not stored.
 Header describing one actual financial event.
 
 - Household ID and effective date/time
-- Type: income, expense, transfer, debt payment, goal contribution, interest/fee, or balance adjustment
+- Type: income, expense, expense refund, transfer, debt payment, goal contribution, interest/fee,
+  or balance adjustment
 - Description, category when applicable, and pay-period ID
 - Manual/imported provenance
-- Reversal/correction relationship
+- One-to-one full-reversal relationship and many-to-one refund-adjustment relationship
 - Created-by and timestamps
 
 Committed entries are corrected through linked reversal/replacement entries rather than destructive editing of ledger postings.
+An expense-refund entry credits the original expense category and debits the original financial
+account. Multiple refunds may link to one purchase, but their cumulative amount cannot exceed the
+original purchase.
 
 ### JournalPosting
 
@@ -227,15 +231,24 @@ Snapshots help reconciliation but do not replace ledger history or paycheck-peri
 
 Credit cards act as liability accounts. Categorized purchases are expenses on the purchase date; later payments are liability settlements.
 
-### ReserveEntry
+### ReserveEntry (Household Reserve)
 
-- Household ID and pay-period ID
-- Reserve type: Household Reserve or Credit-card Payment Reserve
-- Optional credit-card debt/account ID
+- Household ID, source pay-period ID, and posting pay-period ID
 - Exact positive or negative amount
-- Reason and source JournalEntry/closing revision
+- Reason and source closing revision
 - Destination label for an explicit Household Reserve allocation
 - Created-by and timestamps
+
+### CardPaymentReserveEntry
+
+- Household ID, pay-period ID, and credit-card FinancialAccount ID
+- One-to-one source JournalEntry ID
+- Type: purchase, purchase reversal, payment, or payment reversal
+- Signed reserve change
+- Gross purchase-refund amount, retained even when a prior payment means no reserve is released
+- Payment total, reserved-purchase settlement, and current-income debt-payoff split
+- Optional budget-neutral correction for reversal ordering after a settled purchase is refunded
+- Reason, created-by, and timestamps
 
 Rules:
 
@@ -243,7 +256,13 @@ Rules:
 - A card payment consumes that reserve first.
 - Payment beyond available card reserve is current-income-funded debt payoff.
 - A refund or reversed purchase reduces both categorized spending and the card reserve.
+- Multiple partial refunds are allowed up to the original purchase amount. Each creates a linked
+  expense-refund JournalEntry plus its own protected reserve correction.
 - Reserve entries are append-only corrections; current balances are derived sums.
+- A payment reversal restores only reserve still backed by active purchases; any refund-adjusted
+  remainder stays budget-neutral rather than creating a phantom reserve or debt payoff.
+- The application blocks direct create/update/delete operations, and PostgreSQL rejects update,
+  delete, and truncate attempts by the runtime role.
 
 ## 6. Debts and split mortgage payments
 
@@ -306,12 +325,22 @@ Goal contributions are actual JournalEntries and may also satisfy planned goal-c
 
 - Household, user, target account, and uploaded timestamp
 - Original filename metadata without server path
-- File checksum and saved mapping ID
-- Staged/new/duplicate/rejected counts
-- Pending, committed, failed, or abandoned status
-- Completion and raw-file deletion timestamps
+- File checksum, selected column mapping, date format, and expense-sign rule
+- Staged, ready, duplicate, category-required, rejected, and committed counts
+- Uploaded, previewed, committed, or abandoned status
+- Idempotent submission/confirmation tokens and completion/raw-data-deletion timestamps
 
-Staged rows live in temporary import storage and are not JournalEntries until confirmation.
+### ImportRow
+
+- Batch and source row number
+- Temporary bounded raw-cell mapping used only for preview
+- Normalized date, description, positive expense amount, category, and duplicate fingerprint
+- Staged, ready, duplicate, category-required, rejected, or committed status
+- Optional resulting JournalEntry link after confirmation
+
+Staged rows are not JournalEntries until confirmation. The uploaded file itself is never persisted.
+Commit scrubs every staged raw-cell mapping while retaining normalized provenance and links to the
+append-only JournalEntries.
 
 ## 9. Protected audit entities
 
