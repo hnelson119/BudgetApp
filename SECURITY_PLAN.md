@@ -166,6 +166,13 @@ Require recent password/MFA verification before:
 - Financial writes and their audit events either both commit or both fail.
 - Validate recurrence changes and show their future-period impact before commit.
 
+Implementation note: debt accounts can be changed only through household-authorized transactional
+services that append protected audit events. Effective-dated debt terms and lender statements are
+append-only, direct ORM update/delete paths are rejected, and PostgreSQL runtime-role triggers deny
+update, delete, or truncate. A statement correction appends a linked replacement and retains the
+original record. Operational logs receive request and failure context, not statement values, account
+notes, or projection payloads.
+
 ## 7. CSV import and export security
 
 ### 7.1 Import

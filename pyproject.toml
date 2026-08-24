@@ -54,6 +54,7 @@ include = [
 audit = ["templates/audit/*.html"]
 core = ["templates/core/*.html", "static/core/*"]
 budgets = ["templates/budgets/*.html", "templatetags/*.py"]
+debts = ["templates/debts/*.html"]
 identity = ["templates/identity/*.html"]
 imports = ["templates/imports/*.html"]
 spending = ["templates/spending/*.html"]

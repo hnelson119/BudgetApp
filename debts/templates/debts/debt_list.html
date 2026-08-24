@@ -1,0 +1,47 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}Debts · Household Budget{% endblock %}
+{% block page_title %}Debts &amp; payoff{% endblock %}
+
+{% block content %}
+  <div class="dashboard-heading budget-heading">
+    <div><p class="eyebrow">Lender-informed planning</p><h2>Debt overview</h2><p class="muted">Balances come from manual statement reconciliation. Projections are estimates, not lender statements.</p></div>
+    <div class="action-row">
+      <a class="primary-link" href="{% url 'debts:create' %}">Add debt</a>
+      <a class="secondary-button" href="{% url 'debts:payoff-comparison' %}">Compare payoff strategies</a>
+    </div>
+  </div>
+
+  <section class="summary-grid debt-summary-grid" aria-label="Debt summary">
+    <article><span class="metric-icon bills-icon" aria-hidden="true">$</span><div><p>Active balance</p><strong>{{ total_balance|money }}</strong><small>Manual reconciled principal or statement balances</small></div></article>
+    <article><span class="metric-icon spend-icon" aria-hidden="true">↧</span><div><p>Scheduled monthly</p><strong>{{ scheduled_payment|money }}</strong><small>Minimums plus configured recurring extras</small></div></article>
+    <article><span class="metric-icon goals-icon" aria-hidden="true">#</span><div><p>Active debts</p><strong>{{ active_count }}</strong><small>Archived and paid-off accounts remain in history</small></div></article>
+  </section>
+
+  <section class="transaction-panel debt-panel" aria-label="Debt accounts">
+    {% if rows %}
+      <div class="budget-table-scroll">
+        <table class="budget-table debt-table">
+          <thead><tr><th>Debt</th><th>Type</th><th>Balance</th><th>APR</th><th>Scheduled payment</th><th>Due</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td><strong>{{ row.debt.name }}</strong><small>{% if row.debt.financial_account %}Linked to {{ row.debt.financial_account.name }}{% else %}No linked ledger account{% endif %}</small></td>
+                <td>{{ row.debt.get_debt_type_display }}</td>
+                <td>{{ row.debt.current_balance|money }}</td>
+                <td>{{ row.terms.annual_percentage_rate }}%</td>
+                <td>{{ row.scheduled_payment|money }}</td>
+                <td>Day {{ row.terms.due_day }}</td>
+                <td><span class="row-status status-{{ row.debt.status|slugify }}">{{ row.debt.get_status_display }}</span></td>
+                <td class="row-actions"><a href="{% url 'debts:detail' row.debt.pk %}">View</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-panel group-empty"><strong>No debts configured</strong><span>Add a credit card, vehicle loan, student loan, mortgage, or other balance to begin comparing payoff strategies.</span></div>
+    {% endif %}
+  </section>
+{% endblock %}

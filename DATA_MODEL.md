@@ -268,15 +268,39 @@ Rules:
 
 ### DebtAccount
 
-- Household ID, name, and type
-- Current principal or statement balance
-- APR and compounding/day-count method
-- Minimum/monthly obligation
-- Due-date policy
-- Active/paid-off state
-- Projection assumptions and last reconciliation date
+- Household ID, name, type, and optional one-to-one FinancialAccount liability link
+- Current reconciled principal or statement balance and last reconciliation date
+- Active, paid-off, or archived state with status-change timestamp
+- Notes and creating/updating actors
 
 A credit card may reference the same liability represented by a FinancialAccount.
+
+### DebtTermsRevision
+
+Immutable, effective-dated projection assumptions for one debt:
+
+- Revision number and effective-from date
+- APR, monthly or daily interest method, and actual/365 or actual/360 day-count basis
+- Required minimum, recurring extra payment, and due day
+- Custom payoff priority and projection notes
+- Creating actor and timestamp
+
+Revising terms appends a new record. Prior terms continue to explain earlier projections and are
+never edited in place.
+
+### DebtStatement
+
+Append-only lender reconciliation record:
+
+- Statement, period, and due dates
+- Statement balance, APR, and lender minimum payment
+- Principal paid, interest charged, fees, escrow, PMI, and extra principal as separate values
+- Optional one-to-one `supersedes` link for an append-only correction
+- Notes, creating actor, and timestamp
+
+The newest accepted statement balance updates `DebtAccount.current_balance`. A correction uses the
+original statement date and preserves the superseded record. Statement history controls historical
+actuals; projections remain estimates.
 
 ### DebtPaymentPlan
 
@@ -374,3 +398,5 @@ Audit entities live in a separately owned schema and follow the controls in `PRO
 8. Two mortgage installments configured as a full-month plan total the monthly obligation.
 9. Audit mutation permissions are unavailable to runtime credentials.
 10. Every household-owned foreign-key traversal is validated against the same household.
+11. Debt terms and lender statements are append-only; corrections create linked records rather
+    than rewriting or deleting history.

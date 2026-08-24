@@ -138,7 +138,32 @@ Rules:
 - The lender's actual statement allocation supersedes estimates for history.
 - Escrow does not reduce mortgage principal.
 
-## 7. Period close and Household Reserve
+## 7. Debt statement reconciliation and payoff projection
+
+```mermaid
+flowchart TD
+    D[Debt account and current balance] --> T[Select effective-dated terms]
+    T --> P[Run exact-Decimal projection]
+    P --> M[Minimum-only]
+    P --> S[Snowball]
+    P --> A[Avalanche]
+    P --> C[Custom priority]
+    L[Lender statement] --> R[Append reconciliation]
+    R --> B[Update current debt balance]
+    R --> H[Preserve principal, interest, fees, escrow, PMI, and extra principal]
+    X[Correction with reason] --> N[Append linked replacement]
+    N --> B
+    N --> O[Retain superseded original]
+    B --> P
+```
+
+The current statement balance seeds future projections, while lender-recorded components remain
+historical actuals. APR and payment changes append effective-dated terms. Every payoff strategy uses
+the same interest engine; strategy choice changes only the target order for available extra money.
+A paid-off debt's scheduled payment becomes available to the next target in the following modeled
+cycle. Neither a projection nor a correction silently changes future recurring Budget occurrences.
+
+## 8. Period close and Household Reserve
 
 ```mermaid
 flowchart TD
@@ -159,7 +184,7 @@ flowchart TD
 
 Household Reserve never becomes paycheck income automatically.
 
-## 8. CSV import lifecycle
+## 9. CSV import lifecycle
 
 ```mermaid
 stateDiagram-v2
@@ -182,7 +207,7 @@ The file is parsed under byte/row/column/cell limits and is never retained as an
 commits every accepted expense and its audit history atomically, then scrubs staged raw cells. A
 failure rolls back the whole financial commit and leaves the reviewed staging data available.
 
-## 9. CSV transaction export
+## 10. CSV transaction export
 
 ```mermaid
 sequenceDiagram
@@ -209,7 +234,7 @@ whitespace. Decimal amount cells remain numeric, including negative refunds and 
 does not create or retain a temporary export file, and neither search text nor transaction contents
 are copied into audit or operational logs.
 
-## 10. Audit write and verification
+## 11. Audit write and verification
 
 ```mermaid
 sequenceDiagram
@@ -234,7 +259,7 @@ sequenceDiagram
     L-->>C: Copy/sign chain-head checkpoint outside VM
 ```
 
-## 11. Goal and reserve allocation
+## 12. Goal and reserve allocation
 
 ```mermaid
 flowchart TD
