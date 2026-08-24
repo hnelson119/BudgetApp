@@ -1,0 +1,64 @@
+{% extends "core/app_base.html" %}
+
+{% block title %}Notifications · Household Budget{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block content %}
+  <section class="section-heading notification-heading">
+    <div>
+      <p class="eyebrow">Private in-app alerts</p>
+      <h2>{% if include_history %}Notification history{% else %}Active notifications{% endif %}</h2>
+      <p>Alerts are generated from protected household records. Email, SMS, and push delivery are not enabled.</p>
+    </div>
+    <div class="button-row">
+      <form method="post" action="{% url 'notifications:refresh' %}">
+        {% csrf_token %}
+        <button class="quiet-button" type="submit">Check now</button>
+      </form>
+      <a class="quiet-button" href="{% url 'notifications:preferences' %}">Preferences</a>
+    </div>
+  </section>
+
+  <div class="segmented-links" aria-label="Notification view">
+    <a{% if not include_history %} class="is-active" aria-current="page"{% endif %} href="{% url 'notifications:list' %}">Active</a>
+    <a{% if include_history %} class="is-active" aria-current="page"{% endif %} href="{% url 'notifications:list' %}?status=all">All history</a>
+  </div>
+
+  <section class="notification-list" aria-label="Notification results">
+    {% for notification in notifications %}
+      <article class="notification-card notification-{{ notification.severity }}{% if notification.read_at %} is-read{% endif %}">
+        <div class="notification-card-main">
+          <div class="notification-meta">
+            <span class="status-pill">{{ notification.get_kind_display }}</span>
+            <span>{{ notification.occurred_at|date:'M j, Y g:i A' }}</span>
+            {% if notification.resolved_at %}<span>Resolved</span>{% endif %}
+            {% if notification.dismissed_at %}<span>Dismissed</span>{% endif %}
+          </div>
+          <h3>{{ notification.title }}</h3>
+          <p>{{ notification.message }}</p>
+        </div>
+        <div class="notification-actions">
+          {% if not notification.read_at and not notification.resolved_at and not notification.dismissed_at %}
+            <form method="post" action="{% url 'notifications:read' notification.pk %}">
+              {% csrf_token %}
+              <button class="primary-button" type="submit">Open</button>
+            </form>
+          {% elif notification.internal_action_url %}
+            <a class="quiet-button" href="{{ notification.internal_action_url }}">View record</a>
+          {% endif %}
+          {% if not notification.dismissed_at and not notification.resolved_at %}
+            <form method="post" action="{% url 'notifications:dismiss' notification.pk %}">
+              {% csrf_token %}
+              <button class="quiet-button" type="submit">Dismiss</button>
+            </form>
+          {% endif %}
+        </div>
+      </article>
+    {% empty %}
+      <div class="empty-state">
+        <h3>No {% if include_history %}notification history{% else %}active notifications{% endif %}</h3>
+        <p>The scheduled check and the “Check now” action will add alerts when something needs attention.</p>
+      </div>
+    {% endfor %}
+  </section>
+{% endblock %}

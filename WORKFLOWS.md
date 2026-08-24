@@ -281,3 +281,26 @@ flowchart TD
 ```
 
 The automatic-excess setting remains off by default.
+
+## 13. Notification and audit-access flow
+
+```mermaid
+flowchart TD
+    J[30-minute notification job] --> S[Read authoritative household records]
+    S --> D[Deduplicate per member and source]
+    D --> N[Create or reopen active in-app alerts]
+    D --> R[Resolve conditions no longer present]
+    U[Household member] --> V[View notification center]
+    V --> M[Mark read or dismiss]
+    M --> A[Append protected notification-state event]
+    U --> H[Filter or open audit history]
+    H --> X[Append protected detail-access event]
+    U --> E[Request filtered audit CSV]
+    E --> Q[Require recent password plus MFA]
+    Q --> I[Verify chain and freeze sequence boundary]
+    I --> C[Append export scope and stream formula-safe CSV]
+```
+
+Notification text is a convenience view, never an authoritative balance or backup record. Critical
+integrity failures remain visible in protected audit history even if a user dismisses an in-app
+alert. Audit history exposes no edit, delete, truncate, or clear route.

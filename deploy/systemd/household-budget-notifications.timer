@@ -1,0 +1,11 @@
+[Unit]
+Description=Generate Household Budget notifications every 30 minutes
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=30m
+Persistent=true
+RandomizedDelaySec=2m
+
+[Install]
+WantedBy=timers.target

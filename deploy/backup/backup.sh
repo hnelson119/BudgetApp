@@ -154,4 +154,12 @@ restic forget \
   --prune \
   --quiet || fail "backup_retention_failed" "Backup succeeded but retention pruning failed"
 
+marker_file="$RESTIC_REPOSITORY/.last-success"
+marker_temporary="$RESTIC_REPOSITORY/.last-success.tmp"
+printf '%s release=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$APP_RELEASE" > "$marker_temporary" || \
+  fail "backup_status_write_failed" "Backup succeeded but its status marker could not be written"
+chmod 0600 "$marker_temporary"
+mv "$marker_temporary" "$marker_file" || \
+  fail "backup_status_write_failed" "Backup succeeded but its status marker could not be committed"
+
 log "info" "backup_completed" "Encrypted PostgreSQL backup and integrity check completed"

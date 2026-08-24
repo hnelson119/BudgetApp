@@ -1,0 +1,49 @@
+{% extends "core/app_base.html" %}
+
+{% block title %}Audit event #{{ event.sequence }} · Household Budget{% endblock %}
+{% block page_title %}Audit event #{{ event.sequence }}{% endblock %}
+
+{% block content %}
+  {% if not integrity.valid %}
+    <section class="integrity-banner integrity-failed" role="alert">
+      <div><span aria-hidden="true">!</span> Audit integrity check failed</div>
+      <p>This access could not be added safely to the protected chain. Stop financial changes and follow the recovery procedure.</p>
+    </section>
+  {% endif %}
+
+  <section class="detail-panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Protected · read only</p>
+        <h2>{{ event.action }}</h2>
+      </div>
+      <a class="quiet-button" href="{% url 'audit:history' %}">Back to audit history</a>
+    </div>
+    <dl class="detail-grid">
+      <div><dt>Sequence</dt><dd>#{{ event.sequence }}</dd></div>
+      <div><dt>Occurred</dt><dd>{{ event.occurred_at|date:'M j, Y g:i:s A' }}</dd></div>
+      <div><dt>Person</dt><dd>{% if event.actor %}{{ event.actor.display_name|default:event.actor.email }}{% else %}System{% endif %}</dd></div>
+      <div><dt>Record</dt><dd>{{ event.entity_type }} · {{ event.entity_id }}</dd></div>
+      <div><dt>Reason</dt><dd>{{ event.reason|default:'—' }}</dd></div>
+      <div><dt>Request reference</dt><dd><code>{{ event.request_id }}</code></dd></div>
+      <div><dt>Previous hash</dt><dd class="hash-value"><code>{{ event.previous_hash }}</code></dd></div>
+      <div><dt>Event hash</dt><dd class="hash-value"><code>{{ event.event_hash }}</code></dd></div>
+    </dl>
+  </section>
+
+  <section class="audit-panel">
+    <div class="audit-panel-heading"><div><p class="eyebrow">Human-readable change</p><h2>Before and after</h2></div></div>
+    <div class="audit-table-scroll">
+      <table class="audit-table">
+        <thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead>
+        <tbody>
+          {% for difference in differences %}
+            <tr><td data-label="Field">{{ difference.field }}</td><td data-label="Before">{{ difference.before }}</td><td data-label="After">{{ difference.after }}</td></tr>
+          {% empty %}
+            <tr><td colspan="3">This event does not contain a before/after change payload.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

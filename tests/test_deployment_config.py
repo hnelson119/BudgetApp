@@ -35,6 +35,8 @@ def test_compose_separates_privileged_database_tasks() -> None:
         "budget_admin}"
     )
     assert "maintenance" in services["backup"]["profiles"]
+    assert "maintenance" in services["notify"]["profiles"]
+    assert services["notify"]["environment"]["POSTGRES_USER"].endswith("budget_runtime}")
     assert "recovery" in services["restore-verify"]["profiles"]
 
 
@@ -223,6 +225,16 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     assert integrity["networks"] == ["backend"]
     assert integrity["volumes"][0]["bind"]["create_host_path"] is False
     assert "audit_checkpoint_signing_key" not in web["secrets"]
+    notify = services["notify"]
+    assert set(notify["secrets"]) == {
+        "django_secret_key",
+        "django_mfa_encryption_key",
+        "postgres_runtime_password",
+    }
+    assert notify["read_only"] is True
+    assert notify["networks"] == ["backend"]
+    assert notify["volumes"][0]["read_only"] is True
+    assert notify["volumes"][0]["bind"]["create_host_path"] is False
 
 
 def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_target() -> None:
@@ -237,6 +249,8 @@ def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_targe
     assert "PGPASSWORD" not in backup_script
     assert "RESTIC_PASSWORD=" not in backup_script
     assert "RESTIC_PASSWORD_FILE" in backup_script
+    assert ".last-success" in backup_script
+    assert "release=%s" in backup_script
     assert "RESTIC_SHA256=" in backup_dockerfile
     assert "ADD --checksum=sha256:" in backup_dockerfile
 
@@ -291,6 +305,17 @@ def test_daily_backup_timer_uses_the_isolated_compose_service() -> None:
     assert "UMask=0077" in integrity_service
     assert "OnCalendar=*-*-* 02:45:00" in integrity_timer
     assert "Persistent=true" in integrity_timer
+
+    notification_service = (
+        PROJECT_ROOT / "deploy/systemd/household-budget-notifications.service"
+    ).read_text(encoding="utf-8")
+    notification_timer = (
+        PROJECT_ROOT / "deploy/systemd/household-budget-notifications.timer"
+    ).read_text(encoding="utf-8")
+    assert "docker compose --profile maintenance run --rm notify" in notification_service
+    assert "UMask=0077" in notification_service
+    assert "OnUnitActiveSec=30m" in notification_timer
+    assert "Persistent=true" in notification_timer
 
 
 def test_ci_uses_read_only_permissions_and_immutable_official_actions() -> None:

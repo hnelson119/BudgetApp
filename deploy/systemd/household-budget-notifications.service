@@ -1,0 +1,13 @@
+[Unit]
+Description=Generate Household Budget in-app notifications
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/household-budget
+EnvironmentFile=/etc/household-budget/household-budget.env
+ExecStart=/usr/bin/docker compose --profile maintenance run --rm notify
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
