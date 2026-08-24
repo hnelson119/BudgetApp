@@ -12,6 +12,7 @@ from django.db.models.functions import Lower
 
 from households.models import Household
 from ledger.models import FinancialAccount
+from schedules.models import RecurringSource
 
 _ModelT = TypeVar("_ModelT", bound=models.Model)
 
@@ -385,3 +386,195 @@ class DebtStatement(ImmutableDebtRecord):
                 raise ValidationError("A correction must supersede a statement for the same debt.")
             if superseded.statement_date != self.statement_date:
                 raise ValidationError("A correction must use the original statement date.")
+
+
+class MortgagePaymentPlan(DebtManagedModel):
+    """Stable parent for immutable mortgage configuration revisions."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    debt = models.OneToOneField(
+        DebtAccount,
+        on_delete=models.PROTECT,
+        related_name="mortgage_payment_plan",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_mortgage_payment_plans",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = DebtServiceManager["MortgagePaymentPlan"]()
+
+    def __str__(self) -> str:
+        return f"Mortgage plan for {self.debt_id}"
+
+    def clean(self) -> None:
+        if self.debt_id and self.debt.debt_type != DebtAccount.DebtType.MORTGAGE:
+            raise ValidationError("Mortgage payment plans require a mortgage debt account.")
+
+
+class MortgagePlanRevision(ImmutableDebtRecord):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plan = models.ForeignKey(
+        MortgagePaymentPlan,
+        on_delete=models.PROTECT,
+        related_name="revisions",
+    )
+    revision_number = models.PositiveIntegerField()
+    effective_from = models.DateField()
+    monthly_obligation = models.DecimalField(max_digits=18, decimal_places=2)
+    statement_cycle_day = models.PositiveSmallIntegerField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_mortgage_plan_revisions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = DebtServiceManager["MortgagePlanRevision"]()
+
+    class Meta:
+        ordering = ("plan_id", "revision_number")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("plan", "revision_number"),
+                name="debts_mortgage_plan_revision_unique",
+            ),
+            models.UniqueConstraint(
+                fields=("plan", "effective_from"),
+                name="debts_mortgage_plan_effective_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(monthly_obligation__gt=Decimal("0")),
+                name="debts_mortgage_obligation_positive",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(statement_cycle_day__gte=1) & models.Q(statement_cycle_day__lte=31)
+                ),
+                name="debts_mortgage_cycle_day_valid",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.plan_id} mortgage revision {self.revision_number}"
+
+
+class MortgagePaymentComponent(ImmutableDebtRecord):
+    class ComponentType(models.TextChoices):
+        PRINCIPAL_INTEREST = "principal_interest", "Principal and interest"
+        ESCROW = "escrow", "Escrow"
+        PMI = "pmi", "PMI"
+        FEES = "fees", "Fees"
+        RECURRING_EXTRA_PRINCIPAL = (
+            "recurring_extra_principal",
+            "Recurring extra principal",
+        )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plan_revision = models.ForeignKey(
+        MortgagePlanRevision,
+        on_delete=models.PROTECT,
+        related_name="components",
+    )
+    component_type = models.CharField(max_length=28, choices=ComponentType.choices)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_mortgage_payment_components",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = DebtServiceManager["MortgagePaymentComponent"]()
+
+    class Meta:
+        ordering = ("plan_revision_id", "component_type")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("plan_revision", "component_type"),
+                name="debts_mortgage_component_type_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount__gte=Decimal("0")),
+                name="debts_mortgage_component_nonnegative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.plan_revision_id}: {self.component_type} {self.amount}"
+
+
+class MortgageInstallmentRule(ImmutableDebtRecord):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plan_revision = models.ForeignKey(
+        MortgagePlanRevision,
+        on_delete=models.PROTECT,
+        related_name="installment_rules",
+    )
+    source = models.ForeignKey(
+        RecurringSource,
+        on_delete=models.PROTECT,
+        related_name="mortgage_installment_rules",
+    )
+    installment_order = models.PositiveSmallIntegerField()
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    day_of_month = models.PositiveSmallIntegerField()
+    adjustment_policy = models.CharField(
+        max_length=12,
+        choices=(
+            ("none", "None"),
+            ("previous", "Previous"),
+            ("next", "Next"),
+        ),
+        default="previous",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_mortgage_installment_rules",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = DebtServiceManager["MortgageInstallmentRule"]()
+
+    class Meta:
+        ordering = ("plan_revision_id", "installment_order")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("plan_revision", "installment_order"),
+                name="debts_mortgage_installment_order_unique",
+            ),
+            models.UniqueConstraint(
+                fields=("plan_revision", "source"),
+                name="debts_mortgage_installment_source_unique",
+            ),
+            models.CheckConstraint(
+                condition=(models.Q(installment_order__gte=1) & models.Q(installment_order__lte=2)),
+                name="debts_mortgage_installment_order_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=Decimal("0")),
+                name="debts_mortgage_installment_amount_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(day_of_month__gte=1) & models.Q(day_of_month__lte=31),
+                name="debts_mortgage_installment_day_valid",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.plan_revision_id}: installment {self.installment_order}"
+
+    def clean(self) -> None:
+        if self.source_id:
+            if self.source.kind != RecurringSource.Kind.DEBT_PAYMENT:
+                raise ValidationError("Mortgage installments require debt-payment schedules.")
+            if (
+                self.plan_revision_id
+                and self.source.household_id != self.plan_revision.plan.debt.household_id
+            ):
+                raise ValidationError(
+                    "The mortgage installment schedule belongs to another household."
+                )

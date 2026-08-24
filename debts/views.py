@@ -20,24 +20,39 @@ from debts.forms import (
     DebtStatementForm,
     DebtStatusConfirmationForm,
     DebtTermsForm,
+    ExtraPrincipalForm,
+    MortgagePlanForm,
     PayoffScenarioForm,
 )
-from debts.models import DebtAccount, DebtStatement, DebtTermsRevision
+from debts.models import (
+    DebtAccount,
+    DebtStatement,
+    DebtTermsRevision,
+    MortgageInstallmentRule,
+    MortgagePaymentPlan,
+    MortgagePlanRevision,
+)
 from debts.services import (
     PayoffComparison,
     StrategyComparison,
     change_debt_status,
     compare_payoff_strategies,
     create_debt_account,
+    create_mortgage_plan,
     current_debt_terms,
+    mortgage_components,
+    preview_mortgage_plan,
     projection_debts_from_accounts,
     reconcile_debt_statement,
     revise_debt_terms,
+    revise_mortgage_plan,
+    set_one_off_extra_principal,
     update_debt_account,
 )
 from households.models import Household
 from households.services.access import get_active_household
 from identity.models import User
+from schedules.models import Occurrence
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +66,13 @@ class DebtRow:
 class ComparisonRow:
     comparison: StrategyComparison
     label: str
+
+
+@dataclass(frozen=True, slots=True)
+class MortgageRevisionRow:
+    revision: MortgagePlanRevision
+    components: dict[str, Decimal]
+    rules: tuple[MortgageInstallmentRule, ...]
 
 
 _STRATEGY_LABELS = {
@@ -88,10 +110,23 @@ def _debt(household: Household, debt_id: str) -> DebtAccount:
 
 def _row(debt: DebtAccount, on_date: date) -> DebtRow:
     terms = current_debt_terms(debt, on_date=on_date)
+    scheduled_payment = terms.minimum_payment + terms.recurring_extra_payment
+    plan = MortgagePaymentPlan.objects.filter(debt=debt).first()
+    if plan is not None:
+        revision = (
+            plan.revisions.filter(effective_from__lte=on_date)
+            .order_by("-effective_from", "-revision_number")
+            .first()
+        )
+        if revision is not None:
+            components = mortgage_components(revision)
+            scheduled_payment = (
+                revision.monthly_obligation + components["recurring_extra_principal"]
+            )
     return DebtRow(
         debt=debt,
         terms=terms,
-        scheduled_payment=terms.minimum_payment + terms.recurring_extra_payment,
+        scheduled_payment=scheduled_payment,
     )
 
 
@@ -178,6 +213,31 @@ def debt_detail(request: HttpRequest, debt_id: str) -> HttpResponse:
         )
     )
     current_terms = current_debt_terms(debt, on_date=_today(household))
+    mortgage_plan = MortgagePaymentPlan.objects.filter(debt=debt).first()
+    mortgage_rows: tuple[MortgageRevisionRow, ...] = ()
+    current_mortgage: MortgageRevisionRow | None = None
+    scheduled_payment = current_terms.minimum_payment + current_terms.recurring_extra_payment
+    if mortgage_plan is not None:
+        revisions = mortgage_plan.revisions.prefetch_related(
+            "components", "installment_rules__source"
+        ).order_by("-effective_from", "-revision_number")
+        mortgage_rows = tuple(
+            MortgageRevisionRow(
+                revision=revision,
+                components=mortgage_components(revision),
+                rules=tuple(revision.installment_rules.all().order_by("installment_order")),
+            )
+            for revision in revisions
+        )
+        current_mortgage = next(
+            (row for row in mortgage_rows if row.revision.effective_from <= _today(household)),
+            None,
+        )
+        if current_mortgage is not None:
+            scheduled_payment = (
+                current_mortgage.revision.monthly_obligation
+                + current_mortgage.components["recurring_extra_principal"]
+            )
     return render(
         request,
         "debts/debt_detail.html",
@@ -185,12 +245,185 @@ def debt_detail(request: HttpRequest, debt_id: str) -> HttpResponse:
             "household": household,
             "debt": debt,
             "current_terms": current_terms,
-            "scheduled_payment": (
-                current_terms.minimum_payment + current_terms.recurring_extra_payment
-            ),
+            "scheduled_payment": scheduled_payment,
             "terms_revisions": terms,
             "statements": statements,
+            "mortgage_plan": mortgage_plan,
+            "mortgage_rows": mortgage_rows,
+            "current_mortgage": current_mortgage,
             "current_nav": "debts",
+        },
+    )
+
+
+def _mortgage_initial(revision: MortgagePlanRevision) -> dict[str, object]:
+    components = mortgage_components(revision)
+    rules = tuple(revision.installment_rules.order_by("installment_order"))
+    if len(rules) != 2:
+        raise Http404
+    return {
+        "monthly_obligation": revision.monthly_obligation,
+        "principal_and_interest": components["principal_interest"],
+        "escrow": components["escrow"],
+        "pmi": components["pmi"],
+        "fees": components["fees"],
+        "recurring_extra_principal": components["recurring_extra_principal"],
+        "statement_cycle_day": revision.statement_cycle_day,
+        "installment_one_amount": rules[0].amount,
+        "installment_one_day": rules[0].day_of_month,
+        "installment_two_amount": rules[1].amount,
+        "installment_two_day": rules[1].day_of_month,
+        "adjustment_policy": rules[0].adjustment_policy,
+    }
+
+
+@login_required
+@require_http_methods(("GET", "POST"))
+def mortgage_plan_create(request: HttpRequest, debt_id: str) -> HttpResponse:
+    household = get_active_household(request)
+    debt = _debt(household, debt_id)
+    if (
+        debt.debt_type != DebtAccount.DebtType.MORTGAGE
+        or MortgagePaymentPlan.objects.filter(debt=debt).exists()
+    ):
+        raise Http404
+    form = MortgagePlanForm(
+        request.POST or None,
+        household=household,
+        initial={"effective_from": _today(household)},
+    )
+    preview = None
+    if request.method == "POST" and form.is_valid():
+        try:
+            spec = form.plan_spec()
+            preview = preview_mortgage_plan(spec)
+            if request.POST.get("action") == "confirm":
+                create_mortgage_plan(
+                    debt=debt,
+                    actor=_actor(request),
+                    spec=spec,
+                    expected_preview_fingerprint=str(form.cleaned_data["preview_fingerprint"]),
+                    request_id=_request_id(request),
+                )
+                messages.success(
+                    request,
+                    "Split mortgage plan saved and synced into paycheck periods.",
+                )
+                return redirect("debts:detail", debt_id=debt.pk)
+            form.fields["preview_fingerprint"].initial = preview.fingerprint
+        except ValidationError as error:
+            form.add_error(None, error)
+    return render(
+        request,
+        "debts/mortgage_plan_form.html",
+        {
+            "household": household,
+            "debt": debt,
+            "form": form,
+            "preview": preview,
+            "title": f"Set up {debt.name} payment plan",
+            "current_nav": "debts",
+        },
+    )
+
+
+@login_required
+@require_http_methods(("GET", "POST"))
+def mortgage_plan_revise(request: HttpRequest, debt_id: str) -> HttpResponse:
+    household = get_active_household(request)
+    debt = _debt(household, debt_id)
+    plan = get_object_or_404(MortgagePaymentPlan, debt=debt)
+    latest = (
+        plan.revisions.prefetch_related("components", "installment_rules")
+        .order_by("-revision_number")
+        .first()
+    )
+    if latest is None:
+        raise Http404
+    initial = _mortgage_initial(latest)
+    initial["effective_from"] = max(_today(household), latest.effective_from + timedelta(days=1))
+    form = MortgagePlanForm(request.POST or None, household=household, initial=initial)
+    preview = None
+    if request.method == "POST" and form.is_valid():
+        try:
+            spec = form.plan_spec()
+            preview = preview_mortgage_plan(spec, plan=plan)
+            if request.POST.get("action") == "confirm":
+                revise_mortgage_plan(
+                    plan=plan,
+                    actor=_actor(request),
+                    spec=spec,
+                    expected_preview_fingerprint=str(form.cleaned_data["preview_fingerprint"]),
+                    request_id=_request_id(request),
+                    reason=str(form.cleaned_data["reason"]),
+                )
+                messages.success(
+                    request,
+                    "Mortgage revision saved; prior schedule history remains protected.",
+                )
+                return redirect("debts:detail", debt_id=debt.pk)
+            form.fields["preview_fingerprint"].initial = preview.fingerprint
+        except ValidationError as error:
+            form.add_error(None, error)
+    return render(
+        request,
+        "debts/mortgage_plan_form.html",
+        {
+            "household": household,
+            "debt": debt,
+            "form": form,
+            "preview": preview,
+            "title": f"Revise {debt.name} payment plan",
+            "is_revision": True,
+            "current_nav": "debts",
+        },
+    )
+
+
+@login_required
+@require_http_methods(("GET", "POST"))
+def mortgage_extra_principal(request: HttpRequest, occurrence_id: str) -> HttpResponse:
+    household = get_active_household(request)
+    occurrence = get_object_or_404(
+        Occurrence.objects.select_related("source", "pay_period", "source__household").distinct(),
+        pk=occurrence_id,
+        source__household=household,
+        source__mortgage_installment_rules__isnull=False,
+    )
+    current_extra = max(
+        occurrence.planned_amount - occurrence.generated_amount,
+        Decimal("0.00"),
+    )
+    form = ExtraPrincipalForm(
+        request.POST or None,
+        initial={"extra_principal": current_extra},
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            set_one_off_extra_principal(
+                occurrence=occurrence,
+                actor=_actor(request),
+                extra_principal=form.cleaned_data["extra_principal"],
+                request_id=_request_id(request),
+                reason=form.cleaned_data["reason"],
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(
+                request,
+                "One-off extra principal updated; future installments are unchanged.",
+            )
+            return redirect("budgets:detail", period_id=occurrence.pay_period_id)
+    return render(
+        request,
+        "debts/mortgage_extra_principal.html",
+        {
+            "household": household,
+            "occurrence": occurrence,
+            "current_extra": current_extra,
+            "form": form,
+            "current_nav": "budget",
         },
     )
 

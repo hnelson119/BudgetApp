@@ -12,8 +12,10 @@ from django.utils import timezone
 
 from debts.models import DebtAccount, DebtTermsRevision
 from debts.services.accounts import DebtStatementSpec, DebtTermsSpec
+from debts.services.mortgages import MortgageInstallmentSpec, MortgagePlanSpec
 from households.models import Household
 from ledger.models import FinancialAccount
+from schedules.recurrence import BusinessDayAdjustment
 
 
 class LiabilityChoiceField(forms.ModelChoiceField):
@@ -317,3 +319,134 @@ class PayoffScenarioForm(forms.Form):
 class DebtStatusConfirmationForm(forms.Form):
     reason = forms.CharField(max_length=500, widget=forms.Textarea(attrs={"rows": 3}))
     confirm = forms.BooleanField(label="I understand this changes the debt's active status.")
+
+
+class MortgagePlanForm(HouseholdForm):
+    effective_from = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    monthly_obligation = forms.DecimalField(
+        label="Full monthly obligation",
+        min_value=Decimal("0.01"),
+        max_digits=18,
+        decimal_places=2,
+        help_text="Principal and interest, escrow, PMI, and fees must total this amount.",
+    )
+    principal_and_interest = forms.DecimalField(
+        label="Principal and interest",
+        min_value=Decimal("0.01"),
+        max_digits=18,
+        decimal_places=2,
+    )
+    escrow = forms.DecimalField(
+        min_value=Decimal("0.00"),
+        max_digits=18,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+    )
+    pmi = forms.DecimalField(
+        label="PMI",
+        min_value=Decimal("0.00"),
+        max_digits=18,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+    )
+    fees = forms.DecimalField(
+        min_value=Decimal("0.00"),
+        max_digits=18,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+    )
+    recurring_extra_principal = forms.DecimalField(
+        min_value=Decimal("0.00"),
+        max_digits=18,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+        help_text="Added to every month and included in the two installment totals.",
+    )
+    statement_cycle_day = forms.IntegerField(min_value=1, max_value=31, initial=1)
+    installment_one_amount = forms.DecimalField(
+        label="First installment amount",
+        min_value=Decimal("0.01"),
+        max_digits=18,
+        decimal_places=2,
+    )
+    installment_one_day = forms.IntegerField(
+        label="First installment day",
+        min_value=1,
+        max_value=31,
+        initial=1,
+    )
+    installment_two_amount = forms.DecimalField(
+        label="Second installment amount",
+        min_value=Decimal("0.01"),
+        max_digits=18,
+        decimal_places=2,
+    )
+    installment_two_day = forms.IntegerField(
+        label="Second installment day",
+        min_value=1,
+        max_value=31,
+        initial=15,
+    )
+    adjustment_policy = forms.ChoiceField(
+        label="Weekend/holiday adjustment",
+        choices=(
+            (BusinessDayAdjustment.NONE.value, "No adjustment"),
+            (BusinessDayAdjustment.PREVIOUS.value, "Previous business day"),
+            (BusinessDayAdjustment.NEXT.value, "Next business day"),
+        ),
+        initial=BusinessDayAdjustment.PREVIOUS.value,
+    )
+    reason = forms.CharField(
+        required=False,
+        max_length=500,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Required when revising an existing protected plan.",
+    )
+    preview_fingerprint = forms.CharField(required=False, widget=forms.HiddenInput)
+
+    def plan_spec(self) -> MortgagePlanSpec:
+        if not self.is_valid():
+            raise ValidationError("Correct the mortgage plan before previewing it.")
+        cleaned = self.cleaned_data
+        return MortgagePlanSpec(
+            effective_from=cast(date, cleaned["effective_from"]),
+            monthly_obligation=cast(Decimal, cleaned["monthly_obligation"]),
+            principal_and_interest=cast(Decimal, cleaned["principal_and_interest"]),
+            escrow=cast(Decimal, cleaned["escrow"]),
+            pmi=cast(Decimal, cleaned["pmi"]),
+            fees=cast(Decimal, cleaned["fees"]),
+            recurring_extra_principal=cast(
+                Decimal,
+                cleaned["recurring_extra_principal"],
+            ),
+            statement_cycle_day=int(cleaned["statement_cycle_day"]),
+            installments=(
+                MortgageInstallmentSpec(
+                    amount=cast(Decimal, cleaned["installment_one_amount"]),
+                    day_of_month=int(cleaned["installment_one_day"]),
+                ),
+                MortgageInstallmentSpec(
+                    amount=cast(Decimal, cleaned["installment_two_amount"]),
+                    day_of_month=int(cleaned["installment_two_day"]),
+                ),
+            ),
+            adjustment_policy=BusinessDayAdjustment(str(cleaned["adjustment_policy"])),
+        )
+
+
+class ExtraPrincipalForm(forms.Form):
+    extra_principal = forms.DecimalField(
+        label="One-off extra principal",
+        min_value=Decimal("0.00"),
+        max_digits=18,
+        decimal_places=2,
+        help_text="Use 0.00 to remove a prior one-off extra from this occurrence.",
+    )
+    reason = forms.CharField(
+        max_length=500,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="The reason is retained in protected audit history.",
+    )
+    confirm = forms.BooleanField(
+        label="I understand this changes only this paycheck-period occurrence.",
+    )

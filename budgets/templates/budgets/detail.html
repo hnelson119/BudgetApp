@@ -42,7 +42,7 @@
                   <td>{{ occurrence.expected_date|date:'M j, Y' }}</td>
                   <td>{% if occurrence.source.expense_detail %}<span class="category-chip">{{ occurrence.source.expense_detail.category.name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
                   <td><span class="row-status">{{ occurrence|occurrence_status:today }}</span></td>
-                  <td><div class="row-actions">{% if occurrence.status != 'completed' and occurrence.status != 'corrected' and occurrence.status != 'cancelled' %}<a href="{% url 'budgets:occurrence-edit' occurrence.pk %}">Edit</a><a href="{% url 'budgets:occurrence-move' occurrence.pk %}">Move</a><a class="danger-link" href="{% url 'budgets:occurrence-cancel' occurrence.pk %}">Cancel</a>{% endif %}{% if occurrence.status != 'cancelled' %}<a href="{% url 'budgets:occurrence-reconcile' occurrence.pk %}">Reconcile</a>{% endif %}</div></td>
+                  <td><div class="row-actions">{% if occurrence.status != 'completed' and occurrence.status != 'corrected' and occurrence.status != 'cancelled' %}{% if occurrence.source_revision.configuration.mortgage_plan_id %}<a href="{% url 'debts:mortgage-extra-principal' occurrence.pk %}">Extra principal</a>{% endif %}<a href="{% url 'budgets:occurrence-edit' occurrence.pk %}">Edit</a><a href="{% url 'budgets:occurrence-move' occurrence.pk %}">Move</a><a class="danger-link" href="{% url 'budgets:occurrence-cancel' occurrence.pk %}">Cancel</a>{% endif %}{% if occurrence.status != 'cancelled' %}<a href="{% url 'budgets:occurrence-reconcile' occurrence.pk %}">Reconcile</a>{% endif %}</div></td>
                 </tr>
               {% endfor %}
             </tbody>

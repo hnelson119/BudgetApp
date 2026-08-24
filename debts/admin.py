@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from debts.models import DebtAccount, DebtStatement, DebtTermsRevision
+from debts.models import (
+    DebtAccount,
+    DebtStatement,
+    DebtTermsRevision,
+    MortgageInstallmentRule,
+    MortgagePaymentComponent,
+    MortgagePaymentPlan,
+    MortgagePlanRevision,
+)
 
 
 class ReadOnlyDebtAdmin(admin.ModelAdmin):
@@ -44,3 +52,39 @@ class DebtStatementAdmin(ReadOnlyDebtAdmin):
         "minimum_payment",
     )
     search_fields = ("debt__name", "debt__household__name")
+
+
+@admin.register(MortgagePaymentPlan)
+class MortgagePaymentPlanAdmin(ReadOnlyDebtAdmin):
+    list_display = ("debt", "created_by", "created_at")
+    search_fields = ("debt__name", "debt__household__name")
+
+
+@admin.register(MortgagePlanRevision)
+class MortgagePlanRevisionAdmin(ReadOnlyDebtAdmin):
+    list_display = (
+        "plan",
+        "revision_number",
+        "effective_from",
+        "monthly_obligation",
+    )
+    search_fields = ("plan__debt__name", "plan__debt__household__name")
+
+
+@admin.register(MortgagePaymentComponent)
+class MortgagePaymentComponentAdmin(ReadOnlyDebtAdmin):
+    list_display = ("plan_revision", "component_type", "amount")
+    list_filter = ("component_type",)
+    search_fields = ("plan_revision__plan__debt__name",)
+
+
+@admin.register(MortgageInstallmentRule)
+class MortgageInstallmentRuleAdmin(ReadOnlyDebtAdmin):
+    list_display = (
+        "plan_revision",
+        "installment_order",
+        "amount",
+        "day_of_month",
+        "source",
+    )
+    search_fields = ("plan_revision__plan__debt__name", "source__name")

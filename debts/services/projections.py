@@ -7,9 +7,16 @@ from decimal import Decimal
 from enum import StrEnum
 
 from django.core.exceptions import ValidationError
+from django.db.models import F
 
 from budgets.services.calculations import money
-from debts.models import DebtAccount, DebtTermsRevision
+from debts.models import (
+    DebtAccount,
+    DebtTermsRevision,
+    MortgagePaymentComponent,
+    MortgagePaymentPlan,
+)
+from schedules.models import Occurrence
 
 _MAX_DEBTS = 100
 _MAX_MONTHS = 1_200
@@ -34,11 +41,18 @@ class ProjectionTerms:
 
 
 @dataclass(frozen=True, slots=True)
+class ProjectionExtraPayment:
+    effective_date: date
+    amount: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectionDebt:
     identifier: str
     name: str
     opening_balance: Decimal
     terms: tuple[ProjectionTerms, ...]
+    one_time_extra_payments: tuple[ProjectionExtraPayment, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,13 +62,17 @@ class ProjectionPayment:
     interest: Decimal
     minimum_payment: Decimal
     scheduled_extra_payment: Decimal
+    one_time_extra_payment: Decimal
     strategy_extra_payment: Decimal
     closing_balance: Decimal
 
     @property
     def total_payment(self) -> Decimal:
         return money(
-            self.minimum_payment + self.scheduled_extra_payment + self.strategy_extra_payment
+            self.minimum_payment
+            + self.scheduled_extra_payment
+            + self.one_time_extra_payment
+            + self.strategy_extra_payment
         )
 
 
@@ -121,6 +139,7 @@ class _CyclePayment:
     interest: Decimal
     minimum_payment: Decimal = Decimal("0.00")
     scheduled_extra_payment: Decimal = Decimal("0.00")
+    one_time_extra_payment: Decimal = Decimal("0.00")
     strategy_extra_payment: Decimal = Decimal("0.00")
 
 
@@ -189,6 +208,18 @@ def _validate_debts(
             raise ValidationError("Each debt needs terms effective on the projection start date.")
         if len({value.effective_from for value in terms}) != len(terms):
             raise ValidationError("Projection debt term dates must be unique.")
+        one_time_extras = tuple(
+            sorted(
+                (
+                    ProjectionExtraPayment(
+                        effective_date=value.effective_date,
+                        amount=_validated_money(value.amount, "Projection one-time extra payment"),
+                    )
+                    for value in debt.one_time_extra_payments
+                ),
+                key=lambda value: value.effective_date,
+            )
+        )
         normalized.append(
             ProjectionDebt(
                 identifier=identifier,
@@ -197,6 +228,7 @@ def _validate_debts(
                     debt.opening_balance, "Projection opening balance"
                 ),
                 terms=terms,
+                one_time_extra_payments=one_time_extras,
             )
         )
     return tuple(normalized)
@@ -302,12 +334,25 @@ def project_debt_payoff(
             state.balance = money(state.balance - minimum)
             scheduled_extra = min(terms.recurring_extra_payment, state.balance)
             state.balance = money(state.balance - scheduled_extra)
-            state.total_paid = money(state.total_paid + minimum + scheduled_extra)
+            requested_one_time_extra = money(
+                sum(
+                    (
+                        extra.amount
+                        for extra in state.debt.one_time_extra_payments
+                        if previous_date < extra.effective_date <= payment_date
+                    ),
+                    Decimal("0.00"),
+                )
+            )
+            one_time_extra = min(requested_one_time_extra, state.balance)
+            state.balance = money(state.balance - one_time_extra)
+            state.total_paid = money(state.total_paid + minimum + scheduled_extra + one_time_extra)
             payments[state.debt.identifier] = _CyclePayment(
                 opening_balance=opening_balance,
                 interest=interest,
                 minimum_payment=minimum,
                 scheduled_extra_payment=scheduled_extra,
+                one_time_extra_payment=one_time_extra,
             )
             if state.balance == 0:
                 payoff_candidates.append((state, terms))
@@ -342,6 +387,7 @@ def project_debt_payoff(
                 interest=payments[state.debt.identifier].interest,
                 minimum_payment=payments[state.debt.identifier].minimum_payment,
                 scheduled_extra_payment=payments[state.debt.identifier].scheduled_extra_payment,
+                one_time_extra_payment=payments[state.debt.identifier].one_time_extra_payment,
                 strategy_extra_payment=payments[state.debt.identifier].strategy_extra_payment,
                 closing_balance=state.balance,
             )
@@ -438,23 +484,98 @@ def projection_debts_from_accounts(
         if not debt.is_active or debt.current_balance == 0:
             continue
         revisions = tuple(debt.terms_revisions.all().order_by("effective_from", "revision_number"))
+        projection_terms = tuple(
+            ProjectionTerms(
+                effective_from=revision.effective_from,
+                annual_percentage_rate=revision.annual_percentage_rate,
+                interest_method=revision.interest_method,
+                day_count_basis=revision.day_count_basis,
+                minimum_payment=revision.minimum_payment,
+                recurring_extra_payment=revision.recurring_extra_payment,
+                custom_priority=revision.custom_priority,
+            )
+            for revision in revisions
+        )
+        one_time_extras: tuple[ProjectionExtraPayment, ...] = ()
+        try:
+            mortgage_plan = debt.mortgage_payment_plan
+        except MortgagePaymentPlan.DoesNotExist:
+            mortgage_plan = None
+        if mortgage_plan is not None:
+            mortgage_revisions = tuple(
+                mortgage_plan.revisions.prefetch_related("components").order_by(
+                    "effective_from", "revision_number"
+                )
+            )
+            effective_dates = sorted(
+                {value.effective_from for value in revisions}
+                | {value.effective_from for value in mortgage_revisions}
+            )
+            mortgage_terms: list[ProjectionTerms] = []
+            for effective_date in effective_dates:
+                debt_terms = tuple(
+                    value for value in revisions if value.effective_from <= effective_date
+                )
+                plan_revisions = tuple(
+                    value for value in mortgage_revisions if value.effective_from <= effective_date
+                )
+                if not debt_terms:
+                    continue
+                current_terms = debt_terms[-1]
+                if plan_revisions:
+                    components = {
+                        item.component_type: item.amount
+                        for item in plan_revisions[-1].components.all()
+                    }
+                    minimum_payment = components[
+                        MortgagePaymentComponent.ComponentType.PRINCIPAL_INTEREST
+                    ]
+                    recurring_extra = components[
+                        MortgagePaymentComponent.ComponentType.RECURRING_EXTRA_PRINCIPAL
+                    ]
+                else:
+                    minimum_payment = current_terms.minimum_payment
+                    recurring_extra = current_terms.recurring_extra_payment
+                mortgage_terms.append(
+                    ProjectionTerms(
+                        effective_from=effective_date,
+                        annual_percentage_rate=current_terms.annual_percentage_rate,
+                        interest_method=current_terms.interest_method,
+                        day_count_basis=current_terms.day_count_basis,
+                        minimum_payment=minimum_payment,
+                        recurring_extra_payment=recurring_extra,
+                        custom_priority=current_terms.custom_priority,
+                    )
+                )
+            projection_terms = tuple(mortgage_terms)
+            source_ids = {
+                value.source_id
+                for revision in mortgage_revisions
+                for value in revision.installment_rules.all()
+            }
+            occurrences = Occurrence.objects.filter(
+                source_id__in=source_ids,
+                status__in=(
+                    Occurrence.Status.SCHEDULED,
+                    Occurrence.Status.MOVED,
+                    Occurrence.Status.OVERRIDDEN,
+                ),
+                planned_amount__gt=F("generated_amount"),
+            ).order_by("expected_date", "pk")
+            one_time_extras = tuple(
+                ProjectionExtraPayment(
+                    effective_date=occurrence.expected_date,
+                    amount=money(occurrence.planned_amount - occurrence.generated_amount),
+                )
+                for occurrence in occurrences
+            )
         projected.append(
             ProjectionDebt(
                 identifier=str(debt.pk),
                 name=debt.name,
                 opening_balance=debt.current_balance,
-                terms=tuple(
-                    ProjectionTerms(
-                        effective_from=revision.effective_from,
-                        annual_percentage_rate=revision.annual_percentage_rate,
-                        interest_method=revision.interest_method,
-                        day_count_basis=revision.day_count_basis,
-                        minimum_payment=revision.minimum_payment,
-                        recurring_extra_payment=revision.recurring_extra_payment,
-                        custom_priority=revision.custom_priority,
-                    )
-                    for revision in revisions
-                ),
+                terms=projection_terms,
+                one_time_extra_payments=one_time_extras,
             )
         )
     return tuple(projected)

@@ -302,34 +302,41 @@ The newest accepted statement balance updates `DebtAccount.current_balance`. A c
 original statement date and preserves the superseded record. Statement history controls historical
 actuals; projections remain estimates.
 
-### DebtPaymentPlan
+### MortgagePaymentPlan and MortgagePlanRevision
 
-- Recurring-source ID and debt-account ID
-- Full monthly obligation
-- Required minimum
-- Extra-principal policy
-- Statement-cycle date
+`MortgagePaymentPlan` is a stable, one-to-one parent for a mortgage `DebtAccount`. Each change
+appends an immutable `MortgagePlanRevision` containing:
 
-### PaymentComponent
+- Revision number and effective-from date
+- Full monthly obligation and statement-cycle day
+- Creating actor and timestamp
 
-Breakdown of the full obligation:
+### MortgagePaymentComponent
 
-- Principal and interest amount or estimated allocation
+Every mortgage revision has exactly one record for each component:
+
+- Principal and interest
 - Escrow taxes/insurance
 - PMI
 - Fees
-- Extra principal
+- Recurring extra principal
 
-Only principal and interest participate in loan amortization. Escrow, PMI, taxes, insurance, and fees remain cash-flow/expense components.
+Principal-and-interest and extra principal participate in projected amortization. Escrow, PMI,
+taxes, insurance, and fees remain cash-flow components and never reduce modeled principal.
 
-### InstallmentRule
+### MortgageInstallmentRule
 
-- Debt-payment-plan ID
-- Installment order
-- Day-of-month or recurrence rule
-- Planned amount or percentage of monthly obligation
+Each revision appends exactly two rules containing:
 
-For the household mortgage, two monthly installment rules must total the full monthly obligation. These are two payments per month, not an every-two-weeks schedule.
+- Stable debt-payment `RecurringSource`
+- Installment order, amount, and monthly day
+- Weekend/holiday adjustment policy
+- Creating actor and timestamp
+
+The two installment amounts must total the full monthly obligation plus configured recurring extra
+principal. They are two monthly schedules, not an every-two-weeks schedule. Their generated
+`Occurrence` rows use the normal due-date paycheck assignment. Occurrence moves, amount edits, and
+one-off extra-principal overrides are one way and do not alter either source schedule.
 
 ## 7. Goals
 
@@ -395,8 +402,11 @@ Audit entities live in a separately owned schema and follow the controls in `PRO
 5. An occurrence references exactly one source revision and one assigned period.
 6. An override never mutates its source revision.
 7. Reserve balances derive from append-only ReserveEntries.
-8. Two mortgage installments configured as a full-month plan total the monthly obligation.
+8. Every mortgage plan revision has five component records and exactly two installment rules whose
+   amounts total the monthly obligation plus recurring extra principal.
 9. Audit mutation permissions are unavailable to runtime credentials.
 10. Every household-owned foreign-key traversal is validated against the same household.
 11. Debt terms and lender statements are append-only; corrections create linked records rather
     than rewriting or deleting history.
+12. Mortgage plans, revisions, components, and installment rules reject update, delete, and
+    truncate at the PostgreSQL layer; changes append a new effective-dated revision.

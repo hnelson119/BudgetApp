@@ -1,0 +1,46 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}{{ title }} · Household Budget{% endblock %}
+{% block page_title %}Mortgage plan{% endblock %}
+
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% url 'debts:detail' debt.pk %}">← Back to debt details</a>
+    <div class="form-card">
+      <p class="eyebrow">Protected split-payment schedule</p>
+      <h2>{{ title }}</h2>
+      <p class="muted">Exactly two monthly installments are required. Each generated payment enters the paycheck period containing its adjusted due date. Preview is required before saving.</p>
+      <form class="app-form schedule-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}
+          <div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">
+            {{ field.label_tag }}{{ field }}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+        {% if preview %}<input type="hidden" name="preview_fingerprint" value="{{ preview.fingerprint }}">{% else %}{{ form.preview_fingerprint }}{% endif %}
+        {% if preview %}
+          <section class="preview-card mortgage-preview" aria-live="polite">
+            <p class="eyebrow">Confirm both schedules</p>
+            <h3>Next installment dates</h3>
+            <div class="mortgage-preview-grid">
+              {% for schedule in preview.installment_previews %}
+                <div>
+                  <strong>Installment {{ forloop.counter }}</strong>
+                  <ol>{% for item in schedule.next_occurrences %}<li>{{ item.expected_date|date:'M j, Y' }}{% if item.nominal_date != item.expected_date %}<span>Adjusted from {{ item.nominal_date|date:'M j' }}</span>{% endif %}</li>{% empty %}<li>No dates in the preview window.</li>{% endfor %}</ol>
+                </div>
+              {% endfor %}
+            </div>
+            <p>Saving appends immutable mortgage component and installment records. Existing occurrence overrides and moves are preserved when future schedules regenerate.</p>
+          </section>
+          <div class="action-row"><button class="secondary-button" type="submit" name="action" value="preview">Refresh preview</button><button class="primary-button" type="submit" name="action" value="confirm">Confirm and save plan</button></div>
+        {% else %}
+          <button class="primary-button" type="submit" name="action" value="preview">Preview both installments</button>
+        {% endif %}
+      </form>
+    </div>
+  </section>
+{% endblock %}

@@ -173,6 +173,15 @@ update, delete, or truncate. A statement correction appends a linked replacement
 original record. Operational logs receive request and failure context, not statement values, account
 notes, or projection payloads.
 
+Split-mortgage plans use the same defense in depth. The stable plan, effective-dated revisions,
+component allocations, and two installment rules can be created only through a household-scoped
+transactional service. PostgreSQL triggers reject update, delete, and truncate for every mortgage
+history table. Preview fingerprints prevent a changed or stale two-schedule configuration from
+being confirmed, and one-off extra principal delegates to the protected occurrence-override path so
+the recurring source revisions remain unchanged. Mortgage component values and occurrence amounts
+remain out of operational logs; protected audit events retain the authorized financial change and
+reason.
+
 ## 7. CSV import and export security
 
 ### 7.1 Import
