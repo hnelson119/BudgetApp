@@ -3,6 +3,47 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
+
+_ASVS_SOURCE_SHA256 = "".join(
+    (
+        "8201b20eec2908c3",  # pragma: allowlist secret
+        "380ac600c91c8ba7",  # pragma: allowlist secret
+        "46346fbb80885936",  # pragma: allowlist secret
+        "6abb232027532311",  # pragma: allowlist secret
+    )
+)
+_ASVS_SOURCE_GIT_BLOB = "".join(
+    (
+        "f7ae2926598c4648",  # pragma: allowlist secret
+        "ff7614a6968e4c8f",  # pragma: allowlist secret
+        "d89524bd",
+    )
+)
+_ASVS_CATALOG_SHA256 = "".join(
+    (
+        "7baeb53026600db7",  # pragma: allowlist secret
+        "6513489acaccd93b",  # pragma: allowlist secret
+        "a60490e785ffad80",  # pragma: allowlist secret
+        "6e2c164c474ad273",  # pragma: allowlist secret
+    )
+)
+_PUBLIC_FINGERPRINTS = {
+    "docs/asvs-5.0.0-level2-evidence.json": {
+        ("sha256", _ASVS_SOURCE_SHA256),
+        ("git_blob", _ASVS_SOURCE_GIT_BLOB),
+        ("catalog_sha256", _ASVS_CATALOG_SHA256),
+    },
+    "docs/release-evidence.json": {("source_sha256", _ASVS_SOURCE_SHA256)},
+}
+
+
+def _is_approved_public_fingerprint(file_name: str, line: str) -> bool:
+    normalized_name = file_name.replace("\\", "/")
+    return any(
+        f'"{field}": "{value}"' in line
+        for field, value in _PUBLIC_FINGERPRINTS.get(normalized_name, set())
+    )
 
 
 def main() -> int:
@@ -24,6 +65,20 @@ def main() -> int:
         return completed.returncode
 
     results = json.loads(completed.stdout).get("results", {})
+    filtered_results: dict[str, list[dict[str, object]]] = {}
+    for file_name, findings in results.items():
+        lines = (Path(file_name).read_text(encoding="utf-8")).splitlines()
+        retained = [
+            finding
+            for finding in findings
+            if not _is_approved_public_fingerprint(
+                file_name,
+                lines[int(finding["line_number"]) - 1],
+            )
+        ]
+        if retained:
+            filtered_results[file_name] = retained
+    results = filtered_results
     if results:
         print("Potential secrets detected:", file=sys.stderr)
         for file_name, findings in sorted(results.items()):
