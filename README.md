@@ -57,9 +57,9 @@ secrets. The audit interface now provides household-scoped filters, paginated re
 human-readable before/after differences, current verification/checkpoint status, and streamed
 formula-safe CSV export. Detailed audit access and exports append their own protected events;
 exports require recent password-plus-MFA verification and fail closed if chain verification fails.
-Milestone 10 is now in progress. Its first release-hardening baseline adds a machine-validated
-OWASP ASVS 5.0 Level 2, security-test, and release-gate evidence inventory plus a pinned Trivy
-container scan that fails CI on high or critical release-image vulnerabilities. See
+Milestone 10 is now in progress. Its release-hardening baseline adds a machine-validated mapping of
+all 253 OWASP ASVS 5.0.0 Level 1/2 requirements, the security-test and release-gate inventories, and
+a pinned Trivy container scan that fails CI on high or critical release-image vulnerabilities. See
 `docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. Private
 Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before

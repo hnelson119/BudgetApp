@@ -272,11 +272,14 @@ Exit criteria: alert and audit-access tests pass; no UI path offers audit mutati
 - Perform lost-device and credential-rotation exercise
 - Document upgrades, rollback, backup, restore, and incident response
 
-Progress: the M10 evidence baseline now inventories every ASVS 5.0.0 chapter, required security
-test, and release gate without claiming unperformed release passes. Local and CI quality gates
-validate that inventory. CI also builds the release image without runtime secrets and fails on
-high/critical operating-system or Python-package vulnerabilities using an immutable pinned Trivy
-container. Raw security-tool output is ignored by default and must remain outside source control;
+Progress: the M10 evidence baseline now inventories all 253 ASVS 5.0.0 Level 1/2 requirements, each
+with version-qualified identity, applicability, current disposition, rationale, and repository
+evidence, along with every required security test and release gate. The upstream ASVS source and
+local catalog are fingerprinted so missing or rewritten requirements fail the local and CI quality
+gates. The mapping claims no unperformed release passes and exposes applicable work instead of
+using private hosting as an exclusion. CI also builds the release image without runtime secrets and
+fails on high/critical operating-system or Python-package vulnerabilities using an immutable pinned
+Trivy container. Raw security-tool output is ignored by default and must remain outside source control;
 only sanitized findings and retest summaries may be committed. The isolated synthetic ZAP baseline
 now covers unauthenticated traffic and both MFA-authenticated household roles. Manual adversarial
 testing, release-candidate repetition, real-device smoke testing, and operational rehearsals remain

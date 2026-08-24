@@ -1,14 +1,17 @@
 # Household Budget Application — Security Plan
 
 Status: Approved design baseline
-Last updated: 2026-08-21
+Last updated: 2026-08-24
 Companion document: `PRODUCT_SPEC.md`
 
 ## 1. Security objective
 
 Protect the confidentiality, integrity, and availability of a two-person household budgeting application hosted on a private Linux VM. Security controls must be practical for a personal deployment, default to least privilege, and preserve a clean path to future public hosting.
 
-The implementation target is OWASP ASVS 5.0 Level 2 where applicable. Any requirement judged not applicable must be documented with a reason rather than silently skipped.
+The implementation target is OWASP ASVS 5.0 Level 2 where applicable. Any requirement judged not
+applicable must be documented with a reason rather than silently skipped. The pinned, requirement-
+level review and current gaps are recorded in `docs/ASVS_LEVEL2_MAPPING.md` and
+`docs/asvs-5.0.0-level2-evidence.json`.
 
 ## 2. Threat model
 

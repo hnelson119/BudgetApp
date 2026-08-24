@@ -6,14 +6,15 @@ Last updated: 2026-08-24
 ## Purpose
 
 Milestone 10 turns the existing security controls into a repeatable release decision. The
-machine-readable inventory in `docs/release-evidence.json` tracks all 17 OWASP ASVS 5.0 chapters,
-the 24 required security tests in `SECURITY_PLAN.md`, and the 12 release gates in
-`IMPLEMENTATION_PLAN.md`. A control is not a release pass merely because code or a unit test exists.
+machine-readable inventories track all 253 OWASP ASVS 5.0.0 Level 1/2 requirements, the 24 required
+security tests in `SECURITY_PLAN.md`, and the 12 release gates in `IMPLEMENTATION_PLAN.md`. A control
+is not a release pass merely because code or a unit test exists.
 
-The ASVS review is pinned to OWASP ASVS 5.0.0 Level 2. Chapters V9, V10, and V17 are currently not
-applicable because the private release has no self-contained authentication tokens, OAuth/OIDC, or
-WebRTC. Requirement-level applicability and evidence will be completed before the release candidate
-is approved.
+The ASVS review is pinned by upstream tag, source SHA-256, Git blob, and a locally enforced catalog
+fingerprint. Requirement-level applicability and evidence are recorded in
+`docs/asvs-5.0.0-level2-evidence.json`; the review rationale and current gap summary are in
+`docs/ASVS_LEVEL2_MAPPING.md`. The mapping currently contains 173 applicable requirements and 80
+requirement-level feature exclusions. None is marked release-verified.
 
 ## Evidence states
 
@@ -70,18 +71,25 @@ real household data.
 
 ## Execution order
 
-1. Finish the ASVS 5.0.0 requirement-level applicability and evidence mapping.
-2. Repeat the implemented Chromium, Firefox, and WebKit suite against the release candidate.
-3. Repeat the isolated synthetic PostgreSQL penetration-test profile in `docs/PENTESTING.md`.
-4. Run its unauthenticated ZAP passive/active automation, then authenticated automation for both
+1. Keep the completed ASVS 5.0.0 requirement mapping current as features and evidence change.
+2. Complete the manual authorization, session, CSV, financial-logic, audit, and network adversarial
+   test records identified by the mapping.
+3. Repeat the implemented Chromium, Firefox, and WebKit suite against the release candidate.
+4. Repeat the isolated synthetic PostgreSQL penetration-test profile in `docs/PENTESTING.md`.
+5. Run its unauthenticated ZAP passive/active automation, then authenticated automation for both
    synthetic users; review and disposition every report alert.
-5. Complete manual authorization, session, CSV, financial-logic, audit, and network tests.
 6. Remediate and retest findings.
 7. Run restore/checkpoint, lost-device, credential-rotation, upgrade, and rollback rehearsals.
 8. Mark a gate verified only after retaining dated, sanitized evidence.
 
 ## Current baseline gaps
 
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 97 implemented, 57 partial, 19 not
+  started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
+  are password change/recovery and breached-password checking, individual session visibility,
+  internal service TLS, stronger backend authentication, egress allowlisting, a retained SBOM, a
+  complete logging/cryptographic inventory, and logically separate security-log storage. See
+  `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
 - Private Tailscale ingress and firewall isolation require the Linux VM.
 - The disposable ZAP baseline completed for unauthenticated traffic and both MFA-authenticated
   synthetic users with no High/Critical alert. Its internal plain-HTTP transport remains a scoped,

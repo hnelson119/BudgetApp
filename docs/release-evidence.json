@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "updated": "2026-08-24",
   "release_candidate": null,
   "status_definitions": {
@@ -12,26 +12,10 @@
   "asvs": {
     "version": "5.0.0",
     "target_level": 2,
-    "source": "https://github.com/OWASP/ASVS/tree/v5.0.0/5.0/en",
-    "chapters": [
-      {"id": "V1", "status": "partial", "evidence": ["core/", "tests/test_web_foundation.py"]},
-      {"id": "V2", "status": "partial", "evidence": ["CALCULATION_RULES.md", "tests/"]},
-      {"id": "V3", "status": "partial", "evidence": ["config/settings/production.py", "tests/test_production_settings.py"]},
-      {"id": "V4", "status": "partial", "evidence": ["config/urls.py", "tests/test_web_foundation.py"]},
-      {"id": "V5", "status": "partial", "evidence": ["imports/", "tests/test_csv_imports.py"]},
-      {"id": "V6", "status": "partial", "evidence": ["identity/", "tests/test_authentication.py", "tests/test_mfa.py"]},
-      {"id": "V7", "status": "partial", "evidence": ["identity/middleware.py", "tests/test_authentication.py"]},
-      {"id": "V8", "status": "partial", "evidence": ["households/services/", "tests/"]},
-      {"id": "V9", "status": "not_applicable", "reason": "The application does not issue or accept self-contained authentication tokens.", "evidence": ["SECURITY_PLAN.md"]},
-      {"id": "V10", "status": "not_applicable", "reason": "The private release has no OAuth or OpenID Connect integration.", "evidence": ["SECURITY_PLAN.md"]},
-      {"id": "V11", "status": "partial", "evidence": ["identity/services/mfa.py", "audit/checkpoints.py"]},
-      {"id": "V12", "status": "partial", "evidence": ["config/settings/production.py", "compose.yaml"]},
-      {"id": "V13", "status": "partial", "evidence": ["Dockerfile", "compose.yaml", "compose.pentest.yaml", "tests/test_deployment_config.py", "tests/test_pentest_harness.py"]},
-      {"id": "V14", "status": "partial", "evidence": ["SECURITY_PLAN.md", "audit/exports.py", "core/logging.py"]},
-      {"id": "V15", "status": "partial", "evidence": ["DATA_MODEL.md", "docs/adr/"]},
-      {"id": "V16", "status": "partial", "evidence": ["core/logging.py", "core/errors.py", "tests/test_logging.py"]},
-      {"id": "V17", "status": "not_applicable", "reason": "The application has no WebRTC functionality.", "evidence": ["PRODUCT_SPEC.md"]}
-    ]
+    "source": "https://raw.githubusercontent.com/OWASP/ASVS/v5.0.0/5.0/docs_en/OWASP_Application_Security_Verification_Standard_5.0.0_en.flat.json",
+    "source_sha256": "8201b20eec2908c3380ac600c91c8ba746346fbb808859366abb232027532311",
+    "requirements_file": "docs/asvs-5.0.0-level2-evidence.json",
+    "expected_requirement_count": 253
   },
   "security_tests": [
     {"id": 1, "status": "not_started", "evidence": ["SECURITY_PLAN.md#17-required-security-tests"]},
