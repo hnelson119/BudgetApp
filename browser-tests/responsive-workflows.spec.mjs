@@ -47,6 +47,59 @@ test("navigation, theme, and layouts work at the configured viewport", async ({ 
   expectCleanPage(signals);
 });
 
+test("desktop keyboard users can skip repetitive navigation and see focus", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.endsWith("-desktop"), "Desktop keyboard proof only.");
+  const signals = monitorPage(page);
+  await page.goto("/");
+
+  const skipLink = page.getByRole("link", { name: "Skip to main content" });
+  await page.keyboard.press("Tab");
+  await expect(skipLink).toBeFocused();
+  await expect(skipLink).toBeVisible();
+  expect(
+    await skipLink.evaluate((element) => window.getComputedStyle(element).outlineStyle),
+  ).not.toBe("none");
+
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#main-content")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: /Notifications/iu })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const themeButton = page.getByRole("button", { name: "Switch color theme" });
+  await expect(themeButton).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  for (const placeholder of await page.locator('a[aria-disabled="true"]').all()) {
+    await expect(placeholder).not.toHaveAttribute("href");
+    await expect(placeholder).toHaveAttribute("tabindex", "-1");
+  }
+  expectCleanPage(signals);
+});
+
+test("primary touch navigation targets are at least 44 CSS pixels", async ({ page }, testInfo) => {
+  const mobileProjects = new Set([
+    "chromium-phone",
+    "firefox-narrow",
+    "webkit-iphone",
+    "webkit-ipad",
+  ]);
+  test.skip(!mobileProjects.has(testInfo.project.name), "Mobile and narrow viewport proof only.");
+  const signals = monitorPage(page);
+  await page.goto("/");
+
+  const narrow = testInfo.project.use.viewport.width <= 850;
+  const targets = narrow
+    ? page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link")
+    : page.locator(".app-nav a");
+  expect(await targets.count()).toBeGreaterThanOrEqual(5);
+  for (const target of await targets.all()) {
+    const box = await target.boundingBox();
+    expect(box, "A mobile navigation target should have a rendered box.").not.toBeNull();
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  expectCleanPage(signals);
+});
+
 test("a manual expense can be entered without exposing browser-only state", async ({ page }, testInfo) => {
   const signals = monitorPage(page);
   const description = `Browser smoke ${testInfo.project.name}`;

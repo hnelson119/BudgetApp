@@ -590,6 +590,8 @@ def test_budget_dashboard_and_fixed_expense_preview_are_responsive_authenticated
     assert b"Paycheck period" in home_response.content
     assert b"Not a verified bank balance" in home_response.content
     assert b'class="mobile-nav"' in home_response.content
+    assert b'href="#main-content">Skip to main content</a>' in home_response.content
+    assert b'id="main-content" tabindex="-1"' in home_response.content
     assert b"style=" not in home_response.content
     assert budget_response.status_code == 200
     assert b"Changes to generated rows affect this pay period only" in budget_response.content

@@ -88,7 +88,9 @@ real household data.
   time-bound Medium acceptance until the real VM TLS boundary is verified.
 - The disposable Chromium, Firefox, and WebKit baseline passed after remediating the two
   cross-browser findings recorded in `docs/SECURITY_FINDINGS.md`. Release-candidate repetition and
-  branded/real-device mobile passes remain pending.
+  branded/real-device mobile passes remain pending. Their exact browser, device, keyboard,
+  screen-reader, and zoom targets now have a machine-validated sanitized evidence procedure; no
+  target is counted before a dated manual run against the selected candidate.
 - Browser-driven DOM-XSS coverage passed across every automated engine/viewport. The manual
   authorization, session, CSV, financial-logic, audit-tampering, and network tests remain pending.
 - The release-candidate restore, audit-checkpoint comparison, lost-device, rotation, upgrade, and
