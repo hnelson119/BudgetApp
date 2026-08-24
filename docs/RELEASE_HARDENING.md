@@ -71,8 +71,8 @@ real household data.
 ## Execution order
 
 1. Finish the ASVS 5.0.0 requirement-level applicability and evidence mapping.
-2. Complete the automated Chromium, Firefox, and WebKit accessibility/responsive suites.
-3. Validate the isolated synthetic PostgreSQL penetration-test profile in `docs/PENTESTING.md`.
+2. Repeat the implemented Chromium, Firefox, and WebKit suite against the release candidate.
+3. Repeat the isolated synthetic PostgreSQL penetration-test profile in `docs/PENTESTING.md`.
 4. Run its unauthenticated ZAP passive/active automation, then authenticated automation for both
    synthetic users; review and disposition every report alert.
 5. Complete manual authorization, session, CSV, financial-logic, audit, and network tests.
@@ -86,9 +86,11 @@ real household data.
 - The disposable ZAP baseline completed for unauthenticated traffic and both MFA-authenticated
   synthetic users with no High/Critical alert. Its internal plain-HTTP transport remains a scoped,
   time-bound Medium acceptance until the real VM TLS boundary is verified.
-- Firefox/WebKit automation and real-device mobile passes have not yet run.
-- Browser-driven DOM-XSS coverage and the manual authorization, session, CSV, financial-logic,
-  audit-tampering, and network tests remain pending.
+- The disposable Chromium, Firefox, and WebKit baseline passed after remediating the two
+  cross-browser findings recorded in `docs/SECURITY_FINDINGS.md`. Release-candidate repetition and
+  branded/real-device mobile passes remain pending.
+- Browser-driven DOM-XSS coverage passed across every automated engine/viewport. The manual
+  authorization, session, CSV, financial-logic, audit-tampering, and network tests remain pending.
 - The release-candidate restore, audit-checkpoint comparison, lost-device, rotation, upgrade, and
   rollback rehearsals remain pending.
 - No complete release-candidate penetration-test pass is claimed yet.

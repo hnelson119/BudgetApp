@@ -10,6 +10,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+from core.forms import html_date_input, html_time_input
 from households.models import Category, Household
 from ledger.models import FinancialAccount, JournalEntry
 
@@ -40,11 +41,11 @@ class ManualEntryForm(HouseholdForm):
     )
     effective_date = forms.DateField(
         label="Date",
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=html_date_input(),
     )
     effective_time = forms.TimeField(
         label="Time",
-        widget=forms.TimeInput(attrs={"type": "time"}),
+        widget=html_time_input(),
         input_formats=("%H:%M",),
         help_text="Recorded in the household timezone.",
     )
@@ -224,11 +225,11 @@ class FinancialAccountForm(forms.Form):
 class ReversalForm(HouseholdForm):
     effective_date = forms.DateField(
         label="Refund/reversal date",
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=html_date_input(),
     )
     effective_time = forms.TimeField(
         label="Time",
-        widget=forms.TimeInput(attrs={"type": "time"}),
+        widget=html_time_input(),
         input_formats=("%H:%M",),
     )
     reason = forms.CharField(
@@ -262,11 +263,11 @@ class CardPurchaseRefundForm(HouseholdForm):
     amount = forms.DecimalField(min_value=Decimal("0.01"), max_digits=18, decimal_places=2)
     effective_date = forms.DateField(
         label="Refund date",
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=html_date_input(),
     )
     effective_time = forms.TimeField(
         label="Time",
-        widget=forms.TimeInput(attrs={"type": "time"}),
+        widget=html_time_input(),
         input_formats=("%H:%M",),
     )
     reason = forms.CharField(

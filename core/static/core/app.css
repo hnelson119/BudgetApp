@@ -594,8 +594,10 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .notification-actions .quiet-button { display: inline-flex; align-items: center; }
   .period-switcher { margin-top: 24px; }
   .dashboard-heading { margin-top: 30px; }
-  .summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .summary-grid article { min-height: 112px; padding: 16px; align-items: flex-start; }
+  .summary-grid article > div { min-width: 0; }
+  .summary-grid article p, .summary-grid article strong, .summary-grid article small { overflow-wrap: anywhere; }
   .summary-grid p { min-height: 30px; }
   .metric-icon { width: 36px; height: 36px; flex-basis: 36px; font-size: 1rem; }
   .allocation-card, .dashboard-card { padding: 20px; }

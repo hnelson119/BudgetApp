@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils import timezone
 
+from core.forms import html_date_input
 from debts.models import DebtAccount, DebtTermsRevision
 from debts.services.accounts import DebtStatementSpec, DebtTermsSpec
 from debts.services.mortgages import MortgageInstallmentSpec, MortgagePlanSpec
@@ -76,7 +77,7 @@ class DebtAccountCreateForm(DebtIdentityFields):
     )
     effective_from = forms.DateField(
         label="Terms effective from",
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=html_date_input(),
     )
     annual_percentage_rate = forms.DecimalField(
         label="APR (%)",
@@ -161,7 +162,7 @@ class DebtMetadataForm(DebtIdentityFields):
 
 
 class DebtTermsForm(HouseholdForm):
-    effective_from = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    effective_from = forms.DateField(widget=html_date_input())
     annual_percentage_rate = forms.DecimalField(
         label="APR (%)",
         min_value=Decimal("0"),
@@ -214,16 +215,16 @@ class DebtTermsForm(HouseholdForm):
 
 
 class DebtStatementForm(HouseholdForm):
-    statement_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    statement_date = forms.DateField(widget=html_date_input())
     period_start = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=html_date_input(),
     )
     period_end = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=html_date_input(),
     )
-    due_date = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    due_date = forms.DateField(required=False, widget=html_date_input())
     statement_balance = forms.DecimalField(
         min_value=Decimal("0.00"),
         max_digits=18,
@@ -307,7 +308,7 @@ class PayoffScenarioForm(forms.Form):
         decimal_places=2,
         initial=Decimal("0.00"),
     )
-    start_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    start_date = forms.DateField(widget=html_date_input())
     maximum_years = forms.IntegerField(
         min_value=1,
         max_value=100,
@@ -322,7 +323,7 @@ class DebtStatusConfirmationForm(forms.Form):
 
 
 class MortgagePlanForm(HouseholdForm):
-    effective_from = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    effective_from = forms.DateField(widget=html_date_input())
     monthly_obligation = forms.DecimalField(
         label="Full monthly obligation",
         min_value=Decimal("0.01"),

@@ -1,11 +1,24 @@
+from datetime import date, time
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.urls import reverse
 
+from core.forms import html_date_input, html_time_input
 from households.models import Household, HouseholdMembership
 
 TEST_PASSWORD = "safe-test-pass"  # pragma: allowlist secret
+
+
+def test_html_date_and_time_widgets_render_portable_values() -> None:
+    date_widget = html_date_input()
+    time_widget = html_time_input()
+
+    assert date_widget.input_type == "date"
+    assert date_widget.format_value(date(2026, 8, 24)) == "2026-08-24"
+    assert time_widget.input_type == "time"
+    assert time_widget.format_value(time(19, 5, 48)) == "19:05"
 
 
 @pytest.mark.django_db

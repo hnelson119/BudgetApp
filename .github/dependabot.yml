@@ -35,3 +35,15 @@ updates:
     labels:
       - dependencies
       - containers
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:45"
+      timezone: America/New_York
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - browser-tests

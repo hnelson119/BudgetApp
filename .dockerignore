@@ -21,3 +21,7 @@ postgres-data
 backups
 security-reports
 design
+node_modules
+playwright-report
+test-results
+browser-reports
