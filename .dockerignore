@@ -4,8 +4,10 @@
 __pycache__
 *.pyc
 .pytest_cache
+.pytest-tmp
 .mypy_cache
 .ruff_cache
+.pip-audit-cache
 .coverage
 htmlcov
 .env*

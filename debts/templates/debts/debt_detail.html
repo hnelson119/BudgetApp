@@ -1,0 +1,74 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}{{ debt.name }} · Household Budget{% endblock %}
+{% block page_title %}Debt detail{% endblock %}
+
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% url 'debts:list' %}">← Back to debts</a>
+    <div class="form-card transaction-detail-card">
+      <div class="section-title"><div><p class="eyebrow">{{ debt.get_debt_type_display }}</p><h2>{{ debt.name }}</h2></div><span class="row-status status-{{ debt.status|slugify }}">{{ debt.get_status_display }}</span></div>
+      <dl class="detail-grid debt-detail-grid">
+        <div><dt>Current balance</dt><dd>{{ debt.current_balance|money }}</dd></div>
+        <div><dt>APR</dt><dd>{{ current_terms.annual_percentage_rate }}%</dd></div>
+        <div><dt>Scheduled monthly</dt><dd>{{ scheduled_payment|money }}</dd></div>
+        <div><dt>Minimum payment</dt><dd>{{ current_terms.minimum_payment|money }}</dd></div>
+        <div><dt>Interest model</dt><dd>{{ current_terms.get_interest_method_display }}</dd></div>
+        <div><dt>Due day</dt><dd>Day {{ current_terms.due_day }}</dd></div>
+        <div><dt>Linked account</dt><dd>{{ debt.financial_account.name|default:'Not linked' }}</dd></div>
+        <div><dt>Last reconciled</dt><dd>{{ debt.last_reconciled_on|date:'M j, Y'|default:'Not yet' }}</dd></div>
+        <div><dt>Custom priority</dt><dd>{{ current_terms.custom_priority }}</dd></div>
+      </dl>
+      {% if debt.notes %}<div class="detail-note"><strong>Notes</strong><p>{{ debt.notes }}</p></div>{% endif %}
+      <div class="action-row detail-actions debt-detail-actions">
+        <a class="secondary-button" href="{% url 'debts:edit' debt.pk %}">Edit details</a>
+        {% if debt.status == 'active' %}
+          <a class="secondary-button" href="{% url 'debts:terms-create' debt.pk %}">Revise terms</a>
+          <a class="primary-link" href="{% url 'debts:statement-create' debt.pk %}">Reconcile statement</a>
+          <a class="danger-button" href="{% url 'debts:status' debt.pk 'archive' %}">Archive</a>
+        {% elif debt.status == 'archived' %}
+          <a class="secondary-button" href="{% url 'debts:status' debt.pk 'restore' %}">Restore</a>
+        {% endif %}
+      </div>
+
+      <section class="debt-history-section">
+        <div class="section-title"><div><p class="eyebrow">Protected lender history</p><h3>Statement reconciliations</h3></div></div>
+        {% if statements %}
+          <div class="audit-table-scroll">
+            <table class="audit-table debt-history-table">
+              <thead><tr><th>Statement</th><th>Balance</th><th>APR</th><th>Minimum</th><th>Principal</th><th>Interest</th><th>Escrow / PMI / fees</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {% for statement in statements %}
+                  <tr>
+                    <td>{{ statement.statement_date|date:'M j, Y' }}</td>
+                    <td>{{ statement.statement_balance|money }}</td>
+                    <td>{{ statement.annual_percentage_rate }}%</td>
+                    <td>{{ statement.minimum_payment|money }}</td>
+                    <td>{{ statement.principal_paid|money }}{% if statement.extra_principal_paid > 0 %}<small>+ {{ statement.extra_principal_paid|money }} extra</small>{% endif %}</td>
+                    <td>{{ statement.interest_charged|money }}</td>
+                    <td>{{ statement.escrow_paid|money }} / {{ statement.pmi_paid|money }} / {{ statement.fees_charged|money }}</td>
+                    <td>{% if statement.supersedes %}<span class="row-status status-corrected">Correction</span>{% elif statement.superseded_by %}<span class="row-status status-superseded">Superseded</span>{% else %}<span class="row-status status-committed">Current</span>{% endif %}</td>
+                    <td class="row-actions">{% if not statement.supersedes and not statement.superseded_by %}<a href="{% url 'debts:statement-correct' debt.pk statement.pk %}">Correct</a>{% endif %}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-panel"><strong>No statements reconciled</strong><span>Enter a lender statement to update the current balance and preserve actual interest, fees, and mortgage components.</span></div>
+        {% endif %}
+      </section>
+
+      <section class="debt-history-section">
+        <div class="section-title"><div><p class="eyebrow">Projection assumptions</p><h3>Effective-dated terms</h3></div></div>
+        <div class="audit-table-scroll">
+          <table class="audit-table debt-history-table">
+            <thead><tr><th>Revision</th><th>Effective</th><th>APR</th><th>Method</th><th>Minimum</th><th>Recurring extra</th><th>Due</th><th>Priority</th></tr></thead>
+            <tbody>{% for revision in terms_revisions %}<tr><td>{{ revision.revision_number }}</td><td>{{ revision.effective_from|date:'M j, Y' }}</td><td>{{ revision.annual_percentage_rate }}%</td><td>{{ revision.get_interest_method_display }}</td><td>{{ revision.minimum_payment|money }}</td><td>{{ revision.recurring_extra_payment|money }}</td><td>Day {{ revision.due_day }}</td><td>{{ revision.custom_priority }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </section>
+{% endblock %}

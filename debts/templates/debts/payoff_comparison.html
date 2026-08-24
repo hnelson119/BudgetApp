@@ -1,0 +1,52 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}Payoff comparison · Household Budget{% endblock %}
+{% block page_title %}Debt payoff comparison{% endblock %}
+
+{% block content %}
+  <div class="dashboard-heading budget-heading">
+    <div><p class="eyebrow">Projection lab</p><h2>Compare payoff strategies</h2><p class="muted">Every strategy uses the same exact-Decimal interest engine and effective-dated debt terms.</p></div>
+    <a class="secondary-button" href="{% url 'debts:list' %}">Back to debts</a>
+  </div>
+
+  <section class="form-card payoff-scenario-card">
+    <form class="filter-bar payoff-filter-bar" method="get">
+      {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+      {% for field in form.visible_fields %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label>{% endfor %}
+      <button class="primary-button" type="submit">Run comparison</button>
+    </form>
+  </section>
+
+  {% if not has_debts %}
+    <div class="empty-panel"><strong>No active balances to project</strong><span>Add an active debt with current terms before running a payoff comparison.</span></div>
+  {% elif comparison %}
+    <section class="summary-grid debt-summary-grid" aria-label="Projection summary">
+      <article><span class="metric-icon bills-icon" aria-hidden="true">$</span><div><p>Starting balance</p><strong>{{ total_balance|money }}</strong><small>Across active projected debts</small></div></article>
+      <article><span class="metric-icon goals-icon" aria-hidden="true">↗</span><div><p>Scenario extra</p><strong>{{ form.cleaned_data.monthly_extra|money }}</strong><small>Directed by each payoff strategy</small></div></article>
+      <article><span class="metric-icon spend-icon" aria-hidden="true">≈</span><div><p>Projection status</p><strong>Estimate</strong><small>Recorded lender statements control historical actuals</small></div></article>
+    </section>
+    <section class="transaction-panel debt-panel">
+      <div class="budget-table-scroll">
+        <table class="budget-table projection-table">
+          <thead><tr><th>Strategy</th><th>Payoff date</th><th>Months</th><th>Total interest</th><th>Interest saved</th><th>Time saved</th><th>Total paid</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for row in comparison_rows %}
+              <tr>
+                <td><strong>{{ row.label }}</strong></td>
+                <td>{{ row.comparison.projection.payoff_date|date:'M Y'|default:'Beyond horizon' }}</td>
+                <td>{{ row.comparison.projection.months }}</td>
+                <td>{{ row.comparison.projection.total_interest|money }}</td>
+                <td>{% if row.comparison.interest_saved != None %}{{ row.comparison.interest_saved|money }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td>{% if row.comparison.months_saved != None %}{{ row.comparison.months_saved }} months{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td>{{ row.comparison.projection.total_paid|money }}</td>
+                <td><span class="row-status {% if row.comparison.projection.paid_off %}status-committed{% else %}status-attention{% endif %}">{% if row.comparison.projection.paid_off %}Paid off{% else %}Not paid within horizon{% endif %}</span></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="table-note">Snowball targets the lowest balance, avalanche targets the highest APR, and custom uses the configured priority. A paid-off debt's scheduled payment rolls into the next target beginning the following modeled month.</p>
+    </section>
+  {% endif %}
+{% endblock %}

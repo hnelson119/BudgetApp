@@ -1,0 +1,21 @@
+{% extends 'core/app_base.html' %}
+
+{% block title %}{{ verb }} {{ debt.name }} · Household Budget{% endblock %}
+{% block page_title %}Confirm debt status{% endblock %}
+
+{% block content %}
+  <section class="form-page">
+    <a class="back-link" href="{% url 'debts:detail' debt.pk %}">← Back to debt details</a>
+    <div class="form-card danger-card">
+      <p class="eyebrow">Confirmation required</p>
+      <h2>{{ verb }} {{ debt.name }}?</h2>
+      <p>The status will change to {{ target_label }}. Balances, statements, terms revisions, and protected audit history remain intact.</p>
+      <form class="app-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}<div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">{{ field.label_tag }}{{ field }}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+        <button class="{% if verb == 'Archive' %}danger-button{% else %}primary-button{% endif %}" type="submit">{{ verb }} debt</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

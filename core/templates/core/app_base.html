@@ -24,7 +24,7 @@
           {% endif %}
           <a href="#" aria-disabled="true"><span aria-hidden="true">▣</span> Income</a>
           <a{% if current_nav == 'spending' %} class="is-active" aria-current="page"{% endif %} href="{% url 'spending:transaction-list' %}"><span aria-hidden="true">◫</span> Spending</a>
-          <a href="#" aria-disabled="true"><span aria-hidden="true">▤</span> Debts</a>
+          <a{% if current_nav == 'debts' %} class="is-active" aria-current="page"{% endif %} href="{% url 'debts:list' %}"><span aria-hidden="true">▤</span> Debts</a>
           <a href="#" aria-disabled="true"><span aria-hidden="true">◎</span> Goals</a>
         </nav>
         <div class="sidebar-footer">
@@ -63,6 +63,7 @@
         <a{% if current_nav == 'overview' %} class="is-active" aria-current="page"{% endif %} href="{% url 'core:home' %}{% if period %}?period={{ period.pk }}{% endif %}"><span aria-hidden="true">⌂</span>Overview</a>
         {% if period %}<a{% if current_nav == 'budget' %} class="is-active" aria-current="page"{% endif %} href="{% url 'budgets:detail' period.pk %}"><span aria-hidden="true">◔</span>Budget</a>{% else %}<a href="#" aria-disabled="true"><span aria-hidden="true">◔</span>Budget</a>{% endif %}
         <a{% if current_nav == 'spending' %} class="is-active" aria-current="page"{% endif %} href="{% url 'spending:transaction-list' %}"><span aria-hidden="true">◫</span>Spending</a>
+        <a{% if current_nav == 'debts' %} class="is-active" aria-current="page"{% endif %} href="{% url 'debts:list' %}"><span aria-hidden="true">▤</span>Debts</a>
         <a href="{% url 'audit:history' %}"><span aria-hidden="true">☰</span>Audit</a>
       </nav>
     </div>

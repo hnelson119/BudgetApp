@@ -197,6 +197,19 @@ Exit criteria: Golden cases E–G pass; malformed/import security tests pass; re
 - Implement two monthly mortgage installment rules totaling one obligation
 - Sync installment occurrences one way into Budget
 
+Progress: the debt-account and payoff-comparison vertical slice is implemented. Household members
+can create and maintain debts, optionally link one liability account, append effective-dated APR,
+interest-method, minimum-payment, recurring-extra, due-day, and custom-priority revisions, and
+reconcile lender statements without rewriting history. Statement records preserve principal,
+interest, fees, escrow, PMI, and extra principal as distinct values; corrections append a linked
+replacement while retaining the original. Application service guards and PostgreSQL triggers
+protect terms and statements from ordinary mutation or deletion. The shared exact-Decimal engine
+compares minimum-only, snowball, avalanche, and custom ordering, supports monthly and actual-day
+interest, applies future terms by effective date, and rolls freed scheduled payments beginning in
+the next modeled cycle. Responsive, MFA-protected, household-scoped debt screens and confirmation-
+gated archiving are covered by integration tests. The split-mortgage persistence, installment
+schedule, and one-way Budget synchronization remain in progress.
+
 Exit criteria: Golden case H and debt projection comparison tests pass; escrow never reduces principal.
 
 ### Milestone 8 — Goals and automatic allocation

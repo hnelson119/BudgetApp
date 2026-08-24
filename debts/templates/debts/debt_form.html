@@ -1,0 +1,27 @@
+{% extends 'core/app_base.html' %}
+
+{% block title %}{{ title }} · Household Budget{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% if debt %}{% url 'debts:detail' debt.pk %}{% else %}{% url 'debts:list' %}{% endif %}">← Back to {% if debt %}debt details{% else %}debts{% endif %}</a>
+    <div class="form-card">
+      <p class="eyebrow">{{ eyebrow }}</p>
+      <h2>{{ title }}</h2>
+      <p>{{ help_text }}</p>
+      <form class="app-form debt-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}
+          <div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">
+            {{ field.label_tag }}{{ field }}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+        <button class="primary-button" type="submit">Save</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}
