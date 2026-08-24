@@ -94,9 +94,9 @@ directory or an encrypted assessment location outside the repository.
 
 ## 2026-08-24 synthetic browser baseline
 
-- Result: 37 passed, 6 intentionally skipped, and zero failed in 32.5 seconds. The skipped cases
-  were duplicate executions of the destructive category-budget deletion proof; its designated
-  Chromium desktop execution passed.
+- Result after the accessibility extension: 44 passed, 13 intentionally skipped, and zero failed
+  in 37.4 seconds. The skipped cases were project-inapplicable keyboard/touch checks and duplicate
+  executions of the destructive category-budget deletion proof; every designated execution passed.
 - Matrix: Chromium, Firefox, and WebKit desktop; Chromium phone; Firefox narrow; and WebKit iPhone
   and iPad viewports.
 - The real password-and-TOTP UI login, HttpOnly/SameSite session cookie, no-store/cache headers,
@@ -104,6 +104,9 @@ directory or an encrypted assessment location outside the repository.
   deletion confirmation, responsive navigation, theme, and no-horizontal-overflow checks passed.
 - Reflected query and fragment DOM-XSS probes remained inert in every project. Automated WCAG 2
   A/AA axe checks reported no violation on the dashboard, Debts, or Goals pages in any project.
+- The Chromium, Firefox, and WebKit desktop projects passed keyboard skip-navigation, visible-focus,
+  logical initial focus, and keyboard theme-activation checks. Phone, narrow Firefox, iPhone, and
+  iPad layouts exposed primary navigation targets at least 44 CSS pixels high.
 - The test browser received only a scoped mode-restricted copy of Alex's disposable password and
   TOTP seed. It never mounted the full secret/auth volumes. Screenshots, traces, video, and HTML
   reports were disabled; all synthetic state and Docker resources were removed after execution.

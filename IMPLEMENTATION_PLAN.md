@@ -284,8 +284,13 @@ in progress. The disposable Playwright baseline now signs in through the real pa
 flow and passes Chromium, Firefox, and WebKit desktop/narrow/mobile-engine projects. It covers
 security headers and storage, CSP-backed DOM-XSS inertness, automated WCAG A/AA checks, responsive
 navigation and overflow, theme behavior, manual expense entry, and confirmed category-budget
-deletion. Its first execution also found and remediated nonportable HTML date defaults and
-font-metric-dependent narrow summary-card overflow.
+deletion. Keyboard skip navigation, visible focus, inert unavailable links, and measured 44-pixel
+primary navigation targets now extend that baseline. A separate machine-validated branded-browser,
+real-device, keyboard, screen-reader, and zoom matrix defines the sanitized per-run evidence needed
+for a release candidate without treating engine automation as a manual pass. Its first execution
+also found and remediated nonportable HTML date defaults and font-metric-dependent narrow summary-
+card overflow. The manual matrix remains at 0 of 18 required release-candidate targets until an
+actual candidate and test devices are available.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

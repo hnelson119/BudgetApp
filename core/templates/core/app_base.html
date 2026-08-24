@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{% static 'core/app.css' %}">
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="app-frame">
       <aside class="app-sidebar" aria-label="Primary navigation">
         <a class="brand" href="{% url 'core:home' %}">
@@ -20,9 +21,9 @@
           {% if period %}
             <a{% if current_nav == 'budget' %} class="is-active" aria-current="page"{% endif %} href="{% url 'budgets:detail' period.pk %}"><span aria-hidden="true">◔</span> Budget</a>
           {% else %}
-            <a href="#" aria-disabled="true"><span aria-hidden="true">◔</span> Budget</a>
+            <a role="link" aria-disabled="true" tabindex="-1"><span aria-hidden="true">◔</span> Budget</a>
           {% endif %}
-          <a href="#" aria-disabled="true"><span aria-hidden="true">▣</span> Income</a>
+          <a role="link" aria-disabled="true" tabindex="-1"><span aria-hidden="true">▣</span> Income</a>
           <a{% if current_nav == 'spending' %} class="is-active" aria-current="page"{% endif %} href="{% url 'spending:transaction-list' %}"><span aria-hidden="true">◫</span> Spending</a>
           <a{% if current_nav == 'debts' %} class="is-active" aria-current="page"{% endif %} href="{% url 'debts:list' %}"><span aria-hidden="true">▤</span> Debts</a>
           <a{% if current_nav == 'goals' %} class="is-active" aria-current="page"{% endif %} href="{% url 'goals:list' %}"><span aria-hidden="true">◎</span> Goals</a>
@@ -33,7 +34,7 @@
         </div>
       </aside>
 
-      <main class="app-main">
+      <main class="app-main" id="main-content" tabindex="-1">
         <header class="app-topbar">
           <div>
             <p class="eyebrow">Private household workspace</p>
@@ -66,7 +67,7 @@
 
       <nav class="mobile-nav" aria-label="Mobile navigation">
         <a{% if current_nav == 'overview' %} class="is-active" aria-current="page"{% endif %} href="{% url 'core:home' %}{% if period %}?period={{ period.pk }}{% endif %}"><span aria-hidden="true">⌂</span>Overview</a>
-        {% if period %}<a{% if current_nav == 'budget' %} class="is-active" aria-current="page"{% endif %} href="{% url 'budgets:detail' period.pk %}"><span aria-hidden="true">◔</span>Budget</a>{% else %}<a href="#" aria-disabled="true"><span aria-hidden="true">◔</span>Budget</a>{% endif %}
+        {% if period %}<a{% if current_nav == 'budget' %} class="is-active" aria-current="page"{% endif %} href="{% url 'budgets:detail' period.pk %}"><span aria-hidden="true">◔</span>Budget</a>{% else %}<a role="link" aria-disabled="true" tabindex="-1"><span aria-hidden="true">◔</span>Budget</a>{% endif %}
         <a{% if current_nav == 'spending' %} class="is-active" aria-current="page"{% endif %} href="{% url 'spending:transaction-list' %}"><span aria-hidden="true">◫</span>Spending</a>
         <a{% if current_nav == 'debts' %} class="is-active" aria-current="page"{% endif %} href="{% url 'debts:list' %}"><span aria-hidden="true">▤</span>Debts</a>
         <a{% if current_nav == 'goals' %} class="is-active" aria-current="page"{% endif %} href="{% url 'goals:list' %}"><span aria-hidden="true">◎</span>Goals</a>

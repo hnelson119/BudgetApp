@@ -37,6 +37,28 @@ body {
 button, input, select, textarea { font: inherit; }
 a { color: inherit; }
 
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 1000;
+  top: 12px;
+  left: 12px;
+  padding: 11px 14px;
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 800;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 24px));
+}
+
+.skip-link:focus { transform: translateY(0); }
+
 .shell {
   width: min(1180px, calc(100% - 40px));
   margin: 0 auto;
@@ -303,8 +325,8 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .app-topbar h1 { font-size: clamp(1.6rem, 3vw, 2.1rem); }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 .topbar-actions form { margin: 0; }
-.quiet-button { min-height: 42px; padding: 0 14px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
-.notification-link { position: relative; display: inline-flex; min-height: 42px; padding: 0 12px; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); text-decoration: none; }
+.quiet-button { min-height: 44px; padding: 0 14px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.notification-link { position: relative; display: inline-flex; min-height: 44px; padding: 0 12px; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); text-decoration: none; }
 .notification-link.is-active { border-color: var(--accent); color: var(--accent); }
 .notification-badge { display: grid; min-width: 20px; height: 20px; padding: 0 5px; place-items: center; border-radius: 999px; background: #ef9696; color: #241214; font-size: .68rem; font-weight: 850; }
 .period-switcher { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; max-width: 580px; margin: 32px auto 0; align-items: center; gap: 10px; }

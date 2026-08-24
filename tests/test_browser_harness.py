@@ -125,6 +125,9 @@ def test_browser_specs_cover_real_mfa_security_accessibility_and_workflows() -> 
     assert all(tag in security for tag in ("wcag2a", "wcag2aa", "wcag21a", "wcag21aa"))
     assert "expectNoHorizontalOverflow" in workflows
     assert "Switch color theme" in workflows
+    assert "Skip to main content" in workflows
+    assert "toBeFocused" in workflows
+    assert "44 CSS pixels" in workflows
     assert "manual expense" in workflows
     assert "Remove category budget" in workflows
     assert "Reason" in workflows and "confirmation" in workflows

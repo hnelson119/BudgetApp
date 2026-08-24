@@ -214,7 +214,10 @@ branch-only coverage.
 Production container dependencies are installed from `requirements-prod.lock`.
 Regenerate and audit both lock files whenever dependency constraints change.
 The Docker-only browser command creates and removes an isolated synthetic environment; see
-[`docs/BROWSER_TESTING.md`](docs/BROWSER_TESTING.md) before changing its scope or credentials.
+[`docs/BROWSER_TESTING.md`](docs/BROWSER_TESTING.md) before changing its scope or credentials. The
+separate branded-browser, real-device, keyboard, screen-reader, and zoom procedure is in
+[`docs/REAL_DEVICE_ACCESSIBILITY_TESTING.md`](docs/REAL_DEVICE_ACCESSIBILITY_TESTING.md); automated
+engine results do not satisfy those manual targets.
 
 The GitHub workflow in `.github/workflows/quality.yml` uses read-only repository permissions and
 immutable commit SHAs for official actions. Dependabot proposes reviewed updates for Python,

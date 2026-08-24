@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "updated": "2026-08-24",
+  "release_candidate": null,
+  "profiles": [
+    "desktop",
+    "mobile",
+    "keyboard",
+    "screen_reader",
+    "zoom"
+  ],
+  "scenarios": [
+    {
+      "id": "AUTH-01",
+      "title": "Password, MFA, recovery-safe errors, and sign-out",
+      "profiles": ["desktop", "mobile"]
+    },
+    {
+      "id": "NAV-01",
+      "title": "Primary navigation and browser back/forward behavior",
+      "profiles": ["desktop", "mobile"]
+    },
+    {
+      "id": "PERIOD-01",
+      "title": "Paycheck-anchored period dates and adjacent-period navigation",
+      "profiles": ["desktop", "mobile"]
+    },
+    {
+      "id": "BUDGET-01",
+      "title": "Budget review, edit, and confirmed deletion",
+      "profiles": ["desktop", "mobile"]
+    },
+    {
+      "id": "SPEND-01",
+      "title": "Manual expense entry and pay-period spending totals",
+      "profiles": ["desktop", "mobile"]
+    },
+    {
+      "id": "DEBT-01",
+      "title": "Debt details and payoff-strategy comparison",
+      "profiles": ["desktop", "mobile"]
+    },
+    {
+      "id": "GOAL-01",
+      "title": "Goal status and progress information",
+      "profiles": ["desktop", "mobile"]
+    },
+    {
+      "id": "THEME-01",
+      "title": "Dark default, light theme, contrast, and retained preference",
+      "profiles": ["desktop", "mobile"]
+    },
+    {
+      "id": "RESPONSIVE-01",
+      "title": "Orientation, reflow, readable tables, and touch targets",
+      "profiles": ["mobile"]
+    },
+    {
+      "id": "SESSION-01",
+      "title": "No sensitive history after sign-out and no credential-save prompt acceptance",
+      "profiles": ["desktop", "mobile"]
+    },
+    {
+      "id": "KEYBOARD-01",
+      "title": "Skip link, visible focus, logical order, activation, and no keyboard trap",
+      "profiles": ["keyboard"]
+    },
+    {
+      "id": "SCREENREADER-01",
+      "title": "Page titles, headings, landmarks, names, states, totals, and form errors",
+      "profiles": ["screen_reader"]
+    },
+    {
+      "id": "ZOOM-01",
+      "title": "Readable 200 percent zoom and 400 percent reflow without lost controls",
+      "profiles": ["zoom"]
+    }
+  ],
+  "targets": [
+    {"id": "desktop-edge-current", "platform": "Windows", "browser": "Edge", "version_policy": "current", "form_factor": "desktop", "availability": "required", "profiles": ["desktop"]},
+    {"id": "desktop-edge-previous", "platform": "Windows", "browser": "Edge", "version_policy": "previous major", "form_factor": "desktop", "availability": "required", "profiles": ["desktop"]},
+    {"id": "desktop-chrome-current", "platform": "Windows", "browser": "Chrome", "version_policy": "current", "form_factor": "desktop", "availability": "required", "profiles": ["desktop"]},
+    {"id": "desktop-chrome-previous", "platform": "Windows", "browser": "Chrome", "version_policy": "previous major", "form_factor": "desktop", "availability": "required", "profiles": ["desktop"]},
+    {"id": "desktop-firefox-current", "platform": "Windows", "browser": "Firefox", "version_policy": "current", "form_factor": "desktop", "availability": "required", "profiles": ["desktop"]},
+    {"id": "desktop-firefox-previous", "platform": "Windows", "browser": "Firefox", "version_policy": "previous major", "form_factor": "desktop", "availability": "required", "profiles": ["desktop"]},
+    {"id": "desktop-safari-current", "platform": "macOS", "browser": "Safari", "version_policy": "current", "form_factor": "desktop", "availability": "when available", "profiles": ["desktop"]},
+    {"id": "mobile-iphone-safari-current", "platform": "iOS", "browser": "Safari", "version_policy": "current", "form_factor": "phone", "availability": "required", "profiles": ["mobile"]},
+    {"id": "mobile-iphone-firefox-current", "platform": "iOS", "browser": "Firefox", "version_policy": "current", "form_factor": "phone", "availability": "required", "profiles": ["mobile"]},
+    {"id": "mobile-ipad-safari-current", "platform": "iPadOS", "browser": "Safari", "version_policy": "current", "form_factor": "tablet", "availability": "required", "profiles": ["mobile"]},
+    {"id": "mobile-ipad-firefox-current", "platform": "iPadOS", "browser": "Firefox", "version_policy": "current", "form_factor": "tablet", "availability": "required", "profiles": ["mobile"]},
+    {"id": "mobile-android-chrome-current", "platform": "Android", "browser": "Chrome", "version_policy": "current", "form_factor": "phone or tablet", "availability": "required", "profiles": ["mobile"]},
+    {"id": "mobile-android-firefox-current", "platform": "Android", "browser": "Firefox", "version_policy": "current", "form_factor": "phone or tablet", "availability": "required", "profiles": ["mobile"]},
+    {"id": "keyboard-edge-current", "platform": "Windows", "browser": "Edge", "version_policy": "current", "form_factor": "desktop", "availability": "required", "profiles": ["keyboard"]},
+    {"id": "keyboard-firefox-current", "platform": "Windows", "browser": "Firefox", "version_policy": "current", "form_factor": "desktop", "availability": "required", "profiles": ["keyboard"]},
+    {"id": "screenreader-narrator-edge-current", "platform": "Windows with Narrator", "browser": "Edge", "version_policy": "current", "form_factor": "desktop", "availability": "required", "profiles": ["screen_reader"]},
+    {"id": "screenreader-voiceover-safari-current", "platform": "iOS or iPadOS with VoiceOver", "browser": "Safari", "version_policy": "current", "form_factor": "phone or tablet", "availability": "required", "profiles": ["screen_reader"]},
+    {"id": "screenreader-talkback-chrome-current", "platform": "Android with TalkBack", "browser": "Chrome", "version_policy": "current", "form_factor": "phone or tablet", "availability": "required", "profiles": ["screen_reader"]},
+    {"id": "zoom-edge-current", "platform": "Windows", "browser": "Edge", "version_policy": "current", "form_factor": "desktop", "availability": "required", "profiles": ["zoom"]}
+  ]
+}

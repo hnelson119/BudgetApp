@@ -1,6 +1,6 @@
 # Browser security and compatibility testing
 
-Status: automated baseline implemented; real-device passes remain separate
+Status: automated baseline and manual evidence system implemented; manual passes remain separate
 Last updated: 2026-08-24
 
 ## Purpose and safety boundary
@@ -59,7 +59,10 @@ Every engine/viewport checks navigation, dark-mode default and light-mode persis
 overflow, protected workflows, browser storage, uncaught JavaScript errors, and manual expense
 entry. The suite also checks cookie and response headers, CSP-backed reflected/fragment DOM-XSS
 inertness, WCAG 2 A/AA rules with axe-core on key pages, and the explicit reason-plus-checkbox
-confirmation required to delete a category budget.
+confirmation required to delete a category budget. Desktop engines also verify the keyboard skip
+path, logical initial focus order, visible focus ring, theme activation, and inert unavailable
+navigation. Phone, narrow, and iPad layouts measure their exposed primary navigation targets
+against the 44-CSS-pixel minimum.
 
 ## CI and dependency controls
 
@@ -78,4 +81,7 @@ Playwright's WebKit is not branded Safari, a narrow Firefox engine is not Firefo
 and automated axe rules detect only part of accessibility problems. Before release, complete manual
 keyboard/screen-reader review and smoke tests on available real or hosted iPhone/iPad Safari and
 Firefox plus Android Chrome and Firefox. Edge and branded current/previous Chrome/Firefox version
-support also requires release-candidate coverage beyond these engine baselines.
+support also requires release-candidate coverage beyond these engine baselines. The exact matrix,
+safety boundary, procedures, and sanitized evidence format are defined in
+`docs/REAL_DEVICE_ACCESSIBILITY_TESTING.md`; pending runs remain pending rather than inheriting an
+automated engine result.
