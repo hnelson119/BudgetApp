@@ -30,8 +30,11 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Front-end dependencies (reserved for a later milestone)
+# Browser-test dependencies and optional local reports
 node_modules/
+playwright-report/
+test-results/
+browser-reports/
 
 # Local database and backup data
 postgres-data/

@@ -5,6 +5,7 @@ from typing import Any, cast
 from django import forms
 
 from audit.models import AuditEvent
+from core.forms import html_date_input
 from households.models import Household
 from identity.models import User
 
@@ -22,12 +23,12 @@ class AuditFilterForm(forms.Form):
     date_from = forms.DateField(
         required=False,
         label="From",
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=html_date_input(),
     )
     date_to = forms.DateField(
         required=False,
         label="Through",
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=html_date_input(),
     )
 
     def __init__(self, *args: Any, household: Household, **kwargs: Any) -> None:

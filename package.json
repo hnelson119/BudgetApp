@@ -1,0 +1,14 @@
+{
+  "name": "household-budget-browser-tests",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Disposable cross-browser release checks for the Household Budget application",
+  "type": "module",
+  "scripts": {
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.62.1"
+  }
+}

@@ -7,6 +7,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 
+from core.forms import html_date_input
 from households.models import Category, Household
 from ledger.models import JournalEntry
 from periods.models import PayPeriod
@@ -56,7 +57,7 @@ class CategoryForm(forms.Form):
 
 class OccurrenceOverrideForm(forms.Form):
     planned_amount = forms.DecimalField(min_value=Decimal("0.00"), max_digits=18, decimal_places=2)
-    expected_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    expected_date = forms.DateField(widget=html_date_input())
     reason = forms.CharField(max_length=500, widget=forms.Textarea(attrs={"rows": 3}))
 
 
@@ -150,8 +151,8 @@ class FixedExpenseScheduleForm(HouseholdForm):
         )
     )
     interval = forms.IntegerField(min_value=1, max_value=366, initial=1)
-    start_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
-    end_date = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    start_date = forms.DateField(widget=html_date_input())
+    end_date = forms.DateField(required=False, widget=html_date_input())
     weekdays = forms.MultipleChoiceField(
         required=False,
         choices=WEEKDAY_CHOICES,

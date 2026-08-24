@@ -7,6 +7,7 @@ from typing import Any, cast
 from django import forms
 from django.core.exceptions import ValidationError
 
+from core.forms import html_date_input
 from debts.models import DebtAccount
 from goals.models import GoalContribution, GoalRevision
 from goals.services import GoalSpec
@@ -28,7 +29,7 @@ class PeriodChoiceField(forms.ModelChoiceField):
 
 
 class GoalForm(forms.Form):
-    effective_from = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    effective_from = forms.DateField(widget=html_date_input())
     name = forms.CharField(max_length=120)
     goal_type = forms.ChoiceField(choices=GoalRevision.GoalType.choices)
     opening_amount = forms.DecimalField(
@@ -44,7 +45,7 @@ class GoalForm(forms.Form):
     )
     target_date = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=html_date_input(),
     )
     contribution_per_period = forms.DecimalField(
         min_value=Decimal("0.00"),
@@ -175,7 +176,7 @@ class GoalForm(forms.Form):
 class GoalContributionForm(forms.Form):
     pay_period = PeriodChoiceField(queryset=PayPeriod.objects.none())
     amount = forms.DecimalField(min_value=Decimal("0.01"), max_digits=18, decimal_places=2)
-    effective_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    effective_date = forms.DateField(widget=html_date_input())
     reason = forms.CharField(required=False, max_length=500)
 
     def __init__(
@@ -223,7 +224,7 @@ class PriorityAllocationForm(forms.Form):
 
 
 class GoalStatusForm(forms.Form):
-    effective_from = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
+    effective_from = forms.DateField(widget=html_date_input())
     status = forms.ChoiceField(choices=GoalRevision.Status.choices)
     reason = forms.CharField(max_length=500, widget=forms.Textarea(attrs={"rows": 2}))
 

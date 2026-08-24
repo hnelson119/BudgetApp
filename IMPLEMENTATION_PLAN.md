@@ -279,8 +279,13 @@ high/critical operating-system or Python-package vulnerabilities using an immuta
 container. Raw security-tool output is ignored by default and must remain outside source control;
 only sanitized findings and retest summaries may be committed. The isolated synthetic ZAP baseline
 now covers unauthenticated traffic and both MFA-authenticated household roles. Manual adversarial
-testing, cross-browser automation, release-candidate repetition, and operational rehearsals remain
-in progress.
+testing, release-candidate repetition, real-device smoke testing, and operational rehearsals remain
+in progress. The disposable Playwright baseline now signs in through the real password-and-TOTP
+flow and passes Chromium, Firefox, and WebKit desktop/narrow/mobile-engine projects. It covers
+security headers and storage, CSP-backed DOM-XSS inertness, automated WCAG A/AA checks, responsive
+navigation and overflow, theme behavior, manual expense entry, and confirmed category-budget
+deletion. Its first execution also found and remediated nonportable HTML date defaults and
+font-metric-dependent narrow summary-card overflow.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

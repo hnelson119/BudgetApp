@@ -204,6 +204,7 @@ python manage.py makemigrations --check --dry-run --settings=config.settings.tes
 python scripts/secret_scan.py
 python -m bandit -c pyproject.toml -r audit budgets config core debts goals households identity imports ledger notifications periods reserves schedules spending
 python -m pip_audit --requirement requirements-dev.lock --cache-dir .pip-audit-cache --no-deps --disable-pip --strict
+.\scripts\run-browser-tests.ps1
 ```
 
 Coverage excludes Django migration modules, which are verified separately through migration and
@@ -212,10 +213,13 @@ branch-only coverage.
 
 Production container dependencies are installed from `requirements-prod.lock`.
 Regenerate and audit both lock files whenever dependency constraints change.
+The Docker-only browser command creates and removes an isolated synthetic environment; see
+[`docs/BROWSER_TESTING.md`](docs/BROWSER_TESTING.md) before changing its scope or credentials.
 
 The GitHub workflow in `.github/workflows/quality.yml` uses read-only repository permissions and
 immutable commit SHAs for official actions. Dependabot proposes reviewed updates for Python,
-workflow actions, and container bases; it does not deploy changes automatically.
+Node browser-test packages, workflow actions, and container bases; it does not deploy changes
+automatically.
 
 ## Build authority
 

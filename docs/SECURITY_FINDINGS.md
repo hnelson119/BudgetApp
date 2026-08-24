@@ -61,6 +61,55 @@ directory or an encrypted assessment location outside the repository.
 - Acceptance boundary: this exception applies only to the disposable scanner transport. Plain HTTP
   is not accepted for a deployed instance.
 
+## M10-F004 — Nonportable native date-control defaults
+
+- Severity: Low
+- State: Retested
+- Detected: 2026-08-24
+- Owner: release owner
+- Affected baseline: initial Chromium, Firefox, and WebKit workflow run
+- Detection: every engine retained the manual-expense form instead of accepting the write because
+  Django's locale-formatted initial date was not a valid HTML `date` control value.
+- Remediation: introduced shared ISO-date and minute-precision time widgets and applied them to all
+  audit, budget, debt, goal, and spending native date/time controls.
+- Retest: portable widget unit tests and the manual-expense workflow passed in all seven automated
+  browser projects.
+- Security impact: none observed; validation rejected the incomplete submission and no partial
+  ledger write occurred.
+
+## M10-F005 — Font-dependent narrow summary-card overflow
+
+- Severity: Low
+- State: Retested
+- Detected: 2026-08-24
+- Owner: release owner
+- Affected baseline: Firefox narrow dashboard and WebKit iPhone Goals view
+- Detection: engine-specific font metrics forced two summary cards 7–12 pixels beyond the
+  390-pixel viewport.
+- Remediation: changed the narrow two-column tracks to shrink-safe `minmax(0, 1fr)` sizing and
+  allowed summary text to wrap without expanding its grid item.
+- Retest: dashboard, Spending, Debts, and Goals had no horizontal document overflow across every
+  desktop, narrow, phone, and iPad project.
+- Security impact: none; this was a responsive usability defect.
+
+## 2026-08-24 synthetic browser baseline
+
+- Result: 37 passed, 6 intentionally skipped, and zero failed in 32.5 seconds. The skipped cases
+  were duplicate executions of the destructive category-budget deletion proof; its designated
+  Chromium desktop execution passed.
+- Matrix: Chromium, Firefox, and WebKit desktop; Chromium phone; Firefox narrow; and WebKit iPhone
+  and iPad viewports.
+- The real password-and-TOTP UI login, HttpOnly/SameSite session cookie, no-store/cache headers,
+  CSP, Permissions Policy, X-Frame-Options, local/session storage restrictions, manual expense,
+  deletion confirmation, responsive navigation, theme, and no-horizontal-overflow checks passed.
+- Reflected query and fragment DOM-XSS probes remained inert in every project. Automated WCAG 2
+  A/AA axe checks reported no violation on the dashboard, Debts, or Goals pages in any project.
+- The test browser received only a scoped mode-restricted copy of Alex's disposable password and
+  TOTP seed. It never mounted the full secret/auth volumes. Screenshots, traces, video, and HTML
+  reports were disabled; all synthetic state and Docker resources were removed after execution.
+- This is a development baseline, not release-candidate or real-device evidence. Branded browser,
+  assistive-technology, real iOS/iPadOS/Android, and remaining manual security passes are pending.
+
 ## 2026-08-24 synthetic ZAP baseline
 
 - Unauthenticated: 8 spider URLs, 6 alert types, zero Automation Framework errors/warnings, and no
@@ -72,10 +121,10 @@ directory or an encrypted assessment location outside the repository.
 - Remaining informational observations were ZAP's modern-application classification, recognition of
   session-management responses, authentication-request recognition, user-agent fuzzing, and its
   potential user-controllable HTML-attribute heuristic. The active scan raised no server-side XSS
-  finding. Browser-driven DOM-XSS testing remains explicitly pending in the Firefox/WebKit suite.
+  finding. The separate browser-driven DOM-XSS baseline subsequently passed in every project.
 - All test users, passwords, MFA seeds, sessions, database/media contents, containers, networks, and
   named volumes were generated for the run and removed afterward. Raw reports were reviewed locally,
   summarized here, and deleted after the secret scanner confirmed they contained ephemeral session
   material. They are not release evidence.
 - This is a development baseline, not a completed release-candidate penetration-test report. Manual
-  authorization, business-logic, audit-tampering, CSV, network, and browser security tests remain.
+  authorization, business-logic, audit-tampering, CSV, network, and real-device tests remain.
