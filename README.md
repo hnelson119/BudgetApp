@@ -21,7 +21,8 @@ category budgets, planned/actual reconciliation, responsive paycheck-period dash
 explicit Household Reserve allocation are implemented. The local PostgreSQL
 rehearsal passes with the dedicated migration identity and least-privilege runtime role, including
 database rejection of history tampering, reconciliation mutation, and overlapping periods.
-Milestone 6 is in progress. Its manual-spending and credit-card slices add responsive,
+The code-deliverable portions of Milestone 6 are complete. Its manual-spending and credit-card
+slices add responsive,
 paycheck-period-scoped transaction history; manual expense, one-off income, and card-payment entry;
 basic checking, savings, cash, credit-card, and other account setup; duplicate-submit protection;
 confirmed full refunds/reversals; and an append-only Credit-card Payment Reserve. Card payments
@@ -31,8 +32,11 @@ history is protected from runtime-role mutation in PostgreSQL. Append-only parti
 also implemented, including multiple-refund limits, category/liability corrections, and
 refund-aware reserve reallocation. Hardened expense CSV import now provides bounded, nonpersistent
 UTF-8 upload parsing, column/sign/date mapping, preview-only staging, category gaps, normalized duplicate detection,
-atomic and idempotent confirmation, import provenance, and raw-row cleanup. Formula-safe CSV export
-remains in Milestone 6.
+atomic and idempotent confirmation, import provenance, and raw-row cleanup. Transaction CSV export
+now mirrors the selected pay-period or all-history filters, requires recent reauthentication,
+verifies audit integrity, streams without temporary files, preserves numeric amounts, neutralizes
+spreadsheet-formula text, and records the export scope in protected audit history. Milestone 7 debt
+and split-mortgage work is next.
 Private
 Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before

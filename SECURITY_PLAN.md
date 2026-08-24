@@ -196,6 +196,13 @@ ledger writes plus batch audit event share one database transaction.
 - Require recent reauthentication for full household and audit exports.
 - Audit who exported what scope and when, without storing the exported file in the audit log.
 
+Implementation note: transaction CSV export requires recent password-plus-MFA verification and
+successfully verifies the household audit chain before generation. It reuses the server-enforced
+transaction filters, streams directly from the household-scoped query without a temporary file,
+neutralizes every untrusted text field, and leaves Decimal amount cells numeric. The attachment is
+marked `no-store`; its protected audit event contains only the actor, export identifier, scope,
+filter metadata, row count, and time—not the file, search text, or transaction contents.
+
 ## 8. Data minimization and encryption
 
 - Do not store banking usernames, passwords, PINs, or full card numbers.

@@ -182,7 +182,34 @@ The file is parsed under byte/row/column/cell limits and is never retained as an
 commits every accepted expense and its audit history atomically, then scrubs staged raw cells. A
 failure rolls back the whole financial commit and leaves the reviewed staging data available.
 
-## 9. Audit write and verification
+## 9. CSV transaction export
+
+```mermaid
+sequenceDiagram
+    participant U as Household member
+    participant A as Application
+    participant L as Protected audit chain
+    participant C as CSV response
+
+    U->>A: Export current transaction scope and filters
+    A->>A: Require recent password + MFA verification
+    A->>L: Verify household audit integrity
+    alt verification succeeds
+        A->>L: Append actor, scope, filters, and row-count event
+        A->>C: Stream formula-safe rows with no-store headers
+        C-->>U: Download attachment
+    else verification fails
+        A-->>U: Block export and report integrity warning
+    end
+```
+
+The export query is household-scoped and mirrors the selected pay-period or all-history view. All
+untrusted text cells are neutralized when they resemble spreadsheet formulas after leading
+whitespace. Decimal amount cells remain numeric, including negative refunds and reversals. The app
+does not create or retain a temporary export file, and neither search text nor transaction contents
+are copied into audit or operational logs.
+
+## 10. Audit write and verification
 
 ```mermaid
 sequenceDiagram
@@ -207,7 +234,7 @@ sequenceDiagram
     L-->>C: Copy/sign chain-head checkpoint outside VM
 ```
 
-## 10. Goal and reserve allocation
+## 11. Goal and reserve allocation
 
 ```mermaid
 flowchart TD

@@ -179,8 +179,13 @@ the reserve correction releases only cash that remains reserved. Refunds after c
 later payment reversals remain budget-neutral where appropriate. Expense CSV import is now also
 implemented with bounded UTF-8 parsing, nonpersistent upload handling, mapping and preview, category-gap
 review, cross-file and in-file duplicate fingerprints, household scoping, atomic/idempotent commit,
-imported ledger provenance, audit events, and raw-row cleanup. Formula-safe CSV export is the
-remaining M6 deliverable.
+imported ledger provenance, audit events, and raw-row cleanup. Formula-safe transaction export is
+also implemented. It mirrors the current household-scoped pay-period/all-history filters, requires
+recent password-plus-MFA verification, verifies audit integrity before generation, streams directly
+without a temporary file, preserves Decimal amounts as numeric cells, neutralizes untrusted formula-like
+text, and appends an export-scope audit event without retaining the file or transaction contents.
+
+Status: the code-deliverable portions of Milestone 6 are complete and locally verified.
 
 Exit criteria: Golden cases E–G pass; malformed/import security tests pass; repeating an import does not duplicate transactions.
 

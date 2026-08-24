@@ -264,6 +264,16 @@ The initial importer creates categorized expenses against one selected account. 
 rule excludes income, credits, or unlinked card refunds from a statement preview; those transaction
 types remain explicit manual workflows until a safe reconciliation/linking design is added.
 
+### CSV export
+
+Transaction export uses the selected paycheck-period or all-history scope and the active search,
+type, and account filters. It requires recent password-plus-MFA verification and a valid protected
+audit chain. The response is a streamed, non-cacheable attachment; no export file is retained.
+Untrusted text that begins with a spreadsheet-formula prefix after leading whitespace is emitted as
+literal text, while validated Decimal amounts—including negative refunds and reversals—remain
+numeric. Protected audit history records the member, scope, filters, row count, and time without
+recording the exported financial contents.
+
 ## 13. Spending and surplus calculations
 
 All currency calculations use exact decimal arithmetic and round to cents at defined boundaries.
@@ -422,7 +432,7 @@ Material events include:
 - Schedule and boundary changes
 - Moving an occurrence between periods
 - Marking income received or an expense paid
-- Manual and CSV transaction creation
+- Manual and CSV transaction creation, plus transaction exports
 - CSV import batches and duplicate decisions
 - Debt, goal, and category changes
 - Login, logout, failed login, audit export, and integrity-check results

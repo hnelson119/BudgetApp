@@ -1,25 +1,31 @@
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, time
 from decimal import Decimal
 from typing import Any
-from uuid import UUID
+from urllib.parse import urlencode
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Exists, OuterRef, Q
-from django.http import Http404, HttpRequest, HttpResponse
+from django.db.models import Exists, OuterRef, Q, QuerySet
+from django.http import Http404, HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 
+from audit.services import append_event, verify_household_chain
 from households.models import Household
 from households.services.access import get_active_household
 from identity.models import User
+from identity.services.sessions import recent_authentication_is_valid
 from ledger.models import FinancialAccount, JournalEntry, JournalPosting
 from ledger.services import create_financial_account, record_income
 from periods.models import PayPeriod
@@ -34,6 +40,7 @@ from spending.forms import (
     TransactionFilterForm,
 )
 from spending.services import (
+    TransactionCSVRow,
     credit_card_payment_reserve,
     household_card_payment_reserve,
     record_card_payment,
@@ -41,7 +48,10 @@ from spending.services import (
     record_spending_expense,
     refundable_card_purchase_amount,
     reverse_spending_entry,
+    stream_transaction_csv,
 )
+
+security_logger = logging.getLogger("security")
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,12 +214,12 @@ def _row(entry: JournalEntry, household: Household) -> TransactionRow:
     )
 
 
-@login_required
-@require_GET
-def transaction_list(request: HttpRequest) -> HttpResponse:
-    household = get_active_household(request)
-    period = _selected_period(request, household)
-    filter_form = TransactionFilterForm(request.GET or None, household=household)
+def _transaction_entries(
+    request: HttpRequest,
+    household: Household,
+    period: PayPeriod | None,
+    filter_form: TransactionFilterForm,
+) -> tuple[QuerySet[JournalEntry], str]:
     entries = (
         JournalEntry.objects.filter(household=household)
         .select_related(
@@ -244,11 +254,51 @@ def transaction_list(request: HttpRequest) -> HttpResponse:
             entries = entries.filter(entry_type=entry_type)
         if isinstance(account, FinancialAccount):
             entries = entries.filter(postings__financial_account=account).distinct()
+    return entries, scope
+
+
+def _csv_rows(
+    entries: QuerySet[JournalEntry],
+    household: Household,
+) -> Iterator[TransactionCSVRow]:
+    zone = ZoneInfo(household.time_zone)
+    for entry in entries.iterator(chunk_size=200):
+        row = _row(entry, household)
+        yield TransactionCSVRow(
+            transaction_id=entry.pk,
+            effective_at=row.local_effective_at,
+            time_zone=household.time_zone,
+            description=entry.description,
+            entry_type=entry.get_entry_type_display(),
+            account=row.accounts,
+            category=entry.category.name if entry.category is not None else "",
+            amount=row.amount,
+            currency=household.currency,
+            status=row.status,
+            provenance=entry.get_provenance_display(),
+            note=entry.note,
+            receipt_reference=entry.receipt_reference,
+            created_by=entry.created_by.display_name or entry.created_by.email,
+            committed_at=timezone.localtime(entry.committed_at, zone),
+            reversal_of_id=entry.reversal_of_id,
+            adjustment_for_id=entry.adjustment_for_id,
+        )
+
+
+@login_required
+@require_GET
+def transaction_list(request: HttpRequest) -> HttpResponse:
+    household = get_active_household(request)
+    period = _selected_period(request, household)
+    filter_form = TransactionFilterForm(request.GET or None, household=household)
+    entries, scope = _transaction_entries(request, household, period, filter_form)
     paginator = Paginator(entries, 50)
     page = paginator.get_page(request.GET.get("page"))
     rows = tuple(_row(entry, household) for entry in page.object_list)
     page_query = request.GET.copy()
     page_query.pop("page", None)
+    export_query = request.GET.copy()
+    export_query.pop("page", None)
     accounts = FinancialAccount.objects.filter(
         household=household,
         archived_at__isnull=True,
@@ -273,10 +323,86 @@ def transaction_list(request: HttpRequest) -> HttpResponse:
         "scope": scope,
         "page": page,
         "page_query": page_query.urlencode(),
+        "export_query": export_query.urlencode(),
         "current_nav": "spending",
         **_period_context(household, period),
     }
     return render(request, "spending/transaction_list.html", context)
+
+
+@login_required
+@require_GET
+def transaction_export(request: HttpRequest) -> HttpResponse | StreamingHttpResponse:
+    household = get_active_household(request)
+    if not recent_authentication_is_valid(request):
+        reauthentication_url = reverse("identity:reauthenticate")
+        query = urlencode({"next": request.get_full_path()})
+        return redirect(f"{reauthentication_url}?{query}")
+
+    period = _selected_period(request, household)
+    filter_form = TransactionFilterForm(request.GET or None, household=household)
+    entries, scope = _transaction_entries(request, household, period, filter_form)
+    integrity = verify_household_chain(household)
+    if not integrity.valid:
+        security_logger.error(
+            "Transaction CSV export blocked by audit-integrity failure.",
+            extra={"event": "spending.export_integrity_blocked"},
+        )
+        return HttpResponse(
+            "Export is unavailable because audit integrity verification failed.",
+            status=409,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    entry_count = entries.count()
+    entry_type = ""
+    account_id = ""
+    query_applied = False
+    if filter_form.is_valid():
+        entry_type = str(filter_form.cleaned_data.get("entry_type", ""))
+        account = filter_form.cleaned_data.get("account")
+        account_id = str(account.pk) if isinstance(account, FinancialAccount) else ""
+        query_applied = bool(str(filter_form.cleaned_data.get("q", "")).strip())
+
+    export_id = uuid4()
+    append_event(
+        household=household,
+        actor=_actor(request),
+        action="spending.transactions_exported",
+        entity_type="transaction_export",
+        entity_id=export_id,
+        request_id=_request_id(request),
+        after={
+            "scope": scope,
+            "period_id": period.pk if scope == "period" and period is not None else None,
+            "row_count": entry_count,
+            "filters": {
+                "query_applied": query_applied,
+                "entry_type": entry_type,
+                "account_id": account_id,
+            },
+        },
+    )
+    security_logger.info(
+        "Transaction CSV export authorized.",
+        extra={
+            "event": "spending.transactions_exported",
+            "export_id": str(export_id),
+            "scope": scope,
+            "row_count": entry_count,
+        },
+    )
+
+    local_now = timezone.localtime(timezone.now(), ZoneInfo(household.time_zone))
+    filename = f"budget-transactions-{local_now:%Y%m%dT%H%M%S}.csv"
+    response = StreamingHttpResponse(
+        stream_transaction_csv(_csv_rows(entries, household)),
+        content_type="text/csv; charset=utf-8",
+    )
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @login_required

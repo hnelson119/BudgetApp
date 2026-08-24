@@ -19,6 +19,7 @@
       <a class="primary-link" href="{% url 'spending:expense-create' %}">Record expense</a>
       <a class="secondary-button" href="{% url 'spending:income-create' %}">Record income</a>
       <a class="secondary-button" href="{% url 'imports:upload' %}">Import CSV</a>
+      <a class="secondary-button" href="{% url 'spending:transaction-export' %}{% if export_query %}?{{ export_query }}{% endif %}">Export CSV</a>
     </div>
   </div>
 

@@ -6,6 +6,7 @@ app_name = "spending"
 
 urlpatterns = [
     path("", views.transaction_list, name="transaction-list"),
+    path("export.csv", views.transaction_export, name="transaction-export"),
     path("expenses/add/", views.expense_create, name="expense-create"),
     path("income/add/", views.income_create, name="income-create"),
     path("accounts/add/", views.account_create, name="account-create"),
