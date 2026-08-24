@@ -276,7 +276,7 @@ Progress: the M10 evidence baseline now inventories every ASVS 5.0.0 chapter, re
 test, and release gate without claiming unperformed release passes. Local and CI quality gates
 validate that inventory. CI also builds the release image without runtime secrets and fails on
 high/critical operating-system or Python-package vulnerabilities using an immutable pinned Trivy
-action. Raw security-tool output is ignored by default and must remain outside source control;
+container. Raw security-tool output is ignored by default and must remain outside source control;
 only sanitized findings and retest summaries may be committed. ZAP automation, synthetic
 penetration-test data, cross-browser automation, and operational rehearsals remain in progress.
 

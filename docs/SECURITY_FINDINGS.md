@@ -18,7 +18,7 @@ directory or an encrypted assessment location outside the repository.
 - Remediation: replaced it with the current official `python:3.12-alpine` image pinned to digest
   `sha256:d09d15e60962ca365d1cd544a48773bac9d33f2fb1b00f2aa0deec78ade7dc31`, retained the
   non-root numeric account, read-only filesystem, dropped capabilities, and no-new-privileges
-  controls, and added a blocking CI image scan.
+  controls, and added a blocking CI scan using the official Trivy container pinned by digest.
 - Retest: the rebuilt complete application image reported zero high/critical Alpine or Python
   package findings and no embedded-secret finding. PostgreSQL migrations, the least-privilege
   notification worker, and the web readiness endpoint then passed on the replacement runtime.

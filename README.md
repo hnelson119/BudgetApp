@@ -59,7 +59,7 @@ formula-safe CSV export. Detailed audit access and exports append their own prot
 exports require recent password-plus-MFA verification and fail closed if chain verification fails.
 Milestone 10 is now in progress. Its first release-hardening baseline adds a machine-validated
 OWASP ASVS 5.0 Level 2, security-test, and release-gate evidence inventory plus a pinned Trivy
-release-image scan that fails CI on high or critical vulnerabilities. See
+container scan that fails CI on high or critical release-image vulnerabilities. See
 `docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. Private
 Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before

@@ -72,13 +72,9 @@ jobs:
         run: docker build --tag household-budget:${{ github.sha }} .
 
       - name: Fail on high or critical release-image vulnerabilities
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: image
-          image-ref: household-budget:${{ github.sha }}
-          format: table
-          exit-code: "1"
-          ignore-unfixed: false
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
-          scanners: vuln,secret
+        run: >-
+          docker run --rm
+          --volume /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e
+          image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1
+          --no-progress --skip-version-check household-budget:${{ github.sha }}

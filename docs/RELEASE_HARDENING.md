@@ -43,8 +43,9 @@ remains an explicit network-backed command:
 .\.venv\Scripts\python.exe -m pip_audit --requirement requirements-dev.lock --cache-dir .pip-audit-cache --no-deps --disable-pip --strict
 ```
 
-GitHub Actions independently builds the production image without runtime secrets and uses the
-official Trivy action pinned to an immutable commit. Any known high or critical operating-system or
+GitHub Actions independently builds the production image without runtime secrets and runs the
+official Trivy container pinned to an immutable digest. Using a pinned container preserves the
+repository's GitHub-owned-actions-only policy. Any known high or critical operating-system or
 Python-package vulnerability fails the image job. The existing dependency, source, configuration,
 and secret checks remain separate so one scanner cannot silently replace another.
 
