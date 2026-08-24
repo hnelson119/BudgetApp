@@ -44,3 +44,11 @@ def test_production_database_search_path_includes_protected_audit_schema(tmp_pat
     ).read_text(encoding="utf-8")
 
     assert '"-c search_path=public,budget_audit"' in settings_file
+
+
+def test_production_static_assets_do_not_allow_arbitrary_cross_origin_reads() -> None:
+    settings_file = (
+        Path(__file__).resolve().parents[1] / "config/settings/production.py"
+    ).read_text(encoding="utf-8")
+
+    assert "WHITENOISE_ALLOW_ALL_ORIGINS = False" in settings_file

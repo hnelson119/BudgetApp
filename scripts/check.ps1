@@ -31,7 +31,7 @@ try {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     $sourceDirectories = @(
-        "audit", "budgets", "config", "core", "debts", "goals", "households",
+        "audit", "budgets", "config", "core", "debts", "deploy/pentest", "goals", "households",
         "identity", "imports", "ledger", "notifications", "periods", "reserves",
         "schedules", "spending"
     )

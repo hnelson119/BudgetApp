@@ -26,7 +26,7 @@
       {"id": "V10", "status": "not_applicable", "reason": "The private release has no OAuth or OpenID Connect integration.", "evidence": ["SECURITY_PLAN.md"]},
       {"id": "V11", "status": "partial", "evidence": ["identity/services/mfa.py", "audit/checkpoints.py"]},
       {"id": "V12", "status": "partial", "evidence": ["config/settings/production.py", "compose.yaml"]},
-      {"id": "V13", "status": "partial", "evidence": ["Dockerfile", "compose.yaml", "tests/test_deployment_config.py"]},
+      {"id": "V13", "status": "partial", "evidence": ["Dockerfile", "compose.yaml", "compose.pentest.yaml", "tests/test_deployment_config.py", "tests/test_pentest_harness.py"]},
       {"id": "V14", "status": "partial", "evidence": ["SECURITY_PLAN.md", "audit/exports.py", "core/logging.py"]},
       {"id": "V15", "status": "partial", "evidence": ["DATA_MODEL.md", "docs/adr/"]},
       {"id": "V16", "status": "partial", "evidence": ["core/logging.py", "core/errors.py", "tests/test_logging.py"]},
@@ -56,8 +56,8 @@
     {"id": 20, "status": "not_started", "evidence": ["SECURITY_PLAN.md#14-incident-response"]},
     {"id": 21, "status": "partial", "evidence": ["IMPLEMENTATION_PLAN.md#4-browser-support-and-test-matrix"]},
     {"id": 22, "status": "not_started", "evidence": ["IMPLEMENTATION_PLAN.md#4-browser-support-and-test-matrix"]},
-    {"id": 23, "status": "not_started", "evidence": ["SECURITY_PLAN.md#18-penetration-testing-and-adversarial-validation"]},
-    {"id": 24, "status": "not_started", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria"]}
+    {"id": 23, "status": "implemented", "evidence": ["SECURITY_PLAN.md#18-penetration-testing-and-adversarial-validation", "compose.pentest.yaml", "docs/PENTESTING.md", "docs/SECURITY_FINDINGS.md", "tests/test_pentest_harness.py"]},
+    {"id": 24, "status": "partial", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md", "scripts/check_zap_reports.py"]}
   ],
   "release_gates": [
     {"id": 1, "status": "partial", "evidence": ["PRODUCT_SPEC.md", "tests/"]},
@@ -70,7 +70,7 @@
     {"id": 8, "status": "partial", "evidence": ["audit/checkpoints.py", "docs/BACKUP_AND_RESTORE.md"]},
     {"id": 9, "status": "not_started", "evidence": ["SECURITY_PLAN.md#14-incident-response"]},
     {"id": 10, "status": "not_started", "evidence": ["docs/MIGRATIONS.md"]},
-    {"id": 11, "status": "not_started", "evidence": ["SECURITY_PLAN.md#18-penetration-testing-and-adversarial-validation"]},
-    {"id": 12, "status": "not_started", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria"]}
+    {"id": 11, "status": "implemented", "evidence": ["SECURITY_PLAN.md#18-penetration-testing-and-adversarial-validation", "compose.pentest.yaml", "docs/PENTESTING.md", "docs/SECURITY_FINDINGS.md"]},
+    {"id": 12, "status": "implemented", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md", "scripts/check_zap_reports.py"]}
   ]
 }

@@ -277,8 +277,10 @@ test, and release gate without claiming unperformed release passes. Local and CI
 validate that inventory. CI also builds the release image without runtime secrets and fails on
 high/critical operating-system or Python-package vulnerabilities using an immutable pinned Trivy
 container. Raw security-tool output is ignored by default and must remain outside source control;
-only sanitized findings and retest summaries may be committed. ZAP automation, synthetic
-penetration-test data, cross-browser automation, and operational rehearsals remain in progress.
+only sanitized findings and retest summaries may be committed. The isolated synthetic ZAP baseline
+now covers unauthenticated traffic and both MFA-authenticated household roles. Manual adversarial
+testing, cross-browser automation, release-candidate repetition, and operational rehearsals remain
+in progress.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 
