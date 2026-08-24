@@ -133,10 +133,17 @@ flowchart LR
 
 Rules:
 
-- The two installments must total the configured full monthly obligation unless an intentional extra-principal amount is added.
+- The two installments must total the configured full monthly obligation plus any recurring extra principal.
 - The schedule uses two selected monthly dates, not every 14 days.
+- Each adjusted due date enters the paycheck period that contains it, even when paycheck boundaries
+  change after an income-schedule revision.
+- Editing or moving one occurrence never changes either future installment schedule.
+- A confirmed one-off extra-principal override increases only the selected occurrence and the
+  applicable payoff-projection cycle.
 - The lender's actual statement allocation supersedes estimates for history.
 - Escrow does not reduce mortgage principal.
+- Plan changes append component and installment revisions; PostgreSQL rejects attempts to rewrite,
+  delete, or truncate protected mortgage history.
 
 ## 7. Debt statement reconciliation and payoff projection
 

@@ -1,7 +1,7 @@
 # Household Budget Application — Implementation Plan
 
-Status: Milestone 5 implementation, coverage hardening, and local PostgreSQL verification complete; private-ingress deployment verification pending
-Last updated: 2026-08-23
+Status: Milestones 0–7 code-deliverable work and local verification complete; private-ingress deployment verification pending
+Last updated: 2026-08-24
 
 ## 1. Locked architecture
 
@@ -197,7 +197,7 @@ Exit criteria: Golden cases E–G pass; malformed/import security tests pass; re
 - Implement two monthly mortgage installment rules totaling one obligation
 - Sync installment occurrences one way into Budget
 
-Progress: the debt-account and payoff-comparison vertical slice is implemented. Household members
+Progress: Milestone 7 is implemented. Household members
 can create and maintain debts, optionally link one liability account, append effective-dated APR,
 interest-method, minimum-payment, recurring-extra, due-day, and custom-priority revisions, and
 reconcile lender statements without rewriting history. Statement records preserve principal,
@@ -207,8 +207,16 @@ protect terms and statements from ordinary mutation or deletion. The shared exac
 compares minimum-only, snowball, avalanche, and custom ordering, supports monthly and actual-day
 interest, applies future terms by effective date, and rolls freed scheduled payments beginning in
 the next modeled cycle. Responsive, MFA-protected, household-scoped debt screens and confirmation-
-gated archiving are covered by integration tests. The split-mortgage persistence, installment
-schedule, and one-way Budget synchronization remain in progress.
+gated archiving are covered by integration tests. Mortgage plans now append immutable component
+and installment revisions, require exactly two monthly payments totaling the obligation plus any
+recurring extra principal, and create two stable debt-payment schedules. Generated installments
+enter the paycheck period containing each adjusted due date. A household member can move or edit an
+occurrence, including a confirmed one-off extra-principal amount, without changing either future
+schedule. Payoff projections use principal-and-interest and extra principal to amortize the balance;
+escrow, PMI, and fees remain cash-flow components. Application guards, protected audit events, and
+PostgreSQL update/delete/truncate rejection triggers protect the complete mortgage history.
+
+Status: the code-deliverable portions of Milestone 7 are complete and locally verified.
 
 Exit criteria: Golden case H and debt projection comparison tests pass; escrow never reduces principal.
 

@@ -12,6 +12,21 @@ urlpatterns = [
     path("<uuid:debt_id>/edit/", views.debt_edit, name="edit"),
     path("<uuid:debt_id>/terms/add/", views.debt_terms_create, name="terms-create"),
     path(
+        "<uuid:debt_id>/mortgage-plan/add/",
+        views.mortgage_plan_create,
+        name="mortgage-plan-create",
+    ),
+    path(
+        "<uuid:debt_id>/mortgage-plan/revise/",
+        views.mortgage_plan_revise,
+        name="mortgage-plan-revise",
+    ),
+    path(
+        "mortgage-occurrence/<uuid:occurrence_id>/extra-principal/",
+        views.mortgage_extra_principal,
+        name="mortgage-extra-principal",
+    ),
+    path(
         "<uuid:debt_id>/statements/add/",
         views.debt_statement_create,
         name="statement-create",

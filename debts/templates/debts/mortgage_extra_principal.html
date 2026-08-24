@@ -1,0 +1,23 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+
+{% block title %}Extra principal · Household Budget{% endblock %}
+{% block page_title %}Extra principal{% endblock %}
+
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% url 'budgets:detail' occurrence.pay_period_id %}">← Back to paycheck budget</a>
+    <div class="form-card">
+      <p class="eyebrow">One paycheck period only</p>
+      <h2>{{ occurrence.source.name }}</h2>
+      <p class="muted">The recurring installment remains {{ occurrence.generated_amount|money }}. This override changes the selected occurrence and its payoff projection only.</p>
+      <div class="item-context"><span>Due {{ occurrence.expected_date|date:'M j, Y' }}</span><span>Current extra {{ current_extra|money }}</span><span>{{ occurrence.pay_period.start_date|date:'M j' }}–{{ occurrence.pay_period.display_end_date|date:'M j' }}</span></div>
+      <form class="app-form" method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}<div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+        <button class="primary-button" type="submit">Save one-off extra principal</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

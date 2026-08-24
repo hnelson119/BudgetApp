@@ -489,6 +489,11 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .debt-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .debt-history-section { margin-top: 30px; }
 .debt-history-table { min-width: 980px; }
+.mortgage-component-grid { margin-top: 18px; }
+.mortgage-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.mortgage-preview-grid > div { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
+.mortgage-preview-grid ol { margin-bottom: 0; }
+.mortgage-history-table { min-width: 1050px; }
 .payoff-scenario-card { width: 100%; margin-top: 22px; }
 .payoff-filter-bar { grid-template-columns: repeat(3, minmax(160px, 1fr)) auto; }
 .payoff-filter-bar > .form-alert { grid-column: 1 / -1; }
@@ -543,7 +548,7 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .metric-icon { width: 36px; height: 36px; flex-basis: 36px; font-size: 1rem; }
   .allocation-card, .dashboard-card { padding: 20px; }
   .section-title { align-items: start; flex-direction: column; gap: 8px; }
-  .allocation-values, .filter-bar, .category-budget-grid, .schedule-form, .account-grid, .detail-grid, .import-summary-grid, .import-decision-grid, .debt-summary-grid { grid-template-columns: 1fr; }
+  .allocation-values, .filter-bar, .category-budget-grid, .schedule-form, .account-grid, .detail-grid, .import-summary-grid, .import-decision-grid, .debt-summary-grid, .mortgage-preview-grid { grid-template-columns: 1fr; }
   .budget-heading { align-items: flex-start; flex-direction: column; }
   .budget-heading .action-row, .budget-heading .action-row a { width: 100%; }
   .form-card { padding: 22px 18px; }

@@ -35,11 +35,15 @@ UTF-8 upload parsing, column/sign/date mapping, preview-only staging, category g
 atomic and idempotent confirmation, import provenance, and raw-row cleanup. Transaction CSV export
 now mirrors the selected pay-period or all-history filters, requires recent reauthentication,
 verifies audit integrity, streams without temporary files, preserves numeric amounts, neutralizes
-spreadsheet-formula text, and records the export scope in protected audit history. The first
-Milestone 7 vertical slice adds household-scoped debt accounts, immutable effective-dated APR and
+spreadsheet-formula text, and records the export scope in protected audit history. Milestone 7 adds
+household-scoped debt accounts, immutable effective-dated APR and
 payment terms, append-only lender-statement reconciliation and correction, and exact-Decimal
-minimum-only, snowball, avalanche, and custom payoff comparisons. The split-mortgage plan and its
-one-way Budget occurrence synchronization remain the next Milestone 7 slice.
+minimum-only, snowball, avalanche, and custom payoff comparisons. Its completed split-mortgage
+workflow stores protected effective-dated payment components, enforces exactly two monthly
+installments, assigns each installment to the paycheck period containing its due date, and supports
+period-only moves, edits, and extra-principal overrides without changing future schedules. Mortgage
+projections amortize principal-and-interest and extra principal while keeping escrow, PMI, and fees
+out of principal reduction.
 Private
 Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before
