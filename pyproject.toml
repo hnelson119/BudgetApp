@@ -58,6 +58,7 @@ debts = ["templates/debts/*.html"]
 goals = ["templates/goals/*.html"]
 identity = ["templates/identity/*.html"]
 imports = ["templates/imports/*.html"]
+notifications = ["templates/notifications/*.html"]
 spending = ["templates/spending/*.html"]
 
 [tool.pytest.ini_options]

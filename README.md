@@ -9,7 +9,7 @@ Docker deployment files, health checks, and tested core money rules.
 
 ## Current milestone
 
-The code-deliverable portions of Milestones 0 through 5 are complete and locally verified. The
+The code-deliverable portions of Milestones 0 through 9 are complete and locally verified. The
 private GitHub remote, read-only quality workflow, SHA-pinned GitHub-owned action policy, and
 Dependabot alerts are active. Enforced branch protection remains unavailable on the current free
 private-repository plan, so short-lived pull requests and passing checks remain an operational rule.
@@ -49,6 +49,14 @@ completion projections; actual transfer/debt-payment recording; and preview-conf
 Reserve allocation. Automatic excess eligibility is off by default, and priority batches remain
 explicitly confirmed. Reserve-funded goal activity is excluded from current-paycheck actuals to
 prevent double counting.
+Milestone 9 adds optional per-person in-app alerts for upcoming and overdue bills, missing
+paychecks, negative period projections, goal milestones, verified-backup freshness, authenticated
+sessions, repeated login failures, and audit-integrity/checkpoint problems. A least-privilege
+maintenance container evaluates alerts every 30 minutes without receiving backup or audit signing
+secrets. The audit interface now provides household-scoped filters, paginated read-only details,
+human-readable before/after differences, current verification/checkpoint status, and streamed
+formula-safe CSV export. Detailed audit access and exports append their own protected events;
+exports require recent password-plus-MFA verification and fail closed if chain verification fails.
 Private
 Tailscale-only HTTPS, firewall/device checks, and
 provisioning the two real household accounts remain deployment-time work on the Linux VM before
@@ -114,6 +122,7 @@ docker compose --profile maintenance run --rm db-bootstrap
 docker compose --profile maintenance run --rm migrate
 docker compose up -d web
 docker compose --profile maintenance run --rm backup
+docker compose --profile maintenance run --rm notify
 ```
 
 The generated directory stays outside the OneDrive workspace. Secret-directory
@@ -187,7 +196,7 @@ python -m coverage report
 python scripts/check_branch_coverage.py --fail-under 80
 python -m ruff check .
 python -m ruff format --check .
-python -m mypy audit budgets core debts goals households identity imports ledger periods reserves schedules spending
+python -m mypy audit budgets core debts goals households identity imports ledger notifications periods reserves schedules spending
 python manage.py makemigrations --check --dry-run --settings=config.settings.test
 python scripts/secret_scan.py
 python -m bandit -c pyproject.toml -r audit budgets config core debts goals households identity imports ledger notifications periods reserves schedules spending

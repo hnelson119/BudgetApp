@@ -31,7 +31,10 @@ docker compose --profile maintenance run --rm backup
 
 The command initializes an empty repository when necessary, streams `pg_dump` into Restic, checks
 repository integrity, and applies retention. It logs event names and outcomes but never secret
-values or financial records.
+values or financial records. After all backup and retention steps succeed, it atomically updates a
+mode-`0600` `.last-success` marker containing only a timestamp and release identifier. The
+notification job mounts the repository read-only and uses only this marker's freshness; it never
+receives Restic or database-backup credentials and cannot read application data from a dump.
 
 The supplied systemd units assume the deployment checkout is `/opt/household-budget`, Docker is
 `/usr/bin/docker`, and non-secret Compose configuration is stored in
@@ -53,6 +56,19 @@ failed unit and review results without exposing secrets:
 systemctl status household-budget-backup.service
 journalctl -u household-budget-backup.service --since yesterday
 ```
+
+Install the notification evaluator after the backup repository mount is available:
+
+```bash
+sudo install -m 0644 deploy/systemd/household-budget-notifications.service /etc/systemd/system/
+sudo install -m 0644 deploy/systemd/household-budget-notifications.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now household-budget-notifications.timer
+```
+
+It runs every 30 minutes and creates a critical in-app alert when the success marker is missing or
+older than `BUDGET_BACKUP_MAX_AGE_HOURS` (36 hours by default). A failed run never refreshes the
+marker, so the alert becomes visible without putting backup secrets in the web application.
 
 For manual repository inspection, use a short-lived container rather than installing Restic on
 the application host. Do not expose repository credentials to the web service.

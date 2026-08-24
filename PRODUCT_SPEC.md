@@ -411,6 +411,8 @@ The initial release includes optional in-app notifications for:
 - Expected paychecks not marked received
 - Negative period projections
 - Goal milestones
+- Missing or overdue verified backups
+- New authenticated sessions and repeated login/MFA failures
 - Failed audit-integrity verification
 
 Email, SMS, and push notifications are deferred.

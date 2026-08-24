@@ -1,0 +1,32 @@
+{% extends "core/app_base.html" %}
+
+{% block title %}Notification preferences · Household Budget{% endblock %}
+{% block page_title %}Notification preferences{% endblock %}
+
+{% block content %}
+  <section class="form-panel compact-form-panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Your alerts</p>
+        <h2>Choose what needs your attention</h2>
+        <p>Preferences apply only to your account. Critical records remain available in audit history even when their alerts are disabled.</p>
+      </div>
+    </div>
+    <form method="post" class="stacked-form">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {% for field in form %}
+        <div class="field-row{% if field.field.widget.input_type == 'checkbox' %} checkbox-row{% endif %}">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.help_text %}<p class="helptext">{{ field.help_text }}</p>{% endif %}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+      <div class="button-row">
+        <button class="primary-button" type="submit">Save preferences</button>
+        <a class="quiet-button" href="{% url 'notifications:list' %}">Cancel</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

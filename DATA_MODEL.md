@@ -395,7 +395,31 @@ Staged rows are not JournalEntries until confirmation. The uploaded file itself 
 Commit scrubs every staged raw-cell mapping while retaining normalized provenance and links to the
 append-only JournalEntries.
 
-## 9. Protected audit entities
+## 9. In-app notifications
+
+### Notification
+
+- Household and individual recipient
+- Kind and severity
+- Stable deduplication fingerprint plus non-authoritative title/message/action link
+- Source type/identifier and occurrence/evaluation timestamps
+- Independent read, dismissed, and resolved timestamps
+
+One notification is unique per household, recipient, and fingerprint. Condition-based alerts are
+resolved when the next scheduled evaluation no longer observes the condition; read and dismissal
+remain individual UI state. Historical login and goal-milestone alerts are retained. Notification
+content never replaces the authoritative financial, schedule, backup, or audit record.
+
+### NotificationPreference
+
+- Household and user, unique as a pair
+- Optional alert-family switches
+- Upcoming-bill lead days and missing-paycheck grace days
+- Updated timestamp
+
+Preference changes use a household-authorized service and append protected audit history.
+
+## 10. Protected audit entities
 
 ### AuditEvent
 
@@ -415,7 +439,7 @@ append-only JournalEntries.
 
 Audit entities live in a separately owned schema and follow the controls in `PRODUCT_SPEC.md` and `SECURITY_PLAN.md`.
 
-## 10. Database invariants
+## 11. Database invariants
 
 1. Monetary values use fixed-precision decimal columns and one household currency.
 2. Journal postings for a committed entry balance exactly.
@@ -434,3 +458,5 @@ Audit entities live in a separately owned schema and follow the controls in `PRO
     truncate at the PostgreSQL layer; changes append a new effective-dated revision.
 13. Goals, revisions, funding plans, and contributions reject update, delete, and truncate at the
     PostgreSQL layer; goal progress derives from append-only records.
+14. Notifications are unique per household recipient and deterministic alert fingerprint; every
+    recipient must remain an active member of the same household.

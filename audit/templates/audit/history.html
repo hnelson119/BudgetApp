@@ -1,70 +1,84 @@
-{% load static %}
-<!doctype html>
-<html lang="en" data-theme="dark">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="dark light">
-    <title>Protected audit history · Household Budget</title>
-    <link rel="stylesheet" href="{% static 'core/app.css' %}">
-  </head>
-  <body>
-    <main class="shell">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">{{ household.name }}</p>
-          <h1>Protected audit history</h1>
-        </div>
-        <a class="theme-toggle" href="{% url 'core:home' %}">Back to dashboard</a>
-      </header>
+{% extends "core/app_base.html" %}
 
-      {% if integrity.valid %}
-        <section class="integrity-banner integrity-ok" aria-label="Audit integrity status">
-          <div><span aria-hidden="true">✓</span> Chain verified</div>
-          <p>{{ integrity.event_count }} protected event{{ integrity.event_count|pluralize }} · Head {{ integrity.chain_head|slice:':12' }}…</p>
-          {% if checkpoint %}
-            <p>Latest external checkpoint: {{ checkpoint.external_copied_at|date:'M j, Y g:i A' }} · Key {{ checkpoint.signing_key_id }}</p>
-          {% else %}
-            <p>No external checkpoint has been recorded yet.</p>
-          {% endif %}
-        </section>
+{% block title %}Protected audit history · Household Budget{% endblock %}
+{% block page_title %}Protected audit history{% endblock %}
+
+{% block content %}
+  {% if integrity.valid %}
+    <section class="integrity-banner integrity-ok" aria-label="Audit integrity status">
+      <div><span aria-hidden="true">✓</span> Chain verified</div>
+      <p>{{ integrity.event_count }} protected event{{ integrity.event_count|pluralize }} · Checked {{ integrity_checked_at|date:'M j, Y g:i:s A' }} · Head {{ integrity.chain_head|slice:':12' }}…</p>
+      {% if checkpoint %}
+        <p>Latest external checkpoint: {{ checkpoint.external_copied_at|date:'M j, Y g:i A' }} · {{ checkpoint.event_count }} events · Key {{ checkpoint.signing_key_id }}</p>
       {% else %}
-        <section class="integrity-banner integrity-failed" role="alert">
-          <div><span aria-hidden="true">!</span> Audit integrity check failed</div>
-          <p>Stop financial changes and run the trusted integrity/recovery procedure.</p>
-        </section>
+        <p>No signed external checkpoint has been recorded yet.</p>
       {% endif %}
+    </section>
+  {% else %}
+    <section class="integrity-banner integrity-failed" role="alert">
+      <div><span aria-hidden="true">!</span> Audit integrity check failed</div>
+      <p>Stop financial changes and run the trusted integrity/recovery procedure. Suspected failure sequence: {{ integrity.failure_sequence|default:'unknown' }}.</p>
+    </section>
+  {% endif %}
 
-      <section class="audit-panel" aria-labelledby="event-history-title">
-        <div class="audit-panel-heading">
-          <div>
-            <p class="eyebrow">Read only</p>
-            <h2 id="event-history-title">Latest events</h2>
-          </div>
-          <p>Showing up to 100 events. Audit records cannot be edited or deleted.</p>
-        </div>
-        <div class="audit-table-scroll">
-          <table class="audit-table">
-            <thead>
-              <tr><th>Sequence</th><th>When</th><th>Person</th><th>Action</th><th>Record</th></tr>
-            </thead>
-            <tbody>
-              {% for event in events %}
-                <tr>
-                  <td data-label="Sequence">#{{ event.sequence }}</td>
-                  <td data-label="When">{{ event.occurred_at|date:'M j, Y g:i:s A' }}</td>
-                  <td data-label="Person">{% if event.actor %}{{ event.actor.display_name|default:event.actor.email }}{% else %}System{% endif %}</td>
-                  <td data-label="Action"><code>{{ event.action }}</code></td>
-                  <td data-label="Record">{{ event.entity_type }} · {{ event.entity_id }}</td>
-                </tr>
-              {% empty %}
-                <tr><td colspan="5">No protected events have been recorded.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
-    <script src="{% static 'core/app.js' %}" defer></script>
-  </body>
-</html>
+  <section class="filter-panel" aria-labelledby="audit-filter-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Read only</p>
+        <h2 id="audit-filter-title">Find protected events</h2>
+      </div>
+      {% if integrity.valid %}
+        <a class="quiet-button" href="{% url 'audit:export' %}{% if export_query %}?{{ export_query }}{% endif %}">Export filtered CSV</a>
+      {% else %}
+        <span class="quiet-button" aria-disabled="true">Export unavailable</span>
+      {% endif %}
+    </div>
+    <form method="get" class="filter-form">
+      {% for field in filter_form %}
+        <div class="field-row">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+      {% endfor %}
+      <div class="button-row">
+        <button class="primary-button" type="submit">Apply filters</button>
+        <a class="quiet-button" href="{% url 'audit:history' %}">Clear</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="audit-panel" aria-labelledby="event-history-title">
+    <div class="audit-panel-heading">
+      <div>
+        <p class="eyebrow">No edit or delete controls</p>
+        <h2 id="event-history-title">Event history</h2>
+      </div>
+      <p>{{ page.paginator.count }} matching protected event{{ page.paginator.count|pluralize }}.</p>
+    </div>
+    <div class="audit-table-scroll">
+      <table class="audit-table">
+        <thead>
+          <tr><th>Sequence</th><th>When</th><th>Person</th><th>Action</th><th>Record</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for event in page.object_list %}
+            <tr>
+              <td data-label="Sequence">#{{ event.sequence }}</td>
+              <td data-label="When">{{ event.occurred_at|date:'M j, Y g:i:s A' }}</td>
+              <td data-label="Person">{% if event.actor %}{{ event.actor.display_name|default:event.actor.email }}{% else %}System{% endif %}</td>
+              <td data-label="Action"><code>{{ event.action }}</code></td>
+              <td data-label="Record">{{ event.entity_type }} · {{ event.entity_id }}</td>
+              <td data-label="Details"><a href="{% url 'audit:detail' event.pk %}">Details</a></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6">No protected events match these filters.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page.paginator.num_pages > 1 %}
+      <nav class="pagination" aria-label="Audit history pages">
+        {% if page.has_previous %}<a href="?{% if page_query %}{{ page_query }}&{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
+        <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}<a href="?{% if page_query %}{{ page_query }}&{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}

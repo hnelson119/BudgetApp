@@ -245,6 +245,18 @@ Exit criteria: goal contribution and reserve-allocation tests pass without creat
 - Complete protected audit filters, details, verification status, and export
 - Audit detailed audit access and exports
 
+Implementation note: notifications are persisted per household member with independent read,
+dismissed, resolved, and preference state. A least-privilege scheduled container evaluates
+authoritative schedule occurrences, paycheck-period projections, goal progress, authentication
+audit events, signed-checkpoint freshness, current chain integrity, and an external backup-success
+marker. Notification state changes and preferences are auditable, but notifications are not treated
+as financial truth. Audit filters and details remain household-scoped and read-only. Audit CSV
+export requires recent password-plus-MFA verification, verifies the chain before export, freezes the
+export at the verified sequence boundary, applies spreadsheet-formula defenses, streams without a
+retained file, and appends the actor, filters, and row count to protected history.
+
+Status: the code-deliverable portions of Milestone 9 are complete and locally verified.
+
 Exit criteria: alert and audit-access tests pass; no UI path offers audit mutation or deletion.
 
 ### Milestone 10 — Release hardening

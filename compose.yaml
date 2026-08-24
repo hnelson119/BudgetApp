@@ -182,6 +182,36 @@ services:
     <<: *app-hardening
     logging: *log-policy
 
+  notify:
+    build:
+      context: .
+    profiles: ["maintenance"]
+    command: ["python", "manage.py", "generate_notifications"]
+    environment:
+      <<: *app-environment
+      POSTGRES_USER: ${POSTGRES_RUNTIME_USER:-budget_runtime}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+      BUDGET_BACKUP_STATUS_FILE: /repository/.last-success
+      BUDGET_BACKUP_MAX_AGE_HOURS: ${BUDGET_BACKUP_MAX_AGE_HOURS:-36}
+    secrets:
+      - django_secret_key
+      - django_mfa_encryption_key
+      - postgres_runtime_password
+    volumes:
+      - type: bind
+        source: ${BUDGET_BACKUP_REPOSITORY:-/mnt/household-budget-backups}
+        target: /repository
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    <<: *app-hardening
+    logging: *log-policy
+
   restore-verify:
     build:
       context: .
