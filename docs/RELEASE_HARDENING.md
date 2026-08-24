@@ -49,9 +49,11 @@ repository's GitHub-owned-actions-only policy. Any known high or critical operat
 Python-package vulnerability fails the image job. The existing dependency, source, configuration,
 and secret checks remain separate so one scanner cannot silently replace another.
 
-The initial image scan identified and remediated `M10-F001`; its sanitized finding and clean retest
-are recorded in `docs/SECURITY_FINDINGS.md`. This result is baseline evidence, not a future release
-pass: every candidate must rebuild and rescan the pinned image against the then-current database.
+The initial image and application scans identified and remediated `M10-F001` and `M10-F002`; their
+sanitized findings and clean retests are recorded in `docs/SECURITY_FINDINGS.md`. The synthetic ZAP
+baseline also records the scoped test-transport acceptance `M10-F003`. These results are baseline
+evidence, not a future release pass: every candidate must rebuild and repeat the applicable scans
+against then-current vulnerability data and code.
 
 ## Evidence handling
 
@@ -70,8 +72,9 @@ real household data.
 
 1. Finish the ASVS 5.0.0 requirement-level applicability and evidence mapping.
 2. Complete the automated Chromium, Firefox, and WebKit accessibility/responsive suites.
-3. Build the isolated synthetic PostgreSQL penetration-test profile.
-4. Run unauthenticated ZAP passive/active automation, then authenticated automation for both users.
+3. Validate the isolated synthetic PostgreSQL penetration-test profile in `docs/PENTESTING.md`.
+4. Run its unauthenticated ZAP passive/active automation, then authenticated automation for both
+   synthetic users; review and disposition every report alert.
 5. Complete manual authorization, session, CSV, financial-logic, audit, and network tests.
 6. Remediate and retest findings.
 7. Run restore/checkpoint, lost-device, credential-rotation, upgrade, and rollback rehearsals.
@@ -80,8 +83,12 @@ real household data.
 ## Current baseline gaps
 
 - Private Tailscale ingress and firewall isolation require the Linux VM.
-- ZAP automation and the disposable synthetic environment have not yet been added.
+- The disposable ZAP baseline completed for unauthenticated traffic and both MFA-authenticated
+  synthetic users with no High/Critical alert. Its internal plain-HTTP transport remains a scoped,
+  time-bound Medium acceptance until the real VM TLS boundary is verified.
 - Firefox/WebKit automation and real-device mobile passes have not yet run.
+- Browser-driven DOM-XSS coverage and the manual authorization, session, CSV, financial-logic,
+  audit-tampering, and network tests remain pending.
 - The release-candidate restore, audit-checkpoint comparison, lost-device, rotation, upgrade, and
   rollback rehearsals remain pending.
-- No penetration-test result is claimed yet.
+- No complete release-candidate penetration-test pass is claimed yet.

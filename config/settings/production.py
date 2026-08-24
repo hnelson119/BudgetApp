@@ -11,6 +11,7 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+WHITENOISE_ALLOW_ALL_ORIGINS = False
 
 SECRET_KEY = required_secret_file("DJANGO_SECRET_KEY", minimum_length=50)
 MFA_ENCRYPTION_KEY = required_secret_file("DJANGO_MFA_ENCRYPTION_KEY", minimum_length=43)
