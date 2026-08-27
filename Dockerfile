@@ -5,7 +5,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN addgroup -g 10001 -S budget \
+RUN apk upgrade --no-cache \
+    && addgroup -g 10001 -S budget \
     && adduser -u 10001 -S -D -H -G budget -s /sbin/nologin budget
 
 WORKDIR /app

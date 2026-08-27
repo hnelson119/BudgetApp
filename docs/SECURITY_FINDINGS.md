@@ -92,6 +92,29 @@ directory or an encrypted assessment location outside the repository.
   desktop, narrow, phone, and iPad project.
 - Security impact: none; this was a responsive usability defect.
 
+## M10-F006 — Stale OpenSSL packages in pinned Alpine base
+
+- Severity: High
+- State: Retested
+- Detected: 2026-08-27
+- Owner: release owner
+- Affected baseline: commit `b230396` release image in PR #22
+- Detection: the blocking Trivy 0.70.0 release-image job used a current vulnerability database and
+  identified `CVE-2026-14456` in both `libcrypto3` and `libssl3`.
+- Evidence summary: the pinned official Python Alpine image contained OpenSSL `3.5.7-r0`; Alpine's
+  official 3.24 repository provided the fixed `3.5.8-r0`. No High/Critical Python-package finding
+  or embedded-secret finding was reported.
+- Root cause: the immutable base digest had not yet been rebuilt after Alpine published the fixed
+  OpenSSL packages. Pinning an image prevents an unexpected base change but cannot keep its
+  installed operating-system packages vulnerability-free.
+- Remediation: retained the reviewed immutable Python base digest and added a no-cache Alpine
+  package upgrade during the release build so current security fixes are applied before the
+  unprivileged application user and application layers are created.
+- Retest: the complete image rebuilt with OpenSSL `3.5.8-r0`; the same immutable Trivy command and
+  a current vulnerability database reported zero High/Critical Alpine or Python-package findings
+  and no embedded-secret finding. The application quality gate also passed after the change.
+- Exceptions or suppressions: none; the finding is not ignored or severity-downgraded.
+
 ## 2026-08-24 synthetic browser baseline
 
 - Result after the accessibility extension: 44 passed, 13 intentionally skipped, and zero failed

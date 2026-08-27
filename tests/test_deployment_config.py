@@ -268,6 +268,7 @@ def test_container_does_not_enable_raw_access_logging() -> None:
     assert "USER budget" in dockerfile
     assert "adduser -u 10001" in dockerfile
     assert "python:3.12-alpine@sha256:" in dockerfile
+    assert "apk upgrade --no-cache" in dockerfile
     assert "--access-logfile" not in dockerfile
     assert {".env*", "secrets", "local-test-secrets"}.issubset(dockerignore)
 

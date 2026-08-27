@@ -50,11 +50,11 @@ repository's GitHub-owned-actions-only policy. Any known high or critical operat
 Python-package vulnerability fails the image job. The existing dependency, source, configuration,
 and secret checks remain separate so one scanner cannot silently replace another.
 
-The initial image and application scans identified and remediated `M10-F001` and `M10-F002`; their
-sanitized findings and clean retests are recorded in `docs/SECURITY_FINDINGS.md`. The synthetic ZAP
-baseline also records the scoped test-transport acceptance `M10-F003`. These results are baseline
-evidence, not a future release pass: every candidate must rebuild and repeat the applicable scans
-against then-current vulnerability data and code.
+The image and application scans identified and remediated `M10-F001`, `M10-F002`, and `M10-F006`;
+their sanitized findings and clean retests are recorded in `docs/SECURITY_FINDINGS.md`. The
+synthetic ZAP baseline also records the scoped test-transport acceptance `M10-F003`. These results
+are baseline evidence, not a future release pass: every candidate must rebuild and repeat the
+applicable scans against then-current vulnerability data and code.
 
 ## Evidence handling
 
