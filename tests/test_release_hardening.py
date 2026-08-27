@@ -8,6 +8,14 @@ from pathlib import Path
 
 import pytest
 
+from scripts.check_adversarial_test_evidence import (
+    EXPECTED_CATEGORIES,
+    EXPECTED_SCENARIOS,
+)
+from scripts.check_adversarial_test_evidence import (
+    validate_matrix as validate_adversarial_matrix,
+)
+from scripts.check_adversarial_test_evidence import validate_run as validate_adversarial_run
 from scripts.check_device_test_evidence import validate_matrix, validate_run
 from scripts.check_release_evidence import validate_asvs_inventory
 from scripts.secret_scan import _is_approved_public_fingerprint
@@ -189,3 +197,121 @@ def test_device_run_validation_rejects_unprotected_or_overstated_evidence() -> N
             scenarios=scenarios,
             targets=targets,
         )
+
+
+def test_adversarial_evidence_matrix_is_complete_and_pending() -> None:
+    completed = subprocess.run(
+        [sys.executable, "scripts/check_adversarial_test_evidence.py"],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "structurally complete (0 run records)" in completed.stdout
+    assert "Release-candidate coverage: 0/3 required targets." in completed.stdout
+    matrix = json.loads(
+        (PROJECT_ROOT / "docs/adversarial-test-matrix.json").read_text(encoding="utf-8")
+    )
+    assert matrix["release_candidate"] is None
+    assert set(matrix["categories"]) == EXPECTED_CATEGORIES
+    assert {scenario["id"] for scenario in matrix["scenarios"]} == set(EXPECTED_SCENARIOS)
+    assert len(matrix["scenarios"]) == 28
+    targets = {target["id"]: target for target in matrix["targets"]}
+    assert targets["linux-vm-private-ingress"]["execution_phase"] == "release_only"
+    assert not list((PROJECT_ROOT / "docs/adversarial-test-runs").glob("*.json"))
+
+    required = subprocess.run(
+        [sys.executable, "scripts/check_adversarial_test_evidence.py", "--require-complete"],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert required.returncode == 1
+    assert "release_candidate must be selected" in required.stderr
+
+
+def test_adversarial_matrix_rejects_coverage_tampering() -> None:
+    matrix = json.loads(
+        (PROJECT_ROOT / "docs/adversarial-test-matrix.json").read_text(encoding="utf-8")
+    )
+
+    missing_scenario = copy.deepcopy(matrix)
+    missing_scenario["scenarios"].pop()
+    with pytest.raises(ValueError, match="scenarios are incomplete"):
+        validate_adversarial_matrix(missing_scenario)
+
+    weakened_mapping = copy.deepcopy(matrix)
+    scenario = next(item for item in weakened_mapping["scenarios"] if item["id"] == "AUTHZ-01")
+    scenario["security_test_ids"] = [23]
+    with pytest.raises(ValueError, match="incomplete security-test coverage"):
+        validate_adversarial_matrix(weakened_mapping)
+
+    relabeled_target = copy.deepcopy(matrix)
+    scenario = next(item for item in relabeled_target["scenarios"] if item["id"] == "NET-01")
+    scenario["target_id"] = "synthetic-app"
+    with pytest.raises(ValueError, match="invalid target"):
+        validate_adversarial_matrix(relabeled_target)
+
+
+def test_adversarial_run_rejects_unprotected_or_overstated_evidence() -> None:
+    matrix = json.loads(
+        (PROJECT_ROOT / "docs/adversarial-test-matrix.json").read_text(encoding="utf-8")
+    )
+    scenarios, targets = validate_adversarial_matrix(matrix)
+    run_id = "2026-08-27-synthetic-postgresql-aaaaaaa"
+    valid_run = {
+        "schema_version": 1,
+        "run_id": run_id,
+        "target_id": "synthetic-postgresql",
+        "purpose": "development_baseline",
+        "tested_at": "2026-08-27",
+        "candidate_commit": "a" * 40,
+        "tester_role": "release owner",
+        "environment_summary": "Disposable PostgreSQL synthetic-data target",
+        "synthetic_data_only": True,
+        "overall_status": "passed",
+        "scenario_results": [
+            {"id": scenario_id, "status": "passed", "notes": "No finding.", "finding_ids": []}
+            for scenario_id in ("AUDIT-01", "AUDIT-02", "AUDIT-03", "AUDIT-04")
+        ],
+        "supersedes": None,
+    }
+    validation_arguments = {
+        "filename": f"{run_id}.json",
+        "matrix": matrix,
+        "scenarios": scenarios,
+        "targets": targets,
+        "known_finding_ids": {"M10-F001"},
+    }
+
+    validate_adversarial_run(valid_run, **validation_arguments)
+    with pytest.raises(ValueError, match="synthetic_data_only"):
+        validate_adversarial_run(valid_run | {"synthetic_data_only": False}, **validation_arguments)
+    with pytest.raises(ValueError, match="restricted environment or credential detail"):
+        validate_adversarial_run(
+            valid_run | {"environment_summary": "Disposable target at 192.0.2.10"},
+            **validation_arguments,
+        )
+    with pytest.raises(ValueError, match="does not match the matrix release candidate"):
+        validate_adversarial_run(
+            valid_run | {"purpose": "release_candidate"}, **validation_arguments
+        )
+
+    failed_without_finding = copy.deepcopy(valid_run)
+    failed_without_finding["overall_status"] = "failed"
+    failed_without_finding["scenario_results"][0]["status"] = "failed"
+    with pytest.raises(ValueError, match="must reference a finding"):
+        validate_adversarial_run(failed_without_finding, **validation_arguments)
+
+    unknown_finding = copy.deepcopy(failed_without_finding)
+    unknown_finding["scenario_results"][0]["finding_ids"] = ["M10-F999"]
+    with pytest.raises(ValueError, match="references unknown findings"):
+        validate_adversarial_run(unknown_finding, **validation_arguments)
+
+    incomplete = copy.deepcopy(valid_run)
+    incomplete["scenario_results"].pop()
+    with pytest.raises(ValueError, match="does not contain every scenario"):
+        validate_adversarial_run(incomplete, **validation_arguments)

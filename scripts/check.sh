@@ -18,6 +18,7 @@ cd "$project_root"
 "$python_path" scripts/secret_scan.py
 "$python_path" scripts/check_release_evidence.py
 "$python_path" scripts/check_device_test_evidence.py
+"$python_path" scripts/check_adversarial_test_evidence.py
 "$python_path" -m bandit -q -c pyproject.toml -r \
   audit budgets config core debts deploy/pentest goals households identity imports ledger \
   notifications periods reserves schedules spending

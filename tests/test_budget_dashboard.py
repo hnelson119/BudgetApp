@@ -579,7 +579,9 @@ def test_golden_case_c_explicit_reserve_allocations_are_protected_history(
 def test_budget_dashboard_and_fixed_expense_preview_are_responsive_authenticated_workflows(
     client,
     budget_context: BudgetContext,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("core.views.timezone.localdate", lambda **_: date(2026, 8, 22))
     _mfa_ready(budget_context.user)
     client.force_login(budget_context.user)
 

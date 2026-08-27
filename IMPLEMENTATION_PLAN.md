@@ -1,7 +1,7 @@
 # Household Budget Application — Implementation Plan
 
 Status: Milestones 0–9 code-deliverable work and local verification complete; Milestone 10 release hardening in progress
-Last updated: 2026-08-24
+Last updated: 2026-08-27
 
 ## 1. Locked architecture
 
@@ -281,9 +281,13 @@ using private hosting as an exclusion. CI also builds the release image without 
 fails on high/critical operating-system or Python-package vulnerabilities using an immutable pinned
 Trivy container. Raw security-tool output is ignored by default and must remain outside source control;
 only sanitized findings and retest summaries may be committed. The isolated synthetic ZAP baseline
-now covers unauthenticated traffic and both MFA-authenticated household roles. Manual adversarial
-testing, release-candidate repetition, real-device smoke testing, and operational rehearsals remain
-in progress. The disposable Playwright baseline now signs in through the real password-and-TOTP
+now covers unauthenticated traffic and both MFA-authenticated household roles. The manual
+adversarial catalog now fixes 28 authorization, session, CSV, financial-logic, audit-integrity, and
+network-boundary scenarios across disposable application, protected PostgreSQL, and release-only
+private Linux VM targets. Its validator requires sanitized per-target records, registered findings,
+candidate binding, and preserved supersession history; no run is claimed yet. Release-candidate
+repetition, real-device smoke testing, and operational rehearsals remain in progress. The disposable
+Playwright baseline now signs in through the real password-and-TOTP
 flow and passes Chromium, Firefox, and WebKit desktop/narrow/mobile-engine projects. It covers
 security headers and storage, CSP-backed DOM-XSS inertness, automated WCAG A/AA checks, responsive
 navigation and overflow, theme behavior, manual expense entry, and confirmed category-budget

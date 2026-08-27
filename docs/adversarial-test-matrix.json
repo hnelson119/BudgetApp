@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "updated": "2026-08-27",
+  "release_candidate": null,
+  "categories": [
+    "authorization",
+    "session",
+    "csv",
+    "financial_logic",
+    "audit_integrity",
+    "network_boundary"
+  ],
+  "scenarios": [
+    {
+      "id": "AUTHZ-01",
+      "title": "Cross-household direct-object isolation",
+      "category": "authorization",
+      "target_id": "synthetic-app",
+      "security_test_ids": [6, 23],
+      "wstg_ids": ["WSTG-ATHZ-04"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#authz-01"
+    },
+    {
+      "id": "AUTHZ-02",
+      "title": "Role, function, and administrative endpoint enforcement",
+      "category": "authorization",
+      "target_id": "synthetic-app",
+      "security_test_ids": [6, 23],
+      "wstg_ids": ["WSTG-ATHZ-02", "WSTG-ATHZ-03"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#authz-02"
+    },
+    {
+      "id": "AUTHZ-03",
+      "title": "Mass-assignment and protected-field enforcement",
+      "category": "authorization",
+      "target_id": "synthetic-app",
+      "security_test_ids": [6, 23],
+      "wstg_ids": ["WSTG-ATHZ-03", "WSTG-BUSL-01"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#authz-03"
+    },
+    {
+      "id": "AUTHZ-04",
+      "title": "Cross-site request forgery rejection on state changes",
+      "category": "authorization",
+      "target_id": "synthetic-app",
+      "security_test_ids": [5, 23],
+      "wstg_ids": ["WSTG-SESS-05"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#authz-04"
+    },
+    {
+      "id": "SESS-01",
+      "title": "Identity enumeration, throttling, and recovery-safe responses",
+      "category": "session",
+      "target_id": "synthetic-app",
+      "security_test_ids": [7, 23],
+      "wstg_ids": ["WSTG-ATHN-03", "WSTG-ATHN-09", "WSTG-IDNT-04"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#sess-01"
+    },
+    {
+      "id": "SESS-02",
+      "title": "Session fixation prevention and identifier rotation",
+      "category": "session",
+      "target_id": "synthetic-app",
+      "security_test_ids": [4, 23],
+      "wstg_ids": ["WSTG-SESS-03"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#sess-02"
+    },
+    {
+      "id": "SESS-03",
+      "title": "Session replay rejection after revocation events",
+      "category": "session",
+      "target_id": "synthetic-app",
+      "security_test_ids": [8, 23],
+      "wstg_ids": ["WSTG-SESS-06", "WSTG-SESS-09"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#sess-03"
+    },
+    {
+      "id": "SESS-04",
+      "title": "Idle, absolute, and concurrent-session boundaries",
+      "category": "session",
+      "target_id": "synthetic-app",
+      "security_test_ids": [4, 23],
+      "wstg_ids": ["WSTG-SESS-07", "WSTG-SESS-11"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#sess-04"
+    },
+    {
+      "id": "SESS-05",
+      "title": "Cookie, browser-storage, and authenticated-cache boundaries",
+      "category": "session",
+      "target_id": "synthetic-app",
+      "security_test_ids": [3, 4, 21, 22, 23],
+      "wstg_ids": ["WSTG-ATHN-06", "WSTG-SESS-02", "WSTG-SESS-04"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#sess-05"
+    },
+    {
+      "id": "CSV-01",
+      "title": "Oversized, malformed, and unexpected upload rejection",
+      "category": "csv",
+      "target_id": "synthetic-app",
+      "security_test_ids": [9, 23],
+      "wstg_ids": ["WSTG-BUSL-08", "WSTG-BUSL-09"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#csv-01"
+    },
+    {
+      "id": "CSV-02",
+      "title": "Spreadsheet-formula neutralization on import and export",
+      "category": "csv",
+      "target_id": "synthetic-app",
+      "security_test_ids": [10, 11, 23],
+      "wstg_ids": ["WSTG-INPV-21"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#csv-02"
+    },
+    {
+      "id": "CSV-03",
+      "title": "Duplicate-batch and replay idempotency",
+      "category": "csv",
+      "target_id": "synthetic-app",
+      "security_test_ids": [10, 23],
+      "wstg_ids": ["WSTG-BUSL-05", "WSTG-BUSL-07"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#csv-03"
+    },
+    {
+      "id": "CSV-04",
+      "title": "Filename, content, and abandoned-upload cleanup boundaries",
+      "category": "csv",
+      "target_id": "synthetic-app",
+      "security_test_ids": [9, 10, 23],
+      "wstg_ids": ["WSTG-ATHZ-01", "WSTG-BUSL-08", "WSTG-BUSL-09"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#csv-04"
+    },
+    {
+      "id": "FIN-01",
+      "title": "Credit-card payment, refund, and reserve double-counting resistance",
+      "category": "financial_logic",
+      "target_id": "synthetic-app",
+      "security_test_ids": [23],
+      "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-03"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#fin-01"
+    },
+    {
+      "id": "FIN-02",
+      "title": "Negative, excessive, and unallocated amount handling",
+      "category": "financial_logic",
+      "target_id": "synthetic-app",
+      "security_test_ids": [23],
+      "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-02", "WSTG-BUSL-03"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#fin-02"
+    },
+    {
+      "id": "FIN-03",
+      "title": "Pay-period boundary moves and closed-period corrections",
+      "category": "financial_logic",
+      "target_id": "synthetic-app",
+      "security_test_ids": [23],
+      "wstg_ids": ["WSTG-BUSL-03", "WSTG-BUSL-06"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#fin-03"
+    },
+    {
+      "id": "FIN-04",
+      "title": "Split mortgage schedule and extra-principal correctness",
+      "category": "financial_logic",
+      "target_id": "synthetic-app",
+      "security_test_ids": [23],
+      "wstg_ids": ["WSTG-BUSL-01", "WSTG-BUSL-03"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#fin-04"
+    },
+    {
+      "id": "FIN-05",
+      "title": "Concurrent submission, retry, and replay resistance",
+      "category": "financial_logic",
+      "target_id": "synthetic-app",
+      "security_test_ids": [23],
+      "wstg_ids": ["WSTG-BUSL-04", "WSTG-BUSL-05", "WSTG-BUSL-07"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#fin-05"
+    },
+    {
+      "id": "AUDIT-01",
+      "title": "Runtime-database credential mutation denial",
+      "category": "audit_integrity",
+      "target_id": "synthetic-postgresql",
+      "security_test_ids": [15, 23],
+      "wstg_ids": ["WSTG-BUSL-03", "WSTG-CONF-01"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#audit-01"
+    },
+    {
+      "id": "AUDIT-02",
+      "title": "Mutation, removal, and chain-splice detection",
+      "category": "audit_integrity",
+      "target_id": "synthetic-postgresql",
+      "security_test_ids": [16, 23],
+      "wstg_ids": ["WSTG-BUSL-03"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#audit-02"
+    },
+    {
+      "id": "AUDIT-03",
+      "title": "Financial rollback when protected audit append fails",
+      "category": "audit_integrity",
+      "target_id": "synthetic-postgresql",
+      "security_test_ids": [17, 23],
+      "wstg_ids": ["WSTG-BUSL-03", "WSTG-BUSL-06"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#audit-03"
+    },
+    {
+      "id": "AUDIT-04",
+      "title": "Checkpoint substitution, staleness, and restore-mismatch detection",
+      "category": "audit_integrity",
+      "target_id": "synthetic-postgresql",
+      "security_test_ids": [19, 23],
+      "wstg_ids": ["WSTG-BUSL-03"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#audit-04"
+    },
+    {
+      "id": "NET-01",
+      "title": "Unapproved-device reachability denial",
+      "category": "network_boundary",
+      "target_id": "linux-vm-private-ingress",
+      "security_test_ids": [1, 23],
+      "wstg_ids": ["WSTG-CONF-01"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#net-01"
+    },
+    {
+      "id": "NET-02",
+      "title": "Approved-device least-privilege service reachability",
+      "category": "network_boundary",
+      "target_id": "linux-vm-private-ingress",
+      "security_test_ids": [2, 23],
+      "wstg_ids": ["WSTG-CONF-01", "WSTG-CONF-05"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#net-02"
+    },
+    {
+      "id": "NET-03",
+      "title": "HTTPS redirect, HSTS, TLS, and secure-cookie boundary",
+      "category": "network_boundary",
+      "target_id": "linux-vm-private-ingress",
+      "security_test_ids": [3, 4, 23],
+      "wstg_ids": ["WSTG-ATHN-01", "WSTG-CONF-07", "WSTG-SESS-02"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#net-03"
+    },
+    {
+      "id": "NET-04",
+      "title": "Database and administrative-port isolation",
+      "category": "network_boundary",
+      "target_id": "linux-vm-private-ingress",
+      "security_test_ids": [12, 13, 23],
+      "wstg_ids": ["WSTG-CONF-01", "WSTG-CONF-05"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#net-04"
+    },
+    {
+      "id": "NET-05",
+      "title": "Host, forwarded-header, cache, and error-leakage resistance",
+      "category": "network_boundary",
+      "target_id": "linux-vm-private-ingress",
+      "security_test_ids": [3, 4, 14, 23],
+      "wstg_ids": ["WSTG-ATHN-06", "WSTG-ERRH-01", "WSTG-INPV-17"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#net-05"
+    },
+    {
+      "id": "NET-06",
+      "title": "Runtime privilege and secret-leakage inspection",
+      "category": "network_boundary",
+      "target_id": "linux-vm-private-ingress",
+      "security_test_ids": [12, 14, 23],
+      "wstg_ids": ["WSTG-CONF-01", "WSTG-CONF-09"],
+      "procedure_reference": "docs/ADVERSARIAL_TESTING.md#net-06"
+    }
+  ],
+  "targets": [
+    {
+      "id": "synthetic-app",
+      "title": "Disposable synthetic application",
+      "execution_phase": "development_and_release",
+      "description": "Production-derived disposable application exercised through its real HTTP and browser boundaries with synthetic households only."
+    },
+    {
+      "id": "synthetic-postgresql",
+      "title": "Protected synthetic PostgreSQL runtime",
+      "execution_phase": "development_and_release",
+      "description": "Disposable PostgreSQL deployment using separate migration and runtime roles and synthetic audit and financial records only."
+    },
+    {
+      "id": "linux-vm-private-ingress",
+      "title": "Private Linux VM ingress",
+      "execution_phase": "release_only",
+      "description": "Release-like Linux VM reached from approved and unapproved test devices across the intended private-network boundary."
+    }
+  ]
+}

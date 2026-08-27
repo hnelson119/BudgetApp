@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "updated": "2026-08-24",
+  "updated": "2026-08-27",
   "release_candidate": null,
   "status_definitions": {
     "not_started": "No release verification has been performed.",
@@ -18,30 +18,30 @@
     "expected_requirement_count": 253
   },
   "security_tests": [
-    {"id": 1, "status": "not_started", "evidence": ["SECURITY_PLAN.md#17-required-security-tests"]},
-    {"id": 2, "status": "not_started", "evidence": ["SECURITY_PLAN.md#5-tailscale-and-network-boundary"]},
-    {"id": 3, "status": "partial", "evidence": ["config/settings/production.py", "tests/test_production_settings.py"]},
-    {"id": 4, "status": "partial", "evidence": ["identity/", "tests/test_authentication.py"]},
-    {"id": 5, "status": "partial", "evidence": ["tests/test_web_foundation.py", "tests/"]},
-    {"id": 6, "status": "partial", "evidence": ["households/services/", "tests/"]},
-    {"id": 7, "status": "implemented", "evidence": ["identity/services/throttling.py", "tests/test_authentication.py"]},
-    {"id": 8, "status": "implemented", "evidence": ["identity/services/sessions.py", "tests/test_authentication.py"]},
-    {"id": 9, "status": "implemented", "evidence": ["imports/services/", "tests/test_csv_imports.py"]},
-    {"id": 10, "status": "implemented", "evidence": ["imports/services/", "tests/test_csv_imports.py"]},
-    {"id": 11, "status": "implemented", "evidence": ["spending/services/exports.py", "audit/exports.py", "tests/test_audit_ui.py"]},
-    {"id": 12, "status": "implemented", "evidence": ["Dockerfile", "compose.yaml", "tests/test_deployment_config.py"]},
-    {"id": 13, "status": "not_started", "evidence": ["SECURITY_PLAN.md#5-tailscale-and-network-boundary"]},
-    {"id": 14, "status": "partial", "evidence": [".github/workflows/quality.yml", "scripts/secret_scan.py", "docs/SECURITY_FINDINGS.md"]},
-    {"id": 15, "status": "implemented", "evidence": ["audit/migrations/0002_postgresql_protected_schema.py", "tests/test_audit.py", "tests/test_deployment_config.py"]},
-    {"id": 16, "status": "implemented", "evidence": ["audit/services.py", "tests/test_audit.py"]},
-    {"id": 17, "status": "implemented", "evidence": ["audit/services.py", "tests/test_audit.py"]},
+    {"id": 1, "status": "not_started", "evidence": ["SECURITY_PLAN.md#17-required-security-tests", "docs/ADVERSARIAL_TESTING.md#net-01", "docs/adversarial-test-matrix.json"]},
+    {"id": 2, "status": "not_started", "evidence": ["SECURITY_PLAN.md#5-tailscale-and-network-boundary", "docs/ADVERSARIAL_TESTING.md#net-02", "docs/adversarial-test-matrix.json"]},
+    {"id": 3, "status": "partial", "evidence": ["config/settings/production.py", "tests/test_production_settings.py", "docs/ADVERSARIAL_TESTING.md#net-03", "docs/adversarial-test-matrix.json"]},
+    {"id": 4, "status": "partial", "evidence": ["identity/", "tests/test_authentication.py", "docs/ADVERSARIAL_TESTING.md#sess-05", "docs/adversarial-test-matrix.json"]},
+    {"id": 5, "status": "partial", "evidence": ["tests/test_web_foundation.py", "tests/", "docs/ADVERSARIAL_TESTING.md#authz-04", "docs/adversarial-test-matrix.json"]},
+    {"id": 6, "status": "partial", "evidence": ["households/services/", "tests/", "docs/ADVERSARIAL_TESTING.md#authz-01", "docs/adversarial-test-matrix.json"]},
+    {"id": 7, "status": "implemented", "evidence": ["identity/services/throttling.py", "tests/test_authentication.py", "docs/ADVERSARIAL_TESTING.md#sess-01", "docs/adversarial-test-matrix.json"]},
+    {"id": 8, "status": "implemented", "evidence": ["identity/services/sessions.py", "tests/test_authentication.py", "docs/ADVERSARIAL_TESTING.md#sess-03", "docs/adversarial-test-matrix.json"]},
+    {"id": 9, "status": "implemented", "evidence": ["imports/services/", "tests/test_csv_imports.py", "docs/ADVERSARIAL_TESTING.md#csv-01", "docs/adversarial-test-matrix.json"]},
+    {"id": 10, "status": "implemented", "evidence": ["imports/services/", "tests/test_csv_imports.py", "docs/ADVERSARIAL_TESTING.md#csv-03", "docs/adversarial-test-matrix.json"]},
+    {"id": 11, "status": "implemented", "evidence": ["spending/services/exports.py", "audit/exports.py", "tests/test_audit_ui.py", "docs/ADVERSARIAL_TESTING.md#csv-02", "docs/adversarial-test-matrix.json"]},
+    {"id": 12, "status": "implemented", "evidence": ["Dockerfile", "compose.yaml", "tests/test_deployment_config.py", "docs/ADVERSARIAL_TESTING.md#net-06", "docs/adversarial-test-matrix.json"]},
+    {"id": 13, "status": "not_started", "evidence": ["SECURITY_PLAN.md#5-tailscale-and-network-boundary", "docs/ADVERSARIAL_TESTING.md#net-04", "docs/adversarial-test-matrix.json"]},
+    {"id": 14, "status": "partial", "evidence": [".github/workflows/quality.yml", "scripts/secret_scan.py", "docs/SECURITY_FINDINGS.md", "docs/ADVERSARIAL_TESTING.md#net-06", "docs/adversarial-test-matrix.json"]},
+    {"id": 15, "status": "implemented", "evidence": ["audit/migrations/0002_postgresql_protected_schema.py", "tests/test_audit.py", "tests/test_deployment_config.py", "docs/ADVERSARIAL_TESTING.md#audit-01", "docs/adversarial-test-matrix.json"]},
+    {"id": 16, "status": "implemented", "evidence": ["audit/services.py", "tests/test_audit.py", "docs/ADVERSARIAL_TESTING.md#audit-02", "docs/adversarial-test-matrix.json"]},
+    {"id": 17, "status": "implemented", "evidence": ["audit/services.py", "tests/test_audit.py", "docs/ADVERSARIAL_TESTING.md#audit-03", "docs/adversarial-test-matrix.json"]},
     {"id": 18, "status": "partial", "evidence": ["deploy/backup/restore-verify.sh", "docs/BACKUP_AND_RESTORE.md"]},
-    {"id": 19, "status": "partial", "evidence": ["audit/checkpoints.py", "docs/BACKUP_AND_RESTORE.md"]},
+    {"id": 19, "status": "partial", "evidence": ["audit/checkpoints.py", "docs/BACKUP_AND_RESTORE.md", "docs/ADVERSARIAL_TESTING.md#audit-04", "docs/adversarial-test-matrix.json"]},
     {"id": 20, "status": "not_started", "evidence": ["SECURITY_PLAN.md#14-incident-response"]},
     {"id": 21, "status": "implemented", "evidence": ["docs/BROWSER_TESTING.md", "browser-tests/", "playwright.config.mjs", ".github/workflows/browser.yml", "tests/test_browser_harness.py"]},
     {"id": 22, "status": "partial", "evidence": ["docs/BROWSER_TESTING.md", "docs/REAL_DEVICE_ACCESSIBILITY_TESTING.md", "docs/device-test-matrix.json", "scripts/check_device_test_evidence.py", "playwright.config.mjs", "IMPLEMENTATION_PLAN.md#4-browser-support-and-test-matrix"]},
-    {"id": 23, "status": "implemented", "evidence": ["SECURITY_PLAN.md#18-penetration-testing-and-adversarial-validation", "compose.pentest.yaml", "docs/PENTESTING.md", "docs/SECURITY_FINDINGS.md", "tests/test_pentest_harness.py"]},
-    {"id": 24, "status": "partial", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md", "scripts/check_zap_reports.py"]}
+    {"id": 23, "status": "implemented", "evidence": ["SECURITY_PLAN.md#18-penetration-testing-and-adversarial-validation", "compose.pentest.yaml", "docs/PENTESTING.md", "docs/ADVERSARIAL_TESTING.md", "docs/adversarial-test-matrix.json", "scripts/check_adversarial_test_evidence.py", "docs/SECURITY_FINDINGS.md", "tests/test_pentest_harness.py"]},
+    {"id": 24, "status": "partial", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md", "scripts/check_zap_reports.py", "scripts/check_adversarial_test_evidence.py", "docs/adversarial-test-runs/README.md"]}
   ],
   "release_gates": [
     {"id": 1, "status": "partial", "evidence": ["PRODUCT_SPEC.md", "tests/"]},
@@ -54,7 +54,7 @@
     {"id": 8, "status": "partial", "evidence": ["audit/checkpoints.py", "docs/BACKUP_AND_RESTORE.md"]},
     {"id": 9, "status": "not_started", "evidence": ["SECURITY_PLAN.md#14-incident-response"]},
     {"id": 10, "status": "not_started", "evidence": ["docs/MIGRATIONS.md"]},
-    {"id": 11, "status": "implemented", "evidence": ["SECURITY_PLAN.md#18-penetration-testing-and-adversarial-validation", "compose.pentest.yaml", "docs/PENTESTING.md", "docs/SECURITY_FINDINGS.md"]},
-    {"id": 12, "status": "implemented", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md", "scripts/check_zap_reports.py"]}
+    {"id": 11, "status": "implemented", "evidence": ["SECURITY_PLAN.md#18-penetration-testing-and-adversarial-validation", "compose.pentest.yaml", "docs/PENTESTING.md", "docs/ADVERSARIAL_TESTING.md", "docs/adversarial-test-matrix.json", "scripts/check_adversarial_test_evidence.py", "docs/SECURITY_FINDINGS.md"]},
+    {"id": 12, "status": "implemented", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md", "scripts/check_zap_reports.py", "scripts/check_adversarial_test_evidence.py", "docs/adversarial-test-runs/README.md"]}
   ]
 }
