@@ -442,6 +442,8 @@ automated tests, dependency scanning, or threat modeling.
   Tailscale and loopback services are reachable.
 - Retain the ASVS requirement mapping and OWASP Web Security Testing Guide test
   identifiers used for manual testing.
+- Use `docs/ADVERSARIAL_TESTING.md` and its machine-validated matrix and sanitized run records for
+  the authorization, session, CSV, financial-logic, audit-integrity, and network-boundary pass.
 - Automated scanner results require manual validation. Manual business-logic
   and authorization testing remains mandatory because scanners cannot prove
   household isolation or financial correctness.

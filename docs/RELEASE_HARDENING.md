@@ -1,7 +1,7 @@
 # Release hardening and evidence
 
 Status: Milestone 10 baseline in progress  
-Last updated: 2026-08-24
+Last updated: 2026-08-27
 
 ## Purpose
 
@@ -72,8 +72,8 @@ real household data.
 ## Execution order
 
 1. Keep the completed ASVS 5.0.0 requirement mapping current as features and evidence change.
-2. Complete the manual authorization, session, CSV, financial-logic, audit, and network adversarial
-   test records identified by the mapping.
+2. Select the candidate and complete all three machine-validated manual adversarial target records
+   in `docs/ADVERSARIAL_TESTING.md`; the Linux VM network target cannot be substituted with loopback.
 3. Repeat the implemented Chromium, Firefox, and WebKit suite against the release candidate.
 4. Repeat the isolated synthetic PostgreSQL penetration-test profile in `docs/PENTESTING.md`.
 5. Run its unauthenticated ZAP passive/active automation, then authenticated automation for both
@@ -99,8 +99,11 @@ real household data.
   branded/real-device mobile passes remain pending. Their exact browser, device, keyboard,
   screen-reader, and zoom targets now have a machine-validated sanitized evidence procedure; no
   target is counted before a dated manual run against the selected candidate.
-- Browser-driven DOM-XSS coverage passed across every automated engine/viewport. The manual
-  authorization, session, CSV, financial-logic, audit-tampering, and network tests remain pending.
+- Browser-driven DOM-XSS coverage passed across every automated engine/viewport. The 28-scenario
+  authorization, session, CSV, financial-logic, audit-tampering, and network catalog now has fixed
+  WSTG/local-test mappings, sanitized append-only run records, finding references, candidate
+  binding, and a completeness gate. It remains at 0 of 3 required targets because no manual run has
+  been performed; the private-ingress target additionally requires the Linux VM.
 - The release-candidate restore, audit-checkpoint comparison, lost-device, rotation, upgrade, and
   rollback rehearsals remain pending.
 - No complete release-candidate penetration-test pass is claimed yet.

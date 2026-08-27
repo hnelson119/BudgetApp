@@ -202,6 +202,9 @@ python -m ruff format --check .
 python -m mypy audit budgets core debts goals households identity imports ledger notifications periods reserves schedules spending
 python manage.py makemigrations --check --dry-run --settings=config.settings.test
 python scripts/secret_scan.py
+python scripts/check_release_evidence.py
+python scripts/check_device_test_evidence.py
+python scripts/check_adversarial_test_evidence.py
 python -m bandit -c pyproject.toml -r audit budgets config core debts goals households identity imports ledger notifications periods reserves schedules spending
 python -m pip_audit --requirement requirements-dev.lock --cache-dir .pip-audit-cache --no-deps --disable-pip --strict
 .\scripts\run-browser-tests.ps1
@@ -218,6 +221,10 @@ The Docker-only browser command creates and removes an isolated synthetic enviro
 separate branded-browser, real-device, keyboard, screen-reader, and zoom procedure is in
 [`docs/REAL_DEVICE_ACCESSIBILITY_TESTING.md`](docs/REAL_DEVICE_ACCESSIBILITY_TESTING.md); automated
 engine results do not satisfy those manual targets.
+The separate authorization, session, CSV, financial-logic, audit-integrity, and private-network
+manual release procedures are in [`docs/ADVERSARIAL_TESTING.md`](docs/ADVERSARIAL_TESTING.md).
+Its evidence validator reports structural readiness without treating an unexecuted scenario as a
+pass.
 
 The GitHub workflow in `.github/workflows/quality.yml` uses read-only repository permissions and
 immutable commit SHAs for official actions. Dependabot proposes reviewed updates for Python,
