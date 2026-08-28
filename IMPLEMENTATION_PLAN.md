@@ -285,7 +285,10 @@ now covers unauthenticated traffic and both MFA-authenticated household roles. T
 adversarial catalog now fixes 28 authorization, session, CSV, financial-logic, audit-integrity, and
 network-boundary scenarios across disposable application, protected PostgreSQL, and release-only
 private Linux VM targets. Its validator requires sanitized per-target records, registered findings,
-candidate binding, and preserved supersession history; no run is claimed yet. Release-candidate
+candidate binding, and preserved supersession history; no run is claimed yet. The disposable
+application now seeds two distinct household boundaries with three MFA-enabled users and
+representative cross-boundary object types. A guarded verifier checks membership and object scope
+from an ephemeral UUID-only manifest before any scan runs. Release-candidate
 repetition, real-device smoke testing, and operational rehearsals remain in progress. The disposable
 Playwright baseline now signs in through the real password-and-TOTP
 flow and passes Chromium, Firefox, and WebKit desktop/narrow/mobile-engine projects. It covers
@@ -296,8 +299,9 @@ primary navigation targets now extend that baseline. A separate machine-validate
 real-device, keyboard, screen-reader, and zoom matrix defines the sanitized per-run evidence needed
 for a release candidate without treating engine automation as a manual pass. Its first execution
 also found and remediated nonportable HTML date defaults and font-metric-dependent narrow summary-
-card overflow. The manual matrix remains at 0 of 18 required release-candidate targets until an
-actual candidate and test devices are available.
+card overflow. The browser/device matrix remains at 0 of 18 required release-candidate targets, and
+the manual adversarial matrix remains at 0 of 3 required targets, until actual candidate testing is
+performed.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

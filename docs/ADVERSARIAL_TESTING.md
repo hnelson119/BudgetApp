@@ -40,7 +40,9 @@ target against the named commit.
 Use the production-derived disposable stack. The fixture must contain two MFA-enabled users in one
 synthetic household, a user and records in a second synthetic household, representative budgets,
 paycheck-anchored periods, card activity, split mortgage payments, goals, debts, and CSV import
-history. Exercise the real HTTP/browser boundary. Development runs may use an equivalent isolated
+history. The standard harness generates a protected, ephemeral UUID-only fixture manifest and must
+pass `python manage.py verify_pentest_fixture` before testing; do not copy the manifest into a run
+record. Exercise the real HTTP/browser boundary. Development runs may use an equivalent isolated
 local stack; release runs use the selected candidate's production-like profile.
 
 ### Protected synthetic PostgreSQL runtime
