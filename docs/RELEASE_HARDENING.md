@@ -102,8 +102,11 @@ real household data.
 - Browser-driven DOM-XSS coverage passed across every automated engine/viewport. The 28-scenario
   authorization, session, CSV, financial-logic, audit-tampering, and network catalog now has fixed
   WSTG/local-test mappings, sanitized append-only run records, finding references, candidate
-  binding, and a completeness gate. It remains at 0 of 3 required targets because no manual run has
-  been performed; the private-ingress target additionally requires the Linux VM.
+  binding, and a completeness gate. The disposable application fixture now provides two verified
+  household boundaries, three MFA users, and protected UUID references for representative object
+  types without treating fixture readiness as test execution. The matrix remains at 0 of 3 required
+  targets because no manual run has been performed; the private-ingress target additionally
+  requires the Linux VM.
 - The release-candidate restore, audit-checkpoint comparison, lost-device, rotation, upgrade, and
   rollback rehearsals remain pending.
 - No complete release-candidate penetration-test pass is claimed yet.
