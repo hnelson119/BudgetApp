@@ -103,6 +103,7 @@ ignore = ["DJ001"]
 [tool.ruff.lint.per-file-ignores]
 "*/migrations/*.py" = ["E501", "RUF012"]
 "*/models.py" = ["RUF012"]
+"deploy/pentest/run-authz-csrf.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.12"

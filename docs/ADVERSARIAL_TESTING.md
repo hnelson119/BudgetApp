@@ -2,7 +2,7 @@
 
 Status: procedure and evidence format implemented; no manual run is recorded yet
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 
 ## Purpose
 
@@ -16,6 +16,11 @@ security and calculation rules.
 Automated unit, browser, and ZAP results can support an investigation; they do not count as this
 manual test. A passing record means a tester actually exercised every scenario assigned to that
 target against the named commit.
+
+The guarded `scripts/run-authz-csrf.ps1` and `scripts/run-authz-csrf.sh` helpers execute repeatable
+real-HTTP and database-invariant checks for `AUTHZ-01` through `AUTHZ-04`. Their sanitized output is
+supporting evidence only: it does not create a run record, does not advance the target count, and
+does not replace the tester's review of logs, errors, route coverage, or registered findings.
 
 ## Safety and data boundaries
 
