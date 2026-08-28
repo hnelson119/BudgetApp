@@ -115,6 +115,61 @@ directory or an encrypted assessment location outside the repository.
   and no embedded-secret finding. The application quality gate also passed after the change.
 - Exceptions or suppressions: none; the finding is not ignored or severity-downgraded.
 
+## M10-F007 — Anonymous state retained across the password trust boundary
+
+- Severity: Low
+- State: Retested
+- Detected: 2026-08-28
+- Owner: release owner
+- Affected baseline: initial disposable `SESS-02` session-fixation probe
+- Detection: a controlled server-side marker in a cloned anonymous session survived password
+  acceptance and MFA completion even though the session identifier rotated at both transitions.
+- Security impact: no reusable identifier fixation or authorization bypass was observed, and the
+  application does not expose a client-controlled arbitrary-session-data facility. Retaining
+  unrelated anonymous values across a trust transition was nevertheless unnecessary and could
+  make a future session-backed feature inherit stale untrusted state.
+- Remediation: password acceptance now flushes the anonymous session before writing the three
+  pending-MFA fields. Final authentication and recent authentication continue to rotate the new
+  identifier.
+- Retest: unit coverage proved the old key and marker are absent after password acceptance; the
+  disposable HTTP probe then passed pre-authentication, pending-MFA, final-authentication, and
+  recent-authentication rotations without preserving the marker.
+- Exceptions or suppressions: none.
+
+## M10-F008 — Authentication cookie outlived a normal browser session
+
+- Severity: Medium
+- State: Retested
+- Detected: 2026-08-28
+- Owner: release owner
+- Affected baseline: initial disposable `SESS-05` cookie-lifetime probe
+- Detection: pending-MFA and authenticated session helpers set explicit time-based expiry values,
+  causing a persistent browser cookie despite the production browser-close policy. Server-side
+  five-minute pending, one-hour idle, and twelve-hour absolute checks still limited reuse.
+- Remediation: both helpers now issue browser-session-only cookies. The existing server-side
+  timestamps remain authoritative for pending, idle, and absolute expiry, and database cleanup
+  retains its global session age.
+- Retest: unit tests, real HTTP cookie-jar checks, and the Chromium/Firefox/WebKit Playwright matrix
+  confirmed browser-session-only expiry. The final lifecycle project also proved sign-out removes
+  the cookie, back navigation does not reveal the protected audit page, and a fresh context starts
+  unauthenticated.
+- Exceptions or suppressions: none.
+
+## 2026-08-28 synthetic session-security baseline
+
+- The guarded disposable helper passed `SESS-01` through `SESS-05`: 18 bounded identity/throttle
+  checks, 4 trust-transition checks, 7 revocation checks, 8 timeout/concurrency checks, and 6
+  cookie/cache checks. It printed no credentials, cookies, identifiers, submitted values, response
+  bodies, database contents, or timing samples, and cleanup removed the database and every
+  credential/session volume.
+- The expanded browser matrix completed with 45 passed, 13 intentionally project-inapplicable
+  skips, and zero failed. The destructive Chromium lifecycle proof ran only after all Chromium,
+  Firefox, WebKit, phone, narrow, iPhone, and iPad dependencies completed.
+- This is supporting development evidence, not a manual scenario result or release-candidate run.
+  Password change/forgot-password and individual active-session review/revocation remain missing;
+  deployed TLS/`Secure` behavior still requires the private Linux VM target. The adversarial matrix
+  therefore remains at zero of three completed targets.
+
 ## 2026-08-24 synthetic browser baseline
 
 - Result after the accessibility extension: 44 passed, 13 intentionally skipped, and zero failed

@@ -26,6 +26,7 @@ test("authenticated pages preserve browser security controls", async ({ page, co
   );
   expect(sessionCookie?.httpOnly).toBe(true);
   expect(sessionCookie?.sameSite).toBe("Strict");
+  expect(sessionCookie?.expires).toBe(-1);
   const browserStorage = await page.evaluate(() => ({
     localKeys: Object.keys(window.localStorage),
     sessionKeys: Object.keys(window.sessionStorage),

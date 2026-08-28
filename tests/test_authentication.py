@@ -140,6 +140,7 @@ def test_password_login_establishes_restricted_enrollment_session_and_audit(
     session = client.session
     assert session["active_household_id"] == str(household.pk)
     assert session["security_user_version"] == user.session_version
+    assert session.get_expire_at_browser_close() is True
     event = AuditEvent.objects.get(action="auth.mfa_enrollment_required")
     assert event.actor == user
     assert event.household == household

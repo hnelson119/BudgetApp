@@ -33,6 +33,7 @@ setup("authenticate through the real password and TOTP browser flow", async ({ p
   );
   expect(sessionCookie?.httpOnly).toBe(true);
   expect(sessionCookie?.sameSite).toBe("Strict");
+  expect(sessionCookie?.expires).toBe(-1);
 
   mkdirSync("/tmp/browser-auth", { recursive: true, mode: 0o700 });
   await context.storageState({ path: authenticationState });

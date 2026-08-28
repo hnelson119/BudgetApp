@@ -166,11 +166,18 @@ def test_enrolled_login_requires_mfa_and_recovery_code_is_single_use(
 ) -> None:  # type: ignore[no-untyped-def]
     _, user = mfa_household_user
     _, recovery_codes = _enroll_user(user)
+    anonymous_session = client.session
+    anonymous_session["untrusted_anonymous_state"] = "must-not-survive"
+    anonymous_session.save()
+    anonymous_session_key = anonymous_session.session_key
 
     password_response = _password_login(client, next_url="/")
     assert password_response.status_code == 302
     assert password_response.url.startswith(reverse("identity:mfa-verify"))
     assert "_auth_user_id" not in client.session
+    assert client.session.session_key != anonymous_session_key
+    assert "untrusted_anonymous_state" not in client.session
+    assert client.session.get_expire_at_browser_close() is True
 
     verify_response = client.post(
         reverse("identity:mfa-verify"),
@@ -178,6 +185,7 @@ def test_enrolled_login_requires_mfa_and_recovery_code_is_single_use(
     )
     assert verify_response.url == reverse("core:home")
     assert "_auth_user_id" in client.session
+    assert client.session.get_expire_at_browser_close() is True
     used_code = RecoveryCode.objects.get(identifier=recovery_codes[0][:8])
     assert used_code.used_at is not None
     event = AuditEvent.objects.get(action="auth.login_succeeded")

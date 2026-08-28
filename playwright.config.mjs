@@ -11,6 +11,7 @@ const authenticatedUse = {
   baseURL,
   storageState: authenticationState,
 };
+const lifecycleSpec = /session-lifecycle\.spec\.mjs/;
 
 export default defineConfig({
   testDir: "./browser-tests",
@@ -40,6 +41,7 @@ export default defineConfig({
     {
       name: "chromium-desktop",
       dependencies: ["auth-setup"],
+      testIgnore: lifecycleSpec,
       use: {
         ...authenticatedUse,
         browserName: "chromium",
@@ -49,6 +51,7 @@ export default defineConfig({
     {
       name: "firefox-desktop",
       dependencies: ["auth-setup"],
+      testIgnore: lifecycleSpec,
       use: {
         ...authenticatedUse,
         browserName: "firefox",
@@ -58,6 +61,7 @@ export default defineConfig({
     {
       name: "webkit-desktop",
       dependencies: ["auth-setup"],
+      testIgnore: lifecycleSpec,
       use: {
         ...authenticatedUse,
         browserName: "webkit",
@@ -67,6 +71,7 @@ export default defineConfig({
     {
       name: "chromium-phone",
       dependencies: ["auth-setup"],
+      testIgnore: lifecycleSpec,
       use: {
         ...authenticatedUse,
         browserName: "chromium",
@@ -79,6 +84,7 @@ export default defineConfig({
     {
       name: "firefox-narrow",
       dependencies: ["auth-setup"],
+      testIgnore: lifecycleSpec,
       use: {
         ...authenticatedUse,
         browserName: "firefox",
@@ -88,6 +94,7 @@ export default defineConfig({
     {
       name: "webkit-iphone",
       dependencies: ["auth-setup"],
+      testIgnore: lifecycleSpec,
       use: {
         ...authenticatedUse,
         browserName: "webkit",
@@ -100,6 +107,7 @@ export default defineConfig({
     {
       name: "webkit-ipad",
       dependencies: ["auth-setup"],
+      testIgnore: lifecycleSpec,
       use: {
         ...authenticatedUse,
         browserName: "webkit",
@@ -107,6 +115,24 @@ export default defineConfig({
         deviceScaleFactor: 2,
         hasTouch: true,
         isMobile: true,
+      },
+    },
+    {
+      name: "session-lifecycle",
+      dependencies: [
+        "chromium-desktop",
+        "firefox-desktop",
+        "webkit-desktop",
+        "chromium-phone",
+        "firefox-narrow",
+        "webkit-iphone",
+        "webkit-ipad",
+      ],
+      testMatch: lifecycleSpec,
+      use: {
+        ...authenticatedUse,
+        browserName: "chromium",
+        viewport: { width: 1440, height: 900 },
       },
     },
   ],
