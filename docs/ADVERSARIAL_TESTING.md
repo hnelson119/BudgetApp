@@ -22,6 +22,13 @@ real-HTTP and database-invariant checks for `AUTHZ-01` through `AUTHZ-04`. Their
 supporting evidence only: it does not create a run record, does not advance the target count, and
 does not replace the tester's review of logs, errors, route coverage, or registered findings.
 
+The equally guarded `scripts/run-session-security.ps1` and `scripts/run-session-security.sh`
+helpers supply real-HTTP, browser, and controlled server-side boundary observations for implemented
+parts of `SESS-01` through `SESS-05`. They have the same supporting-evidence limitation. In
+particular, the application does not yet provide password change/forgot-password flows or an
+individual active-session inventory and revoke control; logout-all and administrative revocation
+checks must not be reported as if those missing workflows passed.
+
 ## Safety and data boundaries
 
 - Use only disposable synthetic households, credentials, financial records, files, and audit data.
@@ -135,6 +142,11 @@ sanitized `notes`, and `finding_ids`. Valid scenario states are `passed`, `faile
   does not weaken the cookie or origin boundary.
 
 ## Session and identity procedures
+
+Run the guarded session helper against a fresh disposable stack before the manual review. Retain
+only its sanitized scenario/count output with the restricted assessment notes. Complete the
+unautomated recovery, deployed TLS, browser-family, active-session-management, logging, and restart
+observations below before recording any scenario as passed.
 
 <a id="sess-01"></a>
 ### SESS-01 — Identity enumeration, throttling, and recovery-safe responses

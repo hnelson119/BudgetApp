@@ -91,6 +91,7 @@ def test_playwright_matrix_is_bounded_and_keeps_artifacts_ephemeral() -> None:
         "firefox-narrow",
         "webkit-iphone",
         "webkit-ipad",
+        "session-lifecycle",
     }
 
     assert 'const expectedBaseUrl = "http://pentest-web:8000"' in config
@@ -117,10 +118,12 @@ def test_browser_specs_cover_real_mfa_security_accessibility_and_workflows() -> 
     assert "currentTotpCode" in auth
     assert "chmodSync(authenticationState, 0o400)" in auth
     assert "httpOnly" in auth and 'sameSite).toBe("Strict")' in auth
+    assert "sessionCookie?.expires).toBe(-1)" in auth
     assert "content-security-policy" in security
     assert "unsafe-inline" in security and "unsafe-eval" in security
     assert "window.localStorage" in security and "window.sessionStorage" in security
     assert "window.__budgetInjected" in security
+    assert "sessionCookie?.expires).toBe(-1)" in security
     assert "AxeBuilder" in security
     assert all(tag in security for tag in ("wcag2a", "wcag2aa", "wcag21a", "wcag21aa"))
     assert "expectNoHorizontalOverflow" in workflows
@@ -131,6 +134,12 @@ def test_browser_specs_cover_real_mfa_security_accessibility_and_workflows() -> 
     assert "manual expense" in workflows
     assert "Remove category budget" in workflows
     assert "Reason" in workflows and "confirmation" in workflows
+    lifecycle = _read("browser-tests/session-lifecycle.spec.mjs")
+    assert "page.goBack()" in lifecycle
+    assert "browser.newContext(" in lifecycle
+    assert "household-budget-theme" in lifecycle
+    assert "pentest_budget_sessionid" in lifecycle
+    assert "Sign out" in lifecycle
     assert "createHmac" in support and 'readFileSync(path, "ascii")' in support
     assert set(re.findall(r'"(alex_[a-z]+)": Path', credential_preparation)) == {
         "alex_password",

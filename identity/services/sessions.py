@@ -26,15 +26,15 @@ def establish_session_security(request: HttpRequest, user: User) -> None:
     request.session[SESSION_LAST_SEEN_AT] = now
     request.session[SESSION_USER_VERSION] = user.session_version
     request.session[SESSION_AUTH_VERIFIED_AT] = now
-    request.session.set_expiry(settings.SESSION_ABSOLUTE_TIMEOUT_SECONDS)
+    request.session.set_expiry(0)
 
 
 def establish_pending_mfa(request: HttpRequest, user: User) -> None:
-    request.session.cycle_key()
+    request.session.flush()
     request.session[SESSION_PENDING_MFA_USER] = str(user.pk)
     request.session[SESSION_PENDING_MFA_STARTED_AT] = int(time.time())
     request.session[SESSION_PENDING_MFA_VERSION] = user.session_version
-    request.session.set_expiry(settings.MFA_PENDING_TIMEOUT_SECONDS)
+    request.session.set_expiry(0)
 
 
 def clear_pending_mfa(request: HttpRequest) -> None:
