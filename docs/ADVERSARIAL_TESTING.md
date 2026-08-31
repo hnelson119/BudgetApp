@@ -2,7 +2,7 @@
 
 Status: procedure and evidence format implemented; no manual run is recorded yet
 
-Last updated: 2026-08-28
+Last updated: 2026-08-31
 
 ## Purpose
 
@@ -28,6 +28,11 @@ parts of `SESS-01` through `SESS-05`. They have the same supporting-evidence lim
 particular, the application does not yet provide password change/forgot-password flows or an
 individual active-session inventory and revoke control; logout-all and administrative revocation
 checks must not be reported as if those missing workflows passed.
+
+The guarded `scripts/run-csv-security.ps1` and `scripts/run-csv-security.sh` helper exercises
+repeatable real-HTTP and PostgreSQL invariants for `CSV-01` through `CSV-04`, including two-member
+concurrency and the staging-expiry boundary. Its sanitized counts are supporting evidence only and
+do not replace spreadsheet-client observation, resource/log review, or a complete target record.
 
 ## Safety and data boundaries
 
@@ -236,7 +241,9 @@ observations below before recording any scenario as passed.
   extensions, long names, and control-character edge cases supported by the client.
 - Abandon, reject, and complete imports while observing only the disposable storage boundary.
 - Pass only if filenames cannot select a path or executable context, content determines validation,
-  and rejected or abandoned data is removed under the documented retention policy.
+  and rejected or abandoned data is removed under the documented retention policy. Confirm that an
+  unfinished batch older than 24 hours is scrubbed by the maintenance job while a newer batch is
+  retained, and that expiry leaves one protected system audit event without raw cells.
 
 ## Financial-logic procedures
 

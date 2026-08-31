@@ -3,11 +3,12 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
@@ -555,3 +556,62 @@ def abandon_import_batch(
         reason="User abandoned staged import",
     )
     return locked
+
+
+def expire_stale_import_batches(
+    *,
+    now: datetime | None = None,
+    request_id: str = "import-staging-expiry",
+) -> int:
+    """Scrub expired staged rows without racing an active preview or commit."""
+
+    expiry_time = now or timezone.now()
+    if timezone.is_naive(expiry_time):
+        raise ValidationError("The import expiry time must include a time zone.")
+    retention_hours = int(getattr(settings, "CSV_IMPORT_STAGING_RETENTION_HOURS", 24))
+    if not 1 <= retention_hours <= 720:
+        raise ValidationError("CSV import staging retention must be between 1 and 720 hours.")
+    cutoff = expiry_time - timedelta(hours=retention_hours)
+    candidate_ids = (
+        ImportBatch.objects.filter(
+            status__in=(ImportBatch.Status.UPLOADED, ImportBatch.Status.PREVIEWED),
+            uploaded_at__lte=cutoff,
+        )
+        .order_by("uploaded_at")
+        .values_list("pk", flat=True)
+    )
+    expired = 0
+    for batch_id in candidate_ids.iterator(chunk_size=100):
+        with transaction.atomic():
+            locked = (
+                ImportBatch.objects.select_for_update().select_related("household").get(pk=batch_id)
+            )
+            if (
+                locked.status
+                not in (
+                    ImportBatch.Status.UPLOADED,
+                    ImportBatch.Status.PREVIEWED,
+                )
+                or locked.uploaded_at > cutoff
+            ):
+                continue
+            ImportRow.objects.filter(batch=locked).update(raw_data={})
+            locked.status = ImportBatch.Status.ABANDONED
+            locked.completed_at = expiry_time
+            locked.raw_deleted_at = expiry_time
+            locked.save(update_fields=("status", "completed_at", "raw_deleted_at"))
+            append_event(
+                household=locked.household,
+                actor=None,
+                action="import.batch_expired",
+                entity_type="import_batch",
+                entity_id=locked.pk,
+                request_id=request_id,
+                after={
+                    "raw_data_deleted": True,
+                    "retention_hours": retention_hours,
+                },
+                reason="Staged import exceeded retention period",
+            )
+            expired += 1
+    return expired

@@ -70,6 +70,22 @@ It runs every 30 minutes and creates a critical in-app alert when the success ma
 older than `BUDGET_BACKUP_MAX_AGE_HOURS` (36 hours by default). A failed run never refreshes the
 marker, so the alert becomes visible without putting backup secrets in the web application.
 
+Install the independent staged-CSV cleanup timer as part of the same production maintenance setup:
+
+```bash
+sudo install -m 0644 deploy/systemd/household-budget-import-cleanup.service /etc/systemd/system/
+sudo install -m 0644 deploy/systemd/household-budget-import-cleanup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now household-budget-import-cleanup.timer
+```
+
+It runs hourly with a randomized delay. The runtime database identity marks unfinished imports
+older than `CSV_IMPORT_STAGING_RETENTION_HOURS` (24 by default) abandoned, scrubs their bounded raw
+cells, and appends a protected system audit event. It receives no backup, audit-signing,
+administrator, or migration credentials. Review failures with
+`systemctl status household-budget-import-cleanup.service`; do not raise the retention setting
+above 720 hours.
+
 For manual repository inspection, use a short-lived container rather than installing Restic on
 the application host. Do not expose repository credentials to the web service.
 

@@ -155,6 +155,43 @@ directory or an encrypted assessment location outside the repository.
   unauthenticated.
 - Exceptions or suppressions: none.
 
+## M10-F009 — Unfinished CSV staging retained raw cells indefinitely
+
+- Severity: Medium
+- State: Retested
+- Detected: 2026-08-31
+- Owner: release owner
+- Affected baseline: pre-CSV-security adversarial slice
+- Detection: lifecycle review for `CSV-04` found that commit and explicit abandonment scrubbed raw
+  cells, but an uploaded or previewed batch left unfinished by both members had no automatic expiry.
+- Security impact: the complete upload file was never persisted and row, column, cell, and byte
+  limits applied, but bounded statement cells could remain in PostgreSQL longer than needed. That
+  unnecessarily increased the confidentiality impact of a later database compromise or overly
+  broad administrative access.
+- Remediation: added a configurable 24-hour staging limit and an hourly least-privilege maintenance
+  service. It locks and rechecks eligible uploaded/previewed batches, scrubs all raw mappings, marks
+  the batch abandoned, and appends an actorless protected audit event. The job receives only the
+  normal runtime database identity and application secrets; it receives no administrator,
+  migration, backup, or checkpoint-signing credential.
+- Retest: unit tests proved uploaded and previewed expiry, recent-batch preservation, idempotent
+  reruns, raw-cell deletion, protected audit creation, configuration bounds, and the management
+  command. The disposable `CSV-04` HTTP/PostgreSQL probe then expired one 25-hour batch, preserved
+  one recent batch, observed no retained media file, verified audit-chain integrity, and removed
+  every synthetic container, volume, and network.
+- Exceptions or suppressions: none.
+
+## 2026-08-31 synthetic CSV-security baseline
+
+- The guarded disposable helper passed `CSV-01` through `CSV-04`: 15 malformed/limit checks, 12
+  formula-defense checks, 8 duplicate/replay/concurrency checks, and 10 filename/cleanup checks.
+- The run used real password-plus-TOTP sessions for both primary household members, real HTTP
+  multipart/form and export requests, and PostgreSQL invariants. It printed no credentials,
+  cookies, identifiers, filenames, CSV cells, request/response bodies, or database contents.
+- This is supporting development evidence, not a manual scenario result or release-candidate run.
+  Spreadsheet-client observation, bounded resource/log review, and the remaining scenarios for a
+  complete target still have to be exercised. The adversarial matrix therefore remains at zero of
+  three completed targets.
+
 ## 2026-08-28 synthetic session-security baseline
 
 - The guarded disposable helper passed `SESS-01` through `SESS-05`: 18 bounded identity/throttle

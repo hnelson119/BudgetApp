@@ -318,6 +318,30 @@ def test_daily_backup_timer_uses_the_isolated_compose_service() -> None:
     assert "OnUnitActiveSec=30m" in notification_timer
     assert "Persistent=true" in notification_timer
 
+    import_cleanup_service = (
+        PROJECT_ROOT / "deploy/systemd/household-budget-import-cleanup.service"
+    ).read_text(encoding="utf-8")
+    import_cleanup_timer = (
+        PROJECT_ROOT / "deploy/systemd/household-budget-import-cleanup.timer"
+    ).read_text(encoding="utf-8")
+    assert "docker compose --profile maintenance run --rm import-cleanup" in import_cleanup_service
+    assert "UMask=0077" in import_cleanup_service
+    assert "OnUnitActiveSec=1h" in import_cleanup_timer
+    assert "Persistent=true" in import_cleanup_timer
+    assert "RandomizedDelaySec=5m" in import_cleanup_timer
+
+
+def test_import_cleanup_uses_the_runtime_database_identity() -> None:
+    compose = yaml.safe_load((PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    cleanup = compose["services"]["import-cleanup"]
+
+    assert cleanup["profiles"] == ["maintenance"]
+    assert cleanup["command"] == ["python", "manage.py", "cleanup_stale_imports"]
+    assert cleanup["environment"]["POSTGRES_USER"] == ("${POSTGRES_RUNTIME_USER:-budget_runtime}")
+    assert cleanup["read_only"] is True
+    assert cleanup["cap_drop"] == ["ALL"]
+    assert cleanup["networks"] == ["backend"]
+
 
 def test_ci_uses_read_only_permissions_and_immutable_official_actions() -> None:
     workflow = (PROJECT_ROOT / ".github/workflows/quality.yml").read_text(encoding="utf-8")

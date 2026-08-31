@@ -202,7 +202,8 @@ stateDiagram-v2
     Previewed --> ReviewRequired: duplicates or missing categories
     ReviewRequired --> Previewed: user resolves decisions
     Previewed --> Committed: explicit confirmation
-    Previewed --> Abandoned: cancel or expiry
+    Uploaded --> Abandoned: cancel or 24-hour expiry
+    Previewed --> Abandoned: cancel or 24-hour expiry
     Committed --> Reconciled: imported entries matched to plans
     Rejected --> [*]
     Abandoned --> [*]
@@ -212,7 +213,9 @@ stateDiagram-v2
 No JournalEntry is created before `Committed`. Repeating a committed batch with the same idempotency key cannot duplicate transactions.
 The file is parsed under byte/row/column/cell limits and is never retained as an upload. Confirmation
 commits every accepted expense and its audit history atomically, then scrubs staged raw cells. A
-failure rolls back the whole financial commit and leaves the reviewed staging data available.
+failure rolls back the whole financial commit and leaves the reviewed staging data available until
+retry, explicit abandonment, or the 24-hour expiry job. Expiry uses a row lock, rechecks state to
+avoid racing a commit, scrubs the raw cells, and appends a protected system audit event.
 
 ## 10. CSV transaction export
 

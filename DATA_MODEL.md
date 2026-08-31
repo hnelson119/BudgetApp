@@ -393,7 +393,10 @@ from current-paycheck-funded actuals because the linked ReserveEntry already rec
 
 Staged rows are not JournalEntries until confirmation. The uploaded file itself is never persisted.
 Commit scrubs every staged raw-cell mapping while retaining normalized provenance and links to the
-append-only JournalEntries.
+append-only JournalEntries. Explicit abandonment performs the same raw-cell scrub. An hourly job
+marks uploaded or previewed batches older than 24 hours abandoned, scrubs their raw mappings, sets
+the completion/deletion timestamps, and appends an actorless protected expiry event. The retained
+batch metadata contains no complete source row after any of those terminal paths.
 
 ## 9. In-app notifications
 

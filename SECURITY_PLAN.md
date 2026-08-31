@@ -195,15 +195,19 @@ reason.
 - Stream or bound parsing so a file cannot exhaust memory.
 - Reject invalid encodings, malformed quoting, excessive columns, and excessively long cells.
 - Never evaluate formulas, macros, links, or embedded commands.
-- Store uploads outside the web root with generated filenames and restrictive permissions.
-- Delete raw upload files after successful import or failed-import retention expiry.
+- Do not persist the uploaded file; if a future importer requires temporary files, keep them outside
+  the web root with generated filenames and restrictive permissions.
+- Delete staged raw cells after successful import, explicit abandonment, or a maximum 24-hour
+  failed/incomplete-import retention window.
 - Commit no transactions until the user reviews mapping, preview, duplicate results, and category gaps.
 - Use an idempotent import-batch identifier and normalized transaction fingerprints.
 
 Implementation note: CSV uploads are parsed from a bounded Django upload stream and closed without
 being copied into application media storage. Only bounded cells are staged; commit or abandonment
-scrubs those raw cells. Household scoping is enforced again in the domain service, and the final
-ledger writes plus batch audit event share one database transaction.
+scrubs those raw cells. An hourly least-privilege job locks and rechecks uploaded/previewed batches
+older than 24 hours, scrubs them, and appends a protected system audit event without recording row
+contents. Household scoping is enforced again in the domain service, and the final ledger writes
+plus batch audit event share one database transaction.
 
 ### 7.2 Export
 

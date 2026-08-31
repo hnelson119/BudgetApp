@@ -1,0 +1,11 @@
+[Unit]
+Description=Scrub expired Household Budget staged CSV data hourly
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec=1h
+Persistent=true
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target
