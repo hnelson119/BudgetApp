@@ -368,6 +368,45 @@ def test_variable_budget_edit_rejects_a_stale_form_without_an_extra_audit(
 
 
 @pytest.mark.django_db
+def test_variable_budget_create_snapshot_upserts_once_and_rejects_a_replay(
+    client,
+    budget_context: BudgetContext,
+) -> None:  # type: ignore[no-untyped-def]
+    budget = set_variable_budget(
+        pay_period=budget_context.period,
+        category=budget_context.category,
+        planned_amount=Decimal("100.00"),
+        actor=budget_context.user,
+        request_id="budget-create-snapshot-existing",
+    )
+    _mfa_ready(budget_context.user)
+    client.force_login(budget_context.user)
+    url = reverse("budgets:variable-create", args=(budget_context.period.pk,))
+    rendered = client.get(url)
+    assert rendered.status_code == 200
+    snapshot = rendered.context["form"]["expected_version"].value()
+    payload = {
+        "category": str(budget_context.category.pk),
+        "planned_amount": "125.00",
+        "notes": "Fresh create-form upsert",
+        "expected_version": snapshot,
+    }
+
+    tampered = client.post(url, {**payload, "expected_version": f"{snapshot}x"})
+    accepted = client.post(url, payload)
+    replayed = client.post(url, payload)
+
+    budget.refresh_from_db()
+    assert tampered.status_code == 200
+    assert b"form is no longer valid" in tampered.content
+    assert accepted.status_code == 302
+    assert replayed.status_code == 200
+    assert b"changed after the form was opened" in replayed.content
+    assert budget.planned_amount == Decimal("125.00")
+    assert AuditEvent.objects.filter(action="budget.variable_updated").count() == 1
+
+
+@pytest.mark.django_db
 def test_reconciliation_links_actual_entry_and_is_append_only(
     budget_context: BudgetContext,
 ) -> None:
@@ -1242,8 +1281,10 @@ def test_budget_web_forms_render_and_primary_create_edit_paths_succeed(
     )
     assert filtered_detail.status_code == 200
 
+    variable_create_url = reverse("budgets:variable-create", args=(budget_context.period.pk,))
+    variable_create_page = client.get(variable_create_url)
+    variable_create_snapshot = variable_create_page.context["form"]["expected_version"].value()
     form_urls = (
-        reverse("budgets:variable-create", args=(budget_context.period.pk,)),
         reverse("budgets:category-create", args=(budget_context.period.pk,)),
         reverse("budgets:occurrence-edit", args=(bill.pk,)),
         reverse("budgets:occurrence-move", args=(bill.pk,)),
@@ -1256,11 +1297,12 @@ def test_budget_web_forms_render_and_primary_create_edit_paths_succeed(
         assert client.get(url).status_code == 200
 
     created = client.post(
-        reverse("budgets:variable-create", args=(budget_context.period.pk,)),
+        variable_create_url,
         {
             "category": str(budget_context.category.pk),
             "planned_amount": "30.00",
             "notes": "Created through the web form",
+            "expected_version": variable_create_snapshot,
         },
     )
     assert created.status_code == 302

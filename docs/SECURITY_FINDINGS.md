@@ -194,10 +194,11 @@ directory or an encrypted assessment location outside the repository.
 - Security impact: either household member could unintentionally erase the other's concurrent
   budget edit or duplicate a goal allocation during retry. Household authorization and protected
   audit append still applied, but they did not prevent or reconcile the duplicate financial effect.
-- Remediation: variable-budget forms now submit the displayed row version and reject stale creates
-  or edits inside the locked transaction. Goal forms now carry a stable random submission token;
-  the service hashes its goal-scoped value into the existing ledger idempotency boundary while
-  retaining request identifiers for trace correlation.
+- Remediation: variable-budget create forms now carry a signed category-version snapshot captured
+  when the form is rendered, and edit forms carry the displayed row version; both reject stale
+  writes inside the locked transaction. Goal forms now carry a stable random submission token; the
+  service hashes its goal-scoped value into the existing ledger idempotency boundary while retaining
+  request identifiers for trace correlation.
 - Retest: focused tests proved one accepted budget edit, one visible stale-form rejection, and one
   audit event; a repeated goal form produced one contribution, one journal entry, and one audit
   event. The disposable PostgreSQL probe then passed controlled two-member budget, spending,
