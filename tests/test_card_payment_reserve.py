@@ -331,6 +331,54 @@ def test_partial_refund_after_payment_stays_neutral_when_payment_is_reversed(
     assert credit_card_payment_reserve(card_context.card) == Decimal("45.00")
 
 
+@pytest.mark.django_db
+def test_full_refund_after_a_mixed_payment_and_reversal_returns_to_zero(
+    card_context: CardContext,
+) -> None:
+    purchase = _purchase(card_context, "100.00")
+    payment = record_card_payment(
+        household=card_context.household,
+        actor=card_context.user,
+        source=card_context.checking,
+        card=card_context.card,
+        amount=Decimal("120.00"),
+        effective_at=datetime(2026, 8, 23, 12, tzinfo=ZONE),
+        description="Mixed purchase settlement and debt payment",
+        request_id="card-mixed-payment-before-refunds",
+    )
+
+    partial = record_card_purchase_refund(
+        entry=purchase,
+        actor=card_context.user,
+        amount=Decimal("30.00"),
+        effective_at=datetime(2026, 8, 23, 12, tzinfo=ZONE),
+        request_id="card-mixed-payment-partial-refund",
+        reason="Part of the settled purchase was returned",
+    )
+    final = record_card_purchase_refund(
+        entry=purchase,
+        actor=card_context.user,
+        amount=Decimal("70.00"),
+        effective_at=datetime(2026, 8, 25, 10, tzinfo=ZONE),
+        request_id="card-mixed-payment-final-refund",
+        reason="The remaining settled purchase was returned",
+    )
+    reverse_spending_entry(
+        entry=payment.journal_entry,
+        actor=card_context.user,
+        effective_at=datetime(2026, 8, 25, 11, tzinfo=ZONE),
+        request_id="card-mixed-payment-reversal-after-refunds",
+        reason="The mixed payment was returned",
+    )
+
+    assert partial.reserve_released == Decimal("0.00")
+    assert final.reserve_released == Decimal("0.00")
+    assert refundable_card_purchase_amount(purchase) == Decimal("0.00")
+    assert credit_card_payment_reserve(card_context.card) == Decimal("0.00")
+    assert calculated_account_balance(card_context.checking) == Decimal("0.00")
+    assert calculated_account_balance(card_context.card) == Decimal("0.00")
+
+
 @pytest.mark.django_db(transaction=True)
 def test_partial_refund_rolls_back_when_reserve_audit_or_period_validation_fails(
     card_context: CardContext,

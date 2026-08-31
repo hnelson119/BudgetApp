@@ -180,6 +180,85 @@ directory or an encrypted assessment location outside the repository.
   every synthetic container, volume, and network.
 - Exceptions or suppressions: none.
 
+## M10-F010 — Financial form races could overwrite or duplicate accepted changes
+
+- Severity: Medium
+- State: Retested
+- Detected: 2026-08-31
+- Owner: release owner
+- Affected baseline: initial `FIN-05` concurrency and replay review
+- Detection: variable-budget edits carried no version of the row displayed to the member, so a
+  stale form could silently replace a newer amount. Manual goal contributions derived their
+  ledger idempotency key from a per-request identifier, so resubmitting the same browser form could
+  create a second accepted contribution.
+- Security impact: either household member could unintentionally erase the other's concurrent
+  budget edit or duplicate a goal allocation during retry. Household authorization and protected
+  audit append still applied, but they did not prevent or reconcile the duplicate financial effect.
+- Remediation: variable-budget forms now submit the displayed row version and reject stale creates
+  or edits inside the locked transaction. Goal forms now carry a stable random submission token;
+  the service hashes its goal-scoped value into the existing ledger idempotency boundary while
+  retaining request identifiers for trace correlation.
+- Retest: focused tests proved one accepted budget edit, one visible stale-form rejection, and one
+  audit event; a repeated goal form produced one contribution, one journal entry, and one audit
+  event. The disposable PostgreSQL probe then passed controlled two-member budget, spending,
+  payment, goal, and period-move races with exactly one consistent accepted effect.
+- Exceptions or suppressions: none.
+
+## M10-F011 — Nullable joins broke PostgreSQL locks for financial corrections
+
+- Severity: Medium
+- State: Retested
+- Detected: 2026-08-31
+- Owner: release owner
+- Affected baseline: initial `FIN-01` and `FIN-04` PostgreSQL runs
+- Detection: expense refund, journal reversal, and mortgage extra-principal services combined
+  `SELECT FOR UPDATE` with eager joins to nullable category or pay-period rows. PostgreSQL rejects
+  a row lock on the nullable side of an outer join, although the SQLite unit-test backend accepts
+  the query shape.
+- Security impact: valid corrections failed safely and rolled back rather than corrupting balances,
+  but members could not complete the affected refund, reversal, or mortgage-planning operation on
+  the production database engine.
+- Remediation: each service now locks only its authoritative financial row, then resolves related
+  household, category, source, and period data separately through the model relationships. Atomic
+  authorization, validation, ledger effects, and protected audit append remain unchanged.
+- Retest: the card regression covered a purchase, mixed payment, partial and full refunds, and
+  payment reversal with zero final cash, liability, refundable, and reserve balances. Mortgage
+  service tests passed, and fresh PostgreSQL runs completed all `FIN-01` and `FIN-04` invariants.
+- Exceptions or suppressions: none.
+
+## M10-F012 — Financial probe could reuse an older helper image
+
+- Severity: Low
+- State: Retested
+- Detected: 2026-08-31
+- Owner: release owner
+- Affected baseline: initial financial-logic runner
+- Detection: the base synthetic application was rebuilt, but the later one-off financial probe
+  used Compose `run` without `--build`. A helper image left by an earlier attempt could therefore
+  execute older application modules and make the evidence disagree with the reviewed tree.
+- Security impact: no application or household data was exposed. The defect reduced confidence in
+  test evidence and could produce either stale failures or stale passes after a code change.
+- Remediation: both Windows/WSL and Linux runners now rebuild the guarded probe service immediately
+  before execution. Static harness tests require the fixed project, exact guard, fresh-volume
+  cleanup, and the `run --build` invocation.
+- Retest: the helper image rebuilt from the current tree and all five financial families passed;
+  cleanup removed every disposable container, volume, and network.
+- Exceptions or suppressions: none.
+
+## 2026-08-31 synthetic financial-logic baseline
+
+- The guarded disposable helper passed `FIN-01` through `FIN-05`: 14 accounting/retry checks, 12
+  validation/allocation checks, 15 boundary/history checks, 14 mortgage/projection checks, and 14
+  concurrency/replay checks.
+- The run used PostgreSQL, the protected synthetic fixture, real password-plus-TOTP sessions for
+  both household members, direct domain-service invariants, and controlled real HTTP races. It
+  printed no credentials, cookies, identifiers, amounts, request/response bodies, database rows,
+  or raw audit data, and cleanup removed all disposable state.
+- This is supporting development evidence, not a manual scenario result or release-candidate run.
+  UI/history observation, bounded log review, and the remaining steps for a complete target still
+  have to be exercised. The adversarial matrix therefore remains at zero of three completed
+  targets.
+
 ## 2026-08-31 synthetic CSV-security baseline
 
 - The guarded disposable helper passed `CSV-01` through `CSV-04`: 15 malformed/limit checks, 12

@@ -326,6 +326,48 @@ def test_variable_budgets_are_household_scoped_audited_and_closed_period_safe(
 
 
 @pytest.mark.django_db
+def test_variable_budget_edit_rejects_a_stale_form_without_an_extra_audit(
+    client,
+    budget_context: BudgetContext,
+) -> None:  # type: ignore[no-untyped-def]
+    budget = set_variable_budget(
+        pay_period=budget_context.period,
+        category=budget_context.category,
+        planned_amount=Decimal("100.00"),
+        actor=budget_context.user,
+        request_id="budget-stale-create",
+    )
+    expected_version = budget.updated_at.isoformat()
+    _mfa_ready(budget_context.user)
+    client.force_login(budget_context.user)
+    url = reverse("budgets:variable-edit", args=(budget.pk,))
+
+    accepted = client.post(
+        url,
+        {
+            "planned_amount": "125.00",
+            "notes": "First editor",
+            "expected_version": expected_version,
+        },
+    )
+    stale = client.post(
+        url,
+        {
+            "planned_amount": "175.00",
+            "notes": "Stale editor",
+            "expected_version": expected_version,
+        },
+    )
+
+    budget.refresh_from_db()
+    assert accepted.status_code == 302
+    assert stale.status_code == 200
+    assert b"changed after the form was opened" in stale.content
+    assert budget.planned_amount == Decimal("125.00")
+    assert AuditEvent.objects.filter(action="budget.variable_updated").count() == 1
+
+
+@pytest.mark.django_db
 def test_reconciliation_links_actual_entry_and_is_append_only(
     budget_context: BudgetContext,
 ) -> None:
@@ -1229,11 +1271,13 @@ def test_budget_web_forms_render_and_primary_create_edit_paths_succeed(
 
     edit_url = reverse("budgets:variable-edit", args=(variable_budget.pk,))
     assert client.get(edit_url).status_code == 200
+    expected_version = variable_budget.updated_at.isoformat()
     edited = client.post(
         edit_url,
         {
             "planned_amount": "35.00",
             "notes": "Edited through the web form",
+            "expected_version": expected_version,
         },
     )
     assert edited.status_code == 302

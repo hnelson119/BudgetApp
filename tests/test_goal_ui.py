@@ -8,6 +8,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 
+from audit.models import AuditEvent
 from goals.models import Goal, GoalContribution, GoalRevision
 from goals.services import GoalSpec, create_goal, preview_goal
 from households.models import Household, HouseholdMembership
@@ -209,6 +210,7 @@ def test_goal_preview_confirm_dashboard_budget_and_scheduled_actual_flow(
     actual = client.post(
         reverse("goals:occurrence-contribute", args=(goal.pk, occurrence.pk)),
         {
+            "submission_token": "77777777-7777-4777-8777-777777777777",
             "pay_period": str(goal_ui_context.periods[0].pk),
             "amount": "100.00",
             "effective_date": "2026-08-20",
@@ -334,6 +336,37 @@ def test_goal_detail_and_forms_are_scoped_to_active_household(
 
 
 @pytest.mark.django_db
+def test_manual_goal_contribution_rejects_a_retried_submission_token(
+    client: Client,
+    goal_ui_context: GoalUiContext,
+) -> None:
+    goal = _service_goal(goal_ui_context, effective_from=date(2026, 8, 20))
+    _mfa_ready(goal_ui_context.user)
+    client.force_login(goal_ui_context.user)
+    url = reverse("goals:contribute", args=(goal.pk,))
+    payload = {
+        "submission_token": "99999999-9999-4999-8999-999999999999",
+        "pay_period": str(goal_ui_context.periods[0].pk),
+        "amount": "75.00",
+        "effective_date": "2026-08-23",
+        "reason": "Manual transfer retry",
+    }
+
+    accepted = client.post(url, payload)
+    retried = client.post(url, payload)
+
+    assert accepted.status_code == 302
+    assert retried.status_code == 200
+    assert b"idempotency key has already been used" in retried.content
+    assert GoalContribution.objects.count() == 1
+    assert (
+        JournalEntry.objects.filter(entry_type=JournalEntry.EntryType.GOAL_CONTRIBUTION).count()
+        == 1
+    )
+    assert AuditEvent.objects.filter(action="goal.contribution_recorded").count() == 1
+
+
+@pytest.mark.django_db
 def test_goal_detail_manual_contribution_revision_and_status_workflows(
     client: Client,
     goal_ui_context: GoalUiContext,
@@ -348,6 +381,7 @@ def test_goal_detail_manual_contribution_revision_and_status_workflows(
     contribution = client.post(
         reverse("goals:contribute", args=(goal.pk,)),
         {
+            "submission_token": "88888888-8888-4888-8888-888888888888",
             "pay_period": str(goal_ui_context.periods[0].pk),
             "amount": "75.00",
             "effective_date": "2026-08-23",

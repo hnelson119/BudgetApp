@@ -15,6 +15,13 @@ from periods.models import PayPeriod
 _CENT = Decimal("0.01")
 
 
+class _UncheckedBudgetVersion:
+    pass
+
+
+_UNCHECKED_BUDGET_VERSION = _UncheckedBudgetVersion()
+
+
 def _money(value: Decimal) -> Decimal:
     if not isinstance(value, Decimal) or not value.is_finite():
         raise ValidationError("Budget amounts must use finite Decimal values.")
@@ -36,6 +43,7 @@ def set_variable_budget(
     actor: User,
     request_id: str,
     notes: str = "",
+    expected_version: str | _UncheckedBudgetVersion = _UNCHECKED_BUDGET_VERSION,
 ) -> VariableBudget:
     period = PayPeriod.objects.select_for_update().select_related("household").get(pk=pay_period.pk)
     require_household_membership(actor, period.household)
@@ -51,6 +59,12 @@ def set_variable_budget(
         pay_period=period,
         category=locked_category,
     ).first()
+    if not isinstance(expected_version, _UncheckedBudgetVersion):
+        current_version = existing.updated_at.isoformat() if existing is not None else ""
+        if expected_version != current_version:
+            raise ValidationError(
+                "This category budget changed after the form was opened; refresh and try again."
+            )
     before = None
     if existing is None:
         budget = VariableBudget(

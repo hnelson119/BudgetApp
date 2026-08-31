@@ -406,6 +406,7 @@ def goal_contribute(
                 amount=form.cleaned_data["amount"],
                 effective_at=effective_at,
                 request_id=_request_id(request),
+                idempotency_key=(f"goal-manual-{form.cleaned_data['submission_token'].hex}"),
                 reason=form.cleaned_data["reason"],
                 contribution_type=contribution_type_for_occurrence(occurrence is not None),
                 occurrence=occurrence,

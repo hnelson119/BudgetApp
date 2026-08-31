@@ -139,7 +139,11 @@ def detail(request: HttpRequest, period_id: str) -> HttpResponse:
 def variable_budget_create(request: HttpRequest, period_id: str) -> HttpResponse:
     household = get_active_household(request)
     period = get_object_or_404(PayPeriod, pk=period_id, household=household)
-    form = VariableBudgetForm(request.POST or None, household=household)
+    form = VariableBudgetForm(
+        request.POST or None,
+        household=household,
+        initial={"expected_version": ""},
+    )
     if request.method == "POST" and form.is_valid():
         try:
             set_variable_budget(
@@ -149,6 +153,7 @@ def variable_budget_create(request: HttpRequest, period_id: str) -> HttpResponse
                 notes=form.cleaned_data["notes"],
                 actor=_actor(request),
                 request_id=_request_id(request),
+                expected_version=form.cleaned_data["expected_version"],
             )
         except ValidationError as error:
             _add_domain_error(form, error)
@@ -183,6 +188,7 @@ def variable_budget_edit(request: HttpRequest, budget_id: str) -> HttpResponse:
             "category": budget.category,
             "planned_amount": budget.planned_amount,
             "notes": budget.notes,
+            "expected_version": budget.updated_at.isoformat(),
         },
     )
     form.fields["category"].disabled = True
@@ -195,6 +201,7 @@ def variable_budget_edit(request: HttpRequest, budget_id: str) -> HttpResponse:
                 notes=form.cleaned_data["notes"],
                 actor=_actor(request),
                 request_id=_request_id(request),
+                expected_version=form.cleaned_data["expected_version"],
             )
         except ValidationError as error:
             _add_domain_error(form, error)
