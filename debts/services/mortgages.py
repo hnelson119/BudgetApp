@@ -493,11 +493,9 @@ def set_one_off_extra_principal(
     request_id: str,
     reason: str,
 ) -> Occurrence:
-    locked = (
-        Occurrence.objects.select_for_update()
-        .select_related("source", "source__household", "pay_period")
-        .get(pk=occurrence.pk)
-    )
+    # Keep the locking query on the occurrence table. ``pay_period`` is nullable,
+    # so joining it here makes PostgreSQL reject FOR UPDATE on the outer join.
+    locked = Occurrence.objects.select_for_update().get(pk=occurrence.pk)
     require_household_membership(actor, locked.source.household)
     amount = _money(extra_principal, "One-off extra principal")
     if not reason.strip():

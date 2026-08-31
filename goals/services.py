@@ -549,6 +549,7 @@ def record_goal_contribution(
     effective_at: datetime,
     request_id: str,
     reason: str,
+    idempotency_key: str = "",
     contribution_type: str = GoalContribution.ContributionType.MANUAL,
     occurrence: Occurrence | None = None,
     reserve_entry: ReserveEntry | None = None,
@@ -595,7 +596,7 @@ def record_goal_contribution(
             description=description,
             request_id=request_id,
             note=reason,
-            idempotency_key=_contribution_idempotency(locked, request_id),
+            idempotency_key=_contribution_idempotency(locked, idempotency_key or request_id),
         )
     else:
         if revision.destination_account is None:
@@ -610,7 +611,7 @@ def record_goal_contribution(
             description=description,
             request_id=request_id,
             note=reason,
-            idempotency_key=_contribution_idempotency(locked, request_id),
+            idempotency_key=_contribution_idempotency(locked, idempotency_key or request_id),
         )
     if occurrence is not None:
         plan = GoalFundingPlan.objects.filter(goal=locked).first()

@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.http import Http404, HttpRequest, HttpResponse
@@ -45,6 +46,8 @@ from schedules.services import (
     synchronize_occurrences,
 )
 
+_VARIABLE_BUDGET_VERSION_SALT = "budgets.variable-create-versions.v1"
+
 
 def _request_id(request: HttpRequest) -> str:
     return str(request.request_id)  # type: ignore[attr-defined]
@@ -52,6 +55,35 @@ def _request_id(request: HttpRequest) -> str:
 
 def _today(household: Household) -> date:
     return timezone.localdate(timezone=ZoneInfo(household.time_zone))
+
+
+def _variable_budget_version_snapshot(period: PayPeriod) -> str:
+    versions = {
+        str(category_id): updated_at.isoformat()
+        for category_id, updated_at in VariableBudget.objects.filter(pay_period=period).values_list(
+            "category_id", "updated_at"
+        )
+    }
+    return signing.dumps(versions, salt=_VARIABLE_BUDGET_VERSION_SALT, compress=True)
+
+
+def _expected_snapshot_version(token: str, category: Category) -> str:
+    try:
+        versions = signing.loads(
+            token,
+            salt=_VARIABLE_BUDGET_VERSION_SALT,
+            max_age=12 * 60 * 60,
+        )
+    except signing.BadSignature as error:
+        raise ValidationError(
+            "This category budget form is no longer valid; refresh and try again."
+        ) from error
+    if not isinstance(versions, dict):
+        raise ValidationError("This category budget form is invalid; refresh and try again.")
+    expected_version = versions.get(str(category.pk), "")
+    if not isinstance(expected_version, str):
+        raise ValidationError("This category budget form is invalid; refresh and try again.")
+    return expected_version
 
 
 def _period_context(household: Household, period: PayPeriod) -> dict[str, Any]:
@@ -139,9 +171,17 @@ def detail(request: HttpRequest, period_id: str) -> HttpResponse:
 def variable_budget_create(request: HttpRequest, period_id: str) -> HttpResponse:
     household = get_active_household(request)
     period = get_object_or_404(PayPeriod, pk=period_id, household=household)
-    form = VariableBudgetForm(request.POST or None, household=household)
+    form = VariableBudgetForm(
+        request.POST or None,
+        household=household,
+        initial={"expected_version": _variable_budget_version_snapshot(period)},
+    )
     if request.method == "POST" and form.is_valid():
         try:
+            expected_version = _expected_snapshot_version(
+                form.cleaned_data["expected_version"],
+                form.cleaned_data["category"],
+            )
             set_variable_budget(
                 pay_period=period,
                 category=form.cleaned_data["category"],
@@ -149,6 +189,7 @@ def variable_budget_create(request: HttpRequest, period_id: str) -> HttpResponse
                 notes=form.cleaned_data["notes"],
                 actor=_actor(request),
                 request_id=_request_id(request),
+                expected_version=expected_version,
             )
         except ValidationError as error:
             _add_domain_error(form, error)
@@ -183,6 +224,7 @@ def variable_budget_edit(request: HttpRequest, budget_id: str) -> HttpResponse:
             "category": budget.category,
             "planned_amount": budget.planned_amount,
             "notes": budget.notes,
+            "expected_version": budget.updated_at.isoformat(),
         },
     )
     form.fields["category"].disabled = True
@@ -195,6 +237,7 @@ def variable_budget_edit(request: HttpRequest, budget_id: str) -> HttpResponse:
                 notes=form.cleaned_data["notes"],
                 actor=_actor(request),
                 request_id=_request_id(request),
+                expected_version=form.cleaned_data["expected_version"],
             )
         except ValidationError as error:
             _add_domain_error(form, error)

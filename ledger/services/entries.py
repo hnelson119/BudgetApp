@@ -270,11 +270,7 @@ def record_expense_refund(
     reason: str,
     idempotency_key: str = "",
 ) -> JournalEntry:
-    locked_original = (
-        JournalEntry.objects.select_for_update()
-        .select_related("household", "category")
-        .get(pk=original.pk)
-    )
+    locked_original = JournalEntry.objects.select_for_update().get(pk=original.pk)
     require_household_membership(actor, locked_original.household)
     if locked_original.entry_type != JournalEntry.EntryType.EXPENSE:
         raise ValidationError("Only an expense or purchase can receive a refund.")
@@ -578,11 +574,7 @@ def reverse_entry(
     request_id: str,
     reason: str,
 ) -> JournalEntry:
-    original = (
-        JournalEntry.objects.select_for_update()
-        .select_related("household", "category")
-        .get(pk=entry.pk)
-    )
+    original = JournalEntry.objects.select_for_update().get(pk=entry.pk)
     require_household_membership(actor, original.household)
     if not reason.strip():
         raise ValidationError("Reversing a journal entry requires a reason.")

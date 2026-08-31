@@ -35,6 +35,7 @@ class HouseholdForm(forms.Form):
 
 
 class VariableBudgetForm(HouseholdForm):
+    expected_version = forms.CharField(required=False, widget=forms.HiddenInput)
     category = forms.ModelChoiceField(queryset=Category.objects.none())
     planned_amount = forms.DecimalField(min_value=Decimal("0.00"), max_digits=18, decimal_places=2)
     notes = forms.CharField(

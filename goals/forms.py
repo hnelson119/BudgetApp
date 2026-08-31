@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import date
 from decimal import Decimal
 from typing import Any, cast
@@ -174,6 +175,7 @@ class GoalForm(forms.Form):
 
 
 class GoalContributionForm(forms.Form):
+    submission_token = forms.UUIDField(widget=forms.HiddenInput, initial=uuid.uuid4)
     pay_period = PeriodChoiceField(queryset=PayPeriod.objects.none())
     amount = forms.DecimalField(min_value=Decimal("0.01"), max_digits=18, decimal_places=2)
     effective_date = forms.DateField(widget=html_date_input())
