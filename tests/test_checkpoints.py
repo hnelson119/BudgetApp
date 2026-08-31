@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 import audit.checkpoints as checkpoint_services
 from audit.checkpoints import verify_checkpoint_document, write_household_checkpoint
@@ -104,9 +105,60 @@ def test_checkpoint_command_reads_signing_key_from_file_only(
     call_command(
         "verify_audit_checkpoint",
         checkpoint_files[0].name,
+        household_id=str(checkpoint_household.pk),
         stdout=verification_output,
     )
-    assert "signature and database head match" in verification_output.getvalue()
+    assert "complete audit chain" in verification_output.getvalue()
+
+    from django.db import connection
+
+    table_name = connection.ops.quote_name("audit_auditevent")
+    with connection.cursor() as cursor:
+        cursor.execute(f"UPDATE {table_name} SET action = %s", ["tampered.action"])
+    with pytest.raises(CommandError, match="chain failed integrity verification"):
+        call_command(
+            "verify_audit_checkpoint",
+            checkpoint_files[0].name,
+            household_id=str(checkpoint_household.pk),
+        )
+
+
+@pytest.mark.django_db
+def test_checkpoint_verification_binds_expected_household_and_signed_key_metadata(
+    checkpoint_household,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # type: ignore[no-untyped-def]
+    other = Household.objects.create(name="Other checkpoint household")
+    other_result = write_household_checkpoint(
+        household=checkpoint_household,
+        directory=tmp_path,
+        signing_key=SIGNING_KEY,
+        signing_key_id="test-key-v1",
+    )
+    document = json.loads(other_result.external_path.read_text(encoding="utf-8"))
+    document["signature"]["key_id"] = "substituted-key"
+    assert verify_checkpoint_document(document, SIGNING_KEY) is False
+
+    key_path = tmp_path / "checkpoint_signing_key"
+    key_path.write_text(SIGNING_KEY.decode(), encoding="utf-8")
+    monkeypatch.setenv("AUDIT_CHECKPOINT_SIGNING_KEY_FILE", str(key_path))
+    monkeypatch.setenv("AUDIT_CHECKPOINT_DIRECTORY", str(tmp_path))
+    monkeypatch.setenv("AUDIT_CHECKPOINT_KEY_ID", "test-key-v1")
+    with pytest.raises(CommandError, match="different household"):
+        call_command(
+            "verify_audit_checkpoint",
+            other_result.external_path.name,
+            household_id=str(other.pk),
+        )
+
+    monkeypatch.setenv("AUDIT_CHECKPOINT_KEY_ID", "rotated-key-v2")
+    with pytest.raises(CommandError, match="configured key ID"):
+        call_command(
+            "verify_audit_checkpoint",
+            other_result.external_path.name,
+            household_id=str(checkpoint_household.pk),
+        )
 
 
 def test_checkpoint_document_signature_detects_external_tampering() -> None:
@@ -176,3 +228,25 @@ def test_checkpoint_rejects_weak_keys_and_unsafe_key_identifiers(
             signing_key_id="../unsafe-key",
         )
     assert AuditCheckpoint.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_failed_checkpoint_database_record_removes_external_document(
+    checkpoint_household,
+    tmp_path: Path,
+) -> None:  # type: ignore[no-untyped-def]
+    with (
+        patch.object(checkpoint_services.connection, "vendor", "postgresql"),
+        patch(
+            "audit.checkpoints._record_postgresql_checkpoint",
+            side_effect=RuntimeError("database record failed"),
+        ),
+        pytest.raises(RuntimeError, match="database record failed"),
+    ):
+        write_household_checkpoint(
+            household=checkpoint_household,
+            directory=tmp_path,
+            signing_key=SIGNING_KEY,
+            signing_key_id="test-key-v1",
+        )
+    assert list(tmp_path.iterdir()) == []

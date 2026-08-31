@@ -145,15 +145,17 @@ sudo systemctl enable --now household-budget-integrity.timer
 ```
 
 Keep an independent protected copy of `audit_checkpoint_signing_key`, or mount that key read-only
-from outside the VM when practical. During restore, verify the selected checkpoint's signature and
-compare its household ID, event count, sequence, and chain head with the restored database before
-cutover. A missing, invalid, or mismatched checkpoint is an incident signal, not a condition to
-silently overwrite.
+from outside the VM when practical. During restore, verify the selected checkpoint's signature,
+configured key ID, expected household ID, complete event chain, event count, sequence, and chain
+head against the restored database before cutover. A missing, invalid, or mismatched checkpoint is
+an incident signal, not a condition to silently overwrite.
 
 With the integrity service pointed at the restored database, perform that comparison using the
 checkpoint filename (paths and traversal are rejected):
 
 ```bash
 docker compose --profile maintenance run --rm integrity \
-  python manage.py verify_audit_checkpoint audit-<household>-<timestamp>-sequence-<n>.checkpoint.json
+  python manage.py verify_audit_checkpoint \
+  audit-<household>-<timestamp>-sequence-<n>.checkpoint.json \
+  --household-id <expected-household-uuid>
 ```

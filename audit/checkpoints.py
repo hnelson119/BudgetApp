@@ -29,12 +29,14 @@ class CheckpointWriteResult:
 
 def _checkpoint_body(checkpoint: AuditCheckpoint) -> dict[str, Any]:
     return {
-        "version": 1,
+        "version": 2,
         "id": str(checkpoint.pk),
         "household_id": str(checkpoint.household_id),
         "last_sequence": checkpoint.last_sequence,
         "event_count": checkpoint.event_count,
         "chain_head": checkpoint.chain_head,
+        "signature_algorithm": checkpoint.signature_algorithm,
+        "signing_key_id": checkpoint.signing_key_id,
         "verified_at": checkpoint.verified_at.isoformat(timespec="microseconds").replace(
             "+00:00", "Z"
         ),
@@ -57,8 +59,18 @@ def verify_checkpoint_document(document: dict[str, Any], signing_key: bytes) -> 
     signature = document.get("signature")
     if not isinstance(checkpoint, dict) or not isinstance(signature, dict):
         return False
+    version = checkpoint.get("version")
+    if version not in (1, 2):
+        return False
     provided = signature.get("value")
-    if signature.get("algorithm") != "HMAC-SHA256" or not isinstance(provided, str):
+    algorithm = signature.get("algorithm")
+    key_id = signature.get("key_id")
+    if algorithm != "HMAC-SHA256" or not isinstance(key_id, str) or not isinstance(provided, str):
+        return False
+    if version == 2 and (
+        checkpoint.get("signature_algorithm") != algorithm
+        or checkpoint.get("signing_key_id") != key_id
+    ):
         return False
     expected = _sign(checkpoint, signing_key)
     return hmac.compare_digest(expected, provided)
@@ -168,10 +180,17 @@ def write_household_checkpoint(
     external_path = destination / file_name
     _write_external_document(external_path, document)
 
-    if connection.vendor == "postgresql":
-        checkpoint = _record_postgresql_checkpoint(checkpoint)
-    else:
-        checkpoint._append_authorized = True  # type: ignore[attr-defined]
-        checkpoint.save()
-        AuditHead.objects.filter(household_id=household.pk).update(verified_at=verified_at)
+    try:
+        if connection.vendor == "postgresql":
+            checkpoint = _record_postgresql_checkpoint(checkpoint)
+        else:
+            checkpoint._append_authorized = True  # type: ignore[attr-defined]
+            checkpoint.save()
+            AuditHead.objects.filter(household_id=household.pk).update(verified_at=verified_at)
+    except Exception:
+        try:
+            external_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
     return CheckpointWriteResult(checkpoint=checkpoint, external_path=external_path)

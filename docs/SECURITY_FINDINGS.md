@@ -246,6 +246,55 @@ directory or an encrypted assessment location outside the repository.
   cleanup removed every disposable container, volume, and network.
 - Exceptions or suppressions: none.
 
+## M10-F013 — Restore verifier trusted a mutable audit head without replaying the chain
+
+- Severity: High
+- State: Retested
+- Detected: 2026-08-31
+- Owner: release owner
+- Affected baseline: pre-`AUDIT-02` and `AUDIT-04` restore-verification review
+- Detection: the signed external checkpoint verifier authenticated the checkpoint document and
+  compared it with `AuditHead`, but it did not replay every event hash. A privileged mutation that
+  left the mutable head unchanged could therefore pass the documented restore check. The command
+  also selected the household from the supplied document rather than requiring the operator's
+  expected household, and the signature envelope's key ID was not covered by the version-1 body or
+  compared with the configured rotation ID.
+- Security impact: PostgreSQL's runtime role still could not perform the mutation, and changing the
+  protected records required the administrative audit owner. After such a compromise or an
+  incorrect restore selection, however, the documented checkpoint command could report success
+  for modified history or the wrong household and weaken the intended independent evidence
+  boundary.
+- Remediation: checkpoint version 2 signs the algorithm and key ID inside the canonical body. The
+  verifier now requires an operator-supplied household UUID, checks the signed key ID against the
+  configured key ID, replays the complete event chain, and compares the replayed count and head
+  with both the protected database head and signed checkpoint. Failed database checkpoint records
+  also remove the just-written external file so an unrecorded artifact is not mistaken for a
+  completed checkpoint.
+- Retest: unit tests rejected modified key metadata, an unexpected configured key ID, a foreign
+  expected household, a tampered event chain, and a simulated database-record failure. Fresh
+  PostgreSQL `AUDIT-02` probes detected field mutation, removal, reordering, and a forged link with
+  both verifiers. `AUDIT-04` rejected a foreign checkpoint, unexpected and modified key metadata,
+  a modified body, a stale checkpoint, and internally valid chains restored behind or ahead, then
+  accepted the exactly restored chain and matching checkpoint.
+- Exceptions or suppressions: version-1 documents remain cryptographically readable for recovery.
+  Their envelope key ID is not part of the signed body, so the management command additionally
+  requires it to match the trusted configured ID. New checkpoints are version 2.
+
+## 2026-08-31 synthetic audit-integrity baseline
+
+- The guarded disposable helper passed `AUDIT-01` through `AUDIT-04`: 15 runtime-role boundary
+  checks, 9 corruption-detection checks, 7 financial rollback/recovery checks, and 9 signed
+  checkpoint/restore checks.
+- The run used PostgreSQL, distinct runtime and audit logins, a bounded administrative test role,
+  the protected multi-household fixture, ephemeral checkpoint signing material, complete chain
+  replay, and the documented checkpoint command. It printed no credentials, identifiers,
+  financial values, database rows, checkpoint contents, or raw audit data, and cleanup removed all
+  synthetic state.
+- This is supporting development evidence, not a manual scenario result or release-candidate run.
+  Human restore observation, bounded audit/log review, and the remaining steps for a complete
+  target still have to be exercised. The adversarial matrix therefore remains at zero of three
+  completed targets.
+
 ## 2026-08-31 synthetic financial-logic baseline
 
 - The guarded disposable helper passed `FIN-01` through `FIN-05`: 14 accounting/retry checks, 12
