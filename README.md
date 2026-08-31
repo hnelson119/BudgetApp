@@ -32,8 +32,10 @@ history is protected from runtime-role mutation in PostgreSQL. Append-only parti
 also implemented, including multiple-refund limits, category/liability corrections, and
 refund-aware reserve reallocation. Hardened expense CSV import now provides bounded, nonpersistent
 UTF-8 upload parsing, column/sign/date mapping, preview-only staging, category gaps, normalized duplicate detection,
-atomic and idempotent confirmation, import provenance, and raw-row cleanup. Transaction CSV export
-now mirrors the selected pay-period or all-history filters, requires recent reauthentication,
+atomic and idempotent confirmation, import provenance, and raw-row cleanup. Staged raw cells are
+automatically scrubbed after 24 hours by an hourly least-privilege maintenance
+job, even when a member leaves an import unfinished; expiry appends a protected system audit event.
+Transaction CSV export now mirrors the selected pay-period or all-history filters, requires recent reauthentication,
 verifies audit integrity, streams without temporary files, preserves numeric amounts, neutralizes
 spreadsheet-formula text, and records the export scope in protected audit history. Milestone 7 adds
 household-scoped debt accounts, immutable effective-dated APR and
@@ -126,6 +128,7 @@ docker compose --profile maintenance run --rm migrate
 docker compose up -d web
 docker compose --profile maintenance run --rm backup
 docker compose --profile maintenance run --rm notify
+docker compose --profile maintenance run --rm import-cleanup
 ```
 
 The generated directory stays outside the OneDrive workspace. Secret-directory
@@ -190,6 +193,8 @@ Encrypted backup creation and safe restore verification are documented in
 [`docs/BACKUP_AND_RESTORE.md`](docs/BACKUP_AND_RESTORE.md). The backup destination must be an
 existing off-VM mount; it is deliberately unavailable to the web container. The same runbook
 documents the independent audit-checkpoint timer and verification expectations.
+It also documents the hourly staged-CSV cleanup timer; production deployments must enable it so
+unfinished imports cannot retain raw statement cells indefinitely.
 
 ## Quality commands
 

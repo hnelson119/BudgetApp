@@ -2,16 +2,19 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from io import StringIO
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import Client, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from audit.models import AuditEvent
 from households.models import Category, Household, HouseholdMembership
@@ -27,6 +30,7 @@ from imports.models import ImportBatch, ImportRow
 from imports.services import (
     abandon_import_batch,
     commit_import_batch,
+    expire_stale_import_batches,
     parse_csv_upload,
     preview_import_batch,
     stage_csv_import,
@@ -153,6 +157,73 @@ def _preview(
         default_category=default_category,
         request_id="csv-preview-request",
     )
+
+
+@pytest.mark.django_db
+@override_settings(CSV_IMPORT_STAGING_RETENTION_HOURS=24)
+def test_stale_csv_cleanup_scrubs_uploaded_and_previewed_batches_with_audit(
+    import_context: ImportContext,
+) -> None:
+    old_uploaded = _stage(
+        import_context,
+        b"Date,Description,Amount,Category\n08/21/2026,Old upload,-1.00,Dining\n",
+    )
+    old_previewed = _stage(
+        import_context,
+        b"Date,Description,Amount,Category\n08/22/2026,Old preview,-2.00,Dining\n",
+    )
+    _preview(import_context, old_previewed)
+    recent = _stage(
+        import_context,
+        b"Date,Description,Amount,Category\n08/23/2026,Recent,-3.00,Dining\n",
+    )
+    now = timezone.now()
+    ImportBatch.objects.filter(pk__in=(old_uploaded.pk, old_previewed.pk)).update(
+        uploaded_at=now - timedelta(hours=25)
+    )
+
+    assert expire_stale_import_batches(now=now) == 2
+    for batch in (old_uploaded, old_previewed):
+        batch.refresh_from_db()
+        assert batch.status == ImportBatch.Status.ABANDONED
+        assert batch.completed_at == now
+        assert batch.raw_deleted_at == now
+        assert not ImportRow.objects.filter(batch=batch).exclude(raw_data={}).exists()
+        event = AuditEvent.objects.get(action="import.batch_expired", entity_id=str(batch.pk))
+        assert event.actor is None
+        assert event.after_payload == {
+            "raw_data_deleted": True,
+            "retention_hours": 24,
+        }
+        assert event.reason == "Staged import exceeded retention period"
+
+    recent.refresh_from_db()
+    assert recent.status == ImportBatch.Status.UPLOADED
+    assert ImportRow.objects.filter(batch=recent).exclude(raw_data={}).exists()
+    assert expire_stale_import_batches(now=now) == 0
+    assert AuditEvent.objects.filter(action="import.batch_expired").count() == 2
+
+
+@pytest.mark.django_db
+def test_stale_csv_cleanup_validates_configuration_and_command_is_bounded(
+    import_context: ImportContext,
+) -> None:
+    with pytest.raises(ValidationError, match="time zone"):
+        expire_stale_import_batches(now=datetime(2026, 8, 31, 12))
+    with override_settings(CSV_IMPORT_STAGING_RETENTION_HOURS=0):
+        with pytest.raises(ValidationError, match="between 1 and 720"):
+            expire_stale_import_batches()
+
+    batch = _stage(
+        import_context,
+        b"Date,Description,Amount,Category\n08/24/2026,Command expiry,-4.00,Dining\n",
+    )
+    ImportBatch.objects.filter(pk=batch.pk).update(uploaded_at=timezone.now() - timedelta(hours=25))
+    output = StringIO()
+    call_command("cleanup_stale_imports", stdout=output)
+    assert output.getvalue() == "Expired staged CSV imports: 1\n"
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.ABANDONED
 
 
 @pytest.mark.django_db

@@ -263,6 +263,9 @@ Mappings may be saved per file format. Duplicate detection uses a normalized fin
 The initial importer creates categorized expenses against one selected account. A configurable sign
 rule excludes income, credits, or unlinked card refunds from a statement preview; those transaction
 types remain explicit manual workflows until a safe reconciliation/linking design is added.
+The uploaded file is never retained. Bounded raw cells exist only during review and are scrubbed on
+commit, explicit abandonment, or automatic expiry after 24 hours. Automatic expiry retains the
+batch metadata and normalized decision state and appends a protected system audit event.
 
 ### CSV export
 
@@ -531,7 +534,8 @@ The application and database must remain portable so the same containers can lat
 - Server-side authorization on every household-scoped operation.
 - CSRF protection, secure server-side sessions, restrictive security headers, login rate limiting, MFA, and framework-managed password hashing.
 - Sensitive pages use no-store caching and no authentication or financial data is stored in browser local storage.
-- CSV upload validation, bounded parsing, formula-safe export, and temporary-file cleanup are required.
+- CSV upload validation, bounded parsing, formula-safe export, nonpersistent upload handling, and
+  automatic 24-hour staged-cell cleanup are required.
 - Application containers run without unnecessary privileges and PostgreSQL is not exposed outside its container network.
 - Dependencies and container images are pinned, scanned, and updated through a documented security process.
 - Database timestamps stored consistently and displayed in the household timezone.
@@ -562,7 +566,7 @@ The application and database must remain portable so the same containers can lat
 - Categories and variable budgets
 - Manual transactions
 - CSV mapping, preview, duplicate detection, and batch audit
-- CSV upload limits, bounded parsing, temporary-file cleanup, and formula-safe export
+- CSV upload limits, bounded parsing, 24-hour staged-cell cleanup, and formula-safe export
 - Manual accounts, internal ledger, transfers, credit-card purchases, and card-payment reserve
 
 ### Phase 4 — Debts and Goals
