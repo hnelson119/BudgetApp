@@ -66,6 +66,11 @@ a pinned Trivy container scan that fails CI on high or critical release-image vu
 production-derived network probe and Linux VM runbook are in `docs/PRIVATE_INGRESS.md`; actual
 Tailscale HTTPS, firewall/device checks, and provisioning the two real household accounts remain
 deployment-time work on the Linux VM before household financial data is entered.
+An isolated restore profile now runs the production backup and restore scripts against synthetic
+PostgreSQL data, scans encrypted repository storage for known plaintext and generated secrets,
+proves stale signed checkpoints fail, and verifies the restored multi-household fixture and complete
+audit chains. CI also scans the independently built backup/restore image; the quarterly release-
+candidate restore on the real VM remains a required deployment gate.
 
 ## Local development
 

@@ -84,8 +84,11 @@ SELECT format(
 
 CREATE SCHEMA IF NOT EXISTS budget_audit AUTHORIZATION budget_audit_owner;
 ALTER SCHEMA budget_audit OWNER TO budget_audit_owner;
+REVOKE ALL ON SCHEMA budget_audit FROM PUBLIC;
 SELECT format('GRANT USAGE, CREATE ON SCHEMA budget_audit TO %I', :'migration_user') \gexec
+REVOKE CREATE ON SCHEMA budget_audit FROM budget_runtime_access, budget_audit_reader;
 GRANT USAGE ON SCHEMA budget_audit TO budget_runtime_access, budget_audit_reader;
+SELECT format('GRANT USAGE ON SCHEMA budget_audit TO %I', :'backup_user') \gexec
 
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'runtime_user') \gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'migration_user') \gexec
@@ -126,8 +129,69 @@ SELECT format(
   'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT SELECT ON TABLES TO %I',
   :'migration_user', :'backup_user'
 ) \gexec
-SELECT format('GRANT pg_read_all_data TO %I', :'backup_user') \gexec
-GRANT SELECT ON ALL TABLES IN SCHEMA budget_audit TO budget_audit_reader;
+SELECT format(
+  'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public '
+  'GRANT USAGE, SELECT ON SEQUENCES TO %I',
+  :'migration_user', :'backup_user'
+) \gexec
+SELECT format(
+  'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA budget_audit GRANT SELECT ON TABLES TO %I',
+  :'migration_user', :'backup_user'
+) \gexec
+SELECT format(
+  'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA budget_audit '
+  'GRANT USAGE, SELECT ON SEQUENCES TO %I',
+  :'migration_user', :'backup_user'
+) \gexec
+SELECT format(
+  'ALTER DEFAULT PRIVILEGES FOR ROLE budget_audit_owner '
+  'IN SCHEMA budget_audit GRANT SELECT ON TABLES TO %I',
+  :'backup_user'
+) \gexec
+SELECT format(
+  'ALTER DEFAULT PRIVILEGES FOR ROLE budget_audit_owner '
+  'IN SCHEMA budget_audit GRANT USAGE, SELECT ON SEQUENCES TO %I',
+  :'backup_user'
+) \gexec
+SELECT format(
+  'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA budget_audit '
+  'REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC',
+  :'migration_user'
+) \gexec
+ALTER DEFAULT PRIVILEGES FOR ROLE budget_audit_owner
+  IN SCHEMA budget_audit REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+SELECT format('GRANT SELECT ON ALL TABLES IN SCHEMA budget_audit TO %I', :'backup_user') \gexec
+SELECT format(
+  'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA budget_audit TO %I', :'backup_user'
+) \gexec
+REVOKE ALL ON ALL TABLES IN SCHEMA budget_audit
+  FROM PUBLIC, budget_runtime_access, budget_audit_reader;
+SELECT format(
+  'GRANT SELECT ON TABLE %I.%I TO budget_runtime_access, budget_audit_reader',
+  schemaname, tablename
+)
+FROM pg_tables
+WHERE schemaname = 'budget_audit'
+  AND tablename IN ('audit_auditevent', 'audit_audithead', 'audit_auditcheckpoint')
+ORDER BY tablename \gexec
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA budget_audit
+  FROM PUBLIC, budget_runtime_access, budget_audit_reader;
+SELECT 'GRANT EXECUTE ON FUNCTION budget_audit.append_event(
+  bigint, uuid, uuid, uuid, timestamp with time zone, varchar, varchar, varchar,
+  varchar, jsonb, jsonb, varchar, varchar, varchar, varchar
+) TO budget_runtime_access'
+WHERE to_regprocedure(
+  'budget_audit.append_event(bigint,uuid,uuid,uuid,timestamp with time zone,'
+  'varchar,varchar,varchar,varchar,jsonb,jsonb,varchar,varchar,varchar,varchar)'
+) IS NOT NULL \gexec
+SELECT 'GRANT EXECUTE ON FUNCTION budget_audit.record_checkpoint(
+  uuid, uuid, bigint, bigint, varchar, timestamp with time zone, varchar,
+  varchar, varchar, varchar, timestamp with time zone
+) TO budget_audit_reader'
+WHERE to_regprocedure(
+  'budget_audit.record_checkpoint(uuid,uuid,bigint,bigint,varchar,'
+  'timestamp with time zone,varchar,varchar,varchar,varchar,timestamp with time zone)'
+) IS NOT NULL \gexec
 SQL
 } | psql \
   --host "$DATABASE_HOST" \

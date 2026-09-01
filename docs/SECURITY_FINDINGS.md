@@ -435,6 +435,72 @@ directory or an encrypted assessment location outside the repository.
   cleanup.
 - Exceptions or suppressions: none.
 
+## M10-F020 — Backup role could not read the complete protected database
+
+- Severity: High
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: first automated production-path backup and restore rehearsal
+- Detection: the production `pg_dump` stream failed first on the protected audit schema and then on
+  public sequence state. The `budget_backup` login was intentionally `NOINHERIT`, but bootstrap had
+  relied on membership in PostgreSQL's broad `pg_read_all_data` role. The membership therefore did
+  not provide the intended access, and the explicit grants covered tables but not future sequences.
+- Security impact: every attempted backup failed closed before the success marker was written, so
+  the freshness alert could detect the outage and no plaintext dump was retained. A deployment left
+  in that state would nevertheless have no usable recovery point, creating an unacceptable loss-of-
+  availability and data-recovery risk.
+- Remediation: the ineffective broad role membership was removed. Bootstrap now grants the backup
+  login only `CONNECT`, schema `USAGE`, and current-and-future read access to tables and sequences in
+  `public` and `budget_audit`. Restore bootstrap also reapplies the protected schema, table, and
+  function ACLs that `pg_restore --no-privileges` intentionally omits.
+- Retest: the real backup script streamed the complete PostgreSQL database into a new encrypted
+  Restic repository, completed `restic check`, restored into a fixed disposable target, reapplied
+  least-privilege roles, and verified all 26 cross-household fixture references plus both complete
+  audit chains and their signed checkpoints. Live-target and existing-target attempts both failed
+  without changing data.
+- Exceptions or suppressions: none.
+
+## M10-F021 — Backup image contained vulnerable embedded Go components
+
+- Severity: High
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: first independent backup/restore image scan
+- Detection: the immutable Trivy gate found a Critical result and multiple High results in the
+  inherited, unused `gosu` helper and in dependencies embedded in the official Restic 0.19.1 binary.
+  Updating Alpine packages alone correctly left those statically compiled components unchanged.
+- Security impact: `gosu` was unreachable because the image clears the inherited entrypoint and
+  starts directly as UID 70. The Restic binary handles attacker-relevant repository data and is part
+  of the recovery trust boundary, so known fixed High findings could not be accepted based on the
+  private/local repository topology.
+- Remediation: the image now uses a minimal immutable Alpine runtime with only the PostgreSQL 17
+  client, eliminating `gosu`. It reproducibly builds the checksummed Restic 0.19.1 release source in
+  an immutable Go 1.26.6 builder while pinning the affected Go modules to fixed versions. The runtime
+  retains UID/GID 70 with a nonexistent home and `nologin`; CI builds and scans this third release
+  artifact independently from the application and ingress relay.
+- Retest: the rebuilt image completed the entire encrypted backup and restore rehearsal. The exact
+  immutable Trivy 0.70.0 command used by CI then reported zero High/Critical vulnerability and zero
+  secret findings for both the Alpine runtime and Restic binary.
+- Exceptions or suppressions: none.
+
+## 2026-09-01 synthetic encrypted restore baseline
+
+- The fixed disposable rehearsal completed an encrypted production-script backup, repository
+  integrity check, known-plaintext and generated-secret scan, post-backup source divergence proof,
+  guarded restore, full fixture verification, complete audit-chain replay, and signed-checkpoint
+  comparison for both synthetic households.
+- The live database target and a pre-existing restore target were each refused without data changes.
+  The run used separate administrator, migration, runtime, backup, and audit logins and removed every
+  generated credential, database, checkpoint, repository pack, container, network, volume, and
+  Linux-native temporary build context on exit.
+- The first runs found and drove remediation of `M10-F020` and `M10-F021`. The final production-path
+  run and independent backup-image scan passed without exceptions or suppressions.
+- This is supporting development evidence, not the quarterly release record. The real VM exercise
+  must still use the selected release candidate, off-VM repository, external checkpoint directory,
+  documented operator, observed recovery time, and sanitized release-evidence record.
+
 ## 2026-09-01 synthetic network-boundary baseline
 
 - The guarded production-derived helper passed the pre-deployment portions of `NET-03` through
