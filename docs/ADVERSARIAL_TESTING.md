@@ -336,6 +336,11 @@ observations below before recording any scenario as passed.
 
 ## Network-boundary procedures
 
+Run `scripts/run-network-boundary.ps1` (or the Linux `.sh` equivalent) for the production-derived
+pre-deployment controls, then follow `docs/PRIVATE_INGRESS.md` on the real Linux VM. The local probe
+is supporting development evidence only. The VM preflight still cannot substitute for the
+approved- and unapproved-device observations required by `NET-01` and `NET-02`.
+
 <a id="net-01"></a>
 ### NET-01 — Unapproved-device reachability denial
 

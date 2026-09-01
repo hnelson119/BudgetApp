@@ -5,7 +5,8 @@ import sys
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client
+from django.http import HttpResponse
+from django.test import Client, RequestFactory, override_settings
 from django.urls import reverse
 
 from core.logging import (
@@ -17,6 +18,7 @@ from core.logging import (
     reset_actor_context,
     reset_request_context,
 )
+from core.middleware import HostBoundaryMiddleware, ProxyBoundaryMiddleware
 
 TEST_PASSWORD = "safe-test-pass"  # pragma: allowlist secret
 
@@ -130,3 +132,72 @@ def test_authenticated_responses_cannot_be_cached(client: Client) -> None:
 
     assert response.headers["Cache-Control"] == "no-store, private"
     assert response.headers["Pragma"] == "no-cache"
+
+
+@pytest.mark.parametrize(
+    ("forwarded_proto", "expected_proto"),
+    [
+        ("https", "https"),
+        ("http", "http"),
+        ("https,http", None),
+        ("HTTPS", None),
+        ("https\nhttp", None),
+    ],
+)
+def test_proxy_boundary_accepts_only_canonical_scheme_signal(
+    forwarded_proto: str,
+    expected_proto: str | None,
+) -> None:
+    observed: dict[str, object] = {}
+
+    def response(request):  # type: ignore[no-untyped-def]
+        observed.update(request.META)
+        return object()
+
+    request = type(
+        "Request",
+        (),
+        {
+            "META": {
+                "HTTP_X_FORWARDED_PROTO": forwarded_proto,
+                "HTTP_FORWARDED": "host=attacker.invalid;proto=https",
+                "HTTP_X_FORWARDED_HOST": "attacker.invalid",
+                "HTTP_X_FORWARDED_PORT": "444",
+            }
+        },
+    )()
+
+    ProxyBoundaryMiddleware(response)(request)
+
+    assert observed.get("HTTP_X_FORWARDED_PROTO") == expected_proto
+    assert "HTTP_FORWARDED" not in observed
+    assert "HTTP_X_FORWARDED_HOST" not in observed
+    assert "HTTP_X_FORWARDED_PORT" not in observed
+
+
+@pytest.mark.parametrize(
+    ("host", "expected_status", "expected_downstream"),
+    [
+        ("budget.example.ts.net", 204, True),
+        ("attacker.invalid", 400, False),
+    ],
+)
+@override_settings(ALLOWED_HOSTS=["budget.example.ts.net"])
+def test_host_boundary_rejects_unapproved_hosts_on_every_route(
+    host: str, expected_status: int, expected_downstream: bool
+) -> None:
+    downstream_called = False
+
+    def response(request):  # type: ignore[no-untyped-def]
+        nonlocal downstream_called
+        downstream_called = True
+        return HttpResponse(status=204)
+
+    request = RequestFactory().get("/health/live/", HTTP_HOST=host)
+
+    result = HostBoundaryMiddleware(response)(request)
+
+    assert result.status_code == expected_status
+    assert downstream_called is expected_downstream
+    if expected_status == 400:
+        assert result.content == b""

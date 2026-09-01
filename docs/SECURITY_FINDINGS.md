@@ -280,6 +280,177 @@ directory or an encrypted assessment location outside the repository.
   Their envelope key ID is not part of the signed body, so the management command additionally
   requires it to match the trusted configured ID. New checkpoints are version 2.
 
+## M10-F014 — Internal-only application networks could not provide the loopback upstream
+
+- Severity: Medium
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: initial production-derived `NET-03` through `NET-06` run
+- Detection: the production Compose model attached the Django service only to Docker networks marked
+  `internal` while also declaring a loopback host publish. This Docker engine accepted the model but
+  created no host port binding, so the planned Tailscale Serve upstream could not reach Gunicorn.
+- Security impact: no data or service was exposed; the application was unavailable through its
+  intended ingress. Simply making the Django frontend network non-internal would have restored the
+  port while also restoring general application-container egress, weakening the SSRF and
+  compromise-containment boundary.
+- Remediation: a dedicated relay built from an immutable official nginx base now owns the only
+  non-internal network and the only `127.0.0.1:8000` publish. The relay has no secrets, application
+  database access, or access logs;
+  runs as numeric UID/GID 101 with no capabilities, no-new-privileges, a read-only root filesystem,
+  and bounded no-exec temporary storage; and can proxy only to the Django service over the internal
+  frontend network. Django and PostgreSQL remain exclusively on internal networks. CI now scans the
+  pinned relay image independently from the application image.
+- Retest: a minimal Docker reproduction confirmed the engine behavior, then the real production
+  Compose stack proved the relay port was loopback-only, the web and database published no port,
+  the relay could reach only the web upstream, and the web could reach PostgreSQL but not an
+  external test endpoint. Runtime inspection confirmed both containers retained their documented
+  identities and hardening controls.
+- Exceptions or suppressions: the relay can initiate traffic through its non-internal network by
+  Docker design. It receives no credentials or household data at rest, has one fixed internal
+  upstream, strips client forwarding identities, and is separately pinned, scanned, and hardened.
+
+## M10-F015 — Host allowlist enforcement was lazy on host-agnostic routes
+
+- Severity: Medium
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: initial production-derived `NET-05` HTTP probe
+- Detection: Django validates `ALLOWED_HOSTS` when code resolves `request.get_host()`, not as an
+  unconditional first step. The liveness route did not resolve the host and therefore returned its
+  safe 200 response to an alternate `Host` header instead of the expected generic 400.
+- Security impact: the observed response contained only static health state, and the alternate host
+  could not alter HTTPS redirects or generated links. However, relying on every current and future
+  route to resolve the host made an explicit production trust boundary inconsistent and could
+  enable host-header behavior to reappear as views changed.
+- Remediation: the outer proxy middleware first canonicalizes the one trusted scheme header and
+  strips all other forwarding authority. A dedicated host-boundary middleware immediately behind
+  Django's security middleware then resolves and validates the host for every request, returning an
+  empty generic 400 before routing when it is not the one configured Tailscale hostname.
+- Retest: unit tests cover approved and alternate hosts on the health path. The production-derived
+  relay run confirmed alternate `Host`, `Forwarded`, `X-Forwarded-Host`, and
+  `X-Forwarded-Port` values cannot change a response or redirect, ambiguous scheme values cannot
+  assert HTTPS, approved HTTPS retains exact HSTS, and safe 400/404 responses contain no traceback,
+  attacker host, or reusable secret.
+- Exceptions or suppressions: none.
+
+## M10-F016 — Linux file-backed secrets were unreadable to non-root service identities
+
+- Severity: Medium
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: first direct Linux `NET-06` run
+- Detection: Docker Compose file-backed secrets preserved the host files' Linux ownership and mode.
+  Mode-0600 files owned by the deployment user were readable through Docker Desktop's Windows bind
+  behavior but failed with `Permission denied` when the PostgreSQL bootstrap ran as its non-root
+  Linux identity.
+- Security impact: no secret was disclosed and startup failed closed. Broadening the files to 0444,
+  running application/maintenance services as root, or sharing one user identity would have made
+  the deployment start while weakening the least-privilege and host-secret boundary.
+- Remediation: production uses one dedicated, non-root numeric secret-reader GID with no human
+  members. The root-owned secret directory remains mode 0700 and each root-owned secret file is
+  mode 0440. Compose grants the supplemental GID only to the nine secret-bearing services, while
+  each service still mounts only its explicitly allowed files. The relay receives neither the GID
+  nor a secret mount. The deployment environment stores only the non-sensitive numeric GID.
+- Retest: the direct Linux runner created 0700/0440 temporary sources owned by one user/group,
+  rendered all Compose profiles, verified every source path and reader-group assignment, completed
+  role bootstrap and migrations under the intended identities, and confirmed the running web
+  process received only its three read-only secret files. The Windows runner remains green without
+  treating its filesystem behavior as Linux evidence.
+- Exceptions or suppressions: none.
+
+## M10-F017 — OneDrive reparse metadata could prevent the Linux boundary harness from building
+
+- Severity: Low
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: first direct WSL execution of the network-boundary runner
+- Detection: BuildKit attempted to inspect extended attributes on an ignored OneDrive pytest-cache
+  reparse point before applying `.dockerignore` and failed with access denied. Deleting or traversing
+  the cloud reparse point from the security runner was not safe.
+- Security impact: no application state or secret was affected. The failure prevented Linux-specific
+  secret-permission evidence and could encourage an operator to delete ambiguous filesystem objects
+  or move unreviewed files into a build context.
+- Remediation: the Linux runner asks Git for the tracked and non-ignored file list using NUL-delimited
+  names, archives only those explicit files into its guarded temporary directory, and points every
+  Compose build at that directory. Ignored `.env` files, caches, reports, local credentials, and
+  repository metadata cannot enter the staged context. The runner deletes the file list, archive,
+  context, and all other temporary state on exit.
+- Retest: the WSL run built both application helper images from the staged context, completed all
+  production-derived checks, and removed the temporary context without reading or deleting the
+  OneDrive cache reparse points.
+- Exceptions or suppressions: none.
+
+## M10-F018 — Pinned upstream relay image contained fixed High Alpine vulnerabilities
+
+- Severity: High
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: first PR #30 ingress-relay image scan
+- Detection: the pinned official nginx 1.30.4 Alpine image contained `libcrypto3` and `libssl3`
+  3.5.7-r0 affected by `CVE-2026-14456`, plus `libexpat` 2.8.2-r0 affected by
+  `CVE-2026-66046` and `CVE-2026-76641`. Alpine had already published fixed OpenSSL 3.5.8-r0 and
+  Expat 2.8.4-r0 packages. The new independent relay-image gate failed on all four High results.
+- Security impact: the relay does not enable QUIC or parse XML in its configured path, which reduced
+  the direct reachability of the reported denial-of-service conditions. The vulnerable libraries
+  were nevertheless present in the release artifact, and the release policy does not accept a
+  known fixed High image finding based only on feature reachability.
+- Remediation: the repository now builds a minimal relay image from the immutable official nginx
+  base, applies `apk upgrade --no-cache`, and pins runtime to UID/GID 101. Compose deploys that built
+  artifact, and CI scans it separately from the application image so an upstream base that has not
+  yet been republished cannot bypass available Alpine security fixes.
+- Retest: the guarded Linux production-boundary run rebuilt the relay, visibly upgraded OpenSSL to
+  3.5.8-r0 and Expat to 2.8.4-r0, passed all 81 runtime controls, and cleaned up. The exact immutable
+  Trivy 0.70.0 command used by CI then reported zero High/Critical vulnerabilities and no secret
+  finding for the upgraded local relay image.
+- Exceptions or suppressions: none.
+
+## M10-F019 — Production-only identity validation blocked the disposable browser stack
+
+- Severity: Low
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: first two PR #30 browser-matrix runs
+- Detection: the new production environment and exact Tailscale-host validation ran while
+  `config.settings.pentest` imported `config.settings.production`. The disposable stack correctly
+  failed closed during migration, before any browser test could run. Its runner then removed the
+  failed one-shot container without first printing the service log, which made the CI exception
+  unnecessarily difficult to recover.
+- Security impact: production enforcement remained intact and required checks blocked the merge;
+  there was no production bypass or lost financial data. The failure temporarily removed browser
+  regression evidence and exposed insufficient diagnostics in the synthetic test harness.
+- Remediation: shared deployment controls now live in a guarded hardened-settings module that can be
+  loaded only through the production or pentest settings modules. Production retains its exact
+  environment, hostname, and HTTPS-origin validation; pentest retains its independent synthetic-data,
+  database-host, and database-name guards. Both browser runners now print only the bounded synthetic
+  service logs when startup fails, before removing the disposable project.
+- Retest: 49 focused settings, pentest-harness, and browser-harness tests passed. The local disposable
+  stack then migrated, seeded, and completed all applicable checks across Chromium, Firefox, and
+  WebKit desktop and mobile profiles plus session lifecycle, followed by complete volume/network
+  cleanup.
+- Exceptions or suppressions: none.
+
+## 2026-09-01 synthetic network-boundary baseline
+
+- The guarded production-derived helper passed the pre-deployment portions of `NET-03` through
+  `NET-06`: 5 HTTPS-policy checks, 8 port/network isolation checks, 8 host/header/error checks, and
+  81 runtime, identity, mount, secret-source/mode/group, egress, metadata, image-history, and log
+  checks on Linux.
+- The run built the production application and secretless relay images from immutable bases, created a
+  new PostgreSQL volume, bootstrapped the distinct database roles, applied every migration, and
+  mounted nine random temporary secrets from a mode-restricted directory outside the repository.
+  It printed no secret values, credentials, financial data, database rows, request bodies, or raw
+  runtime metadata. Cleanup removed all containers, volumes, networks, and temporary secret files.
+- This is supporting development evidence, not a manual scenario result or release-candidate run.
+  The real Tailscale identity, certificate, UFW boundary, approved household devices, unapproved
+  device, authenticated secure cookies, and real-proxy observations still require the Linux VM.
+  The adversarial matrix therefore remains at zero of three completed targets.
+
 ## 2026-08-31 synthetic audit-integrity baseline
 
 - The guarded disposable helper passed `AUDIT-01` through `AUDIT-04`: 15 runtime-role boundary

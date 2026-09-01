@@ -62,10 +62,10 @@ exports require recent password-plus-MFA verification and fail closed if chain v
 Milestone 10 is now in progress. Its release-hardening baseline adds a machine-validated mapping of
 all 253 OWASP ASVS 5.0.0 Level 1/2 requirements, the security-test and release-gate inventories, and
 a pinned Trivy container scan that fails CI on high or critical release-image vulnerabilities. See
-`docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. Private
-Tailscale-only HTTPS, firewall/device checks, and
-provisioning the two real household accounts remain deployment-time work on the Linux VM before
-household financial data is entered.
+`docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. The guarded
+production-derived network probe and Linux VM runbook are in `docs/PRIVATE_INGRESS.md`; actual
+Tailscale HTTPS, firewall/device checks, and provisioning the two real household accounts remain
+deployment-time work on the Linux VM before household financial data is entered.
 
 ## Local development
 
@@ -110,31 +110,17 @@ revokes every session, invalidates the old seed and codes, and creates a protect
 
 ### Local Docker verification on Windows
 
-Docker Desktop should use its per-user WSL 2 backend with Linux containers.
-Generate local-only credentials, then provide non-secret settings to the current
-PowerShell process:
+Docker Desktop should use its per-user WSL 2 backend with Linux containers. The bounded command
+below creates random temporary credentials outside the checkout, runs the production Compose
+boundary, and removes its containers, volumes, networks, and secret directory afterward:
 
 ```powershell
-.\scripts\create-local-test-secrets.ps1
-$env:BUDGET_SECRET_DIR = Join-Path $env:LOCALAPPDATA "HouseholdBudget\test-secrets"
-$env:DJANGO_ALLOWED_HOSTS = "localhost,127.0.0.1"
-$env:DJANGO_CSRF_TRUSTED_ORIGINS = "https://localhost,https://127.0.0.1"
-$env:BUDGET_BACKUP_REPOSITORY = Join-Path $env:LOCALAPPDATA "HouseholdBudget\test-backups"
-[IO.Directory]::CreateDirectory($env:BUDGET_BACKUP_REPOSITORY) | Out-Null
-docker compose --profile maintenance build
-docker compose up -d db
-docker compose --profile maintenance run --rm db-bootstrap
-docker compose --profile maintenance run --rm migrate
-docker compose up -d web
-docker compose --profile maintenance run --rm backup
-docker compose --profile maintenance run --rm notify
-docker compose --profile maintenance run --rm import-cleanup
+.\scripts\run-network-boundary.ps1
 ```
 
-The generated directory stays outside the OneDrive workspace. Secret-directory
-patterns are also excluded from Git and the Docker build context as defense in
-depth. Use synthetic data only; production secrets must be generated
-independently on the Linux host.
+The production probe does not make the workstation a release target; device approval, Tailscale
+Serve, UFW, certificate, and real-client checks still require the Linux VM. Use synthetic data only;
+production secrets must be generated independently on that host.
 
 ## Private Docker deployment
 
@@ -144,18 +130,30 @@ outside the repository on the Linux host:
 
 ```bash
 cp .env.example .env
-sudo install -d -m 0700 -o "$USER" -g "$USER" /etc/household-budget/secrets
-umask 077
-openssl rand -base64 64 > /etc/household-budget/secrets/django_secret_key
-openssl rand -base64 32 > /etc/household-budget/secrets/django_mfa_encryption_key
-openssl rand -base64 48 > /etc/household-budget/secrets/postgres_admin_password
-openssl rand -base64 48 > /etc/household-budget/secrets/postgres_runtime_password
-openssl rand -base64 48 > /etc/household-budget/secrets/postgres_migration_password
-openssl rand -base64 48 > /etc/household-budget/secrets/postgres_backup_password
-openssl rand -base64 48 > /etc/household-budget/secrets/postgres_audit_password
-openssl rand -base64 48 > /etc/household-budget/secrets/audit_checkpoint_signing_key
-openssl rand -base64 48 > /etc/household-budget/secrets/restic_repository_password
+sudo groupadd --system household-budget-secrets
+secret_gid="$(getent group household-budget-secrets | cut -d: -f3)"
+sudo install -d -m 0700 -o root -g "$secret_gid" /etc/household-budget/secrets
+for specification in \
+  django_secret_key:64 django_mfa_encryption_key:32 \
+  postgres_admin_password:48 postgres_runtime_password:48 \
+  postgres_migration_password:48 postgres_backup_password:48 \
+  postgres_audit_password:48 audit_checkpoint_signing_key:48 \
+  restic_repository_password:48
+do
+  secret_name="${specification%%:*}"
+  byte_count="${specification##*:}"
+  sudo install -m 0440 -o root -g "$secret_gid" /dev/null \
+    "/etc/household-budget/secrets/$secret_name"
+  openssl rand -base64 "$byte_count" | sudo tee \
+    "/etc/household-budget/secrets/$secret_name" >/dev/null
+done
 ```
+
+If the dedicated group already exists, omit `groupadd`. Replace `BUDGET_SECRET_GID` in `.env` with
+the numeric value printed by `getent group household-budget-secrets`. Do not add either household
+member or the deployment account to this group. The root-owned directory is mode 0700 and each
+file is mode 0440; Compose grants only the secret-bearing containers that supplemental numeric GID,
+and each service still mounts only its explicitly allowed files.
 
 Initialize the least-privilege database roles, apply migrations with the
 dedicated migration identity, and then start the runtime services:
@@ -163,7 +161,7 @@ dedicated migration identity, and then start the runtime services:
 ```bash
 docker compose --profile maintenance run --rm db-bootstrap
 docker compose --profile maintenance run --rm migrate
-docker compose up --build -d db web
+docker compose up --build -d db web ingress
 ```
 
 The audit migrations move protected records into the separately owned `budget_audit` schema. The
@@ -183,11 +181,16 @@ The integrity container receives the read-only audit database identity and check
 but none of the web, migration, administrator, backup, Django, or MFA secrets. The signing-key file
 should live on an independently protected or read-only mounted location when practical.
 
-The runtime web process cannot migrate the schema and never receives the
-database administrator, migration, backup, or audit passwords. Both the application
-and database are on an internal Docker network; only web port 8000 is bound to
-loopback. Put private Tailscale HTTPS in front of it and never forward the port
-from the router.
+The runtime web process cannot migrate the schema and never receives the database administrator,
+migration, backup, or audit passwords. The application and database stay exclusively on internal
+Docker networks. A separate secretless, read-only nginx relay is the only service attached to the
+non-internal ingress network and the only service bound to loopback port 8000. Put private Tailscale
+HTTPS in front of that relay and never forward the port from the router.
+
+Follow [`docs/PRIVATE_INGRESS.md`](docs/PRIVATE_INGRESS.md) to apply the least-privilege tailnet
+policy, configure Tailscale Serve and UFW, run the VM preflight, and complete the required approved-
+and unapproved-device release checks. The runbook deliberately leaves `NET-01` and `NET-02` pending
+until they are observed on the real devices and VM.
 
 Encrypted backup creation and safe restore verification are documented in
 [`docs/BACKUP_AND_RESTORE.md`](docs/BACKUP_AND_RESTORE.md). The backup destination must be an
