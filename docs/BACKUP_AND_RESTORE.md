@@ -95,6 +95,29 @@ docker compose --profile maintenance run --rm backup restic snapshots --latest 5
 
 ## Quarterly restore verification
 
+Before using a real release candidate, exercise the same backup image, backup script, restore image,
+restore script, database roles, and signed-checkpoint commands against disposable synthetic data:
+
+```bash
+sh scripts/run-restore-rehearsal.sh
+```
+
+On Windows, `scripts/run-restore-rehearsal.ps1` uses Docker Desktop when available and otherwise
+delegates to WSL. The fixed disposable project creates an encrypted Restic snapshot, confirms known
+fixture plaintext and every generated reusable secret are absent from repository storage, advances
+one live synthetic audit chain after the backup, and proves that its earlier checkpoint is then
+rejected. It refuses the live database as a restore target, restores into a new database, refuses to
+overwrite that target on a second attempt, reapplies the least-privilege database grants, and
+verifies all restored multi-household fixture relationships before requiring both restored household
+chains to match their separately signed checkpoints. All databases, credentials, checkpoints,
+repository packs, networks, volumes, and the Linux-native temporary build context are removed after
+the run. CI independently scans the same backup/restore image for High/Critical operating-system,
+embedded Go, and secret findings.
+
+This automated rehearsal is development evidence, not the quarterly release record. The real VM
+exercise must still use the release candidate, off-VM repository, external checkpoint directory,
+documented operator, observed recovery time, and sanitized release-evidence record.
+
 Choose a new target name using the required `<production_db>_restore_<label>` pattern. The verifier
 refuses the live database name and refuses to overwrite any existing database.
 

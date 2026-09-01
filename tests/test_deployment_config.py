@@ -296,12 +296,42 @@ def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_targe
     assert "release=%s" in backup_script
     assert "RESTIC_SHA256=" in backup_dockerfile
     assert "ADD --checksum=sha256:" in backup_dockerfile
+    assert "apk upgrade --no-cache" in backup_dockerfile
+    assert "golang:1.26.6-alpine3.24@sha256:" in backup_dockerfile
+    assert "alpine:3.24.1@sha256:" in backup_dockerfile
+    assert "postgresql17-client" in backup_dockerfile
+    assert "/nonexistent:/sbin/nologin" in backup_dockerfile
+    assert 'test "$(id -u postgres)" = "70"' in backup_dockerfile
+    assert "golang.org/x/crypto@v0.55.0" in backup_dockerfile
+    assert "golang.org/x/net@v0.57.0" in backup_dockerfile
+    assert "golang.org/x/text@v0.41.0" in backup_dockerfile
+    assert "google.golang.org/grpc@v1.82.1" in backup_dockerfile
+    assert "COPY --from=restic-builder /out/restic" in backup_dockerfile
 
     assert 'if [ "$RESTORE_TARGET_DB" = "$POSTGRES_DB" ]' in restore_script
     assert "restore_target_refused" in restore_script
     assert "restore_target_exists" in restore_script
     assert "--single-transaction" in restore_script
     assert "--no-owner" in restore_script
+
+    bootstrap = (PROJECT_ROOT / "deploy/postgres/bootstrap-roles.sh").read_text(encoding="utf-8")
+    assert "GRANT USAGE ON SCHEMA budget_audit TO %I" in bootstrap
+    assert "GRANT SELECT ON ALL TABLES IN SCHEMA budget_audit TO %I" in bootstrap
+    assert "IN SCHEMA budget_audit GRANT SELECT ON TABLES TO %I" in bootstrap
+    assert "IN SCHEMA public GRANT SELECT ON TABLES TO %I" in bootstrap
+    assert bootstrap.count("GRANT USAGE, SELECT ON SEQUENCES TO %I") == 3
+    assert "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA budget_audit TO %I" in bootstrap
+    assert "REVOKE ALL ON SCHEMA budget_audit FROM PUBLIC" in bootstrap
+    assert "REVOKE ALL ON ALL TABLES IN SCHEMA budget_audit" in bootstrap
+    assert "tablename IN ('audit_auditevent', 'audit_audithead', 'audit_auditcheckpoint')" in (
+        bootstrap
+    )
+    assert "TO budget_runtime_access, budget_audit_reader'" in bootstrap
+    assert "REVOKE ALL ON ALL FUNCTIONS IN SCHEMA budget_audit" in bootstrap
+    assert "TO budget_runtime_access'" in bootstrap
+    assert "TO budget_audit_reader'" in bootstrap
+    assert bootstrap.count("REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC") == 2
+    assert "GRANT pg_read_all_data" not in bootstrap
 
 
 def test_container_does_not_enable_raw_access_logging() -> None:
@@ -404,6 +434,8 @@ def test_ci_uses_read_only_permissions_and_immutable_official_actions() -> None:
     assert "docker build --tag household-budget:${{ github.sha }} ." in workflow
     assert "docker build --file deploy/network/Dockerfile" in workflow
     assert "household-budget-ingress:${{ github.sha }}" in workflow
+    assert "docker build --file deploy/backup/Dockerfile" in workflow
+    assert "household-budget-backup:${{ github.sha }}" in workflow
     assert "aquasec/trivy:0.70.0@sha256:" in workflow
     assert "image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1" in workflow
     assert "--volume /var/run/docker.sock:/var/run/docker.sock" in workflow

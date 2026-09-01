@@ -306,6 +306,13 @@ relay, internal application/database networks, exact proxy trust, runtime identi
 blocked application egress, and secret non-leakage. A separate guarded Linux VM preflight and
 least-privilege tailnet grants template are ready, but real Tailscale, firewall, TLS, approved-
 device, and unapproved-device evidence remains release-only.
+The production-path restore rehearsal is now automated for disposable synthetic data. It uses the
+real encrypted Restic scripts and database roles, rejects live and existing targets, proves encrypted
+repository storage does not expose fixture plaintext or generated secrets, verifies the restored
+multi-household dataset, and compares complete audit chains with independently signed checkpoints.
+Its first executions found and remediated the backup-role and backup-image findings `M10-F020` and
+`M10-F021`. The real off-VM release-candidate restore, timed recovery observation, and sanitized
+quarterly evidence are still pending.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

@@ -76,6 +76,11 @@ jobs:
           docker build --file deploy/network/Dockerfile
           --tag household-budget-ingress:${{ github.sha }} .
 
+      - name: Build the encrypted backup and restore image
+        run: >-
+          docker build --file deploy/backup/Dockerfile
+          --tag household-budget-backup:${{ github.sha }} .
+
       - name: Fail on high or critical release-image vulnerabilities
         run: >-
           docker run --rm
@@ -92,3 +97,12 @@ jobs:
           image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1
           --no-progress --skip-version-check
           household-budget-ingress:${{ github.sha }}
+
+      - name: Fail on high or critical backup-image vulnerabilities
+        run: >-
+          docker run --rm
+          --volume /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e
+          image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1
+          --no-progress --skip-version-check
+          household-budget-backup:${{ github.sha }}

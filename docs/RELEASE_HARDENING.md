@@ -46,14 +46,15 @@ remains an explicit network-backed command:
 
 GitHub Actions independently builds the production image without runtime secrets, builds the
 secretless ingress relay from its immutable upstream base while applying current Alpine fixes, and
-runs the official Trivy container pinned to an immutable digest against each resulting image. Using
-a pinned scanner preserves the repository's GitHub-owned-actions-only policy. Any known high or
-critical operating-system or Python-package vulnerability fails the image job. The existing
-dependency, source, configuration, and secret checks remain separate so one scanner cannot silently
-replace another.
+builds the encrypted backup/restore image from its checksummed Restic source and immutable builder.
+It runs the official Trivy container pinned to an immutable digest against all three resulting
+images. Using a pinned scanner preserves the repository's GitHub-owned-actions-only policy. Any
+known high or critical operating-system, Python-package, or embedded Go vulnerability fails the
+image job. The existing dependency, source, configuration, and secret checks remain separate so one
+scanner cannot silently replace another.
 
 The image and application scans identified and remediated `M10-F001`, `M10-F002`, `M10-F006`, and
-the relay-image finding `M10-F018`; their sanitized findings and clean retests are recorded in
+the relay-image finding `M10-F018`, and the backup-image finding `M10-F021`; their sanitized findings and clean retests are recorded in
 `docs/SECURITY_FINDINGS.md`. The synthetic ZAP baseline also records the scoped test-transport
 acceptance `M10-F003`. These results are baseline evidence, not a future release pass: every
 candidate must rebuild and repeat the applicable scans against then-current vulnerability data and
@@ -115,6 +116,8 @@ real household data.
   types without treating fixture readiness as test execution. The matrix remains at 0 of 3 required
   targets because no manual run has been performed; the private-ingress target additionally
   requires the Linux VM.
-- The release-candidate restore, audit-checkpoint comparison, lost-device, rotation, upgrade, and
-  rollback rehearsals remain pending.
+- A disposable production-path encrypted backup/restore and signed-checkpoint rehearsal now passes
+  and records remediation of `M10-F020`; it is repeatable development evidence. The real off-VM
+  release-candidate restore and timed recovery observation remain pending, as do the lost-device,
+  rotation, upgrade, and rollback rehearsals.
 - No complete release-candidate penetration-test pass is claimed yet.
