@@ -409,6 +409,32 @@ directory or an encrypted assessment location outside the repository.
   finding for the upgraded local relay image.
 - Exceptions or suppressions: none.
 
+## M10-F019 — Production-only identity validation blocked the disposable browser stack
+
+- Severity: Low
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: first two PR #30 browser-matrix runs
+- Detection: the new production environment and exact Tailscale-host validation ran while
+  `config.settings.pentest` imported `config.settings.production`. The disposable stack correctly
+  failed closed during migration, before any browser test could run. Its runner then removed the
+  failed one-shot container without first printing the service log, which made the CI exception
+  unnecessarily difficult to recover.
+- Security impact: production enforcement remained intact and required checks blocked the merge;
+  there was no production bypass or lost financial data. The failure temporarily removed browser
+  regression evidence and exposed insufficient diagnostics in the synthetic test harness.
+- Remediation: shared deployment controls now live in a guarded hardened-settings module that can be
+  loaded only through the production or pentest settings modules. Production retains its exact
+  environment, hostname, and HTTPS-origin validation; pentest retains its independent synthetic-data,
+  database-host, and database-name guards. Both browser runners now print only the bounded synthetic
+  service logs when startup fails, before removing the disposable project.
+- Retest: 49 focused settings, pentest-harness, and browser-harness tests passed. The local disposable
+  stack then migrated, seeded, and completed all applicable checks across Chromium, Firefox, and
+  WebKit desktop and mobile profiles plus session lifecycle, followed by complete volume/network
+  cleanup.
+- Exceptions or suppressions: none.
+
 ## 2026-09-01 synthetic network-boundary baseline
 
 - The guarded production-derived helper passed the pre-deployment portions of `NET-03` through

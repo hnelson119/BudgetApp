@@ -71,6 +71,8 @@ def test_browser_runner_uses_fixed_project_and_always_removes_volumes() -> None:
         assert "--volumes" in runner
         assert "--remove-orphans" in runner
         assert "build browser-tests" in runner
+        assert "logs --no-color" in runner
+        assert "--tail 200" in runner
         assert "up" in runner and "--build" in runner and "--wait" in runner
         assert "run" in runner and "--rm" in runner and "--no-deps" in runner
         assert "browser-tests" in runner

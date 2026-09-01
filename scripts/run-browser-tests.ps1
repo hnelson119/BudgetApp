@@ -32,6 +32,8 @@ try {
     }
     & docker @composePrefix up --build --wait pentest-web
     if ($LASTEXITCODE -ne 0) {
+        & docker @composePrefix logs --no-color --tail 200 `
+            pentest-db-bootstrap pentest-migrate pentest-seed pentest-web
         throw "The disposable browser-test application failed to start."
     }
     & docker @composePrefix run --rm --no-deps browser-credentials-init
