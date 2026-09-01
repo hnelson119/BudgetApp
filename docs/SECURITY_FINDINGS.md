@@ -294,8 +294,9 @@ directory or an encrypted assessment location outside the repository.
   intended ingress. Simply making the Django frontend network non-internal would have restored the
   port while also restoring general application-container egress, weakening the SSRF and
   compromise-containment boundary.
-- Remediation: an immutable official nginx relay now owns the only non-internal network and the only
-  `127.0.0.1:8000` publish. The relay has no secrets, application database access, or access logs;
+- Remediation: a dedicated relay built from an immutable official nginx base now owns the only
+  non-internal network and the only `127.0.0.1:8000` publish. The relay has no secrets, application
+  database access, or access logs;
   runs as numeric UID/GID 101 with no capabilities, no-new-privileges, a read-only root filesystem,
   and bounded no-exec temporary storage; and can proxy only to the Django service over the internal
   frontend network. Django and PostgreSQL remain exclusively on internal networks. CI now scans the
@@ -383,13 +384,38 @@ directory or an encrypted assessment location outside the repository.
   OneDrive cache reparse points.
 - Exceptions or suppressions: none.
 
+## M10-F018 — Pinned upstream relay image contained fixed High Alpine vulnerabilities
+
+- Severity: High
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: first PR #30 ingress-relay image scan
+- Detection: the pinned official nginx 1.30.4 Alpine image contained `libcrypto3` and `libssl3`
+  3.5.7-r0 affected by `CVE-2026-14456`, plus `libexpat` 2.8.2-r0 affected by
+  `CVE-2026-66046` and `CVE-2026-76641`. Alpine had already published fixed OpenSSL 3.5.8-r0 and
+  Expat 2.8.4-r0 packages. The new independent relay-image gate failed on all four High results.
+- Security impact: the relay does not enable QUIC or parse XML in its configured path, which reduced
+  the direct reachability of the reported denial-of-service conditions. The vulnerable libraries
+  were nevertheless present in the release artifact, and the release policy does not accept a
+  known fixed High image finding based only on feature reachability.
+- Remediation: the repository now builds a minimal relay image from the immutable official nginx
+  base, applies `apk upgrade --no-cache`, and pins runtime to UID/GID 101. Compose deploys that built
+  artifact, and CI scans it separately from the application image so an upstream base that has not
+  yet been republished cannot bypass available Alpine security fixes.
+- Retest: the guarded Linux production-boundary run rebuilt the relay, visibly upgraded OpenSSL to
+  3.5.8-r0 and Expat to 2.8.4-r0, passed all 81 runtime controls, and cleaned up. The exact immutable
+  Trivy 0.70.0 command used by CI then reported zero High/Critical vulnerabilities and no secret
+  finding for the upgraded local relay image.
+- Exceptions or suppressions: none.
+
 ## 2026-09-01 synthetic network-boundary baseline
 
 - The guarded production-derived helper passed the pre-deployment portions of `NET-03` through
   `NET-06`: 5 HTTPS-policy checks, 8 port/network isolation checks, 8 host/header/error checks, and
   81 runtime, identity, mount, secret-source/mode/group, egress, metadata, image-history, and log
   checks on Linux.
-- The run built the production application image, pulled the immutable secretless relay, created a
+- The run built the production application and secretless relay images from immutable bases, created a
   new PostgreSQL volume, bootstrapped the distinct database roles, applied every migration, and
   mounted nine random temporary secrets from a mode-restricted directory outside the repository.
   It printed no secret values, credentials, financial data, database rows, request bodies, or raw

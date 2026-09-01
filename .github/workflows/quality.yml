@@ -71,10 +71,10 @@ jobs:
       - name: Build the release image without runtime secrets
         run: docker build --tag household-budget:${{ github.sha }} .
 
-      - name: Pull the immutable secretless ingress-relay image
+      - name: Build the secretless ingress relay from its immutable base
         run: >-
-          docker pull
-          nginx:1.30.4-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
+          docker build --file deploy/network/Dockerfile
+          --tag household-budget-ingress:${{ github.sha }} .
 
       - name: Fail on high or critical release-image vulnerabilities
         run: >-
@@ -91,4 +91,4 @@ jobs:
           aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e
           image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1
           --no-progress --skip-version-check
-          nginx:1.30.4-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
+          household-budget-ingress:${{ github.sha }}

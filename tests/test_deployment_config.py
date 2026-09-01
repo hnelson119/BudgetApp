@@ -177,7 +177,10 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert not any(part in web["command"] for part in ("migrate", "collectstatic"))
 
     ingress = compose["services"]["ingress"]
-    assert ingress["image"].startswith("nginx:1.30.4-alpine@sha256:")
+    assert ingress["build"] == {
+        "context": "${BUDGET_BUILD_CONTEXT:-.}",
+        "dockerfile": "deploy/network/Dockerfile",
+    }
     assert ingress["ports"] == ["127.0.0.1:8000:8000"]
     assert ingress["networks"] == ["ingress", "frontend"]
     assert ingress["user"] == "101:101"
@@ -186,6 +189,11 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert ingress["pids_limit"] == 64
     assert "secrets" not in ingress
     assert "group_add" not in ingress
+
+    relay_dockerfile = (PROJECT_ROOT / "deploy/network/Dockerfile").read_text(encoding="utf-8")
+    assert "FROM nginx:1.30.4-alpine@sha256:" in relay_dockerfile
+    assert "RUN apk upgrade --no-cache" in relay_dockerfile
+    assert "USER 101:101" in relay_dockerfile
 
     secret_services = {
         "db",
@@ -394,6 +402,8 @@ def test_ci_uses_read_only_permissions_and_immutable_official_actions() -> None:
     assert "--cache-dir .pip-audit-cache --no-deps --disable-pip --strict" in workflow
     assert "docker compose --profile maintenance --profile recovery config --quiet" in workflow
     assert "docker build --tag household-budget:${{ github.sha }} ." in workflow
+    assert "docker build --file deploy/network/Dockerfile" in workflow
+    assert "household-budget-ingress:${{ github.sha }}" in workflow
     assert "aquasec/trivy:0.70.0@sha256:" in workflow
     assert "image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1" in workflow
     assert "--volume /var/run/docker.sock:/var/run/docker.sock" in workflow

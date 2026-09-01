@@ -44,18 +44,20 @@ remains an explicit network-backed command:
 .\.venv\Scripts\python.exe -m pip_audit --requirement requirements-dev.lock --cache-dir .pip-audit-cache --no-deps --disable-pip --strict
 ```
 
-GitHub Actions independently builds the production image without runtime secrets, pulls the pinned
-secretless ingress-relay image, and runs the official Trivy container pinned to an immutable digest
-against each image. Using a pinned container preserves the repository's GitHub-owned-actions-only
-policy. Any known high or critical operating-system or Python-package vulnerability fails the image
-job. The existing dependency, source, configuration, and secret checks remain separate so one
-scanner cannot silently replace another.
+GitHub Actions independently builds the production image without runtime secrets, builds the
+secretless ingress relay from its immutable upstream base while applying current Alpine fixes, and
+runs the official Trivy container pinned to an immutable digest against each resulting image. Using
+a pinned scanner preserves the repository's GitHub-owned-actions-only policy. Any known high or
+critical operating-system or Python-package vulnerability fails the image job. The existing
+dependency, source, configuration, and secret checks remain separate so one scanner cannot silently
+replace another.
 
-The image and application scans identified and remediated `M10-F001`, `M10-F002`, and `M10-F006`;
-their sanitized findings and clean retests are recorded in `docs/SECURITY_FINDINGS.md`. The
-synthetic ZAP baseline also records the scoped test-transport acceptance `M10-F003`. These results
-are baseline evidence, not a future release pass: every candidate must rebuild and repeat the
-applicable scans against then-current vulnerability data and code.
+The image and application scans identified and remediated `M10-F001`, `M10-F002`, `M10-F006`, and
+the relay-image finding `M10-F018`; their sanitized findings and clean retests are recorded in
+`docs/SECURITY_FINDINGS.md`. The synthetic ZAP baseline also records the scoped test-transport
+acceptance `M10-F003`. These results are baseline evidence, not a future release pass: every
+candidate must rebuild and repeat the applicable scans against then-current vulnerability data and
+code.
 
 ## Evidence handling
 
