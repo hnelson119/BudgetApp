@@ -6,6 +6,7 @@ import time
 import uuid
 from collections.abc import Callable
 
+from django.core.exceptions import DisallowedHost
 from django.http import HttpRequest, HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 
@@ -36,6 +37,35 @@ _CONTENT_SECURITY_POLICY = "; ".join(
         "style-src 'self'",
     )
 )
+
+
+class ProxyBoundaryMiddleware:
+    """Canonicalize only the proxy signal the private deployment trusts."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        forwarded_proto = request.META.get("HTTP_X_FORWARDED_PROTO")
+        if forwarded_proto not in (None, "http", "https"):
+            request.META.pop("HTTP_X_FORWARDED_PROTO", None)
+        for name in ("HTTP_FORWARDED", "HTTP_X_FORWARDED_HOST", "HTTP_X_FORWARDED_PORT"):
+            request.META.pop(name, None)
+        return self.get_response(request)
+
+
+class HostBoundaryMiddleware:
+    """Reject every unapproved Host before routing, including host-agnostic health views."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        try:
+            request.get_host()
+        except DisallowedHost:
+            return HttpResponse(status=400)
+        return self.get_response(request)
 
 
 def _route_name(request: HttpRequest) -> str:

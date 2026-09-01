@@ -1,7 +1,7 @@
 # Release hardening and evidence
 
 Status: Milestone 10 baseline in progress  
-Last updated: 2026-08-27
+Last updated: 2026-09-01
 
 ## Purpose
 
@@ -44,11 +44,12 @@ remains an explicit network-backed command:
 .\.venv\Scripts\python.exe -m pip_audit --requirement requirements-dev.lock --cache-dir .pip-audit-cache --no-deps --disable-pip --strict
 ```
 
-GitHub Actions independently builds the production image without runtime secrets and runs the
-official Trivy container pinned to an immutable digest. Using a pinned container preserves the
-repository's GitHub-owned-actions-only policy. Any known high or critical operating-system or
-Python-package vulnerability fails the image job. The existing dependency, source, configuration,
-and secret checks remain separate so one scanner cannot silently replace another.
+GitHub Actions independently builds the production image without runtime secrets, pulls the pinned
+secretless ingress-relay image, and runs the official Trivy container pinned to an immutable digest
+against each image. Using a pinned container preserves the repository's GitHub-owned-actions-only
+policy. Any known high or critical operating-system or Python-package vulnerability fails the image
+job. The existing dependency, source, configuration, and secret checks remain separate so one
+scanner cannot silently replace another.
 
 The image and application scans identified and remediated `M10-F001`, `M10-F002`, and `M10-F006`;
 their sanitized findings and clean retests are recorded in `docs/SECURITY_FINDINGS.md`. The
@@ -90,7 +91,12 @@ real household data.
   internal service TLS, stronger backend authentication, egress allowlisting, a retained SBOM, a
   complete logging/cryptographic inventory, and logically separate security-log storage. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
-- Private Tailscale ingress and firewall isolation require the Linux VM.
+- A production-derived disposable probe now verifies the Compose port/network boundary, exact
+  proxy-header contract, runtime least privilege, blocked application egress, and local secret
+  non-leakage. The separate private-ingress runbook provides a least-privilege grants template and
+  guarded VM preflight. Actual Tailscale identity, certificate, firewall, approved/unapproved-device,
+  and authenticated-cookie observations still require the Linux VM and cannot be marked verified
+  from the disposable run.
 - The disposable ZAP baseline completed for unauthenticated traffic and both MFA-authenticated
   synthetic users with no High/Critical alert. Its internal plain-HTTP transport remains a scoped,
   time-bound Medium acceptance until the real VM TLS boundary is verified.

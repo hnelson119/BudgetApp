@@ -164,12 +164,44 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     web = compose["services"]["web"]
 
     assert web["read_only"] is True
+    assert web["user"] == "10001:10001"
+    assert web["group_add"] == ["${BUDGET_SECRET_GID:-10002}"]
+    assert web["pids_limit"] == 128
     assert web["cap_drop"] == ["ALL"]
-    assert web["ports"] == ["127.0.0.1:8000:8000"]
+    assert "ports" not in web
     assert compose["networks"]["backend"]["internal"] is True
+    assert compose["networks"]["frontend"]["internal"] is True
+    assert compose["networks"]["ingress"] is None
     assert set(web["networks"]) == {"frontend", "backend"}
     assert compose["services"]["db"]["networks"] == ["backend"]
     assert not any(part in web["command"] for part in ("migrate", "collectstatic"))
+
+    ingress = compose["services"]["ingress"]
+    assert ingress["image"].startswith("nginx:1.30.4-alpine@sha256:")
+    assert ingress["ports"] == ["127.0.0.1:8000:8000"]
+    assert ingress["networks"] == ["ingress", "frontend"]
+    assert ingress["user"] == "101:101"
+    assert ingress["read_only"] is True
+    assert ingress["cap_drop"] == ["ALL"]
+    assert ingress["pids_limit"] == 64
+    assert "secrets" not in ingress
+    assert "group_add" not in ingress
+
+    secret_services = {
+        "db",
+        "db-bootstrap",
+        "migrate",
+        "backup",
+        "integrity",
+        "notify",
+        "import-cleanup",
+        "restore-verify",
+        "web",
+    }
+    for service_name in secret_services:
+        service = compose["services"][service_name]
+        assert service["group_add"] == ["${BUDGET_SECRET_GID:-10002}"]
+        assert service["secrets"]
 
     forbidden_keys = {
         "AUDIT_CHECKPOINT_SIGNING_KEY",
@@ -182,6 +214,9 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
 
     for configuration in compose["secrets"].values():
         assert set(configuration) == {"file"}
+
+    environment_example = (PROJECT_ROOT / ".env.example").read_text(encoding="utf-8")
+    assert "BUDGET_SECRET_GID=10002" in environment_example
 
 
 def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
@@ -271,6 +306,12 @@ def test_container_does_not_enable_raw_access_logging() -> None:
     assert "apk upgrade --no-cache" in dockerfile
     assert "--access-logfile" not in dockerfile
     assert {".env*", "secrets", "local-test-secrets"}.issubset(dockerignore)
+
+    relay_configuration = (PROJECT_ROOT / "deploy/network/nginx.conf").read_text(encoding="utf-8")
+    assert "access_log off" in relay_configuration
+    assert "proxy_pass http://web:8000" in relay_configuration
+    assert "proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto" in (relay_configuration)
+    assert 'proxy_set_header X-Forwarded-For ""' in relay_configuration
 
 
 def test_database_images_are_pinned_by_digest() -> None:

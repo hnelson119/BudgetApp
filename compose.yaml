@@ -15,8 +15,12 @@ x-app-environment: &app-environment
   DJANGO_MFA_ENCRYPTION_KEY_FILE: /run/secrets/django_mfa_encryption_key
 
 x-app-hardening: &app-hardening
+  user: "10001:10001"
+  group_add:
+    - ${BUDGET_SECRET_GID:-10002}
   read_only: true
   init: true
+  pids_limit: 128
   cap_drop:
     - ALL
   security_opt:
@@ -40,6 +44,8 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin_password
     secrets:
       - postgres_admin_password
+    group_add:
+      - ${BUDGET_SECRET_GID:-10002}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -78,6 +84,8 @@ services:
       - backend
     read_only: true
     user: postgres
+    group_add:
+      - ${BUDGET_SECRET_GID:-10002}
     cap_drop:
       - ALL
     security_opt:
@@ -88,7 +96,7 @@ services:
 
   migrate:
     build:
-      context: .
+      context: ${BUDGET_BUILD_CONTEXT:-.}
     profiles: ["maintenance"]
     command: ["python", "manage.py", "migrate", "--noinput"]
     environment:
@@ -109,7 +117,7 @@ services:
 
   backup:
     build:
-      context: .
+      context: ${BUDGET_BUILD_CONTEXT:-.}
       dockerfile: deploy/backup/Dockerfile
     profiles: ["maintenance"]
     command: ["/usr/local/bin/backup.sh"]
@@ -141,6 +149,8 @@ services:
       - backend
     read_only: true
     user: postgres
+    group_add:
+      - ${BUDGET_SECRET_GID:-10002}
     cap_drop:
       - ALL
     security_opt:
@@ -151,7 +161,7 @@ services:
 
   integrity:
     build:
-      context: .
+      context: ${BUDGET_BUILD_CONTEXT:-.}
     profiles: ["maintenance"]
     command: ["python", "manage.py", "write_audit_checkpoints"]
     environment:
@@ -185,7 +195,7 @@ services:
 
   notify:
     build:
-      context: .
+      context: ${BUDGET_BUILD_CONTEXT:-.}
     profiles: ["maintenance"]
     command: ["python", "manage.py", "generate_notifications"]
     environment:
@@ -215,7 +225,7 @@ services:
 
   import-cleanup:
     build:
-      context: .
+      context: ${BUDGET_BUILD_CONTEXT:-.}
     profiles: ["maintenance"]
     command: ["python", "manage.py", "cleanup_stale_imports"]
     environment:
@@ -236,7 +246,7 @@ services:
 
   restore-verify:
     build:
-      context: .
+      context: ${BUDGET_BUILD_CONTEXT:-.}
       dockerfile: deploy/backup/Dockerfile
     profiles: ["recovery"]
     command: ["/usr/local/bin/restore-verify.sh"]
@@ -267,6 +277,8 @@ services:
       - backend
     read_only: true
     user: postgres
+    group_add:
+      - ${BUDGET_SECRET_GID:-10002}
     cap_drop:
       - ALL
     security_opt:
@@ -275,9 +287,34 @@ services:
       - /tmp:rw,noexec,nosuid,size=128m
     logging: *log-policy
 
+  ingress:
+    image: nginx:1.30.4-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
+    restart: unless-stopped
+    entrypoint: ["nginx", "-c", "/etc/nginx/nginx.conf", "-g", "daemon off;"]
+    user: "101:101"
+    read_only: true
+    init: true
+    pids_limit: 64
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./deploy/network/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+    networks:
+      - ingress
+      - frontend
+    logging: *log-policy
+
   web:
     build:
-      context: .
+      context: ${BUDGET_BUILD_CONTEXT:-.}
     restart: unless-stopped
     environment:
       <<: *app-environment
@@ -300,8 +337,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "127.0.0.1:8000:8000"
     volumes:
       - media_data:/app/media
     networks:
@@ -315,7 +350,9 @@ volumes:
   media_data:
 
 networks:
+  ingress:
   frontend:
+    internal: true
   backend:
     internal: true
 

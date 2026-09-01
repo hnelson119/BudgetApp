@@ -1,0 +1,56 @@
+{
+  // Replace every example identity before applying this policy.
+  "groups": {
+    "group:budget-users": [
+      "replace-owner@example.com",
+      "replace-spouse@example.com"
+    ],
+    "group:budget-admins": [
+      "replace-owner@example.com"
+    ]
+  },
+
+  "tagOwners": {
+    "tag:budget-server": ["group:budget-admins"]
+  },
+
+  "grants": [
+    {
+      "src": ["group:budget-users"],
+      "dst": ["tag:budget-server"],
+      "ip": ["tcp:443"]
+    },
+    {
+      "src": ["group:budget-admins"],
+      "dst": ["tag:budget-server"],
+      "ip": ["tcp:22"]
+    }
+  ],
+
+  "tests": [
+    {
+      "src": "replace-spouse@example.com",
+      "accept": ["tag:budget-server:443"],
+      "deny": [
+        "tag:budget-server:22",
+        "tag:budget-server:5432",
+        "tag:budget-server:8000",
+        "tag:budget-server:2375",
+        "tag:budget-server:2376"
+      ]
+    },
+    {
+      "src": "replace-owner@example.com",
+      "accept": [
+        "tag:budget-server:22",
+        "tag:budget-server:443"
+      ],
+      "deny": [
+        "tag:budget-server:5432",
+        "tag:budget-server:8000",
+        "tag:budget-server:2375",
+        "tag:budget-server:2376"
+      ]
+    }
+  ]
+}
