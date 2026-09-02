@@ -36,6 +36,12 @@ mode-`0600` `.last-success` marker containing only a timestamp and release ident
 notification job mounts the repository read-only and uses only this marker's freshness; it never
 receives Restic or database-backup credentials and cannot read application data from a dump.
 
+Rotate repository access only with the staged, networkless helper documented in
+`docs/INCIDENT_RESPONSE.md`. Restic changes repository key metadata; replacing
+`restic_repository_password` by itself makes the repository inaccessible. The helper validates the
+new key, runs `restic check`, and proves the retired password fails before the operator promotes the
+staged file.
+
 The supplied systemd units assume the deployment checkout is `/opt/household-budget`, Docker is
 `/usr/bin/docker`, and non-secret Compose configuration is stored in
 `/etc/household-budget/household-budget.env`. Review those paths on the VM, then install and enable
@@ -106,7 +112,8 @@ On Windows, `scripts/run-restore-rehearsal.ps1` uses Docker Desktop when availab
 delegates to WSL. The fixed disposable project creates an encrypted Restic snapshot, confirms known
 fixture plaintext and every generated reusable secret are absent from repository storage, advances
 one live synthetic audit chain after the backup, and proves that its earlier checkpoint is then
-rejected. It refuses the live database as a restore target, restores into a new database, refuses to
+rejected. It rotates the repository key, proves the retired key fails, refuses the live database as
+a restore target, restores the pre-rotation snapshot with the new key into a new database, refuses to
 overwrite that target on a second attempt, reapplies the least-privilege database grants, and
 verifies all restored multi-household fixture relationships before requiring both restored household
 chains to match their separately signed checkpoints. All databases, credentials, checkpoints,

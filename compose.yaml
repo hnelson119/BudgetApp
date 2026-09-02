@@ -13,6 +13,7 @@ x-app-environment: &app-environment
   POSTGRES_DB: ${POSTGRES_DB:-household_budget}
   DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
   DJANGO_MFA_ENCRYPTION_KEY_FILE: /run/secrets/django_mfa_encryption_key
+  DJANGO_MFA_ENCRYPTION_KEY_VERSION: ${DJANGO_MFA_ENCRYPTION_KEY_VERSION:-1}
 
 x-app-hardening: &app-hardening
   user: "10001:10001"
@@ -94,6 +95,38 @@ services:
       - /tmp:rw,noexec,nosuid,size=16m
     logging: *log-policy
 
+  db-admin-key-rotate:
+    image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+    profiles: ["maintenance"]
+    entrypoint: ["/bin/sh", "/usr/local/bin/rotate-admin-password.sh"]
+    environment:
+      DATABASE_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-household_budget}
+      POSTGRES_ADMIN_USER: ${POSTGRES_ADMIN_USER:-budget_admin}
+      POSTGRES_ADMIN_PASSWORD_FILE: /run/secrets/postgres_admin_password
+      POSTGRES_ADMIN_NEW_PASSWORD_FILE: /run/secrets/postgres_admin_password_next
+    secrets:
+      - postgres_admin_password
+      - postgres_admin_password_next
+    volumes:
+      - ./deploy/postgres/rotate-admin-password.sh:/usr/local/bin/rotate-admin-password.sh:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    read_only: true
+    user: postgres
+    group_add:
+      - ${BUDGET_SECRET_GID:-10002}
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    logging: *log-policy
+
   migrate:
     build:
       context: ${BUDGET_BUILD_CONTEXT:-.}
@@ -107,6 +140,38 @@ services:
       - django_secret_key
       - django_mfa_encryption_key
       - postgres_migration_password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    <<: *app-hardening
+    logging: *log-policy
+
+  mfa-key-rotate:
+    build:
+      context: ${BUDGET_BUILD_CONTEXT:-.}
+    profiles: ["maintenance"]
+    command:
+      - python
+      - manage.py
+      - rotate_mfa_encryption_key
+      - --new-version
+      - ${BUDGET_MFA_NEXT_KEY_VERSION:-2}
+      - --reason
+      - ${BUDGET_MFA_ROTATION_REASON:-Scheduled cryptographic maintenance}
+      - --confirm
+      - rotate-to-v${BUDGET_MFA_NEXT_KEY_VERSION:-2}
+    environment:
+      <<: *app-environment
+      POSTGRES_USER: ${POSTGRES_RUNTIME_USER:-budget_runtime}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+      DJANGO_MFA_ENCRYPTION_KEY_NEXT_FILE: /run/secrets/django_mfa_encryption_key_next
+    secrets:
+      - django_secret_key
+      - django_mfa_encryption_key
+      - django_mfa_encryption_key_next
+      - postgres_runtime_password
     depends_on:
       db:
         condition: service_healthy
@@ -147,6 +212,39 @@ services:
         condition: service_healthy
     networks:
       - backend
+    read_only: true
+    user: postgres
+    group_add:
+      - ${BUDGET_SECRET_GID:-10002}
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    logging: *log-policy
+
+  restic-key-rotate:
+    build:
+      context: ${BUDGET_BUILD_CONTEXT:-.}
+      dockerfile: deploy/backup/Dockerfile
+    profiles: ["maintenance"]
+    command: ["/usr/local/bin/rotate-restic-key.sh"]
+    environment:
+      RESTIC_REPOSITORY: /repository
+      RESTIC_PASSWORD_FILE: /run/secrets/restic_repository_password
+      RESTIC_NEW_PASSWORD_FILE: /run/secrets/restic_repository_password_next
+      RESTIC_CACHE_DIR: /tmp/restic-cache
+    secrets:
+      - restic_repository_password
+      - restic_repository_password_next
+    volumes:
+      - type: bind
+        source: ${BUDGET_BACKUP_REPOSITORY:-/mnt/household-budget-backups}
+        target: /repository
+        bind:
+          create_host_path: false
+    network_mode: none
     read_only: true
     user: postgres
     group_add:
@@ -363,8 +461,12 @@ secrets:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/django_secret_key
   django_mfa_encryption_key:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/django_mfa_encryption_key
+  django_mfa_encryption_key_next:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/django_mfa_encryption_key.next
   postgres_admin_password:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_admin_password
+  postgres_admin_password_next:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_admin_password.next
   postgres_runtime_password:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_runtime_password
   postgres_migration_password:
@@ -377,3 +479,5 @@ secrets:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/audit_checkpoint_signing_key
   restic_repository_password:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/restic_repository_password
+  restic_repository_password_next:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/restic_repository_password.next

@@ -203,6 +203,9 @@ existing off-VM mount; it is deliberately unavailable to the web container. The 
 documents the independent audit-checkpoint timer and verification expectations.
 It also documents the hourly staged-CSV cleanup timer; production deployments must enable it so
 unfinished imports cannot retain raw statement cells indefinitely.
+Lost-device containment, protected password/MFA recovery, and staged application, database,
+Restic, audit, Tailscale, and SSH credential rotation are documented in
+[`docs/INCIDENT_RESPONSE.md`](docs/INCIDENT_RESPONSE.md).
 
 ## Quality commands
 

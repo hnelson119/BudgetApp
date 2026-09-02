@@ -34,8 +34,10 @@ RUN apk upgrade --no-cache \
 COPY --from=restic-builder /out/restic /usr/local/bin/restic
 COPY deploy/backup/backup.sh /usr/local/bin/backup.sh
 COPY deploy/backup/restore-verify.sh /usr/local/bin/restore-verify.sh
+COPY deploy/backup/rotate-restic-key.sh /usr/local/bin/rotate-restic-key.sh
 
-RUN chmod 0555 /usr/local/bin/restic /usr/local/bin/backup.sh /usr/local/bin/restore-verify.sh \
+RUN chmod 0555 /usr/local/bin/restic /usr/local/bin/backup.sh \
+        /usr/local/bin/restore-verify.sh /usr/local/bin/rotate-restic-key.sh \
     && restic version \
     && pg_dump --version
 

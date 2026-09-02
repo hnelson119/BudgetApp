@@ -116,8 +116,10 @@ real household data.
   types without treating fixture readiness as test execution. The matrix remains at 0 of 3 required
   targets because no manual run has been performed; the private-ingress target additionally
   requires the Linux VM.
-- A disposable production-path encrypted backup/restore and signed-checkpoint rehearsal now passes
-  and records remediation of `M10-F020`; it is repeatable development evidence. The real off-VM
-  release-candidate restore and timed recovery observation remain pending, as do the lost-device,
-  rotation, upgrade, and rollback rehearsals.
+- A disposable production-path encrypted backup/restore and signed-checkpoint rehearsal now passes,
+  rotates the Restic repository key before restoring the earlier snapshot, and records remediation
+  of `M10-F020`; it is repeatable development evidence. A separate guarded rehearsal passes the
+  versioned MFA re-encryption and lost-device password/MFA/session recovery path with protected
+  audit events. The real off-VM release-candidate restore, timed recovery observation, Tailscale
+  device revocation, full host credential rotation, upgrade, and rollback rehearsals remain pending.
 - No complete release-candidate penetration-test pass is claimed yet.

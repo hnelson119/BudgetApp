@@ -312,7 +312,15 @@ repository storage does not expose fixture plaintext or generated secrets, verif
 multi-household dataset, and compares complete audit chains with independently signed checkpoints.
 Its first executions found and remediated the backup-role and backup-image findings `M10-F020` and
 `M10-F021`. The real off-VM release-candidate restore, timed recovery observation, and sanitized
-quarterly evidence are still pending.
+quarterly evidence are still pending. The incident-response runbook now defines bounded lost-device
+containment and staged rotations for application, MFA, PostgreSQL, Restic, audit, Tailscale, and SSH
+credentials. A production-derived disposable rehearsal transactionally re-encrypts all MFA seeds,
+proves the retired key fails, preserves unrelated sessions during planned rotation, then proves
+emergency password/MFA reset revokes the old session, TOTP, and recovery code before fresh enrollment
+and login. It also proves the PostgreSQL administrator-password helper accepts the replacement and
+rejects the retired password. The restore rehearsal rotates the repository key and restores its
+pre-rotation snapshot using only the replacement. Real Tailscale revocation and full Linux VM
+rotation evidence remain release-only.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

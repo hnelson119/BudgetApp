@@ -488,9 +488,10 @@ directory or an encrypted assessment location outside the repository.
 ## 2026-09-01 synthetic encrypted restore baseline
 
 - The fixed disposable rehearsal completed an encrypted production-script backup, repository
-  integrity check, known-plaintext and generated-secret scan, post-backup source divergence proof,
-  guarded restore, full fixture verification, complete audit-chain replay, and signed-checkpoint
-  comparison for both synthetic households.
+  integrity check, known-plaintext and generated-secret scan, validated Restic key replacement,
+  retired-key rejection, post-backup source divergence proof, guarded restore of the pre-rotation
+  snapshot using the new key, full fixture verification, complete audit-chain replay, and
+  signed-checkpoint comparison for both synthetic households.
 - The live database target and a pre-existing restore target were each refused without data changes.
   The run used separate administrator, migration, runtime, backup, and audit logins and removed every
   generated credential, database, checkpoint, repository pack, container, network, volume, and
@@ -500,6 +501,26 @@ directory or an encrypted assessment location outside the repository.
 - This is supporting development evidence, not the quarterly release record. The real VM exercise
   must still use the selected release candidate, off-VM repository, external checkpoint directory,
   documented operator, observed recovery time, and sanitized release-evidence record.
+
+## 2026-09-01 synthetic lost-device and credential-rotation baseline
+
+- The fixed disposable rehearsal re-encrypted all three synthetic MFA seeds from version 1 to 2 in
+  one PostgreSQL transaction, wrote protected rotation events for both household boundaries,
+  proved the retired key could decrypt no seed, preserved the known seed exactly, and retained both
+  unrelated authenticated sessions during the planned rotation.
+- The lost-device path changed the synthetic account password without echo or argument exposure,
+  reset MFA and recovery codes, revoked the old server-side session, rejected the old password,
+  TOTP, and recovery code, created protected recovery events, required a distinct fresh seed, and
+  completed a new password-plus-TOTP login. Both complete audit chains verified afterward.
+- The production PostgreSQL administrator-password helper then rotated the disposable database
+  role, reconnected with the replacement, and proved the retired password no longer authenticated.
+- The run printed only `ROTATE-01`/`RECOVER-01` counts and generic outcomes and removed its generated
+  passwords, seeds, codes, sessions, database, containers, volumes, and networks. It found and
+  corrected two harness-only orchestration issues before the final pass: re-running a guarded
+  one-shot secret generator and omitting the rotated service's synthetic internal hostname.
+- This is supporting development evidence, not security test 20 or release-gate 9 completion. The
+  real release candidate still requires Tailscale device revocation, Linux-host secret promotion,
+  affected-service restart, retired-access checks, two-user observation, and sanitized evidence.
 
 ## 2026-09-01 synthetic network-boundary baseline
 
@@ -569,9 +590,10 @@ directory or an encrypted assessment location outside the repository.
   skips, and zero failed. The destructive Chromium lifecycle proof ran only after all Chromium,
   Firefox, WebKit, phone, narrow, iPhone, and iPad dependencies completed.
 - This is supporting development evidence, not a manual scenario result or release-candidate run.
-  Password change/forgot-password and individual active-session review/revocation remain missing;
-  deployed TLS/`Secure` behavior still requires the private Linux VM target. The adversarial matrix
-  therefore remains at zero of three completed targets.
+  Self-service password change/forgot-password and individual active-session review/revocation
+  remain missing; the trusted-console emergency reset is not a user-facing replacement. Deployed
+  TLS/`Secure` behavior still requires the private Linux VM target. The adversarial matrix therefore
+  remains at zero of three completed targets.
 
 ## 2026-08-24 synthetic browser baseline
 

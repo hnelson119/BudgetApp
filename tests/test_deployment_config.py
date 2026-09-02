@@ -198,8 +198,11 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     secret_services = {
         "db",
         "db-bootstrap",
+        "db-admin-key-rotate",
         "migrate",
+        "mfa-key-rotate",
         "backup",
+        "restic-key-rotate",
         "integrity",
         "notify",
         "import-cleanup",
@@ -225,6 +228,32 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
 
     environment_example = (PROJECT_ROOT / ".env.example").read_text(encoding="utf-8")
     assert "BUDGET_SECRET_GID=10002" in environment_example
+    assert "DJANGO_MFA_ENCRYPTION_KEY_VERSION=1" in environment_example
+
+    rotation = compose["services"]["mfa-key-rotate"]
+    assert rotation["profiles"] == ["maintenance"]
+    assert rotation["networks"] == ["backend"]
+    assert rotation["command"][2] == "rotate_mfa_encryption_key"
+    assert set(rotation["secrets"]) == {
+        "django_secret_key",
+        "django_mfa_encryption_key",
+        "django_mfa_encryption_key_next",
+        "postgres_runtime_password",
+    }
+    assert rotation["environment"]["DJANGO_MFA_ENCRYPTION_KEY_NEXT_FILE"] == (
+        "/run/secrets/django_mfa_encryption_key_next"
+    )
+
+    database_rotation = compose["services"]["db-admin-key-rotate"]
+    assert database_rotation["profiles"] == ["maintenance"]
+    assert database_rotation["networks"] == ["backend"]
+    assert set(database_rotation["secrets"]) == {
+        "postgres_admin_password",
+        "postgres_admin_password_next",
+    }
+    assert database_rotation["environment"]["POSTGRES_ADMIN_NEW_PASSWORD_FILE"] == (
+        "/run/secrets/postgres_admin_password_next"
+    )
 
 
 def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
@@ -233,6 +262,7 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     web = services["web"]
     backup = services["backup"]
     restore = services["restore-verify"]
+    rotation = services["restic-key-rotate"]
     integrity = services["integrity"]
 
     assert set(web["secrets"]) == {
@@ -252,6 +282,12 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
         "postgres_admin_password",
         "restic_repository_password",
     }
+    assert set(rotation["secrets"]) == {
+        "restic_repository_password",
+        "restic_repository_password_next",
+    }
+    assert rotation["network_mode"] == "none"
+    assert rotation["volumes"][0]["bind"]["create_host_path"] is False
     assert backup["read_only"] is True
     assert restore["read_only"] is True
     assert backup["environment"]["RESTIC_CACHE_DIR"] == "/tmp/restic-cache"
@@ -315,6 +351,9 @@ def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_targe
     assert "--no-owner" in restore_script
 
     bootstrap = (PROJECT_ROOT / "deploy/postgres/bootstrap-roles.sh").read_text(encoding="utf-8")
+    admin_rotation = (PROJECT_ROOT / "deploy/postgres/rotate-admin-password.sh").read_text(
+        encoding="utf-8"
+    )
     assert "GRANT USAGE ON SCHEMA budget_audit TO %I" in bootstrap
     assert "GRANT SELECT ON ALL TABLES IN SCHEMA budget_audit TO %I" in bootstrap
     assert "IN SCHEMA budget_audit GRANT SELECT ON TABLES TO %I" in bootstrap
@@ -331,6 +370,12 @@ def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_targe
     assert "TO budget_runtime_access'" in bootstrap
     assert "TO budget_audit_reader'" in bootstrap
     assert bootstrap.count("REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC") == 2
+    assert "BUDGET_NEW_DATABASE_PASSWORD" in admin_rotation
+    assert "ALTER ROLE %I PASSWORD %L" in admin_rotation
+    assert "--no-password" in admin_rotation
+    assert "PGPASSWORD=" in admin_rotation
+    assert '--command "SELECT 1"' in admin_rotation
+    assert "retired credential still authenticates" in admin_rotation
     assert "GRANT pg_read_all_data" not in bootstrap
 
 

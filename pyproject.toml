@@ -108,6 +108,7 @@ ignore = ["DJ001"]
 "deploy/pentest/run-csv-security.py" = ["E402"]
 "deploy/pentest/run-financial-logic.py" = ["E402"]
 "deploy/pentest/run-audit-integrity.py" = ["E402"]
+"deploy/pentest/run-credential-rehearsal.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.12"

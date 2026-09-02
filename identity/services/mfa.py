@@ -8,6 +8,7 @@ import re
 import secrets
 import struct
 import time
+import uuid
 from dataclasses import dataclass
 from urllib.parse import quote, urlencode
 
@@ -16,7 +17,7 @@ import qrcode.image.svg
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -37,28 +38,46 @@ class ConfirmedEnrollment:
     session_version: int
 
 
-def _fernet() -> Fernet:
-    raw_key = str(settings.MFA_ENCRYPTION_KEY).encode()
+@dataclass(frozen=True)
+class EncryptionKeyRotationResult:
+    credential_count: int
+    household_count: int
+    previous_key_version: int
+    new_key_version: int
+
+
+def _fernet(encryption_key: str) -> Fernet:
+    raw_key = encryption_key.encode()
     derived_key = hashlib.sha256(b"household-budget:mfa:v1:" + raw_key).digest()
     return Fernet(base64.urlsafe_b64encode(derived_key))
 
 
-def _encrypt_secret(*, user: User, secret: str) -> str:
+def _encrypt_secret(
+    *,
+    user: User,
+    secret: str,
+    encryption_key: str | None = None,
+    key_version: int | None = None,
+) -> str:
+    selected_key = str(settings.MFA_ENCRYPTION_KEY) if encryption_key is None else encryption_key
+    selected_version = (
+        int(settings.MFA_ENCRYPTION_KEY_VERSION) if key_version is None else key_version
+    )
     payload = json.dumps(
         {
-            "version": settings.MFA_ENCRYPTION_KEY_VERSION,
+            "version": selected_version,
             "user_id": str(user.pk),
             "secret": secret,
         },
         sort_keys=True,
         separators=(",", ":"),
     ).encode()
-    return _fernet().encrypt(payload).decode()
+    return _fernet(selected_key).encrypt(payload).decode()
 
 
-def decrypt_secret(credential: MfaCredential) -> str:
+def _decrypt_secret(credential: MfaCredential, *, encryption_key: str) -> str:
     try:
-        payload = json.loads(_fernet().decrypt(credential.encrypted_secret.encode()))
+        payload = json.loads(_fernet(encryption_key).decrypt(credential.encrypted_secret.encode()))
     except (InvalidToken, UnicodeError, json.JSONDecodeError, TypeError) as error:
         raise ImproperlyConfigured("The stored MFA credential cannot be decrypted.") from error
 
@@ -69,6 +88,88 @@ def decrypt_secret(credential: MfaCredential) -> str:
     ):
         raise ImproperlyConfigured("The stored MFA credential is invalid.")
     return str(payload["secret"])
+
+
+def decrypt_secret(credential: MfaCredential) -> str:
+    return _decrypt_secret(credential, encryption_key=str(settings.MFA_ENCRYPTION_KEY))
+
+
+@transaction.atomic
+def rotate_mfa_encryption_key(
+    *,
+    new_encryption_key: str,
+    new_key_version: int,
+    reason: str,
+) -> EncryptionKeyRotationResult:
+    """Re-encrypt all MFA seeds atomically and record one protected event per household."""
+
+    from audit.services import append_event
+    from households.models import Household
+
+    current_key = str(settings.MFA_ENCRYPTION_KEY)
+    current_version = int(settings.MFA_ENCRYPTION_KEY_VERSION)
+    normalized_reason = reason.strip()
+    if len(new_encryption_key) < 43:
+        raise ImproperlyConfigured("The replacement MFA encryption key is too short.")
+    if hmac.compare_digest(current_key, new_encryption_key):
+        raise ImproperlyConfigured("The replacement MFA encryption key must be different.")
+    if new_key_version <= current_version:
+        raise ImproperlyConfigured(
+            "The replacement MFA encryption key version must increase monotonically."
+        )
+    if not normalized_reason or len(normalized_reason) > 500:
+        raise ValidationError("A rotation reason of 1 to 500 characters is required.")
+
+    credentials = list(
+        MfaCredential.objects.select_for_update().select_related("user").order_by("user_id")
+    )
+    if any(credential.key_version != current_version for credential in credentials):
+        raise ImproperlyConfigured(
+            "Stored MFA credential versions do not match the configured current key version."
+        )
+
+    # Decrypt every row before writing any row. A stale key or corrupt ciphertext therefore
+    # aborts the transaction without producing a mixed-key database.
+    plaintext_secrets = [
+        _decrypt_secret(credential, encryption_key=current_key) for credential in credentials
+    ]
+    rotated_at = timezone.now()
+    for credential, plaintext_secret in zip(credentials, plaintext_secrets, strict=True):
+        credential.encrypted_secret = _encrypt_secret(
+            user=credential.user,
+            secret=plaintext_secret,
+            encryption_key=new_encryption_key,
+            key_version=new_key_version,
+        )
+        credential.key_version = new_key_version
+        credential.updated_at = rotated_at
+    if credentials:
+        MfaCredential.objects.bulk_update(
+            credentials,
+            ("encrypted_secret", "key_version", "updated_at"),
+        )
+
+    households = list(Household.objects.select_for_update().order_by("pk"))
+    request_id = f"mfa-key-rotation-{uuid.uuid4().hex}"
+    for household in households:
+        append_event(
+            household=household,
+            actor=None,
+            action="security.mfa_key_rotated",
+            entity_type="identity.mfa_encryption",
+            entity_id=household.pk,
+            request_id=request_id,
+            before={"key_version": current_version},
+            after={"key_version": new_key_version},
+            reason=normalized_reason,
+        )
+
+    return EncryptionKeyRotationResult(
+        credential_count=len(credentials),
+        household_count=len(households),
+        previous_key_version=current_version,
+        new_key_version=new_key_version,
+    )
 
 
 def generate_totp_secret() -> str:
