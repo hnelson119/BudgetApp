@@ -1,7 +1,7 @@
 # Release hardening and evidence
 
 Status: Milestone 10 baseline in progress  
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Purpose
 
@@ -118,8 +118,12 @@ real household data.
   requires the Linux VM.
 - A disposable production-path encrypted backup/restore and signed-checkpoint rehearsal now passes,
   rotates the Restic repository key before restoring the earlier snapshot, and records remediation
-  of `M10-F020`; it is repeatable development evidence. A separate guarded rehearsal passes the
+  of `M10-F020` and `M10-F021`; it is repeatable development evidence. A separate guarded rehearsal passes the
   versioned MFA re-encryption and lost-device password/MFA/session recovery path with protected
-  audit events. The real off-VM release-candidate restore, timed recovery observation, Tailscale
-  device revocation, full host credential rotation, upgrade, and rollback rehearsals remain pending.
+  audit events. The disposable production-path upgrade/rollback rehearsal also passes: it backs up
+  before an additive candidate migration, proves the previous application can use the compatible
+  forward schema, and proves clean recovery by starting the baseline application on a separate
+  restored database where candidate schema is absent. The real off-VM release-candidate restore,
+  timed recovery observation, Tailscale device revocation, full host credential rotation, and
+  clean-VM upgrade/rollback validation with two preserved release artifacts remain pending.
 - No complete release-candidate penetration-test pass is claimed yet.

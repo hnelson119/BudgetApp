@@ -14,3 +14,8 @@
 - Run `db-bootstrap` before migrations so the non-login `budget_audit_owner` and fixed capability
   roles exist. Audit migrations move their tables into `budget_audit`, transfer ownership, and
   must explicitly reapply the runtime `SELECT`/append-function boundary after every schema change.
+- Treat application rollback and database rollback as separate operations. A previous application
+  may use a forward schema only after explicit backward-compatibility proof; database rollback uses
+  a verified pre-upgrade snapshot restored to a new target, never an in-place reverse migration.
+- Follow `docs/UPGRADE_AND_ROLLBACK.md` for release staging, cutover, abort criteria, and the
+  disposable forward-upgrade/clean-database rollback rehearsal.

@@ -506,6 +506,32 @@ directory or an encrypted assessment location outside the repository.
   gate then passed for the exact pull-request revision.
 - Exceptions or suppressions: none.
 
+## 2026-09-02 synthetic upgrade and rollback baseline
+
+- The fixed disposable rehearsal wrote independently signed audit checkpoints and created an
+  encrypted production-script backup before applying a test-only additive candidate migration.
+  The candidate schema, healthy candidate application, complete synthetic fixture, and unchanged
+  audit chains all verified afterward.
+- The baseline application then became healthy against the explicitly compatible forward schema
+  without reversing a migration. The clean-database path restored the pre-upgrade snapshot to a
+  separately named target, refused to overwrite that target, reapplied least-privilege grants, and
+  proved the candidate migration record and marker table were absent.
+- The restored multi-household fixture and signed audit checkpoints matched, and the baseline
+  application became healthy against the restored database. The bounded schema verifier used the
+  existing read-only backup role; no administrator credential was added to an application image.
+- Development runs exposed and corrected three harness-only fail-closed integration gaps: the new
+  restored database was initially absent from the exact settings allowlist, one verifier invocation
+  and the rollback service omitted the matching restore-context signal, and the verifier initially
+  used a role that could not read metadata restored without ownership. Regression assertions now
+  cover each boundary. No production application vulnerability was identified.
+- The final upgrade/rollback run and the original encrypted restore/key-rotation rehearsal passed
+  and removed all generated credentials, database state, checkpoints, repository packs, containers,
+  networks, volumes, and Linux-native temporary build context on exit.
+- This is supporting development evidence from one source tree and a test-only migration, not
+  release-gate 10 completion. The real Linux VM exercise must use a clean snapshot, two preserved
+  release artifacts, private TLS, the off-VM repository, approved-device login, observed recovery
+  time, and a sanitized release-evidence record.
+
 ## 2026-09-01 synthetic encrypted restore baseline
 
 - The fixed disposable rehearsal completed an encrypted production-script backup, repository

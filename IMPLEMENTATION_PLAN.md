@@ -322,6 +322,18 @@ rejects the retired password. The restore rehearsal rotates the repository key a
 pre-rotation snapshot using only the replacement. Real Tailscale revocation and full Linux VM
 rotation evidence remain release-only.
 
+The production-path upgrade and rollback procedure is now documented and automated for disposable
+synthetic data. The fixed rehearsal writes signed audit checkpoints and an encrypted pre-upgrade
+backup before mounting a test-only additive candidate migration. It proves candidate health and
+data integrity, then proves the previous application remains healthy on the explicitly compatible
+forward schema without reversing migrations. Its clean-database path restores the baseline into a
+new protected target, refuses a second restore over that target, reapplies least-privilege grants,
+proves the candidate schema is absent, verifies the full fixture and signed audit checkpoints, and
+starts the baseline application on the restored database. The final rehearsal and the original
+backup/key-rotation rehearsal both pass. This is development orchestration evidence from one source
+tree; clean-VM validation with two preserved release artifacts, private TLS, off-VM backup storage,
+observed recovery time, and sanitized release evidence remains release-only.
+
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 
 ## 4. Browser support and test matrix
