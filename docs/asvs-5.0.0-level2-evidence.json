@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-08-24",
+  "mapping_updated": "2026-09-02",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -19,9 +19,9 @@
       "not_applicable": 80
     },
     "status": {
-      "implemented": 97,
+      "implemented": 100,
       "not_applicable": 80,
-      "not_started": 19,
+      "not_started": 16,
       "partial": 57
     }
   },
@@ -1538,12 +1538,12 @@
       "level": 1,
       "description": "Verify that users can change their password.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "The application does not yet provide a user password-change flow.",
+      "status": "implemented",
+      "assessment": "A recent-authentication-protected self-service flow changes the password, rotates the surviving session, revokes other sessions, and creates protected audit evidence.",
       "evidence": [
-        "config/settings/base.py",
-        "identity/management/commands/bootstrap_household.py",
-        "tests/test_identity_commands.py"
+        "identity/forms.py",
+        "identity/views.py",
+        "tests/test_account_security.py"
       ]
     },
     {
@@ -1556,12 +1556,12 @@
       "level": 1,
       "description": "Verify that password change functionality requires the user's current and new password.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "The missing password-change flow cannot yet require the current and new password.",
+      "status": "implemented",
+      "assessment": "The password-change form and transactional view require both the accepted current password and a separately validated new password after recent password-plus-MFA verification.",
       "evidence": [
-        "config/settings/base.py",
-        "identity/management/commands/bootstrap_household.py",
-        "tests/test_identity_commands.py"
+        "identity/forms.py",
+        "identity/views.py",
+        "tests/test_account_security.py"
       ]
     },
     {
@@ -2374,12 +2374,13 @@
       "level": 2,
       "description": "Verify that users are able to view and (having authenticated again with at least one factor) terminate any or all currently active sessions.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "Users can terminate all sessions but cannot yet review individual active sessions.",
+      "status": "implemented",
+      "assessment": "Users can review their current-version server-side sessions and, after recent authentication, terminate an individual session or all sessions through non-reversible action references.",
       "evidence": [
         "identity/services/sessions.py",
         "identity/views.py",
-        "tests/test_authentication.py"
+        "deploy/pentest/run-session-security.py",
+        "tests/test_account_security.py"
       ]
     },
     {

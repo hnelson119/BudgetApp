@@ -25,9 +25,10 @@ does not replace the tester's review of logs, errors, route coverage, or registe
 The equally guarded `scripts/run-session-security.ps1` and `scripts/run-session-security.sh`
 helpers supply real-HTTP, browser, and controlled server-side boundary observations for implemented
 parts of `SESS-01` through `SESS-05`. They have the same supporting-evidence limitation. In
-particular, the application does not yet provide password change/forgot-password flows or an
-individual active-session inventory and revoke control; logout-all and administrative revocation
-checks must not be reported as if those missing workflows passed.
+particular, they now exercise the self-service password-change and active-session inventory/revoke
+controls, but the application does not yet provide forgotten-password recovery or a maintained
+offline breached-password corpus. Logout-all and administrative recovery checks must not be
+reported as if those missing workflows passed.
 
 The guarded `scripts/run-csv-security.ps1` and `scripts/run-csv-security.sh` helper exercises
 repeatable real-HTTP and PostgreSQL invariants for `CSV-01` through `CSV-04`, including two-member

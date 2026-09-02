@@ -72,6 +72,8 @@ An administrator controlling the Windows host, Linux VM, database superuser, run
 - SMS and email codes are not primary MFA methods.
 - Passwords use the framework's current secure password hasher and are never reversibly encrypted.
 - Passwords may be long passphrases and are checked against reasonable strength rules without forced periodic rotation.
+- Password changes require recent password-plus-MFA verification and the current password, rotate
+  the surviving session, revoke every other session, and never retain submitted password values.
 - Authentication responses do not reveal whether a username exists.
 - Failed authentication is rate-limited and audited without recording attempted passwords.
 
@@ -103,7 +105,11 @@ Require recent password/MFA verification before:
 - Never store session IDs, access tokens, refresh tokens, or financial datasets in `localStorage` or `sessionStorage`.
 - Rotate the session identifier after authentication and privilege-sensitive changes.
 - Default session limits: 60-minute inactivity timeout and 12-hour absolute lifetime.
-- Provide “Log out all devices” and revoke sessions after password or MFA recovery.
+- Show only the current user's active server-side sessions through keyed, non-reversible action
+  references; do not expose raw session identifiers or retain detailed device fingerprints.
+- Require recent password-plus-MFA verification before individual or all-session revocation.
+- Provide “Log out all devices” and revoke other sessions after password changes and every session
+  after password or MFA recovery.
 - Send `Cache-Control: no-store` on authenticated financial pages and exports.
 - Clear relevant cookies and browser storage on logout.
 - Apply CSRF protection to every state-changing request.

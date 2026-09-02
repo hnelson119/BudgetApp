@@ -627,6 +627,28 @@ directory or an encrypted assessment location outside the repository.
   complete target still have to be exercised. The adversarial matrix therefore remains at zero of
   three completed targets.
 
+## 2026-09-02 synthetic account-security baseline
+
+- The expanded guarded helper passed `SESS-01` through `SESS-05`: 18 bounded identity/throttle
+  checks, 4 trust-transition checks, 16 account/revocation checks, 8 timeout/concurrency checks, and
+  6 cookie/cache checks. New HTTP observations covered keyed non-reversible session references,
+  absence of raw session identifiers in the Account Security response, stale reauthentication
+  denial, exact individual-session revocation, current-session preservation, current-password
+  verification, password-driven session rotation, and concurrent-session invalidation.
+- The run used the protected PostgreSQL fixture and real password-plus-TOTP sessions. It printed no
+  credentials, cookies, identifiers, submitted values, response bodies, database contents, or
+  timing samples, and cleanup removed the database and every credential/session volume, container,
+  and network.
+- Focused identity, harness, and release-evidence tests passed alongside the runtime rehearsal. The
+  Account Security page also passed the 45-test Chromium, Firefox, WebKit, phone, narrow, iPhone,
+  and iPad matrix with 13 intentionally project-inapplicable skips and no accessibility or layout
+  failures. The ASVS mapping now records password change and active-session review/revocation as
+  implemented, not release verified.
+- This is supporting development evidence, not a complete manual scenario result or release-
+  candidate run. Forgotten-password recovery, a maintained offline breached-password corpus, and
+  deployed TLS/`Secure` observations remain pending. The adversarial matrix therefore remains at
+  zero of three completed targets.
+
 ## 2026-08-28 synthetic session-security baseline
 
 - The guarded disposable helper passed `SESS-01` through `SESS-05`: 18 bounded identity/throttle
@@ -637,11 +659,11 @@ directory or an encrypted assessment location outside the repository.
 - The expanded browser matrix completed with 45 passed, 13 intentionally project-inapplicable
   skips, and zero failed. The destructive Chromium lifecycle proof ran only after all Chromium,
   Firefox, WebKit, phone, narrow, iPhone, and iPad dependencies completed.
-- This is supporting development evidence, not a manual scenario result or release-candidate run.
-  Self-service password change/forgot-password and individual active-session review/revocation
-  remain missing; the trusted-console emergency reset is not a user-facing replacement. Deployed
-  TLS/`Secure` behavior still requires the private Linux VM target. The adversarial matrix therefore
-  remains at zero of three completed targets.
+- This was supporting development evidence, not a manual scenario result or release-candidate run.
+  At the time of this baseline, self-service password change/forgot-password and individual active-
+  session review/revocation were missing; the trusted-console emergency reset was not a user-facing
+  replacement. The 2026-09-02 baseline above supersedes the implemented-control portion of that
+  gap. Deployed TLS/`Secure` behavior still requires the private Linux VM target.
 
 ## 2026-08-24 synthetic browser baseline
 
