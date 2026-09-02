@@ -339,9 +339,9 @@ def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_targe
     assert "/nonexistent:/sbin/nologin" in backup_dockerfile
     assert 'test "$(id -u postgres)" = "70"' in backup_dockerfile
     assert "golang.org/x/crypto@v0.55.0" in backup_dockerfile
-    assert "golang.org/x/net@v0.57.0" in backup_dockerfile
+    assert "golang.org/x/net@v0.58.0" in backup_dockerfile
     assert "golang.org/x/text@v0.41.0" in backup_dockerfile
-    assert "google.golang.org/grpc@v1.82.1" in backup_dockerfile
+    assert "google.golang.org/grpc@v1.83.2" in backup_dockerfile
     assert "COPY --from=restic-builder /out/restic" in backup_dockerfile
 
     assert 'if [ "$RESTORE_TARGET_DB" = "$POSTGRES_DB" ]' in restore_script

@@ -485,6 +485,27 @@ directory or an encrypted assessment location outside the repository.
   secret findings for both the Alpine runtime and Restic binary.
 - Exceptions or suppressions: none.
 
+## M10-F022 — Refreshed scanner database found a newly fixed gRPC-Go vulnerability
+
+- Severity: High
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: credential-rotation pull-request image scan
+- Detection: the immutable Trivy gate refreshed its vulnerability database and found
+  `CVE-2026-84304` in `google.golang.org/grpc` 1.82.1 embedded in the reproducibly built Restic
+  binary. The scanner identified 1.83.1 as the first fixed version; the current signed upstream
+  module release is 1.83.2.
+- Security impact: the vulnerable package is statically embedded in the backup/recovery trust
+  boundary. Even though the affected behavior may not be reachable through BudgetApp's current
+  Restic usage, carrying a known fixed High result would weaken the release image and recovery path.
+- Remediation: the checksummed Restic 0.19.1 source build now pins `google.golang.org/grpc` 1.83.2.
+  No scanner exception, version suppression, or topology-based acceptance was added.
+- Retest: the full encrypted backup, key-rotation, pre-rotation snapshot restore, fixture, audit-chain,
+  and signed-checkpoint rehearsal passed with the rebuilt image. The immutable High/Critical Trivy
+  gate then passed for the exact pull-request revision.
+- Exceptions or suppressions: none.
+
 ## 2026-09-01 synthetic encrypted restore baseline
 
 - The fixed disposable rehearsal completed an encrypted production-script backup, repository
@@ -496,8 +517,9 @@ directory or an encrypted assessment location outside the repository.
   The run used separate administrator, migration, runtime, backup, and audit logins and removed every
   generated credential, database, checkpoint, repository pack, container, network, volume, and
   Linux-native temporary build context on exit.
-- The first runs found and drove remediation of `M10-F020` and `M10-F021`. The final production-path
-  run and independent backup-image scan passed without exceptions or suppressions.
+- The runs found and drove remediation of `M10-F020`, `M10-F021`, and the later database refresh
+  finding `M10-F022`. The final production-path run and independent backup-image scan passed without
+  exceptions or suppressions.
 - This is supporting development evidence, not the quarterly release record. The real VM exercise
   must still use the selected release candidate, off-VM repository, external checkpoint directory,
   documented operator, observed recovery time, and sanitized release-evidence record.
