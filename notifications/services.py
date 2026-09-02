@@ -294,7 +294,13 @@ def _login_specs(
         AuditEvent.objects.filter(
             household=household,
             occurred_at__gte=since,
-            action__in=("auth.login_succeeded", "auth.login_failed", "auth.mfa_failed"),
+            action__in=(
+                "auth.login_succeeded",
+                "auth.login_failed",
+                "auth.mfa_failed",
+                "auth.password_recovered",
+                "auth.password_recovery_failed",
+            ),
         ).order_by("sequence")
     )
     specs: list[NotificationSpec] = []
@@ -313,9 +319,30 @@ def _login_specs(
                     occurred_at=event.occurred_at,
                 )
             )
+        if event.action == "auth.password_recovered" and event.entity_id == str(preference.user_id):
+            specs.append(
+                NotificationSpec(
+                    kind=Notification.Kind.LOGIN_ACTIVITY,
+                    severity=Notification.Severity.CRITICAL,
+                    identity=f"audit:{event.pk}:password-recovered",
+                    title="Password recovery completed",
+                    message=(
+                        "Your password was reset with an MFA recovery factor and all prior "
+                        "sessions were ended."
+                    ),
+                    action_url=reverse("audit:detail", args=(event.pk,)),
+                    source_type="audit.event",
+                    source_id=str(event.pk),
+                    occurred_at=event.occurred_at,
+                )
+            )
     failures: dict[str, list[AuditEvent]] = {}
     for event in events:
-        if event.action in ("auth.login_failed", "auth.mfa_failed"):
+        if event.action in (
+            "auth.login_failed",
+            "auth.mfa_failed",
+            "auth.password_recovery_failed",
+        ):
             failures.setdefault(event.entity_id, []).append(event)
     for entity_id, failed_events in failures.items():
         if len(failed_events) < 3:
@@ -328,10 +355,11 @@ def _login_specs(
                 identity=f"login-failures:{entity_id}:{latest.occurred_at.date().isoformat()}",
                 title="Repeated sign-in failures detected",
                 message=(
-                    f"{len(failed_events)} failed password or authenticator attempts were "
+                    f"{len(failed_events)} failed password, authenticator, or recovery attempts "
+                    "were "
                     "recorded in the last 24 hours."
                 ),
-                action_url=reverse("audit:history") + "?action=auth.login_failed",
+                action_url=reverse("audit:history") + f"?action={latest.action}",
                 source_type="identity.user",
                 source_id=entity_id,
                 occurred_at=latest.occurred_at,

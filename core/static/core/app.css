@@ -213,6 +213,9 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .auth-intro, .auth-help { color: var(--muted); line-height: 1.55; }
 .auth-intro { margin-bottom: 28px; }
 .auth-help { margin: 24px 0 0; font-size: .86rem; }
+.auth-actions { display: grid; margin-top: 24px; gap: 12px; }
+.auth-actions .auth-help { margin: 0; }
+.auth-link { width: fit-content; color: var(--accent); font-size: .9rem; font-weight: 750; }
 .auth-form { display: grid; gap: 18px; }
 .form-field { display: grid; gap: 8px; }
 .form-field label { font-size: .85rem; font-weight: 750; }

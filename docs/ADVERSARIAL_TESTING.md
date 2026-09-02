@@ -26,9 +26,9 @@ The equally guarded `scripts/run-session-security.ps1` and `scripts/run-session-
 helpers supply real-HTTP, browser, and controlled server-side boundary observations for implemented
 parts of `SESS-01` through `SESS-05`. They have the same supporting-evidence limitation. In
 particular, they now exercise the self-service password-change and active-session inventory/revoke
-controls, but the application does not yet provide forgotten-password recovery or a maintained
-offline breached-password corpus. Logout-all and administrative recovery checks must not be
-reported as if those missing workflows passed.
+controls plus generic, rate-limited forgotten-password recovery with session revocation and a fresh
+MFA requirement. A maintained offline breached-password corpus is still absent. Supporting
+logout-all, recovery, and administrative checks must not be reported as a completed manual target.
 
 The guarded `scripts/run-csv-security.ps1` and `scripts/run-csv-security.sh` helper exercises
 repeatable real-HTTP and PostgreSQL invariants for `CSV-01` through `CSV-04`, including two-member

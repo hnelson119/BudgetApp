@@ -6,6 +6,7 @@ app_name = "identity"
 
 urlpatterns = [
     path("login/", views.login_view, name="login"),
+    path("recover/", views.password_recovery_view, name="password-recovery"),
     path("mfa/verify/", views.mfa_verify_view, name="mfa-verify"),
     path("mfa/enroll/", views.mfa_enroll_view, name="mfa-enroll"),
     path(

@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   expectCleanPage,
+  expectNoHorizontalOverflow,
   formatAxeViolations,
   monitorPage,
 } from "./support.mjs";
@@ -56,4 +57,35 @@ test("key authenticated pages have no automated WCAG A or AA violations", async 
       .analyze();
     expect(results.violations, formatAxeViolations(results.violations)).toEqual([]);
   }
+});
+
+test("public password recovery is accessible and responsive without authentication", async ({
+  page,
+  context,
+}) => {
+  await context.clearCookies();
+  const signals = monitorPage(page);
+  const response = await page.goto("/accounts/recover/");
+  expect(response?.status()).toBe(200);
+  expect(response?.headers()["cache-control"]).toContain("no-store");
+  await expect(page.getByRole("heading", { name: "Recover your password" })).toBeVisible();
+  await expect(page.getByLabel("Email")).toHaveAttribute("autocomplete", "username");
+  await expect(page.getByLabel("Authenticator or recovery code")).toHaveAttribute(
+    "autocomplete",
+    "one-time-code",
+  );
+  await expect(page.getByLabel("New password", { exact: true })).toHaveAttribute(
+    "autocomplete",
+    "new-password",
+  );
+  await expect(page.getByLabel("Confirm new password")).toHaveAttribute(
+    "autocomplete",
+    "new-password",
+  );
+  await expectNoHorizontalOverflow(page);
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(results.violations, formatAxeViolations(results.violations)).toEqual([]);
+  expectCleanPage(signals);
 });

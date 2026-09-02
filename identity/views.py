@@ -25,6 +25,7 @@ from households.models import HouseholdMembership
 from households.services.access import get_active_household
 from identity.forms import (
     GENERIC_LOGIN_ERROR,
+    ForgottenPasswordRecoveryForm,
     MfaVerificationForm,
     ReauthenticationForm,
     RecoveryCodesConfirmationForm,
@@ -45,6 +46,7 @@ from identity.services.mfa import (
     verify_and_consume_recovery_code,
     verify_and_consume_totp,
 )
+from identity.services.recovery import recover_forgotten_password
 from identity.services.sessions import (
     SESSION_RECOVERY_CONFIRMATION,
     active_sessions_for_user,
@@ -161,6 +163,53 @@ def _complete_login(request: HttpRequest, user: User, *, method: str) -> None:
         request_id=current_request_id(),
         authenticated_actor=True,
         method=method,
+    )
+
+
+@sensitive_post_parameters("code", "new_password1", "new_password2")
+@never_cache
+@require_http_methods(["GET", "POST"])
+def password_recovery_view(request: HttpRequest) -> HttpResponse:
+    if request.user.is_authenticated:
+        return redirect(settings.LOGIN_REDIRECT_URL)
+
+    form = ForgottenPasswordRecoveryForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        email = form.cleaned_data["email"]
+        keys = throttle_keys(request, email, scope="password_recovery")
+        blocked = is_login_blocked(keys)
+        accepted = False
+        if not blocked:
+            result = recover_forgotten_password(
+                email=email,
+                code=form.cleaned_data["code"],
+                new_password=form.cleaned_data["new_password1"],
+                request_id=current_request_id(),
+            )
+            accepted = result.accepted
+
+        if accepted:
+            clear_login_failures(keys)
+        elif not blocked:
+            blocked = register_login_failure(keys)
+        security_logger.warning(
+            "Password recovery submission processed.",
+            extra={
+                "event": "auth.password_recovery_submitted",
+                "accepted": accepted,
+                "rate_limited": blocked,
+            },
+        )
+        return render(
+            request,
+            "identity/password_recovery_submitted.html",
+            status=429 if blocked else 200,
+        )
+
+    return render(
+        request,
+        "identity/password_recovery.html",
+        {"form": form},
     )
 
 

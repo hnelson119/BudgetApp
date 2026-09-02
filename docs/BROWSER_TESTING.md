@@ -1,7 +1,7 @@
 # Browser security and compatibility testing
 
 Status: automated baseline and manual evidence system implemented; manual passes remain separate
-Last updated: 2026-08-24
+Last updated: 2026-09-02
 
 ## Purpose and safety boundary
 
@@ -59,7 +59,9 @@ Every engine/viewport checks navigation, dark-mode default and light-mode persis
 overflow, protected workflows, browser storage, uncaught JavaScript errors, and manual expense
 entry. The suite also checks cookie and response headers, CSP-backed reflected/fragment DOM-XSS
 inertness, WCAG 2 A/AA rules with axe-core on key pages, and the explicit reason-plus-checkbox
-confirmation required to delete a category budget. Desktop engines also verify the keyboard skip
+confirmation required to delete a category budget. Each profile also opens the unauthenticated
+password-recovery page and checks its no-store response, accessible labels and password-manager
+hints, WCAG rules, and narrow-layout overflow. Desktop engines also verify the keyboard skip
 path, logical initial focus order, visible focus ring, theme activation, and inert unavailable
 navigation. Phone, narrow, and iPad layouts measure their exposed primary navigation targets
 against the 44-CSS-pixel minimum.

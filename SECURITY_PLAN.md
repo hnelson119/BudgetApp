@@ -83,6 +83,13 @@ An administrator controlling the Windows host, Linux VM, database superuser, run
 - Store only cryptographic hashes of recovery codes in the database.
 - Show recovery codes once and require the user to confirm they saved them.
 - Security questions are prohibited.
+- Forgotten-password recovery requires a current TOTP or one unused recovery code; it does not use
+  email links, security questions, or a weaker fallback factor.
+- Recovery returns the same submitted response for known, unknown, inactive, and invalid attempts,
+  applies keyed identifier/network throttling, never creates an authenticated session, and logs no
+  submitted identity, password, authenticator value, or recovery code.
+- Successful recovery consumes the factor, changes the password atomically with protected audit
+  events, revokes every prior session, and requires the new password plus fresh MFA at sign-in.
 - A local emergency-recovery command may reset an account only with VM administrative access.
 - Emergency recovery revokes all active sessions, invalidates old recovery codes, requires new MFA enrollment, and creates a protected audit event.
 

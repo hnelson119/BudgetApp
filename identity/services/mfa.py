@@ -10,6 +10,8 @@ import struct
 import time
 import uuid
 from dataclasses import dataclass
+from functools import cache
+from typing import Literal
 from urllib.parse import quote, urlencode
 
 import qrcode
@@ -387,6 +389,73 @@ def verify_and_consume_recovery_code(user: User, code: str) -> bool:
     recovery_code.used_at = timezone.now()
     recovery_code.save(update_fields=("used_at",))
     return True
+
+
+@cache
+def _dummy_recovery_code_hash() -> str:
+    return make_password(secrets.token_urlsafe(32))
+
+
+@cache
+def _dummy_totp_secret() -> str:
+    return generate_totp_secret()
+
+
+@transaction.atomic
+def verify_and_consume_password_recovery_factor(
+    user: User | None,
+    code: str,
+) -> Literal["totp", "recovery_code"] | None:
+    """Verify a recovery factor while giving absent records equivalent cryptographic work."""
+
+    credential = None
+    if user is not None:
+        credential = (
+            MfaCredential.objects.select_for_update()
+            .filter(
+                user=user,
+                confirmed_at__isnull=False,
+                recovery_codes_confirmed_at__isnull=False,
+            )
+            .first()
+        )
+
+    if len(code) == 6 and code.isdigit():
+        secret = decrypt_secret(credential) if credential is not None else _dummy_totp_secret()
+        step = _matching_totp_step(secret, code)
+        if (
+            credential is None
+            or step is None
+            or (credential.last_used_step is not None and step <= credential.last_used_step)
+        ):
+            return None
+        credential.last_used_step = step
+        credential.save(update_fields=("last_used_step", "updated_at"))
+        return "totp"
+
+    normalized = _normalize_recovery_code(code)
+    recovery_code = None
+    submitted_secret = code
+    if credential is not None and normalized is not None:
+        identifier, submitted_secret = normalized
+        recovery_code = (
+            RecoveryCode.objects.select_for_update()
+            .filter(
+                user=user,
+                identifier=identifier,
+                used_at__isnull=True,
+            )
+            .first()
+        )
+    selected_hash = (
+        recovery_code.code_hash if recovery_code is not None else _dummy_recovery_code_hash()
+    )
+    accepted = check_password(submitted_secret, selected_hash)
+    if recovery_code is None or not accepted:
+        return None
+    recovery_code.used_at = timezone.now()
+    recovery_code.save(update_fields=("used_at",))
+    return "recovery_code"
 
 
 @transaction.atomic

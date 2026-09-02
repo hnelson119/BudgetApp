@@ -2,7 +2,10 @@ from typing import Any
 
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+
+from identity.models import User
 
 GENERIC_LOGIN_ERROR = "The email or password was not accepted."
 
@@ -133,3 +136,48 @@ class SecurePasswordChangeForm(PasswordChangeForm):
 
 class SessionRevocationForm(forms.Form):
     session_reference = forms.RegexField(regex=r"^[0-9a-f]{64}$", max_length=64)
+
+
+class ForgottenPasswordRecoveryForm(forms.Form):
+    email = forms.EmailField(
+        label="Email",
+        max_length=254,
+        widget=forms.EmailInput(
+            attrs={"autocomplete": "username", "autofocus": True, "inputmode": "email"}
+        ),
+    )
+    code = forms.CharField(
+        label="Authenticator or recovery code",
+        min_length=6,
+        max_length=64,
+        strip=True,
+        widget=forms.TextInput(attrs={"autocomplete": "one-time-code", "spellcheck": "false"}),
+    )
+    new_password1 = forms.CharField(
+        label="New password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+    new_password2 = forms.CharField(
+        label="Confirm new password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+
+    def clean_email(self) -> str:
+        return str(self.cleaned_data["email"]).strip().lower()
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean() or {}
+        password = cleaned.get("new_password1")
+        confirmation = cleaned.get("new_password2")
+        email = cleaned.get("email")
+        if password and confirmation and password != confirmation:
+            self.add_error("new_password2", "The password confirmation did not match.")
+        if password and email:
+            validation_user = User(email=str(email))
+            try:
+                validate_password(str(password), user=validation_user)
+            except ValidationError as error:
+                self.add_error("new_password1", error)
+        return cleaned

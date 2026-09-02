@@ -36,7 +36,10 @@
           <button type="submit" class="primary-button">Continue securely</button>
         </form>
 
-        <p class="auth-help">Your authenticator is required before household data can be opened.</p>
+        <div class="auth-actions">
+          <a class="auth-link" href="{% url 'identity:password-recovery' %}">Forgot your password?</a>
+          <p class="auth-help">Your authenticator is required before household data can be opened.</p>
+        </div>
       </section>
     </main>
     <script src="{% static 'core/app.js' %}" defer></script>

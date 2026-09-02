@@ -64,7 +64,10 @@ all 253 OWASP ASVS 5.0.0 Level 1/2 requirements, the security-test and release-g
 a pinned Trivy container scan that fails CI on high or critical release-image vulnerabilities.
 The Account Security screen now supports current-password-verified password changes, opaque
 active-session review, recent-authentication-protected individual or all-session revocation, and
-protected audit events without retaining session identifiers or submitted passwords. See
+protected audit events without retaining session identifiers or submitted passwords. Public
+forgotten-password recovery requires an existing authenticator or unused recovery code, returns a
+generic result for every submitted identity, revokes all prior sessions, never signs the requester
+in, and requires fresh MFA after the replacement password. See
 `docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. The guarded
 production-derived network probe and Linux VM runbook are in `docs/PRIVATE_INGRESS.md`; actual
 Tailscale HTTPS, firewall/device checks, and provisioning the two real household accounts remain
@@ -115,7 +118,9 @@ python manage.py bootstrap_household `
 
 Each person is restricted to MFA enrollment at first login. TOTP seeds are encrypted with the
 separate `django_mfa_encryption_key` secret; recovery codes are displayed once and only salted
-password hashes are retained. If an authenticator and all recovery codes are lost, a VM
+password hashes are retained. The sign-in screen's recovery flow accepts a current authenticator
+code or one unused recovery code and never bypasses the next MFA challenge. If an authenticator and
+all recovery codes are lost, a VM
 administrator can run the interactive `reset_user_mfa <email> --reason "..."` command. That reset
 revokes every session, invalidates the old seed and codes, and creates a protected audit event.
 
