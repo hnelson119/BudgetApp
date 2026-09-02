@@ -21,7 +21,7 @@ def test_restore_rehearsal_uses_production_backup_paths_and_disposable_storage()
     restore = services["pentest-restore-verify"]
 
     assert "pentest_backup_repository" in compose["volumes"]
-    assert storage["profiles"] == ["restore"]
+    assert storage["profiles"] == ["restore", "upgrade"]
     assert storage["network_mode"] == "none"
     assert storage["read_only"] is True
     assert storage["cap_drop"] == ["ALL"]
@@ -29,7 +29,7 @@ def test_restore_rehearsal_uses_production_backup_paths_and_disposable_storage()
     assert "pentest_backup_repository:/repository" in storage["volumes"]
 
     for service in (backup, restore):
-        assert service["profiles"] == ["restore"]
+        assert service["profiles"] == ["restore", "upgrade"]
         assert service["build"]["dockerfile"] == "deploy/backup/Dockerfile"
         assert service["networks"] == ["pentest_backend"]
         assert service["read_only"] is True
@@ -55,7 +55,12 @@ def test_restore_rehearsal_uses_production_backup_paths_and_disposable_storage()
     assert restore["environment"]["RESTIC_PASSWORD_FILE"].endswith(
         "restic_repository_password_next"
     )
-    assert backup["environment"]["APP_RELEASE"] == "pentest-restore-rehearsal"
+    assert backup["environment"]["APP_RELEASE"] == (
+        "${PENTEST_BACKUP_RELEASE:-pentest-restore-rehearsal}"
+    )
+    assert backup["environment"]["PENTEST_EXPECTED_BACKUP_RELEASE"] == (
+        "${PENTEST_BACKUP_RELEASE:-pentest-restore-rehearsal}"
+    )
     assert restore["environment"]["RESTORE_TARGET_DB"] == (
         "household_budget_pentest_restore_rehearsal"
     )
@@ -79,8 +84,9 @@ def test_restore_rehearsal_separates_runtime_advance_from_audit_verification() -
     assert audit["environment"]["PENTEST_RESTORE_EXPECTATION"] == "source-diverged"
     assert "pentest_checkpoints:/run/pentest-checkpoints" in audit["volumes"]
     assert all("pentest_backup_repository" not in volume for volume in audit["volumes"])
+    assert advance["profiles"] == ["restore"]
+    assert audit["profiles"] == ["restore", "upgrade"]
     for service in (advance, audit):
-        assert service["profiles"] == ["restore"]
         assert service["networks"] == ["pentest_backend"]
         assert service["read_only"] is True
         assert service["cap_drop"] == ["ALL"]
@@ -105,12 +111,14 @@ def test_restore_probes_are_bounded_and_emit_only_sanitized_outcomes() -> None:
     assert '_current_role() == "budget_runtime"' in advance
     assert "verify_household_chain(household).valid" in advance
     assert "source-diverged" in verify and "restored-match" in verify
+    assert "source-match" in verify and "upgrade-restored-match" in verify
     assert '_current_role() == "budget_audit"' in verify
     assert "verify_audit_checkpoint" in verify
     assert "django_migrations" not in verify
     assert "does not match the database audit head" in verify
     assert "set(checkpoints) != set(households.values())" in verify
     assert "Synthetic Household" in encrypted
+    assert "PENTEST_EXPECTED_BACKUP_RELEASE" in encrypted
     assert "for secret_file in /run/secrets/*" in encrypted
     assert "grep -a -F -r -q" in encrypted
     assert '"restic_repository_password"' in generator

@@ -71,6 +71,9 @@ PostgreSQL data, scans encrypted repository storage for known plaintext and gene
 proves stale signed checkpoints fail, and verifies the restored multi-household fixture and complete
 audit chains. CI also scans the independently built backup/restore image; the quarterly release-
 candidate restore on the real VM remains a required deployment gate.
+A separate upgrade profile checkpoints and backs up the baseline, applies a test-only additive
+migration with the dedicated migration role, proves candidate and previous-app health on the forward
+schema, and restores the pre-upgrade snapshot into a new database for clean rollback verification.
 
 ## Local development
 
@@ -206,6 +209,8 @@ unfinished imports cannot retain raw statement cells indefinitely.
 Lost-device containment, protected password/MFA recovery, and staged application, database,
 Restic, audit, Tailscale, and SSH credential rotation are documented in
 [`docs/INCIDENT_RESPONSE.md`](docs/INCIDENT_RESPONSE.md).
+Release staging, backward-compatible application rollback, and clean-database recovery are in
+[`docs/UPGRADE_AND_ROLLBACK.md`](docs/UPGRADE_AND_ROLLBACK.md).
 
 ## Quality commands
 
@@ -258,5 +263,6 @@ automatically.
 7. [`design/mockups/`](design/mockups/) — approved visual direction
 8. [`docs/adr/`](docs/adr/) — accepted architecture decisions
 9. [`docs/MIGRATIONS.md`](docs/MIGRATIONS.md) — database migration policy
+10. [`docs/UPGRADE_AND_ROLLBACK.md`](docs/UPGRADE_AND_ROLLBACK.md) — release upgrade and rollback
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.
