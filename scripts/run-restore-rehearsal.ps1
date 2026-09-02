@@ -35,6 +35,7 @@ try {
         pentest-web `
         pentest-fixture-verify `
         pentest-backup `
+        pentest-restic-key-rotate `
         pentest-restore-verify `
         pentest-restore-source-advance `
         pentest-restore-audit
@@ -66,6 +67,10 @@ try {
         /bin/sh /opt/pentest/verify-encrypted-repository.sh
     if ($LASTEXITCODE -ne 0) {
         throw "The encrypted repository plaintext check failed."
+    }
+    & docker @composePrefix run --rm --no-deps pentest-restic-key-rotate
+    if ($LASTEXITCODE -ne 0) {
+        throw "The disposable Restic repository-key rotation failed."
     }
     & docker @composePrefix run --rm --no-deps pentest-restore-source-advance
     if ($LASTEXITCODE -ne 0) {

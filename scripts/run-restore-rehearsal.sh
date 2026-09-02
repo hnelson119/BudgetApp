@@ -54,6 +54,7 @@ compose build \
   pentest-web \
   pentest-fixture-verify \
   pentest-backup \
+  pentest-restic-key-rotate \
   pentest-restore-verify \
   pentest-restore-source-advance \
   pentest-restore-audit
@@ -65,6 +66,7 @@ compose run --rm --no-deps pentest-restore-audit \
 compose run --rm --no-deps pentest-backup
 compose run --rm --no-deps pentest-backup \
   /bin/sh /opt/pentest/verify-encrypted-repository.sh
+compose run --rm --no-deps pentest-restic-key-rotate
 compose run --rm --no-deps pentest-restore-source-advance
 compose run --rm --no-deps pentest-restore-audit
 

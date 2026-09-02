@@ -17,6 +17,7 @@ def test_restore_rehearsal_uses_production_backup_paths_and_disposable_storage()
     services = compose["services"]
     storage = services["pentest-restore-storage-init"]
     backup = services["pentest-backup"]
+    rotation = services["pentest-restic-key-rotate"]
     restore = services["pentest-restore-verify"]
 
     assert "pentest_backup_repository" in compose["volumes"]
@@ -41,6 +42,19 @@ def test_restore_rehearsal_uses_production_backup_paths_and_disposable_storage()
     assert "pentest_backup_repository:/repository:ro" in restore["volumes"]
     assert backup["command"] == ["/usr/local/bin/backup.sh"]
     assert restore["command"] == ["/usr/local/bin/restore-verify.sh"]
+    assert rotation["command"] == ["/usr/local/bin/rotate-restic-key.sh"]
+    assert rotation["profiles"] == ["restore"]
+    assert rotation["network_mode"] == "none"
+    assert rotation["read_only"] is True
+    assert rotation["user"] == "postgres"
+    assert "pentest_secrets:/run/secrets:ro" in rotation["volumes"]
+    assert "pentest_backup_repository:/repository" in rotation["volumes"]
+    assert rotation["environment"]["RESTIC_NEW_PASSWORD_FILE"].endswith(
+        "restic_repository_password_next"
+    )
+    assert restore["environment"]["RESTIC_PASSWORD_FILE"].endswith(
+        "restic_repository_password_next"
+    )
     assert backup["environment"]["APP_RELEASE"] == "pentest-restore-rehearsal"
     assert restore["environment"]["RESTORE_TARGET_DB"] == (
         "household_budget_pentest_restore_rehearsal"
@@ -100,6 +114,7 @@ def test_restore_probes_are_bounded_and_emit_only_sanitized_outcomes() -> None:
     assert "for secret_file in /run/secrets/*" in encrypted
     assert "grep -a -F -r -q" in encrypted
     assert '"restic_repository_password"' in generator
+    assert '"restic_repository_password_next"' in generator
     assert "print(household" not in advance + verify
     assert "print(manifest" not in advance + verify
 
@@ -117,6 +132,7 @@ def test_restore_runner_refuses_live_and_existing_targets_and_always_cleans_up()
         assert "write_audit_checkpoints" in runner
         assert "pentest-backup" in runner
         assert "verify-encrypted-repository.sh" in runner
+        assert "pentest-restic-key-rotate" in runner
         assert "pentest-restore-source-advance" in runner
         assert "household_budget_pentest_restore_rehearsal" in runner
         assert "household_budget_pentest" in runner

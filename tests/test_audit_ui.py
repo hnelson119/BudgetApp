@@ -5,6 +5,7 @@ from django.conf import settings
 from django.db import connection
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 
 from audit.models import AuditEvent
 from audit.services import append_event
@@ -213,7 +214,7 @@ def test_audit_filter_supports_system_actor_dates_types_and_invalid_ranges(
         request_id="audit-system-filter",
     )
     client.force_login(user)
-    local_date = system_event.occurred_at.date().isoformat()
+    local_date = timezone.localdate(system_event.occurred_at).isoformat()
 
     response = client.get(
         reverse("audit:history"),

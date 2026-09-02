@@ -485,21 +485,64 @@ directory or an encrypted assessment location outside the repository.
   secret findings for both the Alpine runtime and Restic binary.
 - Exceptions or suppressions: none.
 
+## M10-F022 — Refreshed scanner database found a newly fixed gRPC-Go vulnerability
+
+- Severity: High
+- State: Retested
+- Detected: 2026-09-01
+- Owner: release owner
+- Affected baseline: credential-rotation pull-request image scan
+- Detection: the immutable Trivy gate refreshed its vulnerability database and found
+  `CVE-2026-84304` in `google.golang.org/grpc` 1.82.1 embedded in the reproducibly built Restic
+  binary. The scanner identified 1.83.1 as the first fixed version; the current signed upstream
+  module release is 1.83.2.
+- Security impact: the vulnerable package is statically embedded in the backup/recovery trust
+  boundary. Even though the affected behavior may not be reachable through BudgetApp's current
+  Restic usage, carrying a known fixed High result would weaken the release image and recovery path.
+- Remediation: the checksummed Restic 0.19.1 source build now pins `google.golang.org/grpc` 1.83.2.
+  No scanner exception, version suppression, or topology-based acceptance was added.
+- Retest: the full encrypted backup, key-rotation, pre-rotation snapshot restore, fixture, audit-chain,
+  and signed-checkpoint rehearsal passed with the rebuilt image. The immutable High/Critical Trivy
+  gate then passed for the exact pull-request revision.
+- Exceptions or suppressions: none.
+
 ## 2026-09-01 synthetic encrypted restore baseline
 
 - The fixed disposable rehearsal completed an encrypted production-script backup, repository
-  integrity check, known-plaintext and generated-secret scan, post-backup source divergence proof,
-  guarded restore, full fixture verification, complete audit-chain replay, and signed-checkpoint
-  comparison for both synthetic households.
+  integrity check, known-plaintext and generated-secret scan, validated Restic key replacement,
+  retired-key rejection, post-backup source divergence proof, guarded restore of the pre-rotation
+  snapshot using the new key, full fixture verification, complete audit-chain replay, and
+  signed-checkpoint comparison for both synthetic households.
 - The live database target and a pre-existing restore target were each refused without data changes.
   The run used separate administrator, migration, runtime, backup, and audit logins and removed every
   generated credential, database, checkpoint, repository pack, container, network, volume, and
   Linux-native temporary build context on exit.
-- The first runs found and drove remediation of `M10-F020` and `M10-F021`. The final production-path
-  run and independent backup-image scan passed without exceptions or suppressions.
+- The runs found and drove remediation of `M10-F020`, `M10-F021`, and the later database refresh
+  finding `M10-F022`. The final production-path run and independent backup-image scan passed without
+  exceptions or suppressions.
 - This is supporting development evidence, not the quarterly release record. The real VM exercise
   must still use the selected release candidate, off-VM repository, external checkpoint directory,
   documented operator, observed recovery time, and sanitized release-evidence record.
+
+## 2026-09-01 synthetic lost-device and credential-rotation baseline
+
+- The fixed disposable rehearsal re-encrypted all three synthetic MFA seeds from version 1 to 2 in
+  one PostgreSQL transaction, wrote protected rotation events for both household boundaries,
+  proved the retired key could decrypt no seed, preserved the known seed exactly, and retained both
+  unrelated authenticated sessions during the planned rotation.
+- The lost-device path changed the synthetic account password without echo or argument exposure,
+  reset MFA and recovery codes, revoked the old server-side session, rejected the old password,
+  TOTP, and recovery code, created protected recovery events, required a distinct fresh seed, and
+  completed a new password-plus-TOTP login. Both complete audit chains verified afterward.
+- The production PostgreSQL administrator-password helper then rotated the disposable database
+  role, reconnected with the replacement, and proved the retired password no longer authenticated.
+- The run printed only `ROTATE-01`/`RECOVER-01` counts and generic outcomes and removed its generated
+  passwords, seeds, codes, sessions, database, containers, volumes, and networks. It found and
+  corrected two harness-only orchestration issues before the final pass: re-running a guarded
+  one-shot secret generator and omitting the rotated service's synthetic internal hostname.
+- This is supporting development evidence, not security test 20 or release-gate 9 completion. The
+  real release candidate still requires Tailscale device revocation, Linux-host secret promotion,
+  affected-service restart, retired-access checks, two-user observation, and sanitized evidence.
 
 ## 2026-09-01 synthetic network-boundary baseline
 
@@ -569,9 +612,10 @@ directory or an encrypted assessment location outside the repository.
   skips, and zero failed. The destructive Chromium lifecycle proof ran only after all Chromium,
   Firefox, WebKit, phone, narrow, iPhone, and iPad dependencies completed.
 - This is supporting development evidence, not a manual scenario result or release-candidate run.
-  Password change/forgot-password and individual active-session review/revocation remain missing;
-  deployed TLS/`Secure` behavior still requires the private Linux VM target. The adversarial matrix
-  therefore remains at zero of three completed targets.
+  Self-service password change/forgot-password and individual active-session review/revocation
+  remain missing; the trusted-console emergency reset is not a user-facing replacement. Deployed
+  TLS/`Secure` behavior still requires the private Linux VM target. The adversarial matrix therefore
+  remains at zero of three completed targets.
 
 ## 2026-08-24 synthetic browser baseline
 

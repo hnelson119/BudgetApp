@@ -13,9 +13,9 @@ RUN tar --extract --gzip --file /tmp/restic.tar.gz --strip-components=1 \
     && rm /tmp/restic.tar.gz \
     && go get \
         golang.org/x/crypto@v0.55.0 \
-        golang.org/x/net@v0.57.0 \
+        golang.org/x/net@v0.58.0 \
         golang.org/x/text@v0.41.0 \
-        google.golang.org/grpc@v1.82.1 \
+        google.golang.org/grpc@v1.83.2 \
     && go mod tidy \
     && mkdir -p /out \
     && go run build.go --output /out/restic \
@@ -34,8 +34,10 @@ RUN apk upgrade --no-cache \
 COPY --from=restic-builder /out/restic /usr/local/bin/restic
 COPY deploy/backup/backup.sh /usr/local/bin/backup.sh
 COPY deploy/backup/restore-verify.sh /usr/local/bin/restore-verify.sh
+COPY deploy/backup/rotate-restic-key.sh /usr/local/bin/rotate-restic-key.sh
 
-RUN chmod 0555 /usr/local/bin/restic /usr/local/bin/backup.sh /usr/local/bin/restore-verify.sh \
+RUN chmod 0555 /usr/local/bin/restic /usr/local/bin/backup.sh \
+        /usr/local/bin/restore-verify.sh /usr/local/bin/rotate-restic-key.sh \
     && restic version \
     && pg_dump --version
 
