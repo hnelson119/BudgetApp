@@ -317,9 +317,10 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .app-nav a span { width: 24px; color: inherit; font-size: 1.35rem; text-align: center; }
 .app-nav a.is-active { background: var(--accent-soft); color: var(--accent); font-weight: 750; }
 .app-nav a[aria-disabled="true"] { cursor: default; }
-.sidebar-footer { margin-top: auto; padding: 20px 22px; border-top: 1px solid var(--line); }
+.sidebar-footer { display: grid; margin-top: auto; padding: 20px 22px; gap: 10px; border-top: 1px solid var(--line); }
 .sidebar-footer a { color: var(--accent); font-size: .84rem; }
-.sidebar-footer p { margin: 12px 0 0; overflow: hidden; color: var(--muted); font-size: .78rem; text-overflow: ellipsis; }
+.sidebar-footer a.is-active { font-weight: 800; }
+.sidebar-footer p { margin: 2px 0 0; overflow: hidden; color: var(--muted); font-size: .78rem; text-overflow: ellipsis; }
 .app-main { width: min(1400px, calc(100% - 248px)); margin-left: 248px; padding: 26px clamp(24px, 4vw, 54px) 70px; }
 .app-topbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .app-topbar h1 { font-size: clamp(1.6rem, 3vw, 2.1rem); }
@@ -574,6 +575,30 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .stacked-form .checkbox-row { grid-template-columns: 1fr auto; align-items: center; }
 .stacked-form .checkbox-row input { width: 20px; min-height: 20px; accent-color: var(--accent); }
 .stacked-form .checkbox-row .helptext, .stacked-form .checkbox-row .errorlist { grid-column: 1 / -1; }
+.security-heading .muted { margin: 10px 0 0; }
+.security-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 24px; gap: 16px; }
+.security-card, .session-panel { padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.security-card { display: flex; min-height: 230px; align-items: flex-start; flex-direction: column; }
+.security-card h3 { margin-bottom: 12px; }
+.security-card .muted { flex: 1; line-height: 1.6; }
+.session-panel { margin-top: 16px; }
+.session-privacy-note { margin: 12px 0 0; line-height: 1.55; }
+.session-list { display: grid; margin: 24px 0 0; padding: 0; list-style: none; }
+.session-list > li { display: flex; padding: 20px 0; align-items: center; justify-content: space-between; gap: 24px; border-top: 1px solid var(--line); }
+.session-list > li:last-child { padding-bottom: 4px; }
+.session-list form { flex: 0 0 auto; margin: 0; }
+.session-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.session-times { display: flex; margin: 12px 0 0; flex-wrap: wrap; gap: 10px 24px; }
+.session-times div { display: grid; gap: 3px; }
+.session-times dt { color: var(--muted); font-size: .7rem; letter-spacing: .04em; text-transform: uppercase; }
+.session-times dd { margin: 0; font-size: .8rem; }
+.session-danger-zone { display: flex; margin-top: 24px; padding-top: 22px; align-items: center; justify-content: space-between; gap: 24px; border-top: 1px solid #6e3e43; }
+.session-danger-zone p { margin: 6px 0 0; line-height: 1.5; }
+.session-danger-zone form { flex: 0 0 auto; margin: 0; }
+.account-form-card { max-width: 760px; }
+.account-form-card .back-link { display: inline-block; margin-bottom: 28px; }
+.account-form-card h2 { margin-bottom: 10px; }
+.account-form-card > .muted { line-height: 1.6; }
 
 @media (max-width: 850px) {
   .hero { grid-template-columns: 1fr; margin-top: 48px; }
@@ -584,6 +609,7 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .import-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dashboard-columns { grid-template-columns: 1fr; }
   .goal-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .security-grid { grid-template-columns: 1fr; }
   .dashboard-card { min-height: auto; }
   .dashboard-split { grid-template-columns: 1fr; }
   .filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -612,6 +638,8 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .button-label, .quiet-button { display: none; }
   .notification-link-label { display: none; }
   .notification-card { align-items: stretch; flex-direction: column; }
+  .session-list > li, .session-danger-zone { align-items: stretch; flex-direction: column; }
+  .session-list form, .session-list form button, .session-danger-zone form, .session-danger-zone button { width: 100%; }
   .notification-actions { flex-wrap: wrap; }
   .notification-actions .quiet-button { display: inline-flex; align-items: center; }
   .period-switcher { margin-top: 24px; }

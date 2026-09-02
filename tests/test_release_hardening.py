@@ -46,9 +46,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 173, "not_applicable": 80},
         "status": {
-            "implemented": 97,
+            "implemented": 100,
             "not_applicable": 80,
-            "not_started": 19,
+            "not_started": 16,
             "partial": 57,
         },
     }

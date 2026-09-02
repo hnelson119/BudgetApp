@@ -1,7 +1,7 @@
 # Household Budget Application — Implementation Plan
 
 Status: Milestones 0–9 code-deliverable work and local verification complete; Milestone 10 release hardening in progress
-Last updated: 2026-08-27
+Last updated: 2026-09-02
 
 ## 1. Locked architecture
 
@@ -83,8 +83,9 @@ Exit criteria: a placeholder authenticated endpoint is reachable from an approve
 - Add audit history UI foundation
 
 Progress: distinct email/password identities, encrypted TOTP enrollment, hash-only single-use
-recovery codes, generic and rate-limited authentication, idle/absolute session expiry,
-logout-all-devices, sensitive-action reauthentication, trusted-console two-user provisioning and
+recovery codes, generic and rate-limited authentication, idle/absolute session expiry, opaque
+active-session review, individual and all-device revocation, current-password-verified password
+changes, sensitive-action reauthentication, trusted-console two-user provisioning and
 emergency recovery, active-household authorization, and a canonical per-household SHA-256 audit
 chain, PostgreSQL-owned protected schema and append function, isolated signed-checkpoint job, and
 household-scoped read-only audit history are implemented with security tests. A clean PostgreSQL 17
@@ -333,6 +334,14 @@ starts the baseline application on the restored database. The final rehearsal an
 backup/key-rotation rehearsal both pass. This is development orchestration evidence from one source
 tree; clean-VM validation with two preserved release artifacts, private TLS, off-VM backup storage,
 observed recovery time, and sanitized release evidence remains release-only.
+
+The self-service Account Security slice adds a responsive active-session inventory with keyed,
+non-reversible action references, recent-password-plus-MFA gates for individual and all-session
+revocation, and a password-change flow that requires the current password, rotates the surviving
+session, revokes every other session through the account session version, and writes protected
+audit events without credential or session-key material. Forgotten-password recovery and a
+maintained breached-password corpus remain separate applicable M10 work because they require a
+distinct recovery proof and offline update trust boundary.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

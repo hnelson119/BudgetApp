@@ -44,6 +44,10 @@ test("navigation, theme, and layouts work at the configured viewport", async ({ 
     await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
     await expectNoHorizontalOverflow(page);
   }
+  await page.locator(".topbar-actions").getByRole("link", { name: "Account security" }).click();
+  await expect(page.getByRole("heading", { name: "Account security", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Active sessions", exact: true })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
   expectCleanPage(signals);
 });
 
@@ -62,6 +66,10 @@ test("desktop keyboard users can skip repetitive navigation and see focus", asyn
 
   await page.keyboard.press("Enter");
   await expect(page.locator("#main-content")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.locator(".topbar-actions").getByRole("link", { name: "Account security" }),
+  ).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: /Notifications/iu })).toBeFocused();
   await page.keyboard.press("Tab");

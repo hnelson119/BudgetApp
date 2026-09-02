@@ -61,7 +61,10 @@ formula-safe CSV export. Detailed audit access and exports append their own prot
 exports require recent password-plus-MFA verification and fail closed if chain verification fails.
 Milestone 10 is now in progress. Its release-hardening baseline adds a machine-validated mapping of
 all 253 OWASP ASVS 5.0.0 Level 1/2 requirements, the security-test and release-gate inventories, and
-a pinned Trivy container scan that fails CI on high or critical release-image vulnerabilities. See
+a pinned Trivy container scan that fails CI on high or critical release-image vulnerabilities.
+The Account Security screen now supports current-password-verified password changes, opaque
+active-session review, recent-authentication-protected individual or all-session revocation, and
+protected audit events without retaining session identifiers or submitted passwords. See
 `docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. The guarded
 production-derived network probe and Linux VM runbook are in `docs/PRIVATE_INGRESS.md`; actual
 Tailscale HTTPS, firewall/device checks, and provisioning the two real household accounts remain

@@ -1,7 +1,7 @@
 from typing import Any
 
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.core.exceptions import ValidationError
 
 GENERIC_LOGIN_ERROR = "The email or password was not accepted."
@@ -102,3 +102,34 @@ class ReauthenticationForm(forms.Form):
         strip=True,
         widget=forms.TextInput(attrs={"autocomplete": "one-time-code", "spellcheck": "false"}),
     )
+
+
+class SecurePasswordChangeForm(PasswordChangeForm):
+    old_password = forms.CharField(
+        label="Current password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password", "autofocus": True}),
+    )
+    new_password1 = forms.CharField(
+        label="New password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+    new_password2 = forms.CharField(
+        label="Confirm new password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+
+    def clean_new_password1(self) -> str:
+        password = str(self.cleaned_data["new_password1"])
+        if self.user.check_password(password):
+            raise ValidationError(
+                "The new password must be different from the current password.",
+                code="password_unchanged",
+            )
+        return password
+
+
+class SessionRevocationForm(forms.Form):
+    session_reference = forms.RegexField(regex=r"^[0-9a-f]{64}$", max_length=64)

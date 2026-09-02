@@ -4,8 +4,10 @@ import logging
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.contrib.auth import get_user_model, login, logout
+from django.contrib import messages
+from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import password_changed
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
@@ -27,6 +29,8 @@ from identity.forms import (
     ReauthenticationForm,
     RecoveryCodesConfirmationForm,
     SecureAuthenticationForm,
+    SecurePasswordChangeForm,
+    SessionRevocationForm,
     TotpEnrollmentForm,
 )
 from identity.models import MfaCredential, User
@@ -43,11 +47,14 @@ from identity.services.mfa import (
 )
 from identity.services.sessions import (
     SESSION_RECOVERY_CONFIRMATION,
+    active_sessions_for_user,
     clear_pending_mfa,
     establish_pending_mfa,
     establish_session_security,
     get_pending_mfa_user,
     mark_recent_authentication,
+    recent_authentication_is_valid,
+    revoke_user_session,
 )
 from identity.services.throttling import (
     clear_login_failures,
@@ -107,6 +114,38 @@ def _set_active_household(request: HttpRequest, user: User) -> None:
     )
     if len(memberships) == 1:
         request.session["active_household_id"] = str(memberships[0].household_id)
+
+
+def _reauthentication_redirect(destination: str) -> HttpResponse:
+    query = urlencode({"next": destination})
+    return redirect(f"{reverse('identity:reauthenticate')}?{query}")
+
+
+def _record_account_security_event(
+    *,
+    user: User,
+    action: str,
+    before: dict[str, object] | None = None,
+    after: dict[str, object] | None = None,
+) -> None:
+    memberships = tuple(
+        HouseholdMembership.objects.filter(user=user, is_active=True)
+        .select_related("household")
+        .order_by("household_id")
+    )
+    if not memberships:
+        raise PermissionDenied
+    for membership in memberships:
+        append_event(
+            household=membership.household,
+            actor=user,
+            action=action,
+            entity_type="identity.user",
+            entity_id=user.pk,
+            request_id=current_request_id(),
+            before=before,
+            after=after,
+        )
 
 
 def _complete_login(request: HttpRequest, user: User, *, method: str) -> None:
@@ -462,6 +501,120 @@ def reauthenticate_view(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@never_cache
+@require_http_methods(["GET"])
+def account_security_view(request: HttpRequest) -> HttpResponse:
+    user = _authenticated_user(request)
+    household = get_active_household(request)
+    return render(
+        request,
+        "identity/account_security.html",
+        {
+            "household": household,
+            "active_sessions": active_sessions_for_user(
+                user,
+                current_session_key=request.session.session_key,
+            ),
+            "recent_authentication": recent_authentication_is_valid(request),
+            "current_nav": "account",
+        },
+    )
+
+
+@login_required
+@sensitive_post_parameters("old_password", "new_password1", "new_password2")
+@never_cache
+@require_http_methods(["GET", "POST"])
+def password_change_view(request: HttpRequest) -> HttpResponse:
+    request_user = _authenticated_user(request)
+    household = get_active_household(request)
+    if not recent_authentication_is_valid(request):
+        return _reauthentication_redirect(reverse("identity:password-change"))
+
+    form = SecurePasswordChangeForm(user=request_user, data=request.POST or None)
+    changed_user: User | None = None
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            locked_user = User.objects.select_for_update().get(pk=request_user.pk)
+            if not locked_user.check_password(form.cleaned_data["old_password"]):
+                form.add_error("old_password", "The current password was not accepted.")
+            else:
+                previous_version = locked_user.session_version
+                locked_user.set_password(form.cleaned_data["new_password1"])
+                locked_user.session_version += 1
+                locked_user.save(update_fields=("password", "session_version"))
+                password_changed(form.cleaned_data["new_password1"], locked_user)
+                _record_account_security_event(
+                    user=locked_user,
+                    action="auth.password_changed",
+                    before={"session_version": previous_version},
+                    after={
+                        "credential_changed": True,
+                        "other_sessions_revoked": True,
+                        "session_version": locked_user.session_version,
+                    },
+                )
+                changed_user = locked_user
+
+    if changed_user is not None:
+        update_session_auth_hash(request, changed_user)
+        establish_session_security(request, changed_user)
+        messages.success(request, "Password changed. Other signed-in sessions were revoked.")
+        security_logger.warning(
+            "Password changed and other sessions revoked.",
+            extra={"event": "auth.password_changed"},
+        )
+        return redirect(reverse("identity:account-security"))
+
+    return render(
+        request,
+        "identity/password_change.html",
+        {
+            "household": household,
+            "form": form,
+            "current_nav": "account",
+        },
+    )
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def session_revoke_view(request: HttpRequest) -> HttpResponse:
+    user = _authenticated_user(request)
+    if not recent_authentication_is_valid(request):
+        return _reauthentication_redirect(reverse("identity:account-security"))
+
+    form = SessionRevocationForm(request.POST)
+    if not form.is_valid():
+        raise PermissionDenied
+    result = revoke_user_session(
+        user,
+        reference=form.cleaned_data["session_reference"],
+        current_session_key=request.session.session_key,
+    )
+    if result is None:
+        messages.info(request, "That session is no longer active.")
+        return redirect(reverse("identity:account-security"))
+
+    scope = "current" if result.is_current else "other"
+    _record_account_security_event(
+        user=user,
+        action="auth.session_revoked",
+        after={"scope": scope},
+    )
+    security_logger.warning(
+        "One user session was revoked.",
+        extra={"event": "auth.session_revoked", "scope": scope},
+    )
+    if result.is_current:
+        logout(request)
+        return redirect(reverse("identity:login"))
+    messages.success(request, "The selected session was revoked.")
+    return redirect(reverse("identity:account-security"))
+
+
+@login_required
 @require_POST
 def logout_view(request: HttpRequest) -> HttpResponse:
     user = _authenticated_user(request)
@@ -483,19 +636,16 @@ def logout_view(request: HttpRequest) -> HttpResponse:
 @require_POST
 @transaction.atomic
 def logout_all_devices_view(request: HttpRequest) -> HttpResponse:
-    household = get_active_household(request)
+    if not recent_authentication_is_valid(request):
+        return _reauthentication_redirect(reverse("identity:account-security"))
     request_user = _authenticated_user(request)
     user = User.objects.select_for_update().get(pk=request_user.pk)
     previous_version = user.session_version
     user.session_version += 1
     user.save(update_fields=("session_version",))
-    append_event(
-        household=household,
-        actor=user,
+    _record_account_security_event(
+        user=user,
         action="auth.sessions_revoked",
-        entity_type="identity.user",
-        entity_id=user.pk,
-        request_id=current_request_id(),
         before={"session_version": previous_version},
         after={"session_version": user.session_version},
     )

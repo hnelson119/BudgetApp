@@ -49,7 +49,7 @@ test("filter and fragment payloads remain inert under the CSP", async ({ page })
 });
 
 test("key authenticated pages have no automated WCAG A or AA violations", async ({ page }) => {
-  for (const path of ["/", "/debts/", "/goals/"]) {
+  for (const path of ["/", "/debts/", "/goals/", "/accounts/security/"]) {
     await page.goto(path);
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])

@@ -1,7 +1,7 @@
 # OWASP ASVS 5.0.0 Level 2 mapping
 
 Status: requirement-level applicability complete; release verification pending  
-Last updated: 2026-08-24
+Last updated: 2026-09-02
 
 ## Scope and source integrity
 
@@ -31,9 +31,9 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 173 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 80 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 97 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Implemented | 100 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
 | Partial | 57 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
-| Not started | 19 | The control is absent or its required verification has not been designed. |
+| Not started | 16 | The control is absent or its required verification has not been designed. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -49,12 +49,9 @@ verified.
 
 - `v5.0.0-6.1.2`, `v5.0.0-6.2.11`: document and enforce a product-specific prohibited-password
   word list.
-- `v5.0.0-6.2.2`, `v5.0.0-6.2.3`: add a password-change flow that verifies the current password.
 - `v5.0.0-6.2.12`: add a maintained breached-password check without leaking candidate passwords.
 - `v5.0.0-6.4.3`: implement and document forgotten-password recovery that does not bypass MFA.
 - `v5.0.0-7.4.5`: add a dedicated administrator session-revocation operation.
-- `v5.0.0-7.5.2`: show users their active sessions and allow individual or all-session revocation
-  after reauthentication.
 
 ### HTTP and backend communication
 

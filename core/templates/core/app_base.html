@@ -29,6 +29,7 @@
           <a{% if current_nav == 'goals' %} class="is-active" aria-current="page"{% endif %} href="{% url 'goals:list' %}"><span aria-hidden="true">◎</span> Goals</a>
         </nav>
         <div class="sidebar-footer">
+          <a{% if current_nav == 'account' %} class="is-active" aria-current="page"{% endif %} href="{% url 'identity:account-security' %}">Account security</a>
           <a{% if current_nav == 'audit' %} class="is-active" aria-current="page"{% endif %} href="{% url 'audit:history' %}">Protected audit history</a>
           <p>{{ request.user.display_name|default:request.user.email }}</p>
         </div>
@@ -41,6 +42,10 @@
             <h1>{% block page_title %}Overview{% endblock %}</h1>
           </div>
           <div class="topbar-actions">
+            <a class="notification-link{% if current_nav == 'account' %} is-active{% endif %}" href="{% url 'identity:account-security' %}" aria-label="Account security">
+              <span aria-hidden="true">⚙</span>
+              <span class="notification-link-label">Account</span>
+            </a>
             <a class="notification-link{% if current_nav == 'notifications' %} is-active{% endif %}" href="{% url 'notifications:list' %}" aria-label="Notifications{% if unread_notification_count %}, {{ unread_notification_count }} unread{% endif %}">
               <span aria-hidden="true">♢</span>
               <span class="notification-link-label">Alerts</span>

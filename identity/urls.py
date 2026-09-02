@@ -19,6 +19,9 @@ urlpatterns = [
         name="mfa-enrollment-restart",
     ),
     path("reauthenticate/", views.reauthenticate_view, name="reauthenticate"),
+    path("security/", views.account_security_view, name="account-security"),
+    path("security/password/", views.password_change_view, name="password-change"),
+    path("security/sessions/revoke/", views.session_revoke_view, name="session-revoke"),
     path("logout/", views.logout_view, name="logout"),
     path("logout-all/", views.logout_all_devices_view, name="logout-all"),
 ]
