@@ -627,6 +627,26 @@ directory or an encrypted assessment location outside the repository.
   complete target still have to be exercised. The adversarial matrix therefore remains at zero of
   three completed targets.
 
+## 2026-09-02 synthetic forgotten-password recovery baseline
+
+- The expanded guarded helper passed `SESS-01` through `SESS-05`: 30 bounded identity/throttle
+  checks, 4 trust-transition checks, 22 account/revocation checks, 8 timeout/concurrency checks, and
+  6 cookie/cache checks. New HTTP observations compared known and unknown recovery responses and
+  bounded timing, enforced keyed throttling, completed a real single-use recovery-code reset,
+  invalidated two concurrent sessions, and proved the replacement password reached the MFA
+  checkpoint without creating authenticated recovery state.
+- The helper retained the synthetic recovery factor only in the isolation authentication volume,
+  mounted it only into the bounded session probe, printed no credentials, factors, identities,
+  submitted values, response bodies, database contents, or timing samples, and removed every
+  database and credential/session volume, container, and network afterward.
+- The complete local suite passed 448 tests at 91% combined and 83.00% branch coverage. The public
+  recovery page then passed the Chromium, Firefox, WebKit, phone, narrow, iPhone, and iPad browser
+  matrix: 52 passed, 13 intentionally project-inapplicable skips, and no accessibility or layout
+  failures. ASVS `v5.0.0-6.4.3` is now implemented, not release verified.
+- This is supporting development evidence, not a completed manual target or release-candidate run.
+  A maintained offline breached-password corpus and deployed TLS/`Secure` observations remain
+  pending. The adversarial matrix therefore remains at zero of three completed targets.
+
 ## 2026-09-02 synthetic account-security baseline
 
 - The expanded guarded helper passed `SESS-01` through `SESS-05`: 18 bounded identity/throttle

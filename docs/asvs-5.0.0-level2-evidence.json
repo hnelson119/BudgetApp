@@ -19,9 +19,9 @@
       "not_applicable": 80
     },
     "status": {
-      "implemented": 100,
+      "implemented": 101,
       "not_applicable": 80,
-      "not_started": 16,
+      "not_started": 15,
       "partial": 57
     }
   },
@@ -1846,12 +1846,15 @@
       "level": 2,
       "description": "Verify that a secure process for resetting a forgotten password is implemented, that does not bypass any enabled multi-factor authentication mechanisms.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "A documented forgotten-password recovery process that preserves MFA strength has not been implemented.",
+      "status": "implemented",
+      "assessment": "Public password recovery requires a confirmed TOTP or unused single-use recovery code, returns a generic rate-limited result, never authenticates the requester, revokes every prior session, and requires fresh MFA after the replacement password.",
       "evidence": [
-        "identity/management/commands/reset_user_mfa.py",
-        "identity/services/sessions.py",
-        "tests/test_identity_commands.py"
+        "identity/forms.py",
+        "identity/services/mfa.py",
+        "identity/services/recovery.py",
+        "identity/views.py",
+        "deploy/pentest/run-session-security.py",
+        "tests/test_password_recovery.py"
       ]
     },
     {

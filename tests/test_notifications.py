@@ -414,6 +414,39 @@ def test_login_activity_and_goal_milestones_are_deduplicated(
 
 
 @pytest.mark.django_db
+def test_password_recovery_alert_is_critical_and_targeted_to_the_account_owner(
+    notification_context: NotificationContext,
+) -> None:
+    event = append_event(
+        household=notification_context.household,
+        actor=None,
+        action="auth.password_recovered",
+        entity_type="identity.user",
+        entity_id=notification_context.user.pk,
+        request_id="notify-password-recovery",
+        after={"factor": "recovery_code", "sessions_revoked": True},
+    )
+
+    refresh_household_notifications(
+        household=notification_context.household,
+        now=timezone.now(),
+        today=TEST_TODAY,
+    )
+
+    alert = Notification.objects.get(
+        recipient=notification_context.user,
+        title="Password recovery completed",
+    )
+    assert alert.severity == Notification.Severity.CRITICAL
+    assert alert.source_id == str(event.pk)
+    assert alert.action_url == reverse("audit:detail", args=(event.pk,))
+    assert not Notification.objects.filter(
+        recipient=notification_context.partner,
+        title="Password recovery completed",
+    ).exists()
+
+
+@pytest.mark.django_db
 def test_notification_state_actions_are_recipient_only_idempotent_and_audited(
     notification_context: NotificationContext,
 ) -> None:

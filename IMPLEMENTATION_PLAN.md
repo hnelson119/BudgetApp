@@ -85,8 +85,9 @@ Exit criteria: a placeholder authenticated endpoint is reachable from an approve
 Progress: distinct email/password identities, encrypted TOTP enrollment, hash-only single-use
 recovery codes, generic and rate-limited authentication, idle/absolute session expiry, opaque
 active-session review, individual and all-device revocation, current-password-verified password
-changes, sensitive-action reauthentication, trusted-console two-user provisioning and
-emergency recovery, active-household authorization, and a canonical per-household SHA-256 audit
+changes, sensitive-action reauthentication, generic rate-limited forgotten-password recovery that
+requires an existing MFA factor and revokes every session, trusted-console two-user provisioning
+and emergency recovery, active-household authorization, and a canonical per-household SHA-256 audit
 chain, PostgreSQL-owned protected schema and append function, isolated signed-checkpoint job, and
 household-scoped read-only audit history are implemented with security tests. A clean PostgreSQL 17
 rehearsal confirms runtime append isolation, direct audit-mutation denial, least-privilege role
@@ -339,9 +340,12 @@ The self-service Account Security slice adds a responsive active-session invento
 non-reversible action references, recent-password-plus-MFA gates for individual and all-session
 revocation, and a password-change flow that requires the current password, rotates the surviving
 session, revokes every other session through the account session version, and writes protected
-audit events without credential or session-key material. Forgotten-password recovery and a
-maintained breached-password corpus remain separate applicable M10 work because they require a
-distinct recovery proof and offline update trust boundary.
+audit events without credential or session-key material. The following recovery slice adds a public
+no-email reset that requires a current TOTP or single-use recovery code, uses generic responses and
+bounded throttling, never creates authenticated recovery state, revokes all prior sessions, requires
+fresh MFA on the next login, and writes protected success/failure events without submitted values.
+A maintained breached-password corpus remains separate applicable M10 work because it requires an
+offline update and provenance trust boundary.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

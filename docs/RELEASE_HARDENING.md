@@ -88,10 +88,10 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 100 implemented, 57 partial, 16 not
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 101 implemented, 57 partial, 15 not
   started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
-  are forgotten-password recovery and breached-password checking, internal service TLS, stronger
-  backend authentication, egress allowlisting, a retained SBOM, a
+  are breached-password checking, internal service TLS, stronger backend authentication, egress
+  allowlisting, a retained SBOM, a
   complete logging/cryptographic inventory, and logically separate security-log storage. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
 - A production-derived disposable probe now verifies the Compose port/network boundary, exact
