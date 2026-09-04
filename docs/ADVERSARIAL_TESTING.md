@@ -2,7 +2,7 @@
 
 Status: procedure and evidence format implemented; no manual run is recorded yet
 
-Last updated: 2026-08-31
+Last updated: 2026-09-04
 
 ## Purpose
 
@@ -26,10 +26,12 @@ The equally guarded `scripts/run-session-security.ps1` and `scripts/run-session-
 helpers supply real-HTTP, browser, and controlled server-side boundary observations for implemented
 parts of `SESS-01` through `SESS-05`. They have the same supporting-evidence limitation. In
 particular, they now exercise the self-service password-change and active-session inventory/revoke
-controls plus generic, rate-limited forgotten-password recovery with session revocation and a fresh
-MFA requirement. The implemented offline password policy adds focused automated evidence for
-context-specific variants, breached-password rejection, corpus fail-closed behavior, and the
-no-network/no-secret-log boundary described in `docs/PASSWORD_BLOCKLIST.md`. Supporting
+controls, trusted-console individual and global administrator revocation, plus generic, rate-limited
+forgotten-password recovery with session revocation and a fresh MFA requirement. The session runner
+rebuilds every one-off image from the current tree before use; the stale-image finding and clean
+retest are recorded as `M10-F023`. The implemented offline password policy adds focused automated
+evidence for context-specific variants, breached-password rejection, corpus fail-closed behavior,
+and the no-network/no-secret-log boundary described in `docs/PASSWORD_BLOCKLIST.md`. Supporting
 logout-all, recovery, and administrative checks must not be reported as a completed manual target.
 
 The guarded `scripts/run-csv-security.ps1` and `scripts/run-csv-security.sh` helper exercises
@@ -185,8 +187,8 @@ observations below before recording any scenario as passed.
 ### SESS-03 — Session replay rejection after revocation events
 
 - Establish two synthetic sessions, preserve a restricted replay copy, then exercise sign-out,
-  sign-out-all, password recovery/change, MFA reset, user disablement, and membership removal where
-  implemented.
+  sign-out-all, administrator revocation for one account and every account, password
+  recovery/change, MFA reset, user disablement, and membership removal where implemented.
 - Replay the prior state against multiple security-sensitive endpoints after each event.
 - Pass only if the intended sessions are invalidated server-side, replay cannot regain access, and
   browser history does not reveal authenticated content.

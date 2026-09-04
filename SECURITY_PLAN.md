@@ -117,6 +117,10 @@ Require recent password/MFA verification before:
 - Require recent password-plus-MFA verification before individual or all-session revocation.
 - Provide “Log out all devices” and revoke other sessions after password changes and every session
   after password or MFA recovery.
+- Provide a guarded trusted-console operation for an administrator to revoke one arbitrary
+  account's sessions or every account's sessions without changing credentials. Rotate the
+  server-side session version, remove stored authenticated and pending-MFA sessions, and record the
+  reason in the protected household audit stream.
 - Send `Cache-Control: no-store` on authenticated financial pages and exports.
 - Clear relevant cookies and browser storage on logout.
 - Apply CSRF protection to every state-changing request.
@@ -344,7 +348,7 @@ Additionally:
 Maintain a short runbook for:
 
 1. Revoking a lost or compromised Tailscale device
-2. Disabling an application account and terminating all sessions
+2. Disabling an application account and administratively terminating one or all accounts' sessions
 3. Isolating the Linux VM from the tailnet
 4. Preserving logs and audit checkpoints
 5. Rotating application, database, Tailscale, backup, and audit credentials
