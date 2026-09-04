@@ -71,7 +71,10 @@ in, and requires fresh MFA after the replacement password. New and changed passw
 documented application-name permutations and a maintained, hash-only breached-password corpus
 without making password-derived network requests. Hardened processes validate the packaged corpus
 and its freshness at startup; the provenance and offline update procedure are in
-`docs/PASSWORD_BLOCKLIST.md`. See
+`docs/PASSWORD_BLOCKLIST.md`. A guarded trusted-console operation can independently revoke one
+account or every account without resetting credentials; it rotates server-side session versions,
+removes stored authenticated and pending-MFA sessions, and writes protected household audit events.
+See
 `docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. The guarded
 production-derived network probe and Linux VM runbook are in `docs/PRIVATE_INGRESS.md`; actual
 Tailscale HTTPS, firewall/device checks, and provisioning the two real household accounts remain

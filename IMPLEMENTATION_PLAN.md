@@ -1,7 +1,7 @@
 # Household Budget Application — Implementation Plan
 
 Status: Milestones 0–9 code-deliverable work and local verification complete; Milestone 10 release hardening in progress
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 
 ## 1. Locked architecture
 
@@ -350,6 +350,15 @@ corpus. Candidate passwords and digests stay inside the process, hardened settin
 missing, corrupt, undersized, or stale corpus, and the reviewed maintainer workflow records source
 and payload provenance without committing transient source data. Release-candidate repetition and
 independent verification remain pending.
+
+A separate trusted-console administrator operation can now revoke sessions for one arbitrary
+account or every account without resetting credentials. Explicit target confirmation and a bounded
+reason are required. The operation rotates server-side session versions, removes stored
+authenticated and pending-MFA sessions transactionally, emits a redacted security event, and
+appends protected events to affected household audit streams. A production-derived disposable
+PostgreSQL harness proves both scopes reject replay and always rebuilds its one-off images after
+finding and remediating the stale-image evidence defect `M10-F023`. Release-candidate replay testing
+is still pending.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

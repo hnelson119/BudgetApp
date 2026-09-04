@@ -19,9 +19,9 @@
       "not_applicable": 80
     },
     "status": {
-      "implemented": 104,
+      "implemented": 105,
       "not_applicable": 80,
-      "not_started": 12,
+      "not_started": 11,
       "partial": 57
     }
   },
@@ -2348,12 +2348,18 @@
       "level": 2,
       "description": "Verify that application administrators are able to terminate active sessions for an individual user or for all users.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "There is no dedicated administrator operation to terminate an arbitrary user's sessions without also resetting MFA.",
+      "status": "implemented",
+      "assessment": "A guarded trusted-console operation terminates one arbitrary account's sessions or every account's sessions independently of credential reset, with explicit confirmation, server-side version rotation, stored-session deletion, redacted security logging, and protected household audit events. Dated release-candidate replay verification remains pending.",
       "evidence": [
         "identity/services/sessions.py",
-        "identity/views.py",
-        "tests/test_authentication.py"
+        "identity/management/commands/revoke_user_sessions.py",
+        "deploy/pentest/run-session-security.py",
+        "scripts/run-session-security.sh",
+        "tests/test_identity_commands.py",
+        "tests/test_pentest_harness.py",
+        "docs/INCIDENT_RESPONSE.md",
+        "docs/ADVERSARIAL_TESTING.md#sess-03",
+        "docs/SECURITY_FINDINGS.md#M10-F023"
       ]
     },
     {

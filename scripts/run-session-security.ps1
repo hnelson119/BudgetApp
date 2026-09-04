@@ -53,15 +53,15 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "The disposable session-test application failed to start."
     }
-    & docker @composePrefix run --rm --no-deps pentest-fixture-verify
+    & docker @composePrefix run --build --rm --no-deps pentest-fixture-verify
     if ($LASTEXITCODE -ne 0) {
         throw "The disposable multi-household fixture verification failed."
     }
-    & docker @composePrefix run --rm --no-deps pentest-auth-sessions
+    & docker @composePrefix run --build --rm --no-deps pentest-auth-sessions
     if ($LASTEXITCODE -ne 0) {
         throw "Disposable password-and-TOTP session creation failed."
     }
-    & docker @composePrefix run --rm --no-deps pentest-session-security
+    & docker @composePrefix run --build --rm --no-deps pentest-session-security
     if ($LASTEXITCODE -ne 0) {
         throw "The disposable session-security probes failed."
     }

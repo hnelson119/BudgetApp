@@ -31,9 +31,9 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 173 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 80 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 104 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Implemented | 105 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
 | Partial | 57 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
-| Not started | 12 | The control is absent or its required verification has not been designed. |
+| Not started | 11 | The control is absent or its required verification has not been designed. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -47,12 +47,15 @@ verified.
 
 ### Authentication and session lifecycle
 
-- `v5.0.0-7.4.5`: add a dedicated administrator session-revocation operation.
-
 The product-specific prohibited-word documentation and enforcement (`v5.0.0-6.1.2` and
 `v5.0.0-6.2.11`) and maintained offline breached-password check (`v5.0.0-6.2.12`) are implemented.
 Their local, privacy-preserving trust boundary and update procedure are in
 `docs/PASSWORD_BLOCKLIST.md`; release-candidate verification remains pending.
+
+The dedicated trusted-console session-revocation operation (`v5.0.0-7.4.5`) can terminate one
+arbitrary account or every account independently of credential reset. It requires explicit scope
+confirmation and a bounded reason, rotates server-side versions, removes matching stored sessions,
+and records protected household audit events. Release-candidate verification remains pending.
 
 ### HTTP and backend communication
 

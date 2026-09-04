@@ -46,9 +46,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 173, "not_applicable": 80},
         "status": {
-            "implemented": 104,
+            "implemented": 105,
             "not_applicable": 80,
-            "not_started": 12,
+            "not_started": 11,
             "partial": 57,
         },
     }
@@ -62,6 +62,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-6.2.11"]["status"] == "implemented"
     assert requirements["v5.0.0-6.2.12"]["status"] == "implemented"
     assert requirements["v5.0.0-6.4.3"]["status"] == "implemented"
+    assert requirements["v5.0.0-7.4.5"]["status"] == "implemented"
     assert {item["id"] for item in evidence["security_tests"]} == set(range(1, 25))
     assert {item["id"] for item in evidence["release_gates"]} == set(range(1, 13))
     assert not any(

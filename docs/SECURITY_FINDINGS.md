@@ -506,6 +506,27 @@ directory or an encrypted assessment location outside the repository.
   gate then passed for the exact pull-request revision.
 - Exceptions or suppressions: none.
 
+## M10-F023 — Session rehearsal could reuse stale one-off images
+
+- Severity: Low
+- State: Retested
+- Detected: 2026-09-04
+- Owner: release owner
+- Affected baseline: administrator session-revocation rehearsal
+- Detection: the current session probe script was mounted into a one-off image retained from an
+  earlier run. The script imported the new administrator revocation service, but the stale image's
+  application package did not contain it, so the guarded rehearsal failed closed before probing.
+- Security impact: no application or household data was exposed. The defect reduced confidence in
+  session evidence because fixture, authentication, or probe code could disagree with the reviewed
+  source tree.
+- Remediation: the Windows/WSL and Linux session runners now use Compose `run --build` for the
+  fixture verifier, password-and-TOTP initializer, and bounded session probe. Static regression
+  tests require each fresh-build invocation along with the fixed project and cleanup guards.
+- Retest: every one-off image rebuilt from the current tree; `SESS-01` through `SESS-05` passed with
+  30 identity/throttle, 4 trust-transition, 29 account/revocation, 8 timeout/concurrency, and 6
+  cookie/cache checks. Cleanup removed every disposable container, volume, and network.
+- Exceptions or suppressions: none.
+
 ## 2026-09-02 synthetic upgrade and rollback baseline
 
 - The fixed disposable rehearsal wrote independently signed audit checkpoints and created an

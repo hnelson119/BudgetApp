@@ -16,10 +16,10 @@ trap cleanup EXIT INT TERM
 docker compose -p "$project_name" -f "$compose_file" --profile session \
   up --build --wait pentest-web
 docker compose -p "$project_name" -f "$compose_file" --profile session \
-  run --rm --no-deps pentest-fixture-verify
+  run --build --rm --no-deps pentest-fixture-verify
 docker compose -p "$project_name" -f "$compose_file" --profile session \
-  run --rm --no-deps pentest-auth-sessions
+  run --build --rm --no-deps pentest-auth-sessions
 docker compose -p "$project_name" -f "$compose_file" --profile session \
-  run --rm --no-deps pentest-session-security
+  run --build --rm --no-deps pentest-session-security
 
 echo "Disposable session-security probes completed."

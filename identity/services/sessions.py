@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import secrets
 import time
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -9,6 +10,7 @@ from typing import TYPE_CHECKING
 from django.conf import settings
 from django.contrib.auth import logout
 from django.contrib.sessions.models import Session
+from django.db import transaction
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
@@ -38,6 +40,12 @@ class ActiveSession:
 @dataclass(frozen=True, slots=True)
 class SessionRevocationResult:
     is_current: bool
+
+
+@dataclass(frozen=True, slots=True)
+class AdministrativeSessionRevocationResult:
+    affected_users: int
+    deleted_sessions: int
 
 
 def establish_session_security(request: HttpRequest, user: User) -> None:
@@ -147,6 +155,119 @@ def revoke_user_session(
             return None
         return SessionRevocationResult(is_current=is_current)
     return None
+
+
+def _session_belongs_to_user_identity(session: Session, user_id: str) -> bool:
+    data = session.get_decoded()
+    return data.get("_auth_user_id") == user_id or data.get(SESSION_PENDING_MFA_USER) == user_id
+
+
+def _delete_sessions_for_user(user: User) -> int:
+    user_id = str(user.pk)
+    session_keys = [
+        session.session_key
+        for session in Session.objects.all()
+        if _session_belongs_to_user_identity(session, user_id)
+    ]
+    if not session_keys:
+        return 0
+    deleted, _ = Session.objects.filter(session_key__in=session_keys).delete()
+    return deleted
+
+
+def _validate_administrative_reason(reason: str) -> str:
+    normalized = reason.strip()
+    if not normalized or len(normalized) > 500:
+        raise ValueError("A reason of 1 to 500 characters is required.")
+    return normalized
+
+
+@transaction.atomic
+def administratively_revoke_user_sessions(
+    user: User,
+    *,
+    reason: str,
+) -> AdministrativeSessionRevocationResult:
+    from audit.services import append_event
+    from households.models import HouseholdMembership
+    from identity.models import User
+
+    normalized_reason = _validate_administrative_reason(reason)
+    locked_user = User.objects.select_for_update().get(pk=user.pk)
+    previous_version = locked_user.session_version
+    locked_user.session_version += 1
+    locked_user.save(update_fields=("session_version",))
+    deleted_sessions = _delete_sessions_for_user(locked_user)
+    request_id = f"session-admin-{uuid.uuid4().hex}"
+    memberships = HouseholdMembership.objects.filter(user=locked_user).select_related("household")
+    for membership in memberships.order_by("household_id"):
+        append_event(
+            household=membership.household,
+            actor=None,
+            action="auth.sessions_administrator_revoked",
+            entity_type="identity.user",
+            entity_id=locked_user.pk,
+            request_id=request_id,
+            before={"session_version": previous_version},
+            after={
+                "scope": "individual",
+                "session_version": locked_user.session_version,
+                "stored_records_removed": deleted_sessions,
+            },
+            reason=normalized_reason,
+        )
+    return AdministrativeSessionRevocationResult(
+        affected_users=1,
+        deleted_sessions=deleted_sessions,
+    )
+
+
+@transaction.atomic
+def administratively_revoke_all_sessions(
+    *,
+    reason: str,
+) -> AdministrativeSessionRevocationResult:
+    from audit.services import append_event
+    from households.models import HouseholdMembership
+    from identity.models import User
+
+    normalized_reason = _validate_administrative_reason(reason)
+    users = list(User.objects.select_for_update().order_by("pk"))
+    for user in users:
+        user.session_version += 1
+        user.save(update_fields=("session_version",))
+    deleted_sessions, _ = Session.objects.all().delete()
+
+    affected_user_ids = {user.pk for user in users}
+    household_members: dict[uuid.UUID, set[uuid.UUID]] = {}
+    memberships = HouseholdMembership.objects.filter(user_id__in=affected_user_ids).select_related(
+        "household"
+    )
+    households = {}
+    for membership in memberships.order_by("household_id", "user_id"):
+        households[membership.household_id] = membership.household
+        household_members.setdefault(membership.household_id, set()).add(membership.user_id)
+
+    request_id = f"session-admin-{uuid.uuid4().hex}"
+    for household_id, household in households.items():
+        append_event(
+            household=household,
+            actor=None,
+            action="auth.sessions_administrator_revoked",
+            entity_type="identity.user",
+            entity_id="all-accounts",
+            request_id=request_id,
+            before={"affected_accounts": len(household_members[household_id])},
+            after={
+                "affected_accounts": len(household_members[household_id]),
+                "scope": "all",
+            },
+            reason=normalized_reason,
+        )
+    return AdministrativeSessionRevocationResult(
+        affected_users=len(users),
+        deleted_sessions=deleted_sessions,
+    )
 
 
 def get_pending_mfa_user(request: HttpRequest) -> User | None:

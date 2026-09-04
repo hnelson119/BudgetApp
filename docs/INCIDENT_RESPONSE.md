@@ -29,6 +29,30 @@ Do not delete logs, sessions, containers, volumes, checkpoints, or the affected 
 evidence needed for review is preserved. Do not create a fresh audit checkpoint over an unexplained
 chain failure.
 
+After preserving the required evidence, an administrator can contain application-session replay
+without changing credentials. The individual operation requires the account email as a separate
+confirmation; the application-wide operation requires the exact fixed confirmation phrase. Both
+operations increment the affected server-side session versions, remove stored authenticated and
+pending-MFA sessions in the same transaction, emit a redacted security event, and append a protected
+event to every affected household audit stream. They do not revoke a Tailscale device, reset a
+password, reset MFA, or replace the broader incident steps below.
+
+```bash
+docker compose exec web python manage.py revoke_user_sessions \
+  --email person@example.com \
+  --reason "Suspected session compromise YYYY-MM-DD" \
+  --confirm person@example.com
+
+docker compose exec web python manage.py revoke_user_sessions \
+  --all-users \
+  --reason "Application-wide session containment YYYY-MM-DD" \
+  --confirm revoke-all-sessions
+```
+
+The global form also removes anonymous stored sessions, so use it only when application-wide
+containment is intended. Never place a session key, cookie value, password, authenticator value, or
+other reusable credential in the reason.
+
 ## 2. Lost-device and account-recovery procedure
 
 1. In the Tailscale administration console, expire or remove the exact lost device. If the device

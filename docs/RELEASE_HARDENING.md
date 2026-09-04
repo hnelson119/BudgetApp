@@ -88,7 +88,7 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 104 implemented, 57 partial, 12 not
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 105 implemented, 57 partial, 11 not
   started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
   are internal service TLS, stronger backend authentication, egress allowlisting, a retained SBOM, a
   complete logging/cryptographic inventory, and logically separate security-log storage. See
@@ -98,6 +98,13 @@ real household data.
   strict startup validation, no-network boundary, provenance, and reviewed update/rollback process
   are documented in `docs/PASSWORD_BLOCKLIST.md`. This is implementation evidence, not a dated
   release-candidate verification.
+- A guarded trusted-console operation now revokes either one arbitrary account's sessions or every
+  account's sessions without requiring a credential reset. It requires explicit confirmation and a
+  reason, rotates server-side session versions, removes stored authenticated and pending-MFA
+  sessions transactionally, emits a redacted security event, and writes protected household audit
+  events. The production-derived disposable PostgreSQL harness proves both scopes reject replay and
+  now rebuilds every one-off image after finding and remediating `M10-F023`. This implements the
+  administrator operation; release-candidate replay testing remains pending.
 - A production-derived disposable probe now verifies the Compose port/network boundary, exact
   proxy-header contract, runtime least privilege, blocked application egress, and local secret
   non-leakage. The separate private-ingress runbook provides a least-privilege grants template and
