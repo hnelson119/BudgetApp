@@ -67,7 +67,11 @@ active-session review, recent-authentication-protected individual or all-session
 protected audit events without retaining session identifiers or submitted passwords. Public
 forgotten-password recovery requires an existing authenticator or unused recovery code, returns a
 generic result for every submitted identity, revokes all prior sessions, never signs the requester
-in, and requires fresh MFA after the replacement password. See
+in, and requires fresh MFA after the replacement password. New and changed passwords also reject
+documented application-name permutations and a maintained, hash-only breached-password corpus
+without making password-derived network requests. Hardened processes validate the packaged corpus
+and its freshness at startup; the provenance and offline update procedure are in
+`docs/PASSWORD_BLOCKLIST.md`. See
 `docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. The guarded
 production-derived network probe and Linux VM runbook are in `docs/PRIVATE_INGRESS.md`; actual
 Tailscale HTTPS, firewall/device checks, and provisioning the two real household accounts remain
@@ -107,7 +111,8 @@ On Linux or macOS, activate `.venv/bin/activate` and use `./scripts/check.sh`.
 
 After migrations, create the household and exactly two individual accounts from a trusted console.
 Passwords are prompted without echo and are never accepted as command-line arguments, environment
-variables, or configuration values:
+variables, or configuration values. The same context-specific and offline breached-password policy
+used by self-service password changes applies to this command:
 
 ```powershell
 python manage.py bootstrap_household `
@@ -272,5 +277,6 @@ automatically.
 8. [`docs/adr/`](docs/adr/) — accepted architecture decisions
 9. [`docs/MIGRATIONS.md`](docs/MIGRATIONS.md) — database migration policy
 10. [`docs/UPGRADE_AND_ROLLBACK.md`](docs/UPGRADE_AND_ROLLBACK.md) — release upgrade and rollback
+11. [`docs/PASSWORD_BLOCKLIST.md`](docs/PASSWORD_BLOCKLIST.md) — prohibited identifiers and offline breached-password corpus maintenance
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.

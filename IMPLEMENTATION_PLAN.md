@@ -344,8 +344,12 @@ audit events without credential or session-key material. The following recovery 
 no-email reset that requires a current TOTP or single-use recovery code, uses generic responses and
 bounded throttling, never creates authenticated recovery state, revokes all prior sessions, requires
 fresh MFA on the next login, and writes protected success/failure events without submitted values.
-A maintained breached-password corpus remains separate applicable M10 work because it requires an
-offline update and provenance trust boundary.
+The password-policy slice documents and rejects normalized product/system-name permutations and
+checks every Django-validated new or changed password against a packaged hash-only breached-password
+corpus. Candidate passwords and digests stay inside the process, hardened settings fail closed on a
+missing, corrupt, undersized, or stale corpus, and the reviewed maintainer workflow records source
+and payload provenance without committing transient source data. Release-candidate repetition and
+independent verification remain pending.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

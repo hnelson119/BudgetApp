@@ -87,7 +87,19 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "identity.password_validation.ContextSpecificPasswordValidator"},
+    {"NAME": "identity.password_validation.OfflineBreachedPasswordValidator"},
 ]
+
+PASSWORD_CONTEXT_IDENTIFIERS = (
+    "BudgetApp",
+    "Household Budget",
+    "Paycheck Budget",
+)
+BREACHED_PASSWORD_CORPUS_PATH = BASE_DIR / "identity" / "data" / "breached-passwords-v1.txt"
+BREACHED_PASSWORD_CORPUS_MINIMUM_ENTRIES = 10_000
+BREACHED_PASSWORD_CORPUS_MAXIMUM_AGE_DAYS = 180
+BREACHED_PASSWORD_CORPUS_MAXIMUM_BYTES = 25 * 1024 * 1024
 
 AUTH_USER_MODEL = "identity.User"
 

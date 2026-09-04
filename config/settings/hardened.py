@@ -51,6 +51,19 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip() for origin in required_environment("DJANGO_CSRF_TRUSTED_ORIGINS").split(",")
 ]
 
+# Hardened processes fail during settings loading rather than silently omitting
+# breached-password protection when the packaged corpus is missing, corrupt, or stale.
+from identity.password_validation import (  # noqa: E402
+    validate_breached_password_corpus,
+)
+
+validate_breached_password_corpus(
+    BREACHED_PASSWORD_CORPUS_PATH,  # noqa: F405
+    minimum_entries=BREACHED_PASSWORD_CORPUS_MINIMUM_ENTRIES,  # noqa: F405
+    maximum_age_days=BREACHED_PASSWORD_CORPUS_MAXIMUM_AGE_DAYS,  # noqa: F405
+    maximum_bytes=BREACHED_PASSWORD_CORPUS_MAXIMUM_BYTES,  # noqa: F405
+)
+
 SESSION_COOKIE_NAME = "__Host-budget_sessionid"
 SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_SAMESITE = "Strict"

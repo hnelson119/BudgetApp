@@ -1,7 +1,7 @@
 # Release hardening and evidence
 
 Status: Milestone 10 baseline in progress  
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 
 ## Purpose
 
@@ -88,12 +88,16 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 101 implemented, 57 partial, 15 not
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 104 implemented, 57 partial, 12 not
   started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
-  are breached-password checking, internal service TLS, stronger backend authentication, egress
-  allowlisting, a retained SBOM, a
+  are internal service TLS, stronger backend authentication, egress allowlisting, a retained SBOM, a
   complete logging/cryptographic inventory, and logically separate security-log storage. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
+- Context-specific prohibited words and a freshness-bounded offline breached-password corpus are
+  now enforced on Django-validated password creation and changes. The packaged hash-only corpus,
+  strict startup validation, no-network boundary, provenance, and reviewed update/rollback process
+  are documented in `docs/PASSWORD_BLOCKLIST.md`. This is implementation evidence, not a dated
+  release-candidate verification.
 - A production-derived disposable probe now verifies the Compose port/network boundary, exact
   proxy-header contract, runtime least privilege, blocked application egress, and local secret
   non-leakage. The separate private-ingress runbook provides a least-privilege grants template and

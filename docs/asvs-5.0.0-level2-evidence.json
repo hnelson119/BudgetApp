@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-09-02",
+  "mapping_updated": "2026-09-04",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -19,9 +19,9 @@
       "not_applicable": 80
     },
     "status": {
-      "implemented": 101,
+      "implemented": 104,
       "not_applicable": 80,
-      "not_started": 15,
+      "not_started": 12,
       "partial": 57
     }
   },
@@ -1481,13 +1481,13 @@
       "level": 2,
       "description": "Verify that a list of context-specific words is documented in order to prevent their use in passwords. The list could include permutations of organization names, product names, system identifiers, project codenames, department or role names, and similar.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "A product-specific prohibited-password word list has not been documented.",
+      "status": "implemented",
+      "assessment": "The exact product and system identifiers plus normalized separator, leetspeak, prefix, suffix, and short-numeric permutations are documented; release-candidate verification remains pending.",
       "evidence": [
-        "identity/",
+        "docs/PASSWORD_BLOCKLIST.md",
         "config/settings/base.py",
-        "tests/test_authentication.py",
-        "tests/test_mfa.py"
+        "identity/password_validation.py",
+        "tests/test_password_policy.py"
       ]
     },
     {
@@ -1700,12 +1700,15 @@
       "level": 2,
       "description": "Verify that the documented list of context specific words is used to prevent easy to guess passwords being created.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "A product-specific prohibited-password word list is not yet enforced.",
+      "status": "implemented",
+      "assessment": "ContextSpecificPasswordValidator enforces the documented normalized product and system identifier permutations through every Django-validated new or changed password path; release-candidate verification remains pending.",
       "evidence": [
         "config/settings/base.py",
+        "identity/password_validation.py",
+        "identity/forms.py",
         "identity/management/commands/bootstrap_household.py",
-        "tests/test_identity_commands.py"
+        "identity/management/commands/reset_user_password.py",
+        "tests/test_password_policy.py"
       ]
     },
     {
@@ -1718,12 +1721,16 @@
       "level": 2,
       "description": "Verify that passwords submitted during account registration or password changes are checked against a set of breached passwords.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "Passwords are checked against Django's common-password list, not a maintained breached-password corpus.",
+      "status": "implemented",
+      "assessment": "New and changed passwords are compared locally with a packaged, integrity-checked, freshness-bounded hash-only breached-password corpus; hardened settings fail closed and no candidate-derived value leaves the process. Release-candidate verification remains pending.",
       "evidence": [
         "config/settings/base.py",
-        "identity/management/commands/bootstrap_household.py",
-        "tests/test_identity_commands.py"
+        "config/settings/hardened.py",
+        "identity/password_validation.py",
+        "identity/data/breached-passwords-v1.txt",
+        "identity/management/commands/build_breached_password_corpus.py",
+        "docs/PASSWORD_BLOCKLIST.md",
+        "tests/test_password_policy.py"
       ]
     },
     {

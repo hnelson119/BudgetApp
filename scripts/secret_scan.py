@@ -1,5 +1,6 @@
 """Fail when detect-secrets finds a likely secret in project-owned text files."""
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -28,6 +29,14 @@ _ASVS_CATALOG_SHA256 = "".join(
         "6e2c164c474ad273",  # pragma: allowlist secret
     )
 )
+_PASSWORD_CORPUS_SHA256 = "".join(
+    (
+        "92873cd5159a599d",  # pragma: allowlist secret
+        "022792393a3a76b8",  # pragma: allowlist secret
+        "87da41cbbf09b4ef",  # pragma: allowlist secret
+        "544b3e1386fa4627",  # pragma: allowlist secret
+    )
+)
 _PUBLIC_FINGERPRINTS = {
     "docs/asvs-5.0.0-level2-evidence.json": {
         ("sha256", _ASVS_SOURCE_SHA256),
@@ -35,6 +44,9 @@ _PUBLIC_FINGERPRINTS = {
         ("catalog_sha256", _ASVS_CATALOG_SHA256),
     },
     "docs/release-evidence.json": {("source_sha256", _ASVS_SOURCE_SHA256)},
+}
+_APPROVED_HASH_ONLY_FILES = {
+    "identity/data/breached-passwords-v1.txt": _PASSWORD_CORPUS_SHA256,
 }
 
 
@@ -44,6 +56,12 @@ def _is_approved_public_fingerprint(file_name: str, line: str) -> bool:
         f'"{field}": "{value}"' in line
         for field, value in _PUBLIC_FINGERPRINTS.get(normalized_name, set())
     )
+
+
+def _is_approved_hash_only_file(file_name: str, content: bytes) -> bool:
+    normalized_name = file_name.replace("\\", "/")
+    expected_digest = _APPROVED_HASH_ONLY_FILES.get(normalized_name)
+    return expected_digest is not None and hashlib.sha256(content).hexdigest() == expected_digest
 
 
 def main() -> int:
@@ -67,7 +85,11 @@ def main() -> int:
     results = json.loads(completed.stdout).get("results", {})
     filtered_results: dict[str, list[dict[str, object]]] = {}
     for file_name, findings in results.items():
-        lines = (Path(file_name).read_text(encoding="utf-8")).splitlines()
+        file_path = Path(file_name)
+        content = file_path.read_bytes()
+        if _is_approved_hash_only_file(file_name, content):
+            continue
+        lines = content.decode("utf-8").splitlines()
         retained = [
             finding
             for finding in findings
