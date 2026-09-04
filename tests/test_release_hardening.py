@@ -18,7 +18,7 @@ from scripts.check_adversarial_test_evidence import (
 from scripts.check_adversarial_test_evidence import validate_run as validate_adversarial_run
 from scripts.check_device_test_evidence import validate_matrix, validate_run
 from scripts.check_release_evidence import validate_asvs_inventory
-from scripts.secret_scan import _is_approved_public_fingerprint
+from scripts.secret_scan import _is_approved_hash_only_file, _is_approved_public_fingerprint
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -46,9 +46,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 173, "not_applicable": 80},
         "status": {
-            "implemented": 101,
+            "implemented": 104,
             "not_applicable": 80,
-            "not_started": 15,
+            "not_started": 12,
             "partial": 57,
         },
     }
@@ -58,6 +58,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-17.3.2"]["status"] == "not_applicable"
     assert requirements["v5.0.0-12.3.1"]["status"] == "not_started"
     assert requirements["v5.0.0-16.4.3"]["status"] == "not_started"
+    assert requirements["v5.0.0-6.1.2"]["status"] == "implemented"
+    assert requirements["v5.0.0-6.2.11"]["status"] == "implemented"
+    assert requirements["v5.0.0-6.2.12"]["status"] == "implemented"
     assert requirements["v5.0.0-6.4.3"]["status"] == "implemented"
     assert {item["id"] for item in evidence["security_tests"]} == set(range(1, 25))
     assert {item["id"] for item in evidence["release_gates"]} == set(range(1, 13))
@@ -116,6 +119,18 @@ def test_secret_scan_only_exempts_exact_public_asvs_fingerprints() -> None:
     assert not _is_approved_public_fingerprint(
         "docs/release-evidence.json",
         f'    "source_sha256": "{source_sha256[:-1]}0",',
+    )
+
+
+def test_secret_scan_only_exempts_the_exact_reviewed_hash_corpus() -> None:
+    corpus = (PROJECT_ROOT / "identity/data/breached-passwords-v1.txt").read_bytes()
+
+    assert _is_approved_hash_only_file("identity/data/breached-passwords-v1.txt", corpus)
+    assert _is_approved_hash_only_file("identity\\data\\breached-passwords-v1.txt", corpus)
+    assert not _is_approved_hash_only_file("identity/data/other.txt", corpus)
+    assert not _is_approved_hash_only_file(
+        "identity/data/breached-passwords-v1.txt",
+        corpus + b"0",
     )
 
 

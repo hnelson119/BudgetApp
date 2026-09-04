@@ -27,7 +27,9 @@ helpers supply real-HTTP, browser, and controlled server-side boundary observati
 parts of `SESS-01` through `SESS-05`. They have the same supporting-evidence limitation. In
 particular, they now exercise the self-service password-change and active-session inventory/revoke
 controls plus generic, rate-limited forgotten-password recovery with session revocation and a fresh
-MFA requirement. A maintained offline breached-password corpus is still absent. Supporting
+MFA requirement. The implemented offline password policy adds focused automated evidence for
+context-specific variants, breached-password rejection, corpus fail-closed behavior, and the
+no-network/no-secret-log boundary described in `docs/PASSWORD_BLOCKLIST.md`. Supporting
 logout-all, recovery, and administrative checks must not be reported as a completed manual target.
 
 The guarded `scripts/run-csv-security.ps1` and `scripts/run-csv-security.sh` helper exercises
@@ -162,8 +164,13 @@ observations below before recording any scenario as passed.
 - Exercise the documented low-rate threshold from distinct sessions without attempting service
   exhaustion, then verify the recovery path does not disclose credentials, MFA material, or account
   existence.
+- Submit synthetic context-name variants, a corpus-listed value, and a strong non-listed value
+  through each user-facing and trusted-console password-setting path. Observe application egress
+  and sanitized logs without retaining the submitted value or its digest.
 - Pass only if responses remain enumeration-resistant, throttling activates as designed, valid
-  recovery remains usable, and security logs contain no submitted secret.
+  recovery remains usable, every prohibited password is rejected locally, the allowed value is
+  accepted, no password-derived network request occurs, and security logs contain no submitted
+  secret or candidate digest.
 
 <a id="sess-02"></a>
 ### SESS-02 — Session fixation prevention and identifier rotation
