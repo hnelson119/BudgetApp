@@ -4,6 +4,7 @@ import copy
 import json
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -16,11 +17,83 @@ from scripts.check_adversarial_test_evidence import (
     validate_matrix as validate_adversarial_matrix,
 )
 from scripts.check_adversarial_test_evidence import validate_run as validate_adversarial_run
+from scripts.check_cryptographic_inventory import (
+    EXPECTED_ABSENCE_IDS,
+    EXPECTED_ALGORITHM_IDS,
+    EXPECTED_CERTIFICATE_IDS,
+    EXPECTED_KEY_IDS,
+)
+from scripts.check_cryptographic_inventory import (
+    validate_inventory as validate_cryptographic_inventory,
+)
 from scripts.check_device_test_evidence import validate_matrix, validate_run
 from scripts.check_release_evidence import validate_asvs_inventory
 from scripts.secret_scan import _is_approved_hash_only_file, _is_approved_public_fingerprint
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_cryptographic_inventory_is_complete_and_current() -> None:
+    completed = subprocess.run(
+        [sys.executable, "scripts/check_cryptographic_inventory.py"],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "9 keys, 13 algorithms, 2 certificates" in completed.stdout
+    inventory = json.loads(
+        (PROJECT_ROOT / "docs/cryptographic-inventory.json").read_text(encoding="utf-8")
+    )
+    assert {item["id"] for item in inventory["cryptographic_keys"]} == EXPECTED_KEY_IDS
+    assert {item["id"] for item in inventory["algorithms"]} == EXPECTED_ALGORITHM_IDS
+    assert {item["id"] for item in inventory["certificates"]} == EXPECTED_CERTIFICATE_IDS
+    assert {item["id"] for item in inventory["known_absences"]} == EXPECTED_ABSENCE_IDS
+    algorithms = {item["id"]: item for item in inventory["algorithms"]}
+    assert algorithms["totp-hmac-sha1"]["security_status"] == "compatibility_only"
+    assert algorithms["password-blocklist-sha1"]["security_status"] == "compatibility_only"
+    assert algorithms["test-md5-password-hasher"]["security_status"] == "test_only"
+
+
+def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
+    inventory = json.loads(
+        (PROJECT_ROOT / "docs/cryptographic-inventory.json").read_text(encoding="utf-8")
+    )
+
+    duplicate_key = copy.deepcopy(inventory)
+    duplicate_key["cryptographic_keys"].append(duplicate_key["cryptographic_keys"][0])
+    with pytest.raises(ValueError, match="duplicate id"):
+        validate_cryptographic_inventory(duplicate_key, today=date(2026, 9, 5))
+
+    missing_prohibition = copy.deepcopy(inventory)
+    missing_prohibition["cryptographic_keys"][0]["prohibited_uses"] = []
+    with pytest.raises(ValueError, match="non-empty string list"):
+        validate_cryptographic_inventory(missing_prohibition, today=date(2026, 9, 5))
+
+    missing_evidence = copy.deepcopy(inventory)
+    missing_evidence["algorithms"][0]["evidence"] = ["docs/does-not-exist.md"]
+    with pytest.raises(ValueError, match="missing evidence"):
+        validate_cryptographic_inventory(missing_evidence, today=date(2026, 9, 5))
+
+    embedded_private_key = copy.deepcopy(inventory)
+    embedded_private_key["cryptographic_keys"][0]["storage"] = "BEGIN " + "PRIVATE" + " KEY"
+    with pytest.raises(ValueError, match="private-key material"):
+        validate_cryptographic_inventory(embedded_private_key, today=date(2026, 9, 5))
+
+    exact_hostname = copy.deepcopy(inventory)
+    exact_hostname["certificates"][0]["subject"] = "budget.private-tail.ts.net"
+    with pytest.raises(ValueError, match="exact private hostname"):
+        validate_cryptographic_inventory(exact_hostname, today=date(2026, 9, 5))
+
+    unknown_algorithm = copy.deepcopy(inventory)
+    unknown_algorithm["cryptographic_keys"][0]["algorithms"] = ["unknown-profile"]
+    with pytest.raises(ValueError, match="unknown algorithms"):
+        validate_cryptographic_inventory(unknown_algorithm, today=date(2026, 9, 5))
+
+    with pytest.raises(ValueError, match="review is overdue"):
+        validate_cryptographic_inventory(inventory, today=date(2026, 12, 5))
 
 
 def test_release_evidence_inventory_is_complete_and_validated() -> None:
@@ -46,9 +119,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 173, "not_applicable": 80},
         "status": {
-            "implemented": 105,
+            "implemented": 106,
             "not_applicable": 80,
-            "not_started": 11,
+            "not_started": 10,
             "partial": 57,
         },
     }
@@ -63,6 +136,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-6.2.12"]["status"] == "implemented"
     assert requirements["v5.0.0-6.4.3"]["status"] == "implemented"
     assert requirements["v5.0.0-7.4.5"]["status"] == "implemented"
+    assert requirements["v5.0.0-11.1.2"]["status"] == "implemented"
     assert {item["id"] for item in evidence["security_tests"]} == set(range(1, 25))
     assert {item["id"] for item in evidence["release_gates"]} == set(range(1, 13))
     assert not any(

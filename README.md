@@ -74,6 +74,11 @@ and its freshness at startup; the provenance and offline update procedure are in
 `docs/PASSWORD_BLOCKLIST.md`. A guarded trusted-console operation can independently revoke one
 account or every account without resetting credentials; it rotates server-side session versions,
 removes stored authenticated and pending-MFA sessions, and writes protected household audit events.
+The maintained cryptographic inventory assigns explicit owners, algorithms, consumers, permitted
+and prohibited uses, protected and excluded data, rotation, and retirement to application,
+deployment, provider-managed, and test-only cryptographic boundaries. Its quality-gate validator
+also records absent internal-service certificates without pretending those open TLS controls exist;
+see `docs/CRYPTOGRAPHIC_INVENTORY.md`.
 See
 `docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. The guarded
 production-derived network probe and Linux VM runbook are in `docs/PRIVATE_INGRESS.md`; actual
@@ -239,6 +244,7 @@ python -m ruff format --check .
 python -m mypy audit budgets core debts goals households identity imports ledger notifications periods reserves schedules spending
 python manage.py makemigrations --check --dry-run --settings=config.settings.test
 python scripts/secret_scan.py
+python scripts/check_cryptographic_inventory.py
 python scripts/check_release_evidence.py
 python scripts/check_device_test_evidence.py
 python scripts/check_adversarial_test_evidence.py
@@ -281,5 +287,6 @@ automatically.
 9. [`docs/MIGRATIONS.md`](docs/MIGRATIONS.md) — database migration policy
 10. [`docs/UPGRADE_AND_ROLLBACK.md`](docs/UPGRADE_AND_ROLLBACK.md) — release upgrade and rollback
 11. [`docs/PASSWORD_BLOCKLIST.md`](docs/PASSWORD_BLOCKLIST.md) — prohibited identifiers and offline breached-password corpus maintenance
+12. [`docs/CRYPTOGRAPHIC_INVENTORY.md`](docs/CRYPTOGRAPHIC_INVENTORY.md) — maintained key, algorithm, certificate, and purpose inventory
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.

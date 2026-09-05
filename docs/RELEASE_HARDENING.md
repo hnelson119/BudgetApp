@@ -1,7 +1,7 @@
 # Release hardening and evidence
 
 Status: Milestone 10 baseline in progress  
-Last updated: 2026-09-04
+Last updated: 2026-09-05
 
 ## Purpose
 
@@ -88,11 +88,17 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 105 implemented, 57 partial, 11 not
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 106 implemented, 57 partial, 10 not
   started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
   are internal service TLS, stronger backend authentication, egress allowlisting, a retained SBOM, a
-  complete logging/cryptographic inventory, and logically separate security-log storage. See
+  complete logging inventory, and logically separate security-log storage. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
+- The maintained cryptographic inventory now covers 9 key classes, 13 algorithm profiles, 2
+  certificate classes, and 4 intentional absences across application, deployment, provider, and
+  test-only boundaries. Its validator enforces purpose separation, protected/excluded data,
+  evidence, dependency contracts, no embedded material/private hostname, and a 90-day review
+  cadence. Internal PostgreSQL/service TLS and live certificate/Tailscale/SSH observations remain
+  open release work; implementation of the inventory is not release verification.
 - Context-specific prohibited words and a freshness-bounded offline breached-password corpus are
   now enforced on Django-validated password creation and changes. The packaged hash-only corpus,
   strict startup validation, no-network boundary, provenance, and reviewed update/rollback process
