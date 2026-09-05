@@ -41,6 +41,20 @@ _SECRET_FILES = {
     ),
 }
 _ALL_SECRET_NAMES = set(_SECRET_FILES)
+_SECRET_BEARING_SERVICES = {
+    "backup",
+    "db",
+    "db-admin-key-rotate",
+    "db-bootstrap",
+    "import-cleanup",
+    "integrity",
+    "mfa-key-rotate",
+    "migrate",
+    "notify",
+    "restic-key-rotate",
+    "restore-verify",
+    "web",
+}
 _FORBIDDEN_ENVIRONMENT_NAMES = {
     "DJANGO_SECRET_KEY",
     "DJANGO_MFA_ENCRYPTION_KEY",
@@ -238,25 +252,25 @@ def validate_secret_reader_group(configuration: dict[str, Any], secret_directory
     if not isinstance(services, dict):
         raise ProbeFailure("The Compose service catalog is malformed.")
     reader_groups: set[str] = set()
-    secret_service_count = 0
-    for service in services.values():
+    secret_services: set[str] = set()
+    for service_name, service in services.items():
         if not isinstance(service, dict):
             raise ProbeFailure("A Compose service entry is malformed.")
         if not _references(service.get("secrets")):
             continue
-        secret_service_count += 1
+        secret_services.add(str(service_name))
         group_add = service.get("group_add") or []
         if not isinstance(group_add, list) or len(group_add) != 1:
             raise ProbeFailure("A secret-bearing service lacks the dedicated reader group.")
         reader_groups.add(str(group_add[0]))
-    if secret_service_count != 9 or len(reader_groups) != 1:
-        raise ProbeFailure("Secret-bearing services do not share one bounded reader group.")
+    if secret_services != _SECRET_BEARING_SERVICES or len(reader_groups) != 1:
+        raise ProbeFailure("The secret-bearing service and reader-group boundary is invalid.")
     reader_group = reader_groups.pop()
     if not reader_group.isdecimal() or reader_group == "0":
         raise ProbeFailure("The secret-reader group is not a non-root numeric GID.")
     if os.name != "nt" and int(reader_group) != secret_directory.stat().st_gid:
         raise ProbeFailure("The Compose secret-reader GID does not own the Linux secret files.")
-    return 11
+    return len(_SECRET_BEARING_SERVICES) + 2
 
 
 def _container_id(prefix: list[str], service: str) -> str:

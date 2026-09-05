@@ -111,6 +111,27 @@ def test_production_probe_ties_compose_sources_to_guarded_secret_directory(
         PRODUCTION_PROBE.validate_secret_sources(configuration, secret_directory)
 
 
+def test_production_probe_allowlists_every_secret_bearing_service(tmp_path: Path) -> None:
+    secret_directory = tmp_path / "secrets"
+    secret_directory.mkdir()
+    reader_group = str(secret_directory.stat().st_gid or 10002)
+    configuration = {
+        "services": {
+            name: {"secrets": ["placeholder"], "group_add": [reader_group]}
+            for name in PRODUCTION_PROBE._SECRET_BEARING_SERVICES
+        }
+    }
+
+    assert PRODUCTION_PROBE.validate_secret_reader_group(configuration, secret_directory) == 14
+
+    configuration["services"]["unexpected"] = {
+        "secrets": ["placeholder"],
+        "group_add": [reader_group],
+    }
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="service and reader-group boundary"):
+        PRODUCTION_PROBE.validate_secret_reader_group(configuration, secret_directory)
+
+
 def test_production_probe_enforces_unambiguous_http_request_boundaries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
