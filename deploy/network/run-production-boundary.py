@@ -21,7 +21,7 @@ _EXPECTED_SECRETS = {
     "django_mfa_encryption_key",
     "postgres_runtime_password",
 }
-_ALL_SECRET_NAMES = {
+_REQUIRED_SECRET_NAMES = {
     *_EXPECTED_SECRETS,
     "postgres_admin_password",
     "postgres_migration_password",
@@ -30,6 +30,17 @@ _ALL_SECRET_NAMES = {
     "audit_checkpoint_signing_key",
     "restic_repository_password",
 }
+_SECRET_FILES = {
+    **{name: name for name in _REQUIRED_SECRET_NAMES},
+    "django_mfa_encryption_key_next": "django_mfa_encryption_key.next",
+    "postgres_admin_password_next": (  # pragma: allowlist secret
+        "postgres_admin_password.next"
+    ),
+    "restic_repository_password_next": (  # pragma: allowlist secret
+        "restic_repository_password.next"
+    ),
+}
+_ALL_SECRET_NAMES = set(_SECRET_FILES)
 _FORBIDDEN_ENVIRONMENT_NAMES = {
     "DJANGO_SECRET_KEY",
     "DJANGO_MFA_ENCRYPTION_KEY",
@@ -188,11 +199,11 @@ def validate_secret_sources(configuration: dict[str, Any], secret_directory: Pat
             or "environment" in secret
         ):
             raise ProbeFailure("A Compose secret source is malformed.")
-        actual_source = Path(str(secret["file"])).resolve(strict=True)
-        expected_source = (secret_directory / name).resolve(strict=True)
+        actual_source = Path(str(secret["file"])).resolve()
+        expected_source = (secret_directory / _SECRET_FILES[name]).resolve()
         if actual_source != expected_source:
             raise ProbeFailure("A Compose secret resolves outside the supplied secret directory.")
-    return 10
+    return len(_ALL_SECRET_NAMES) + 1
 
 
 def validate_secret_files(secret_directory: Path) -> int:
@@ -203,8 +214,14 @@ def validate_secret_files(secret_directory: Path) -> int:
     if linux_mode_checks and stat.S_IMODE(directory_status.st_mode) != 0o700:
         raise ProbeFailure("The Linux secret directory mode is not 0700.")
     for name in sorted(_ALL_SECRET_NAMES):
-        path = secret_directory / name
-        if path.is_symlink() or not path.is_file():
+        path = secret_directory / _SECRET_FILES[name]
+        if path.is_symlink():
+            raise ProbeFailure("A production secret is not a regular nonsymlink file.")
+        if not path.exists():
+            if name in _REQUIRED_SECRET_NAMES:
+                raise ProbeFailure("A required production secret file is missing.")
+            continue
+        if not path.is_file():
             raise ProbeFailure("A production secret is not a regular nonsymlink file.")
         file_status = path.stat()
         if linux_mode_checks and (
@@ -213,7 +230,7 @@ def validate_secret_files(secret_directory: Path) -> int:
             or file_status.st_gid != directory_status.st_gid
         ):
             raise ProbeFailure("A Linux secret has an unsafe mode, owner, or group.")
-    return 11 if linux_mode_checks else 10
+    return len(_ALL_SECRET_NAMES) + (2 if linux_mode_checks else 1)
 
 
 def validate_secret_reader_group(configuration: dict[str, Any], secret_directory: Path) -> int:
@@ -705,8 +722,11 @@ def validate_no_secret_leakage(
 ) -> int:
     values: list[str] = []
     for name in sorted(_ALL_SECRET_NAMES):
+        path = secret_directory / _SECRET_FILES[name]
+        if not path.exists():
+            continue
         try:
-            value = (secret_directory / name).read_text(encoding="ascii").strip()
+            value = path.read_text(encoding="ascii").strip()
         except (OSError, UnicodeError) as error:
             raise ProbeFailure("A disposable production secret could not be inspected.") from error
         if len(value) < 32:
@@ -776,8 +796,9 @@ def main() -> None:
         inspection_checks = validate_runtime_inspection(web, database, ingress)
         stage = "temporary secret loading"
         secret_values = tuple(
-            (secret_directory / name).read_text(encoding="ascii").strip()
+            (secret_directory / _SECRET_FILES[name]).read_text(encoding="ascii").strip()
             for name in sorted(_ALL_SECRET_NAMES)
+            if (secret_directory / _SECRET_FILES[name]).exists()
         )
         stage = "HTTP boundary validation"
         net03_checks, net05_checks = validate_http_boundary(arguments.hostname, secret_values)

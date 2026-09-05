@@ -82,14 +82,27 @@ def test_production_probe_ties_compose_sources_to_guarded_secret_directory(
     secret_directory.mkdir(mode=0o700)
     secret_configuration = {}
     for name in PRODUCTION_PROBE._ALL_SECRET_NAMES:
-        path = secret_directory / name
+        path = secret_directory / PRODUCTION_PROBE._SECRET_FILES[name]
         path.write_text("x" * 64, encoding="ascii")
         path.chmod(0o440)
         secret_configuration[name] = {"file": str(path)}
     configuration = {"secrets": secret_configuration}
 
-    assert PRODUCTION_PROBE.validate_secret_sources(configuration, secret_directory) == 10
-    assert PRODUCTION_PROBE.validate_secret_files(secret_directory) in {10, 11}
+    assert PRODUCTION_PROBE.validate_secret_sources(configuration, secret_directory) == 13
+    assert PRODUCTION_PROBE.validate_secret_files(secret_directory) in {13, 14}
+
+    for name in PRODUCTION_PROBE._ALL_SECRET_NAMES - PRODUCTION_PROBE._REQUIRED_SECRET_NAMES:
+        optional_path = secret_directory / PRODUCTION_PROBE._SECRET_FILES[name]
+        optional_path.chmod(0o600)
+        optional_path.unlink()
+    assert PRODUCTION_PROBE.validate_secret_files(secret_directory) in {13, 14}
+
+    required_name = next(iter(PRODUCTION_PROBE._REQUIRED_SECRET_NAMES))
+    required_path = secret_directory / PRODUCTION_PROBE._SECRET_FILES[required_name]
+    required_path.chmod(0o600)
+    required_path.unlink()
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="required production secret"):
+        PRODUCTION_PROBE.validate_secret_files(secret_directory)
 
     foreign_path = tmp_path / "foreign-secret"
     foreign_path.write_text("x" * 64, encoding="ascii")
