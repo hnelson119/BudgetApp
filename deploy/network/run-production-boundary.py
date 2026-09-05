@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import socket
 import stat
 import subprocess
@@ -41,6 +42,8 @@ _FORBIDDEN_ENVIRONMENT_NAMES = {
     "RESTIC_PASSWORD",
 }
 _MAXIMUM_RESPONSE_SIZE = 1024 * 1024
+_MAXIMUM_RAW_REQUEST_SIZE = 64 * 1024
+_HTTP_STATUS_LINE = re.compile(rb"(?m)^HTTP/1\.[01] ([1-5][0-9]{2})")
 
 
 class ProbeFailure(RuntimeError):
@@ -378,6 +381,169 @@ def _wait_for_web(hostname: str) -> None:
     raise ProbeFailure("The disposable production web service did not become ready.")
 
 
+def _raw_http_exchange(payload: bytes) -> tuple[bytes, bool]:
+    if not payload or len(payload) > _MAXIMUM_RAW_REQUEST_SIZE:
+        raise ProbeFailure("An HTTP framing probe payload has an invalid size.")
+    try:
+        with socket.create_connection(("127.0.0.1", 8000), timeout=3) as connection:
+            connection.settimeout(3)
+            connection.sendall(payload)
+            connection.shutdown(socket.SHUT_WR)
+            response = bytearray()
+            peer_closed = False
+            while len(response) <= _MAXIMUM_RESPONSE_SIZE:
+                try:
+                    chunk = connection.recv(65536)
+                except TimeoutError:
+                    break
+                if not chunk:
+                    peer_closed = True
+                    break
+                response.extend(chunk)
+    except OSError as error:
+        raise ProbeFailure("The raw HTTP framing probe could not reach loopback.") from error
+    if len(response) > _MAXIMUM_RESPONSE_SIZE:
+        raise ProbeFailure("A raw HTTP framing response was unexpectedly large.")
+    return bytes(response), peer_closed
+
+
+def _raw_request(
+    hostname: str,
+    *,
+    request_line: str,
+    headers: tuple[str, ...],
+    body: bytes = b"",
+) -> bytes:
+    try:
+        head = "\r\n".join((request_line, f"Host: {hostname}", *headers, "", "")).encode("ascii")
+    except UnicodeEncodeError as error:
+        raise ProbeFailure("The HTTP framing hostname is not ASCII.") from error
+    return head + body
+
+
+def _require_raw_status(payload: bytes, *, expected: int, probe: str) -> bytes:
+    response, peer_closed = _raw_http_exchange(payload)
+    statuses = [int(match) for match in _HTTP_STATUS_LINE.findall(response)]
+    if statuses != [expected] or not peer_closed:
+        raise ProbeFailure(f"The {probe} framing control produced an unsafe response boundary.")
+    return response
+
+
+def _require_framing_rejection(payload: bytes, *, probe: str) -> None:
+    response, peer_closed = _raw_http_exchange(payload)
+    statuses = [int(match) for match in _HTTP_STATUS_LINE.findall(response)]
+    if len(statuses) != 1 or statuses[0] not in {400, 501} or not peer_closed:
+        raise ProbeFailure(f"The {probe} framing ambiguity was not rejected and closed.")
+
+
+def validate_request_framing(hostname: str) -> int:
+    normal_get = _raw_request(
+        hostname,
+        request_line="GET /health/live/ HTTP/1.1",
+        headers=("X-Forwarded-Proto: https", "Connection: close"),
+    )
+    get_response = _require_raw_status(normal_get, expected=200, probe="bodyless GET")
+    if b'{"status": "ok"}' not in get_response:
+        raise ProbeFailure("The bodyless GET framing control did not reach Django.")
+
+    normal_content_length = _raw_request(
+        hostname,
+        request_line="GET /health/live/ HTTP/1.1",
+        headers=(
+            "X-Forwarded-Proto: https",
+            "Content-Length: 0",
+            "Connection: close",
+        ),
+    )
+    _require_raw_status(normal_content_length, expected=200, probe="Content-Length")
+
+    normal_chunked = _raw_request(
+        hostname,
+        request_line="GET /health/live/ HTTP/1.1",
+        headers=(
+            "X-Forwarded-Proto: https",
+            "Transfer-Encoding: chunked",
+            "Connection: close",
+        ),
+        body=b"0\r\n\r\n",
+    )
+    _require_raw_status(normal_chunked, expected=200, probe="chunked transfer")
+
+    canary = _raw_request(
+        hostname,
+        request_line="GET /framing-canary HTTP/1.1",
+        headers=("X-Forwarded-Proto: https", "Connection: close"),
+    )
+    ambiguous_requests = {
+        "Transfer-Encoding plus Content-Length": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Transfer-Encoding: chunked",
+                "Content-Length: 4",
+                "Connection: keep-alive",
+            ),
+            body=b"0\r\n\r\n" + canary,
+        ),
+        "Content-Length plus Transfer-Encoding": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Content-Length: 5",
+                "Transfer-Encoding: chunked",
+                "Connection: keep-alive",
+            ),
+            body=b"0\r\n\r\n" + canary,
+        ),
+        "conflicting Content-Length": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Content-Length: 0",
+                "Content-Length: 5",
+                "Connection: keep-alive",
+            ),
+            body=canary,
+        ),
+        "multiple transfer codings": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Transfer-Encoding: chunked, identity",
+                "Connection: keep-alive",
+            ),
+            body=b"0\r\n\r\n" + canary,
+        ),
+        "whitespace before header colon": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Transfer-Encoding : chunked",
+                "Connection: keep-alive",
+            ),
+            body=b"0\r\n\r\n" + canary,
+        ),
+        "obsolete folded transfer header": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Transfer-Encoding:\r\n chunked",
+                "Connection: keep-alive",
+            ),
+            body=b"0\r\n\r\n" + canary,
+        ),
+    }
+    for probe, payload in ambiguous_requests.items():
+        _require_framing_rejection(payload, probe=probe)
+    return 9
+
+
 def validate_http_boundary(hostname: str, secret_values: tuple[str, ...]) -> tuple[int, int]:
     _wait_for_web(hostname)
     status, headers, body = _request("/health/live/", hostname, {})
@@ -615,6 +781,8 @@ def main() -> None:
         )
         stage = "HTTP boundary validation"
         net03_checks, net05_checks = validate_http_boundary(arguments.hostname, secret_values)
+        stage = "HTTP request-framing validation"
+        framing_checks = validate_request_framing(arguments.hostname)
         stage = "runtime process validation"
         net04_checks, behavior_checks = validate_runtime_behavior(web_id, ingress_id)
         stage = "secret non-leakage validation"
@@ -636,6 +804,7 @@ def main() -> None:
     print(f"NET-03 pre-deployment controls passed ({net03_checks} HTTPS-policy checks).")
     print(f"NET-04 pre-deployment controls passed ({net04_checks} isolation checks).")
     print(f"NET-05 pre-deployment controls passed ({net05_checks} header/error checks).")
+    print(f"HTTP-FRAMING controls passed ({framing_checks} request-boundary checks).")
     print(
         "NET-06 pre-deployment controls passed "
         f"({compose_checks + inspection_checks + behavior_checks + leakage_checks} runtime checks)."

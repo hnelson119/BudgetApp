@@ -394,9 +394,14 @@ approved- and unapproved-device observations required by `NET-01` and `NET-02`.
 
 - Send safe alternate `Host` and forwarded-origin/scheme values through the real proxy, request
   malformed routes and validation failures, and inspect redirects, error pages, and cache headers.
+- Run the production-derived HTTP/1.1 framing harness, then use a bounded HTTP/2 client through the
+  exact Tailscale HTTPS edge to end a single request stream with a mismatched declared
+  `Content-Length`; repeat with HTTP/3 only if the candidate enables it. Never target another host.
 - Repeat representative authenticated responses through browser back/refresh behavior.
 - Pass only if untrusted headers cannot alter authorization, generated links, redirects, or secure
-  scheme decisions; errors expose no internals or secrets; and authenticated data is never cached.
+  scheme decisions; ambiguous HTTP/1.1 messages produce one rejection and connection closure;
+  HTTP/2 or HTTP/3 length mismatches are rejected or reset before an application response; errors
+  expose no internals or secrets; and authenticated data is never cached.
 
 <a id="net-06"></a>
 ### NET-06 — Runtime privilege and secret-leakage inspection

@@ -308,6 +308,11 @@ relay, internal application/database networks, exact proxy trust, runtime identi
 blocked application egress, and secret non-leakage. A separate guarded Linux VM preflight and
 least-privilege tailnet grants template are ready, but real Tailscale, firewall, TLS, approved-
 device, and unapproved-device evidence remains release-only.
+The HTTP-framing extension now exercises the actual production nginx/Gunicorn images in a dedicated
+read-only CI job. It admits three valid HTTP/1.1 message forms and requires six ambiguous or
+malformed variants—with a trailing-request canary—to produce exactly one rejection and close the
+connection. The Tailscale edge's HTTP/2/3 message-length consistency remains a bounded, documented
+release-candidate observation.
 The production-path restore rehearsal is now automated for disposable synthetic data. It uses the
 real encrypted Restic scripts and database roles, rejects live and existing targets, proves encrypted
 repository storage does not expose fixture plaintext or generated secrets, verifies the restored

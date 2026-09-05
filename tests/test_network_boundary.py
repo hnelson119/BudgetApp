@@ -98,6 +98,62 @@ def test_production_probe_ties_compose_sources_to_guarded_secret_directory(
         PRODUCTION_PROBE.validate_secret_sources(configuration, secret_directory)
 
 
+def test_production_probe_enforces_unambiguous_http_request_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    responses = iter(
+        (
+            (b'HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n{"status": "ok"}', True),
+            (b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n", True),
+            (b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n", True),
+            *((b"HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n", True),) * 6,
+        )
+    )
+    payloads: list[bytes] = []
+
+    def exchange(payload: bytes) -> tuple[bytes, bool]:
+        payloads.append(payload)
+        return next(responses)
+
+    monkeypatch.setattr(PRODUCTION_PROBE, "_raw_http_exchange", exchange)
+
+    assert PRODUCTION_PROBE.validate_request_framing("budget.example.ts.net") == 9
+    assert len(payloads) == 9
+    assert payloads[0].startswith(b"GET /health/live/ HTTP/1.1\r\n")
+    assert b"Content-Length: 0\r\n" in payloads[1]
+    assert payloads[2].endswith(b"Transfer-Encoding: chunked\r\nConnection: close\r\n\r\n0\r\n\r\n")
+    assert all(payload.count(b"GET /framing-canary HTTP/1.1") == 1 for payload in payloads[3:])
+    assert b"Transfer-Encoding: chunked\r\nContent-Length: 4\r\n" in payloads[3]
+    assert b"Content-Length: 0\r\nContent-Length: 5\r\n" in payloads[5]
+    assert b"Transfer-Encoding : chunked\r\n" in payloads[7]
+    assert b"Transfer-Encoding:\r\n chunked\r\n" in payloads[8]
+
+
+@pytest.mark.parametrize(
+    "exchange_result",
+    (
+        (b"HTTP/1.1 200 OK\r\n\r\n", True),
+        (b"HTTP/1.1 400 Bad Request\r\n\r\n", False),
+        (
+            b"HTTP/1.1 400 Bad Request\r\n\r\nHTTP/1.1 404 Not Found\r\n\r\n",
+            True,
+        ),
+    ),
+)
+def test_production_probe_rejects_unsafe_ambiguous_request_results(
+    monkeypatch: pytest.MonkeyPatch,
+    exchange_result: tuple[bytes, bool],
+) -> None:
+    monkeypatch.setattr(
+        PRODUCTION_PROBE,
+        "_raw_http_exchange",
+        lambda _payload: exchange_result,
+    )
+
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="not rejected and closed"):
+        PRODUCTION_PROBE._require_framing_rejection(b"ambiguous", probe="test")
+
+
 def test_private_ingress_accepts_exact_tagged_https_only_configuration() -> None:
     hostname = "budget.example.ts.net"
     tailscale_status = {
@@ -200,6 +256,9 @@ def test_network_runners_are_bounded_and_keep_release_checks_honest() -> None:
         encoding="utf-8"
     )
     runbook = (PROJECT_ROOT / "docs/PRIVATE_INGRESS.md").read_text(encoding="utf-8")
+    framing_workflow = (PROJECT_ROOT / ".github/workflows/http-framing.yml").read_text(
+        encoding="utf-8"
+    )
 
     for runner in (powershell_runner, linux_runner):
         assert "budgetapp-network-boundary" in runner
@@ -216,3 +275,7 @@ def test_network_runners_are_bounded_and_keep_release_checks_honest() -> None:
     assert '"tag:budget-server:8000"' in policy
     assert "cannot satisfy" in runbook
     assert "NET-01" in runbook and "NET-02" in runbook
+    assert "permissions:\n  contents: read" in framing_workflow
+    assert "pull_request_target" not in framing_workflow
+    assert "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" in framing_workflow
+    assert "sh scripts/run-network-boundary.sh" in framing_workflow

@@ -19,9 +19,9 @@
       "not_applicable": 80
     },
     "status": {
-      "implemented": 108,
+      "implemented": 109,
       "not_applicable": 80,
-      "not_started": 8,
+      "not_started": 7,
       "partial": 57
     }
   },
@@ -1168,12 +1168,15 @@
       "level": 2,
       "description": "Verify that all application components (including load balancers, firewalls, and application servers) determine boundaries of incoming HTTP messages using the appropriate mechanism for the HTTP version to prevent HTTP request smuggling. In HTTP/1.x, if a Transfer-Encoding header field is present, the Content-Length header must be ignored per RFC 2616. When using HTTP/2 or HTTP/3, if a Content-Length header field is present, the receiver must ensure that it is consistent with the length of the DATA frames.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "A production reverse-proxy and Gunicorn request-smuggling compatibility test has not been completed.",
+      "status": "implemented",
+      "assessment": "The production-derived nginx and Gunicorn boundary accepts three valid HTTP/1.1 message forms and must reject six ambiguous or malformed framing forms with exactly one error response and a closed connection. Browser-facing Tailscale HTTP/2 or HTTP/3 validation remains a dated release-candidate check.",
       "evidence": [
-        "config/settings/production.py",
-        "core/middleware.py",
-        "tests/test_web_foundation.py"
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        ".github/workflows/http-framing.yml",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md"
       ]
     },
     {

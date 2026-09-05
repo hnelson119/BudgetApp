@@ -303,6 +303,13 @@ candidate, every cryptographic change, and at least every 90 days.
 - Apply memory, process, and storage limits.
 - Pin base images and dependencies; use minimal maintained images.
 
+The production ingress buffers complete requests and uses HTTP/1.1 on both sides of the
+nginx-to-Gunicorn boundary. A dedicated production-image CI probe accepts valid bodyless,
+content-length, and chunked requests while requiring ambiguous or malformed framing to produce one
+error response and connection closure. The browser-facing Tailscale HTTP/2/3 receiver must undergo
+the bounded message-length mismatch check in `docs/PRIVATE_INGRESS.md` for each release candidate;
+repository automation is implementation evidence, not that live-edge verification.
+
 ## 11. Software supply chain and secure development
 
 - Commit dependency lock files and verify reproducible builds.
