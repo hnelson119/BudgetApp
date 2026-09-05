@@ -184,7 +184,7 @@ def test_production_probe_rejects_unsafe_ambiguous_request_results(
         lambda _payload: exchange_result,
     )
 
-    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="not rejected and closed"):
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match=r"statuses=.*peer_closed"):
         PRODUCTION_PROBE._require_framing_rejection(b"ambiguous", probe="test")
 
 

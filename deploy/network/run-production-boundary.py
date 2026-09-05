@@ -453,10 +453,13 @@ def _raw_request(
 
 
 def _require_raw_status(payload: bytes, *, expected: int, probe: str) -> bytes:
-    response, _peer_closed = _raw_http_exchange(payload)
+    response, peer_closed = _raw_http_exchange(payload)
     statuses = [int(match) for match in _HTTP_STATUS_LINE.findall(response)]
     if statuses != [expected]:
-        raise ProbeFailure(f"The {probe} framing control produced an unsafe response boundary.")
+        raise ProbeFailure(
+            f"The {probe} framing control produced statuses={statuses!r}, "
+            f"peer_closed={peer_closed!r}."
+        )
     return response
 
 
@@ -464,7 +467,10 @@ def _require_framing_rejection(payload: bytes, *, probe: str) -> None:
     response, peer_closed = _raw_http_exchange(payload)
     statuses = [int(match) for match in _HTTP_STATUS_LINE.findall(response)]
     if len(statuses) != 1 or statuses[0] not in {400, 501} or not peer_closed:
-        raise ProbeFailure(f"The {probe} framing ambiguity was not rejected and closed.")
+        raise ProbeFailure(
+            f"The {probe} framing ambiguity produced statuses={statuses!r}, "
+            f"peer_closed={peer_closed!r}."
+        )
 
 
 def validate_request_framing(hostname: str) -> int:
