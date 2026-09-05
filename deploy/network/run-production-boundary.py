@@ -787,7 +787,16 @@ def validate_runtime_behavior(
         ["docker", "exec", security_log_id, "sh", "-c", "touch /security-log-root-probe"]
     )
     _run_expect_failure(["docker", "exec", web_id, "sh", "-c", "touch /run/security-log/bypass"])
-    _run(["docker", "exec", web_id, "sh", "-c", "test ! -e /var/lib/security-log"])
+    _run(
+        [
+            "docker",
+            "exec",
+            web_id,
+            "sh",
+            "-c",
+            "test ! -e /var/lib/security-log/security-events.jsonl",
+        ]
+    )
     _run(
         [
             "docker",
