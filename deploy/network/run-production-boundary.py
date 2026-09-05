@@ -419,7 +419,6 @@ def _raw_http_exchange(payload: bytes) -> tuple[bytes, bool]:
         with socket.create_connection(("127.0.0.1", 8000), timeout=3) as connection:
             connection.settimeout(3)
             connection.sendall(payload)
-            connection.shutdown(socket.SHUT_WR)
             response = bytearray()
             peer_closed = False
             while len(response) <= _MAXIMUM_RESPONSE_SIZE:
