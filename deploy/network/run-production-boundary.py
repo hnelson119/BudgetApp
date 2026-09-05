@@ -19,6 +19,7 @@ from typing import Any
 _EXPECTED_SECRETS = {
     "django_secret_key",
     "django_mfa_encryption_key",
+    "postgres_ca_certificate",
     "postgres_runtime_password",
 }
 _REQUIRED_SECRET_NAMES = {
@@ -27,6 +28,8 @@ _REQUIRED_SECRET_NAMES = {
     "postgres_migration_password",
     "postgres_backup_password",
     "postgres_audit_password",
+    "postgres_server_certificate",
+    "postgres_server_private_key",
     "audit_checkpoint_signing_key",
     "restic_repository_password",
 }
@@ -52,6 +55,18 @@ _SECRET_BEARING_SERVICES = {
     "migrate",
     "notify",
     "restic-key-rotate",
+    "restore-verify",
+    "web",
+}
+_DATABASE_TLS_CLIENTS = {
+    "backup",
+    "db-admin-key-rotate",
+    "db-bootstrap",
+    "import-cleanup",
+    "integrity",
+    "mfa-key-rotate",
+    "migrate",
+    "notify",
     "restore-verify",
     "web",
 }
@@ -174,6 +189,21 @@ def validate_relay_destination(configuration: str) -> int:
     return 1
 
 
+def validate_postgres_hba(configuration: str) -> int:
+    rules = [
+        line.strip()
+        for line in configuration.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    if rules != [
+        "local all all trust",
+        "hostssl all all all scram-sha-256",
+        "hostnossl all all all reject",
+    ]:
+        raise ProbeFailure("The PostgreSQL client-authentication transport policy is invalid.")
+    return 1
+
+
 def validate_compose_boundary(configuration: dict[str, Any]) -> int:
     services = configuration.get("services")
     networks = configuration.get("networks")
@@ -235,6 +265,43 @@ def validate_compose_boundary(configuration: dict[str, Any]) -> int:
         raise ProbeFailure("The web service has an unexpected Docker network attachment.")
     if _network_names(database.get("networks")) != {"backend"} or database.get("ports"):
         raise ProbeFailure("PostgreSQL is not isolated on the internal backend network.")
+    if database.get("entrypoint") != ["/bin/sh", "/usr/local/bin/start-postgres-tls.sh"]:
+        raise ProbeFailure("PostgreSQL does not use the guarded TLS startup wrapper.")
+    if _references(database.get("secrets")) != {
+        "postgres_admin_password",
+        "postgres_server_certificate",
+        "postgres_server_private_key",
+    }:
+        raise ProbeFailure("PostgreSQL receives an unexpected server-secret set.")
+    database_volumes = database.get("volumes")
+    if not isinstance(database_volumes, list):
+        raise ProbeFailure("PostgreSQL TLS policy mounts are malformed.")
+    database_policy_mounts = {
+        str(volume.get("target")): volume.get("read_only")
+        for volume in database_volumes
+        if isinstance(volume, dict)
+        and volume.get("target")
+        in {"/usr/local/bin/start-postgres-tls.sh", "/etc/postgresql/pg_hba.conf"}
+    }
+    if database_policy_mounts != {
+        "/usr/local/bin/start-postgres-tls.sh": True,
+        "/etc/postgresql/pg_hba.conf": True,
+    } or set(database.get("tmpfs") or []) != {
+        "/run/postgresql-tls:rw,noexec,nosuid,nodev,size=1m,mode=0700"
+    }:
+        raise ProbeFailure("PostgreSQL TLS policy mounts are not read-only and bounded.")
+    for service_name in _DATABASE_TLS_CLIENTS:
+        client = services.get(service_name)
+        if not isinstance(client, dict):
+            raise ProbeFailure("A required PostgreSQL TLS client is missing.")
+        client_environment = client.get("environment")
+        if not isinstance(client_environment, dict) or (
+            str(client_environment.get("PGSSLMODE")),
+            str(client_environment.get("PGSSLROOTCERT")),
+        ) != ("verify-full", "/run/secrets/postgres_ca_certificate"):
+            raise ProbeFailure("A PostgreSQL client does not require exact CA and hostname trust.")
+        if "postgres_ca_certificate" not in _references(client.get("secrets")):
+            raise ProbeFailure("A PostgreSQL client cannot read the pinned internal CA.")
     if _network_names(ingress.get("networks")) != {"ingress", "frontend"}:
         raise ProbeFailure("The secretless relay has an unexpected Docker network attachment.")
     if web.get("ports") or ingress.get("secrets"):
@@ -263,7 +330,7 @@ def validate_compose_boundary(configuration: dict[str, Any]) -> int:
         or "no-new-privileges:true" not in (ingress.get("security_opt") or [])
     ):
         raise ProbeFailure("The loopback relay is missing a runtime hardening control.")
-    return 18 + len(_EXPECTED_SERVICE_NETWORKS)
+    return 21 + len(_EXPECTED_SERVICE_NETWORKS)
 
 
 def validate_secret_sources(configuration: dict[str, Any], secret_directory: Path) -> int:
@@ -370,6 +437,8 @@ def validate_runtime_inspection(
 ) -> int:
     web_config = web.get("Config") or {}
     host_config = web.get("HostConfig") or {}
+    database_config = database.get("Config") or {}
+    database_host_config = database.get("HostConfig") or {}
     ingress_config = ingress.get("Config") or {}
     ingress_host_config = ingress.get("HostConfig") or {}
     security_log_config = security_log.get("Config") or {}
@@ -395,9 +464,32 @@ def validate_runtime_inspection(
         {"HostIp": "127.0.0.1", "HostPort": "8000"}
     ]:
         raise ProbeFailure("The running relay port binding is not loopback-only.")
-    database_bindings = (database.get("HostConfig") or {}).get("PortBindings") or {}
+    database_bindings = database_host_config.get("PortBindings") or {}
     if database_bindings:
         raise ProbeFailure("The running database container publishes a host port.")
+    if database_config.get("Entrypoint") != [
+        "/bin/sh",
+        "/usr/local/bin/start-postgres-tls.sh",
+    ]:
+        raise ProbeFailure("The running database bypassed the TLS startup wrapper.")
+    database_tls_mounts = {
+        mount.get("Destination"): mount.get("RW")
+        for mount in database.get("Mounts") or []
+        if mount.get("Destination")
+        in {
+            "/run/secrets/postgres_server_certificate",
+            "/run/secrets/postgres_server_private_key",
+            "/usr/local/bin/start-postgres-tls.sh",
+            "/etc/postgresql/pg_hba.conf",
+        }
+    }
+    if database_tls_mounts != {
+        "/run/secrets/postgres_server_certificate": False,
+        "/run/secrets/postgres_server_private_key": False,
+        "/usr/local/bin/start-postgres-tls.sh": False,
+        "/etc/postgresql/pg_hba.conf": False,
+    }:
+        raise ProbeFailure("The running database TLS inputs are not exact read-only mounts.")
     if (
         ingress_config.get("User") != "101:101"
         or ingress_host_config.get("ReadonlyRootfs") is not True
@@ -484,7 +576,7 @@ def validate_runtime_inspection(
         _environment_names(security_log_config)
     ):
         raise ProbeFailure("The security-log collector can access a reusable secret.")
-    return 24
+    return 27
 
 
 def _request(path: str, hostname: str, extra_headers: dict[str, str]) -> tuple[int, Any, bytes]:
@@ -748,7 +840,7 @@ def _socket_reachable(port: int) -> bool:
 
 
 def validate_runtime_behavior(
-    web_id: str, ingress_id: str, security_log_id: str
+    web_id: str, database_id: str, ingress_id: str, security_log_id: str
 ) -> tuple[int, int]:
     uid = _run(["docker", "exec", web_id, "id", "-u"]).strip()
     gid = _run(["docker", "exec", web_id, "id", "-g"]).strip()
@@ -862,6 +954,23 @@ def validate_runtime_behavior(
     _run(["docker", "exec", ingress_id, "sh", "-c", "test ! -e /run/secrets"])
     _run(["docker", "exec", ingress_id, "nc", "-z", "-w", "2", "web", "8000"])
     validate_relay_destination(_run(["docker", "exec", ingress_id, "cat", "/etc/nginx/nginx.conf"]))
+    validate_postgres_hba(
+        _run(["docker", "exec", database_id, "cat", "/etc/postgresql/pg_hba.conf"])
+    )
+    database_tls_modes = _run(
+        [
+            "docker",
+            "exec",
+            database_id,
+            "stat",
+            "-c",
+            "%u:%g:%a",
+            "/run/postgresql-tls/server.crt",
+            "/run/postgresql-tls/server.key",
+        ]
+    ).splitlines()
+    if database_tls_modes != ["70:70:600", "70:70:600"]:
+        raise ProbeFailure("The staged PostgreSQL server identity has unsafe ownership or mode.")
     _run(
         [
             "docker",
@@ -875,7 +984,7 @@ def validate_runtime_behavior(
     mounted_names = set(_run(["docker", "exec", web_id, "ls", "-1", "/run/secrets"]).splitlines())
     if mounted_names != _EXPECTED_SECRETS:
         raise ProbeFailure("The web process can see an unexpected secret filename.")
-    database_role = (
+    database_transport = (
         _run(
             [
                 "docker",
@@ -887,16 +996,39 @@ def validate_runtime_behavior(
                 "-c",
                 (
                     "from django.db import connection; "
-                    "cursor=connection.cursor(); cursor.execute('SELECT current_user'); "
-                    "print(cursor.fetchone()[0])"
+                    "cursor=connection.cursor(); cursor.execute("
+                    "'SELECT current_user, ssl, version FROM pg_stat_ssl '"
+                    "'WHERE pid=pg_backend_pid()'); "
+                    "print('|'.join(map(str,cursor.fetchone())))"
                 ),
             ]
         )
         .strip()
         .splitlines()[-1]
     )
-    if database_role != "budget_runtime":
-        raise ProbeFailure("The web process is not using the runtime database role.")
+    if database_transport not in {
+        "budget_runtime|True|TLSv1.2",
+        "budget_runtime|True|TLSv1.3",
+    }:
+        raise ProbeFailure("The web process lacks the required encrypted database session.")
+    _run_expect_failure(
+        [
+            "docker",
+            "exec",
+            web_id,
+            "python",
+            "manage.py",
+            "shell",
+            "-c",
+            (
+                "from django.conf import settings; import psycopg; "
+                "database=settings.DATABASES['default']; "
+                "psycopg.connect(host=database['HOST'],port=database['PORT'],"
+                "dbname=database['NAME'],user=database['USER'],password=database['PASSWORD'],"
+                "sslmode='disable',connect_timeout=3)"
+            ),
+        ]
+    )
     _run(
         [
             "docker",
@@ -919,7 +1051,7 @@ def validate_runtime_behavior(
     )
     if not _socket_reachable(8000) or any(_socket_reachable(port) for port in (5432, 2375, 2376)):
         raise ProbeFailure("The disposable host port boundary does not match the allowlist.")
-    return 8, 25
+    return 8, 30
 
 
 def validate_no_secret_leakage(
@@ -1015,7 +1147,7 @@ def main() -> None:
         framing_checks = validate_request_framing(arguments.hostname)
         stage = "runtime process validation"
         net04_checks, behavior_checks = validate_runtime_behavior(
-            web_id, ingress_id, security_log_id
+            web_id, database_id, ingress_id, security_log_id
         )
         stage = "secret non-leakage validation"
         leakage_checks = validate_no_secret_leakage(

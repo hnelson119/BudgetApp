@@ -32,16 +32,16 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | Applicable | 173 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 80 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
 | Implemented | 112 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 57 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
-| Not started | 4 | The control is absent or its required verification has not been designed. |
+| Partial | 59 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Not started | 2 | The control is absent or its required verification has not been designed. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
 justified `not_applicable` result, satisfies the final release review.
 
-## Not-started controls
+## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 57
+These are the clearest implementation or operational work items exposed by the mapping. The 59
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -74,9 +74,14 @@ needed for its loopback host publish, but the live nginx configuration must cont
 static destination, `web:8000`. The probe proves the required internal connections, denied Django
 external TCP egress, and running relay destination. Release-candidate verification remains pending.
 
-- `v5.0.0-12.3.1`, `v5.0.0-12.3.3`, `v5.0.0-12.3.4`: inventory and encrypt internal service
-  communication, including application-to-PostgreSQL traffic, with an explicit certificate trust
-  policy.
+- `v5.0.0-12.3.1` and `v5.0.0-12.3.4` are now partial: every production PostgreSQL TCP client
+  requires TLS 1.2 or TLS 1.3 with exact internal-CA and `db` hostname verification, and the server
+  rejects plaintext TCP. The production-derived runtime proof observes the negotiated session and
+  requires an explicit plaintext attempt to fail. The nginx-to-Gunicorn hop remains HTTP, so the
+  all-sensitive-communications and comprehensive internal-certificate boundaries are incomplete.
+- `v5.0.0-12.3.3`: inventory and force every remaining internal service connection onto an
+  encrypted transport. See `docs/POSTGRES_TLS.md` for the completed database boundary and its
+  explicit limitation.
 - `v5.0.0-13.2.1`: replace long-lived backend passwords with short-lived or certificate-based
   service authentication where the chosen private-hosting stack can support it.
 
@@ -112,8 +117,8 @@ providers, OAuth/OIDC, self-contained authentication tokens, and WebRTC. Every e
 specific reason.
 
 A control is not excluded merely because the application is private, small, or currently lacks the
-infrastructure to meet it. Internal TLS and short-lived service authentication therefore remain
-applicable gaps.
+infrastructure to meet it. The remaining internal TLS hop and stronger service authentication
+therefore stay applicable gaps.
 Future OAuth, public hosting, external identity, WebSocket, bank-sync, email, or file-processing
 features require re-evaluating the associated exclusions before merge.
 

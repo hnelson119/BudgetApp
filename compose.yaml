@@ -11,6 +11,9 @@ x-app-environment: &app-environment
   DATABASE_CONN_MAX_AGE: ${DATABASE_CONN_MAX_AGE:-60}
   CSV_IMPORT_STAGING_RETENTION_HOURS: ${CSV_IMPORT_STAGING_RETENTION_HOURS:-24}
   POSTGRES_DB: ${POSTGRES_DB:-household_budget}
+  POSTGRES_SSL_ROOT_CERTIFICATE_FILE: /run/secrets/postgres_ca_certificate
+  PGSSLMODE: verify-full
+  PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
   DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
   DJANGO_MFA_ENCRYPTION_KEY_FILE: /run/secrets/django_mfa_encryption_key
   DJANGO_MFA_ENCRYPTION_KEY_VERSION: ${DJANGO_MFA_ENCRYPTION_KEY_VERSION:-1}
@@ -39,16 +42,23 @@ services:
   db:
     image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "/usr/local/bin/start-postgres-tls.sh"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-household_budget}
       POSTGRES_USER: ${POSTGRES_ADMIN_USER:-budget_admin}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin_password
     secrets:
       - postgres_admin_password
+      - postgres_server_certificate
+      - postgres_server_private_key
     group_add:
       - ${BUDGET_SECRET_GID:-10002}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/start-tls.sh:/usr/local/bin/start-postgres-tls.sh:ro
+      - ./deploy/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    tmpfs:
+      - /run/postgresql-tls:rw,noexec,nosuid,nodev,size=1m,mode=0700
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -70,8 +80,11 @@ services:
       POSTGRES_MIGRATION_USER: ${POSTGRES_MIGRATION_USER:-budget_migration}
       POSTGRES_BACKUP_USER: ${POSTGRES_BACKUP_USER:-budget_backup}
       POSTGRES_AUDIT_USER: ${POSTGRES_AUDIT_USER:-budget_audit}
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
     secrets:
       - postgres_admin_password
+      - postgres_ca_certificate
       - postgres_runtime_password
       - postgres_migration_password
       - postgres_backup_password
@@ -105,9 +118,12 @@ services:
       POSTGRES_ADMIN_USER: ${POSTGRES_ADMIN_USER:-budget_admin}
       POSTGRES_ADMIN_PASSWORD_FILE: /run/secrets/postgres_admin_password
       POSTGRES_ADMIN_NEW_PASSWORD_FILE: /run/secrets/postgres_admin_password_next
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
     secrets:
       - postgres_admin_password
       - postgres_admin_password_next
+      - postgres_ca_certificate
     volumes:
       - ./deploy/postgres/rotate-admin-password.sh:/usr/local/bin/rotate-admin-password.sh:ro
     depends_on:
@@ -140,6 +156,7 @@ services:
       - django_secret_key
       - django_mfa_encryption_key
       - postgres_migration_password
+      - postgres_ca_certificate
     depends_on:
       db:
         condition: service_healthy
@@ -172,6 +189,7 @@ services:
       - django_mfa_encryption_key
       - django_mfa_encryption_key_next
       - postgres_runtime_password
+      - postgres_ca_certificate
     depends_on:
       db:
         condition: service_healthy
@@ -198,8 +216,11 @@ services:
       BACKUP_RETENTION_DAILY: ${BACKUP_RETENTION_DAILY:-7}
       BACKUP_RETENTION_WEEKLY: ${BACKUP_RETENTION_WEEKLY:-4}
       BACKUP_RETENTION_MONTHLY: ${BACKUP_RETENTION_MONTHLY:-12}
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
     secrets:
       - postgres_backup_password
+      - postgres_ca_certificate
       - restic_repository_password
     volumes:
       - type: bind
@@ -274,8 +295,12 @@ services:
       AUDIT_CHECKPOINT_KEY_ID: ${AUDIT_CHECKPOINT_KEY_ID:-home-v1}
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-production}
       APP_RELEASE: ${APP_RELEASE:-development}
+      POSTGRES_SSL_ROOT_CERTIFICATE_FILE: /run/secrets/postgres_ca_certificate
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
     secrets:
       - postgres_audit_password
+      - postgres_ca_certificate
       - audit_checkpoint_signing_key
     volumes:
       - type: bind
@@ -306,6 +331,7 @@ services:
       - django_secret_key
       - django_mfa_encryption_key
       - postgres_runtime_password
+      - postgres_ca_certificate
     volumes:
       - type: bind
         source: ${BUDGET_BACKUP_REPOSITORY:-/mnt/household-budget-backups}
@@ -334,6 +360,7 @@ services:
       - django_secret_key
       - django_mfa_encryption_key
       - postgres_runtime_password
+      - postgres_ca_certificate
     depends_on:
       db:
         condition: service_healthy
@@ -358,8 +385,11 @@ services:
       RESTIC_CACHE_DIR: /tmp/restic-cache
       RESTORE_SNAPSHOT_ID: ${RESTORE_SNAPSHOT_ID:-latest}
       RESTORE_TARGET_DB: ${RESTORE_TARGET_DB:-}
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
     secrets:
       - postgres_admin_password
+      - postgres_ca_certificate
       - restic_repository_password
     volumes:
       - type: bind
@@ -451,6 +481,7 @@ services:
       - django_secret_key
       - django_mfa_encryption_key
       - postgres_runtime_password
+      - postgres_ca_certificate
     command:
       - gunicorn
       - config.wsgi:application
@@ -502,6 +533,12 @@ secrets:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_admin_password
   postgres_admin_password_next:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_admin_password.next
+  postgres_ca_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_ca_certificate
+  postgres_server_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_server_certificate
+  postgres_server_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_server_private_key
   postgres_runtime_password:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_runtime_password
   postgres_migration_password:

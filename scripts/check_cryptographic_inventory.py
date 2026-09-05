@@ -19,6 +19,8 @@ EXPECTED_KEY_IDS = {
     "audit-checkpoint-signing-key",
     "django-signing-key",
     "mfa-encryption-key",
+    "postgres-internal-ca-private-key",
+    "postgres-server-private-key",
     "restic-master-keys",
     "restic-repository-password",
     "ssh-administrator-keys",
@@ -32,6 +34,7 @@ EXPECTED_ALGORITHM_IDS = {
     "hmac-sha256",
     "os-csprng",
     "password-blocklist-sha1",
+    "postgres-internal-tls",
     "restic-aes256-ctr-poly1305-aes",
     "restic-scrypt",
     "sha256",
@@ -43,11 +46,12 @@ EXPECTED_ALGORITHM_IDS = {
 }
 EXPECTED_CERTIFICATE_IDS = {
     "browser-public-trust-roots",
+    "postgres-internal-ca-certificate",
+    "postgres-server-certificate",
     "tailscale-serve-leaf-certificate",
 }
 EXPECTED_ABSENCE_IDS = {
     "application-client-certificates",
-    "internal-postgresql-tls",
     "internal-service-certificates",
     "reusable-tailscale-auth-keys",
 }
@@ -291,6 +295,19 @@ def _validate_dependency_contract(algorithms: dict[str, dict[str, Any]]) -> None
     test_settings = (PROJECT_ROOT / "config" / "settings" / "test.py").read_text(encoding="utf-8")
     if 'PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]' not in test_settings:
         _fail("the inventoried test-only MD5 exception no longer matches test settings")
+
+    compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    postgres_startup = (PROJECT_ROOT / "deploy/postgres/start-tls.sh").read_text(encoding="utf-8")
+    postgres_hba = (PROJECT_ROOT / "deploy/postgres/pg_hba.conf").read_text(encoding="utf-8")
+    if (
+        "PGSSLMODE: verify-full" not in compose
+        or "postgres_server_private_key" not in compose
+        or "ssl_min_protocol_version=TLSv1.2" not in postgres_startup
+        or "ssl_max_protocol_version=TLSv1.3" not in postgres_startup
+        or "hostssl all all all scram-sha-256" not in postgres_hba
+        or "hostnossl all all all reject" not in postgres_hba
+    ):
+        _fail("the inventoried PostgreSQL TLS policy no longer matches deployment source")
 
 
 def validate_inventory(data: Any, *, today: date | None = None) -> None:

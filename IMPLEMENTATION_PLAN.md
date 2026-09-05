@@ -371,8 +371,12 @@ deployment, provider-managed, and test-only key, algorithm, and certificate boun
 validator checks record completeness, evidence paths, purpose separation, dependency/version
 contracts, compatibility-only SHA-1 uses, the test-only MD5 exception, certificate/algorithm
 references, absence records, review cadence, and the absence of embedded private material or exact
-private hostnames. Internal PostgreSQL and service TLS remain honest open controls, and live
-certificate, Tailscale, and SSH observations remain release-only.
+private hostnames. Production PostgreSQL now requires TLS 1.2 or TLS 1.3, exact dedicated-CA and
+`db` hostname verification, and hard plaintext TCP rejection. The CA key remains offline, the
+server key is staged into database-only tmpfs, and the production-derived probe observes the live
+TLS session and a rejected plaintext attempt. The nginx-to-Gunicorn TLS boundary and certificate-
+based database client authentication remain honest open controls; live Tailscale and SSH
+observations remain release-only.
 
 The logging-inventory and separate-archive slices now document all 14 current application, service, host, provider,
 client, and test-output layers, including their event contracts, formats, destinations, uses,

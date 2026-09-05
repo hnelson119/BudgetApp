@@ -84,6 +84,7 @@ $temporaryDirectory = Join-Path (
     [IO.Path]::GetTempPath()
 ) ("budgetapp-network-boundary-" + [Guid]::NewGuid().ToString("N"))
 $secretDirectory = Join-Path $temporaryDirectory "secrets"
+$authorityDirectory = Join-Path $temporaryDirectory "postgres-authority"
 $backupDirectory = Join-Path $temporaryDirectory "backups"
 $checkpointDirectory = Join-Path $temporaryDirectory "checkpoints"
 [IO.Directory]::CreateDirectory($secretDirectory) | Out-Null
@@ -109,6 +110,18 @@ foreach ($secretName in $secretSizes.Keys) {
         [Text.UTF8Encoding]::new($false)
     )
     $secretValue = $null
+}
+
+$python = Join-Path $projectRoot ".venv\Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $python)) {
+    throw "The project virtual environment is required for PostgreSQL TLS generation."
+}
+& $python (Join-Path $projectRoot "scripts\generate-postgres-tls.py") `
+    --authority-directory $authorityDirectory `
+    --deployment-directory $secretDirectory `
+    --secret-group-id 10002
+if ($LASTEXITCODE -ne 0) {
+    throw "The disposable PostgreSQL TLS material could not be generated."
 }
 
 $environmentValues = @{
@@ -151,10 +164,6 @@ try {
         throw "The disposable production web service failed to start."
     }
 
-    $python = Join-Path $projectRoot ".venv\Scripts\python.exe"
-    if (-not (Test-Path -LiteralPath $python)) {
-        throw "The project virtual environment is required for the host-side boundary probe."
-    }
     & $python $probeScript `
         --compose-file $composeFile `
         --project-name $projectName `

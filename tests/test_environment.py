@@ -3,7 +3,11 @@ from pathlib import Path
 import pytest
 from django.core.exceptions import ImproperlyConfigured
 
-from config.settings.environment import required_environment, required_secret_file
+from config.settings.environment import (
+    required_certificate_file,
+    required_environment,
+    required_secret_file,
+)
 
 
 def test_required_environment_rejects_missing_value(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -42,3 +46,37 @@ def test_secret_rejects_weak_or_placeholder_values(
 
     with pytest.raises(ImproperlyConfigured):
         required_secret_file("TEST_SECRET")
+
+
+def test_certificate_returns_only_a_valid_mounted_pem_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    certificate_path = tmp_path / "internal-ca.crt"
+    certificate_path.write_text(
+        "-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----\n",
+        encoding="ascii",
+    )
+    monkeypatch.delenv("TEST_CERTIFICATE", raising=False)
+    monkeypatch.setenv("TEST_CERTIFICATE_FILE", str(certificate_path))
+
+    assert required_certificate_file("TEST_CERTIFICATE") == str(certificate_path)
+
+
+@pytest.mark.parametrize("value", ("not a certificate", "", "-----BEGIN CERTIFICATE-----"))
+def test_certificate_rejects_malformed_mounted_content(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, value: str
+) -> None:
+    certificate_path = tmp_path / "internal-ca.crt"
+    certificate_path.write_text(value, encoding="ascii")
+    monkeypatch.delenv("TEST_CERTIFICATE", raising=False)
+    monkeypatch.setenv("TEST_CERTIFICATE_FILE", str(certificate_path))
+
+    with pytest.raises(ImproperlyConfigured):
+        required_certificate_file("TEST_CERTIFICATE")
+
+
+def test_certificate_must_not_be_supplied_inline(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TEST_CERTIFICATE", "inline")
+
+    with pytest.raises(ImproperlyConfigured, match="must not be supplied directly"):
+        required_certificate_file("TEST_CERTIFICATE")
