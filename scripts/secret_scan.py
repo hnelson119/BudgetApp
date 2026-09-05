@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -48,10 +49,16 @@ _PUBLIC_FINGERPRINTS = {
 _APPROVED_HASH_ONLY_FILES = {
     "identity/data/breached-passwords-v1.txt": _PASSWORD_CORPUS_SHA256,
 }
+_SBOM_HASH_LINE = re.compile(r'^\s*"(?:content|value)": "[0-9a-f]{64}(?:[0-9a-f]{64})?",?\s*$')
+_SBOM_REVISION_LINE = re.compile(r'^\s*"version": "[0-9a-f]{40}",?\s*$')
 
 
 def _is_approved_public_fingerprint(file_name: str, line: str) -> bool:
     normalized_name = file_name.replace("\\", "/")
+    if normalized_name == "docs/sbom.cdx.json" and (
+        _SBOM_HASH_LINE.fullmatch(line) or _SBOM_REVISION_LINE.fullmatch(line)
+    ):
+        return True
     return any(
         f'"{field}": "{value}"' in line
         for field, value in _PUBLIC_FINGERPRINTS.get(normalized_name, set())

@@ -3,7 +3,9 @@ FROM python:3.12-alpine@sha256:d09d15e60962ca365d1cd544a48773bac9d33f2fb1b00f2aa
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_INDEX_URL=https://pypi.org/simple \
+    PIP_EXTRA_INDEX_URL=
 
 RUN apk upgrade --no-cache \
     && addgroup -g 10001 -S budget \

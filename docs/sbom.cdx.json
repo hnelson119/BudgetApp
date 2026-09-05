@@ -1,0 +1,2033 @@
+{
+  "$schema": "https://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:a27ee3da-65d4-5fa9-b257-78af0560ee85",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:pypi/household-budget@0.1.0",
+      "name": "household-budget",
+      "version": "0.1.0",
+      "purl": "pkg:pypi/household-budget@0.1.0"
+    },
+    "properties": [
+      {
+        "name": "budget:inventory-fingerprint-sha256",
+        "value": "fb2748f84cfdd413e34440f53a65000b4c94fccb14911a67ca02da8bc3605b55"
+      },
+      {
+        "name": "budget:maintenance-procedure",
+        "value": "docs/SBOM.md"
+      },
+      {
+        "name": "budget:scope",
+        "value": "production,development,build,test,and CI inputs"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "name": "actions/checkout",
+      "version": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "purl": "pkg:github/actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": ".github/workflows/browser.yml,.github/workflows/quality.yml,.github/workflows/restore-rehearsal.yml,.github/workflows/upgrade-rehearsal.yml"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "github.com"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "build-and-test"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "name": "actions/setup-python",
+      "version": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "purl": "pkg:github/actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": ".github/workflows/quality.yml"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "github.com"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "build-and-test"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "name": "actions/upload-artifact",
+      "version": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "purl": "pkg:github/actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": ".github/workflows/quality.yml"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "github.com"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "build-and-test"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:github/restic/restic@v0.19.1",
+      "name": "restic",
+      "version": "0.19.1",
+      "purl": "pkg:github/restic/restic@v0.19.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "deploy/backup/Dockerfile"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "github.com"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bb9b1a19040744d26d8a79be029d4e6b189c45ccc9d8831d7fe367d3c33df725"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:golang/golang.org/x/crypto@v0.55.0",
+      "name": "golang.org/x/crypto",
+      "version": "v0.55.0",
+      "purl": "pkg:golang/golang.org/x/crypto@v0.55.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "deploy/backup/Dockerfile"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "proxy.golang.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:golang/golang.org/x/net@v0.58.0",
+      "name": "golang.org/x/net",
+      "version": "v0.58.0",
+      "purl": "pkg:golang/golang.org/x/net@v0.58.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "deploy/backup/Dockerfile"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "proxy.golang.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:golang/golang.org/x/text@v0.41.0",
+      "name": "golang.org/x/text",
+      "version": "v0.41.0",
+      "purl": "pkg:golang/golang.org/x/text@v0.41.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "deploy/backup/Dockerfile"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "proxy.golang.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:golang/google.golang.org/grpc@v1.83.2",
+      "name": "google.golang.org/grpc",
+      "version": "v1.83.2",
+      "purl": "pkg:golang/google.golang.org/grpc@v1.83.2",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "deploy/backup/Dockerfile"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "proxy.golang.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40axe-core/playwright@4.13.0",
+      "name": "@axe-core/playwright",
+      "version": "4.13.0",
+      "purl": "pkg:npm/%40axe-core/playwright@4.13.0",
+      "properties": [
+        {
+          "name": "budget:resolved-url",
+          "value": "https://registry.npmjs.org/@axe-core/playwright/-/playwright-4.13.0.tgz"
+        },
+        {
+          "name": "budget:source-files",
+          "value": "package-lock.json"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "registry.npmjs.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e982f1fa4c57bb918971e1b8a33160fb7ddad84313763630586968277b1bf4ab5ae69a7e64d4b9deec4656883925eb4863cb3ef8fe54aed5fe72b8bebb454056"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40playwright/test@1.62.1",
+      "name": "@playwright/test",
+      "version": "1.62.1",
+      "purl": "pkg:npm/%40playwright/test@1.62.1",
+      "properties": [
+        {
+          "name": "budget:resolved-url",
+          "value": "https://registry.npmjs.org/@playwright/test/-/test-1.62.1.tgz"
+        },
+        {
+          "name": "budget:source-files",
+          "value": "package-lock.json"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "registry.npmjs.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "0d371473caa28be7291efb4ec2080cb4144c8ca6475d859dc3cb32458bb6bedceeab85b1a61aaae0d7c2b3966de382fa980f2b7c37e3f8f1e7c4573f15e2ba99"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/axe-core@4.13.0",
+      "name": "axe-core",
+      "version": "4.13.0",
+      "purl": "pkg:npm/axe-core@4.13.0",
+      "properties": [
+        {
+          "name": "budget:resolved-url",
+          "value": "https://registry.npmjs.org/axe-core/-/axe-core-4.13.0.tgz"
+        },
+        {
+          "name": "budget:source-files",
+          "value": "package-lock.json"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "registry.npmjs.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "5331adf3383b372f1d8db60c871976cee11ebd56bbaf68098d86392f0af5c4cefe5d4da777a0a421615355c0886c03fadef4b3ef535a572cae4a4f651ca732d0"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/fsevents@2.3.2",
+      "name": "fsevents",
+      "version": "2.3.2",
+      "purl": "pkg:npm/fsevents@2.3.2",
+      "properties": [
+        {
+          "name": "budget:resolved-url",
+          "value": "https://registry.npmjs.org/fsevents/-/fsevents-2.3.2.tgz"
+        },
+        {
+          "name": "budget:source-files",
+          "value": "package-lock.json"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "registry.npmjs.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c62a8c411e3101e1d3b81f6e5a6f9f1517083a02813223813fe7978b24fb8ec8150aad5b915ca0b74d28012a3007b11db6938769a3e02adf35d8ff5a6fe0c328"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/playwright-core@1.62.1",
+      "name": "playwright-core",
+      "version": "1.62.1",
+      "purl": "pkg:npm/playwright-core@1.62.1",
+      "properties": [
+        {
+          "name": "budget:resolved-url",
+          "value": "https://registry.npmjs.org/playwright-core/-/playwright-core-1.62.1.tgz"
+        },
+        {
+          "name": "budget:source-files",
+          "value": "package-lock.json"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "registry.npmjs.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "c0f612c0404963d187ada2125eacaab71d276b42e93b75c45fb8cd0e19ed6dec7bb73512ee42e766c3a516bb85241e078bfae10cc8d71aa1dec0367af2761957"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/playwright@1.62.1",
+      "name": "playwright",
+      "version": "1.62.1",
+      "purl": "pkg:npm/playwright@1.62.1",
+      "properties": [
+        {
+          "name": "budget:resolved-url",
+          "value": "https://registry.npmjs.org/playwright/-/playwright-1.62.1.tgz"
+        },
+        {
+          "name": "budget:source-files",
+          "value": "package-lock.json"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "registry.npmjs.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "d0cf8bdcb003f3f9e6e79e0b3a56bd032c748f4b66159d0505ca10ec5d55b951e933f5e9882f11703cc1401f16e7e840f0bdb64c7c442f3785fb659c533bdc2e"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "bom-ref": "pkg:oci/alpine@3.24.1",
+      "name": "alpine",
+      "version": "3.24.1",
+      "purl": "pkg:oci/alpine@3.24.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "deploy/backup/Dockerfile"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "docker.io"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "build-and-test"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "bom-ref": "pkg:oci/aquasec/trivy@0.70.0",
+      "name": "aquasec/trivy",
+      "version": "0.70.0",
+      "purl": "pkg:oci/aquasec/trivy@0.70.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": ".github/workflows/quality.yml"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "docker.io"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "build-and-test"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "bom-ref": "pkg:oci/golang@1.26.6-alpine3.24",
+      "name": "golang",
+      "version": "1.26.6-alpine3.24",
+      "purl": "pkg:oci/golang@1.26.6-alpine3.24",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "deploy/backup/Dockerfile"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "docker.io"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "build-and-test"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3889b425f035be855a72fb4755265311293b6d414521f0a519d819df32222d83"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "bom-ref": "pkg:oci/mcr.microsoft.com/playwright@v1.62.1-noble",
+      "name": "mcr.microsoft.com/playwright",
+      "version": "v1.62.1-noble",
+      "purl": "pkg:oci/mcr.microsoft.com/playwright@v1.62.1-noble",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "Dockerfile.browser-tests"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "mcr.microsoft.com"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "build-and-test"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "bom-ref": "pkg:oci/nginx@1.30.4-alpine",
+      "name": "nginx",
+      "version": "1.30.4-alpine",
+      "purl": "pkg:oci/nginx@1.30.4-alpine",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "deploy/network/Dockerfile"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "docker.io"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "build-and-test"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "bom-ref": "pkg:oci/postgres@17-alpine",
+      "name": "postgres",
+      "version": "17-alpine",
+      "purl": "pkg:oci/postgres@17-alpine",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "compose.pentest.yaml,compose.yaml"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "docker.io"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "bom-ref": "pkg:oci/python@3.12-alpine",
+      "name": "python",
+      "version": "3.12-alpine",
+      "purl": "pkg:oci/python@3.12-alpine",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "Dockerfile,compose.pentest.yaml"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "docker.io"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "build-and-test"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d09d15e60962ca365d1cd544a48773bac9d33f2fb1b00f2aa0deec78ade7dc31"
+        }
+      ]
+    },
+    {
+      "type": "container",
+      "bom-ref": "pkg:oci/zaproxy/zap-stable@sha256%3A781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef",
+      "name": "zaproxy/zap-stable",
+      "version": "sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef",
+      "purl": "pkg:oci/zaproxy/zap-stable@sha256%3A781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "compose.pentest.yaml"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "docker.io"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "build-and-test"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/asgiref@3.12.1",
+      "name": "asgiref",
+      "version": "3.12.1",
+      "purl": "pkg:pypi/asgiref@3.12.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/bandit@1.9.4",
+      "name": "bandit",
+      "version": "1.9.4",
+      "purl": "pkg:pypi/bandit@1.9.4",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/boolean-py@5.0",
+      "name": "boolean-py",
+      "version": "5.0",
+      "purl": "pkg:pypi/boolean-py@5.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/cachecontrol@0.14.4",
+      "name": "cachecontrol",
+      "version": "0.14.4",
+      "purl": "pkg:pypi/cachecontrol@0.14.4",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/certifi@2026.7.22",
+      "name": "certifi",
+      "version": "2026.7.22",
+      "purl": "pkg:pypi/certifi@2026.7.22",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/cffi@2.1.1",
+      "name": "cffi",
+      "version": "2.1.1",
+      "purl": "pkg:pypi/cffi@2.1.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/charset-normalizer@3.5.1",
+      "name": "charset-normalizer",
+      "version": "3.5.1",
+      "purl": "pkg:pypi/charset-normalizer@3.5.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/colorama@0.4.6",
+      "name": "colorama",
+      "version": "0.4.6",
+      "purl": "pkg:pypi/colorama@0.4.6",
+      "properties": [
+        {
+          "name": "budget:environment-marker",
+          "value": "sys_platform == \"win32\""
+        },
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/coverage@7.15.4",
+      "name": "coverage",
+      "version": "7.15.4",
+      "purl": "pkg:pypi/coverage@7.15.4",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/cryptography@50.0.0",
+      "name": "cryptography",
+      "version": "50.0.0",
+      "purl": "pkg:pypi/cryptography@50.0.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/cyclonedx-python-lib@11.12.0",
+      "name": "cyclonedx-python-lib",
+      "version": "11.12.0",
+      "purl": "pkg:pypi/cyclonedx-python-lib@11.12.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/defusedxml@0.7.1",
+      "name": "defusedxml",
+      "version": "0.7.1",
+      "purl": "pkg:pypi/defusedxml@0.7.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/detect-secrets@1.5.0",
+      "name": "detect-secrets",
+      "version": "1.5.0",
+      "purl": "pkg:pypi/detect-secrets@1.5.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/django-stubs-ext@6.1.0",
+      "name": "django-stubs-ext",
+      "version": "6.1.0",
+      "purl": "pkg:pypi/django-stubs-ext@6.1.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/django-stubs@5.2.9",
+      "name": "django-stubs",
+      "version": "5.2.9",
+      "purl": "pkg:pypi/django-stubs@5.2.9",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/django@5.2.17",
+      "name": "django",
+      "version": "5.2.17",
+      "purl": "pkg:pypi/django@5.2.17",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/filelock@3.32.3",
+      "name": "filelock",
+      "version": "3.32.3",
+      "purl": "pkg:pypi/filelock@3.32.3",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/gunicorn@23.0.0",
+      "name": "gunicorn",
+      "version": "23.0.0",
+      "purl": "pkg:pypi/gunicorn@23.0.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/idna@3.19",
+      "name": "idna",
+      "version": "3.19",
+      "purl": "pkg:pypi/idna@3.19",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/iniconfig@2.3.0",
+      "name": "iniconfig",
+      "version": "2.3.0",
+      "purl": "pkg:pypi/iniconfig@2.3.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/librt@0.15.0",
+      "name": "librt",
+      "version": "0.15.0",
+      "purl": "pkg:pypi/librt@0.15.0",
+      "properties": [
+        {
+          "name": "budget:environment-marker",
+          "value": "sys_platform == \"win32\""
+        },
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/license-expression@30.4.4",
+      "name": "license-expression",
+      "version": "30.4.4",
+      "purl": "pkg:pypi/license-expression@30.4.4",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/markdown-it-py@4.2.0",
+      "name": "markdown-it-py",
+      "version": "4.2.0",
+      "purl": "pkg:pypi/markdown-it-py@4.2.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/mdurl@0.1.2",
+      "name": "mdurl",
+      "version": "0.1.2",
+      "purl": "pkg:pypi/mdurl@0.1.2",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/msgpack@1.2.1",
+      "name": "msgpack",
+      "version": "1.2.1",
+      "purl": "pkg:pypi/msgpack@1.2.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/mypy-extensions@1.1.0",
+      "name": "mypy-extensions",
+      "version": "1.1.0",
+      "purl": "pkg:pypi/mypy-extensions@1.1.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/mypy@1.20.2",
+      "name": "mypy",
+      "version": "1.20.2",
+      "purl": "pkg:pypi/mypy@1.20.2",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/packageurl-python@0.17.6",
+      "name": "packageurl-python",
+      "version": "0.17.6",
+      "purl": "pkg:pypi/packageurl-python@0.17.6",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/packaging@26.3",
+      "name": "packaging",
+      "version": "26.3",
+      "purl": "pkg:pypi/packaging@26.3",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pathspec@1.1.1",
+      "name": "pathspec",
+      "version": "1.1.1",
+      "purl": "pkg:pypi/pathspec@1.1.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pillow@12.3.0",
+      "name": "pillow",
+      "version": "12.3.0",
+      "purl": "pkg:pypi/pillow@12.3.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pip-api@0.0.34",
+      "name": "pip-api",
+      "version": "0.0.34",
+      "purl": "pkg:pypi/pip-api@0.0.34",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pip-audit@2.10.1",
+      "name": "pip-audit",
+      "version": "2.10.1",
+      "purl": "pkg:pypi/pip-audit@2.10.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pip-requirements-parser@32.0.1",
+      "name": "pip-requirements-parser",
+      "version": "32.0.1",
+      "purl": "pkg:pypi/pip-requirements-parser@32.0.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pip@26.2.1",
+      "name": "pip",
+      "version": "26.2.1",
+      "purl": "pkg:pypi/pip@26.2.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/platformdirs@4.11.3",
+      "name": "platformdirs",
+      "version": "4.11.3",
+      "purl": "pkg:pypi/platformdirs@4.11.3",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pluggy@1.6.0",
+      "name": "pluggy",
+      "version": "1.6.0",
+      "purl": "pkg:pypi/pluggy@1.6.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/psycopg-binary@3.3.4",
+      "name": "psycopg-binary",
+      "version": "3.3.4",
+      "purl": "pkg:pypi/psycopg-binary@3.3.4",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/psycopg@3.3.4",
+      "name": "psycopg",
+      "version": "3.3.4",
+      "purl": "pkg:pypi/psycopg@3.3.4",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/py-serializable@2.1.0",
+      "name": "py-serializable",
+      "version": "2.1.0",
+      "purl": "pkg:pypi/py-serializable@2.1.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pycparser@3.0",
+      "name": "pycparser",
+      "version": "3.0",
+      "purl": "pkg:pypi/pycparser@3.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pygments@2.21.0",
+      "name": "pygments",
+      "version": "2.21.0",
+      "purl": "pkg:pypi/pygments@2.21.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyparsing@3.3.2",
+      "name": "pyparsing",
+      "version": "3.3.2",
+      "purl": "pkg:pypi/pyparsing@3.3.2",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pytest-django@4.14.0",
+      "name": "pytest-django",
+      "version": "4.14.0",
+      "purl": "pkg:pypi/pytest-django@4.14.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pytest@9.1.1",
+      "name": "pytest",
+      "version": "9.1.1",
+      "purl": "pkg:pypi/pytest@9.1.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyyaml@6.0.3",
+      "name": "pyyaml",
+      "version": "6.0.3",
+      "purl": "pkg:pypi/pyyaml@6.0.3",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/qrcode@8.2",
+      "name": "qrcode",
+      "version": "8.2",
+      "purl": "pkg:pypi/qrcode@8.2",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/requests@2.34.2",
+      "name": "requests",
+      "version": "2.34.2",
+      "purl": "pkg:pypi/requests@2.34.2",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/rich@15.0.0",
+      "name": "rich",
+      "version": "15.0.0",
+      "purl": "pkg:pypi/rich@15.0.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/ruff@0.16.4",
+      "name": "ruff",
+      "version": "0.16.4",
+      "purl": "pkg:pypi/ruff@0.16.4",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/sortedcontainers@2.4.0",
+      "name": "sortedcontainers",
+      "version": "2.4.0",
+      "purl": "pkg:pypi/sortedcontainers@2.4.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/sqlparse@0.6.0",
+      "name": "sqlparse",
+      "version": "0.6.0",
+      "purl": "pkg:pypi/sqlparse@0.6.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/stevedore@5.9.1",
+      "name": "stevedore",
+      "version": "5.9.1",
+      "purl": "pkg:pypi/stevedore@5.9.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/tomli-w@1.2.0",
+      "name": "tomli-w",
+      "version": "1.2.0",
+      "purl": "pkg:pypi/tomli-w@1.2.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/tomli@2.4.1",
+      "name": "tomli",
+      "version": "2.4.1",
+      "purl": "pkg:pypi/tomli@2.4.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/types-pyyaml@6.0.12.20260815",
+      "name": "types-pyyaml",
+      "version": "6.0.12.20260815",
+      "purl": "pkg:pypi/types-pyyaml@6.0.12.20260815",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/types-qrcode@8.2.0.20260518",
+      "name": "types-qrcode",
+      "version": "8.2.0.20260518",
+      "purl": "pkg:pypi/types-qrcode@8.2.0.20260518",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/typing-extensions@4.16.0",
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "purl": "pkg:pypi/typing-extensions@4.16.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/tzdata@2026.3",
+      "name": "tzdata",
+      "version": "2026.3",
+      "purl": "pkg:pypi/tzdata@2026.3",
+      "properties": [
+        {
+          "name": "budget:environment-marker",
+          "value": "sys_platform == \"win32\""
+        },
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/urllib3@2.7.0",
+      "name": "urllib3",
+      "version": "2.7.0",
+      "purl": "pkg:pypi/urllib3@2.7.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/whitenoise@6.12.0",
+      "name": "whitenoise",
+      "version": "6.12.0",
+      "purl": "pkg:pypi/whitenoise@6.12.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:pypi/household-budget@0.1.0",
+      "dependsOn": [
+        "pkg:github/actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+        "pkg:github/actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "pkg:github/actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "pkg:github/restic/restic@v0.19.1",
+        "pkg:golang/golang.org/x/crypto@v0.55.0",
+        "pkg:golang/golang.org/x/net@v0.58.0",
+        "pkg:golang/golang.org/x/text@v0.41.0",
+        "pkg:golang/google.golang.org/grpc@v1.83.2",
+        "pkg:npm/%40axe-core/playwright@4.13.0",
+        "pkg:npm/%40playwright/test@1.62.1",
+        "pkg:npm/axe-core@4.13.0",
+        "pkg:npm/fsevents@2.3.2",
+        "pkg:npm/playwright-core@1.62.1",
+        "pkg:npm/playwright@1.62.1",
+        "pkg:oci/alpine@3.24.1",
+        "pkg:oci/aquasec/trivy@0.70.0",
+        "pkg:oci/golang@1.26.6-alpine3.24",
+        "pkg:oci/mcr.microsoft.com/playwright@v1.62.1-noble",
+        "pkg:oci/nginx@1.30.4-alpine",
+        "pkg:oci/postgres@17-alpine",
+        "pkg:oci/python@3.12-alpine",
+        "pkg:oci/zaproxy/zap-stable@sha256%3A781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef",
+        "pkg:pypi/asgiref@3.12.1",
+        "pkg:pypi/bandit@1.9.4",
+        "pkg:pypi/boolean-py@5.0",
+        "pkg:pypi/cachecontrol@0.14.4",
+        "pkg:pypi/certifi@2026.7.22",
+        "pkg:pypi/cffi@2.1.1",
+        "pkg:pypi/charset-normalizer@3.5.1",
+        "pkg:pypi/colorama@0.4.6",
+        "pkg:pypi/coverage@7.15.4",
+        "pkg:pypi/cryptography@50.0.0",
+        "pkg:pypi/cyclonedx-python-lib@11.12.0",
+        "pkg:pypi/defusedxml@0.7.1",
+        "pkg:pypi/detect-secrets@1.5.0",
+        "pkg:pypi/django-stubs-ext@6.1.0",
+        "pkg:pypi/django-stubs@5.2.9",
+        "pkg:pypi/django@5.2.17",
+        "pkg:pypi/filelock@3.32.3",
+        "pkg:pypi/gunicorn@23.0.0",
+        "pkg:pypi/idna@3.19",
+        "pkg:pypi/iniconfig@2.3.0",
+        "pkg:pypi/librt@0.15.0",
+        "pkg:pypi/license-expression@30.4.4",
+        "pkg:pypi/markdown-it-py@4.2.0",
+        "pkg:pypi/mdurl@0.1.2",
+        "pkg:pypi/msgpack@1.2.1",
+        "pkg:pypi/mypy-extensions@1.1.0",
+        "pkg:pypi/mypy@1.20.2",
+        "pkg:pypi/packageurl-python@0.17.6",
+        "pkg:pypi/packaging@26.3",
+        "pkg:pypi/pathspec@1.1.1",
+        "pkg:pypi/pillow@12.3.0",
+        "pkg:pypi/pip-api@0.0.34",
+        "pkg:pypi/pip-audit@2.10.1",
+        "pkg:pypi/pip-requirements-parser@32.0.1",
+        "pkg:pypi/pip@26.2.1",
+        "pkg:pypi/platformdirs@4.11.3",
+        "pkg:pypi/pluggy@1.6.0",
+        "pkg:pypi/psycopg-binary@3.3.4",
+        "pkg:pypi/psycopg@3.3.4",
+        "pkg:pypi/py-serializable@2.1.0",
+        "pkg:pypi/pycparser@3.0",
+        "pkg:pypi/pygments@2.21.0",
+        "pkg:pypi/pyparsing@3.3.2",
+        "pkg:pypi/pytest-django@4.14.0",
+        "pkg:pypi/pytest@9.1.1",
+        "pkg:pypi/pyyaml@6.0.3",
+        "pkg:pypi/qrcode@8.2",
+        "pkg:pypi/requests@2.34.2",
+        "pkg:pypi/rich@15.0.0",
+        "pkg:pypi/ruff@0.16.4",
+        "pkg:pypi/sortedcontainers@2.4.0",
+        "pkg:pypi/sqlparse@0.6.0",
+        "pkg:pypi/stevedore@5.9.1",
+        "pkg:pypi/tomli-w@1.2.0",
+        "pkg:pypi/tomli@2.4.1",
+        "pkg:pypi/types-pyyaml@6.0.12.20260815",
+        "pkg:pypi/types-qrcode@8.2.0.20260518",
+        "pkg:pypi/typing-extensions@4.16.0",
+        "pkg:pypi/tzdata@2026.3",
+        "pkg:pypi/urllib3@2.7.0",
+        "pkg:pypi/whitenoise@6.12.0"
+      ]
+    }
+  ]
+}

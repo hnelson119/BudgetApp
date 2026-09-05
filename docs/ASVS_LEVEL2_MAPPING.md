@@ -31,9 +31,9 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 173 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 80 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 107 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Implemented | 108 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
 | Partial | 57 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
-| Not started | 9 | The control is absent or its required verification has not been designed. |
+| Not started | 8 | The control is absent or its required verification has not been designed. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -75,7 +75,12 @@ explicit permitted/prohibited uses, protected/excluded data, rotation, retiremen
 boundaries, test-only exceptions, review cadence, and known absences. See
 `docs/CRYPTOGRAPHIC_INVENTORY.md`; release-candidate verification remains pending.
 
-- `v5.0.0-15.1.2`: generate and retain an SBOM as release evidence.
+The deterministic CycloneDX source/build inventory implements `v5.0.0-15.1.2` for all 83 current
+third-party production, development, build, test, and CI inputs. Its validator derives exact
+components and approved repositories from locks, digest-pinned images, checksummed sources, Go
+module pins, and immutable actions. CI separately generates and retains image-resolved SBOMs for
+all three release images. See `docs/SBOM.md`; exact release-candidate preservation and review remain
+pending.
 
 The maintained logging inventory implements `v5.0.0-16.1.1` across all 13 current stack layers. It
 documents events, formats, destinations, uses, access controls, retention, sensitive-data rules,

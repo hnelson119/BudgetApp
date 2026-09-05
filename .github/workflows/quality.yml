@@ -20,6 +20,8 @@ jobs:
     env:
       PYTHONDONTWRITEBYTECODE: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_INDEX_URL: https://pypi.org/simple
+      PIP_EXTRA_INDEX_URL: ""
       BUDGET_SECRET_DIR: /tmp/household-budget-ci-secrets
       BUDGET_BACKUP_REPOSITORY: /tmp/household-budget-ci-backups
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
@@ -106,3 +108,34 @@ jobs:
           image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1
           --no-progress --skip-version-check
           household-budget-backup:${{ github.sha }}
+
+      - name: Generate CycloneDX release-image SBOMs
+        run: |
+          install -d -m 0700 sbom-output
+          docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --volume "${{ github.workspace }}/sbom-output:/sbom-output" \
+            aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e \
+            image --format cyclonedx --output /sbom-output/household-budget.cdx.json \
+            --no-progress --skip-version-check household-budget:${{ github.sha }}
+          docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --volume "${{ github.workspace }}/sbom-output:/sbom-output" \
+            aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e \
+            image --format cyclonedx --output /sbom-output/household-budget-ingress.cdx.json \
+            --no-progress --skip-version-check household-budget-ingress:${{ github.sha }}
+          docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --volume "${{ github.workspace }}/sbom-output:/sbom-output" \
+            aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e \
+            image --format cyclonedx --output /sbom-output/household-budget-backup.cdx.json \
+            --no-progress --skip-version-check household-budget-backup:${{ github.sha }}
+
+      - name: Retain release-image SBOMs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-image-sboms-${{ github.sha }}
+          path: sbom-output/*.cdx.json
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 9

@@ -53,6 +53,12 @@ known high or critical operating-system, Python-package, or embedded Go vulnerab
 image job. The existing dependency, source, configuration, and secret checks remain separate so one
 scanner cannot silently replace another.
 
+The same image job generates CycloneDX inventories from the three built images and uploads them as
+a commit-bound artifact retained for 90 days. The deterministic checked-in CycloneDX inventory
+covers 83 locked or pinned production, development, build, test, and CI inputs and is rebuilt by the
+normal quality gate. See `docs/SBOM.md` for trusted repositories, diff review, candidate artifact
+preservation, and failure rules.
+
 The image and application scans identified and remediated `M10-F001`, `M10-F002`, `M10-F006`, and
 the relay-image finding `M10-F018`, and the backup-image finding `M10-F021`; their sanitized findings and clean retests are recorded in
 `docs/SECURITY_FINDINGS.md`. The synthetic ZAP baseline also records the scoped test-transport
@@ -88,10 +94,10 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 107 implemented, 57 partial, 9 not
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 108 implemented, 57 partial, 8 not
   started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
-  are internal service TLS, stronger backend authentication, egress allowlisting, a retained SBOM,
-  and logically separate security-log storage. See
+  are internal service TLS, stronger backend authentication, egress allowlisting, and logically
+  separate security-log storage. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
 - The maintained cryptographic inventory now covers 9 key classes, 13 algorithm profiles, 2
   certificate classes, and 4 intentional absences across application, deployment, provider, and
@@ -105,6 +111,11 @@ real household data.
   limitations; its validator also enforces bounded Docker logging on all production services and a
   90-day review cadence. Live host/provider observations and a logically separate protected
   destination for security logs remain open; inventory implementation is not release verification.
+- The maintained CycloneDX inventory now derives 83 third-party components from exact locks,
+  digest-pinned images, checksummed source, Go pins, and immutable workflow actions, and restricts
+  them to six approved repository services. CI additionally retains image-resolved SBOMs for all
+  three release images for 90 days. The exact candidate artifacts still require release-owner
+  preservation and review; inventory implementation is not release verification.
 - Context-specific prohibited words and a freshness-bounded offline breached-password corpus are
   now enforced on Django-validated password creation and changes. The packaged hash-only corpus,
   strict startup validation, no-network boundary, provenance, and reviewed update/rollback process

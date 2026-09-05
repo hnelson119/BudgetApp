@@ -377,6 +377,13 @@ access-log behavior, and enforces evidence and a 90-day review cadence. Live hos
 observations and the logically separate protected security-log destination remain open release
 work.
 
+The SBOM slice now maintains a deterministic CycloneDX inventory of all 83 locked or pinned
+production, development, build, test, and CI inputs and their six approved repository services. Its
+validator rebuilds the catalog from Python/npm locks, container digests, Restic/Go build pins, and
+immutable workflow actions. Release CI also generates three image-resolved CycloneDX inventories
+and retains the commit-bound artifact for 90 days. Exact candidate preservation and component
+review remain release-owner work.
+
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 
 ## 4. Browser support and test matrix
