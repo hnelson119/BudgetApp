@@ -17,6 +17,7 @@ cd "$project_root"
 "$python_path" -m mypy audit budgets core debts goals households identity imports ledger notifications periods reserves schedules spending
 "$python_path" scripts/secret_scan.py
 "$python_path" scripts/check_cryptographic_inventory.py
+"$python_path" scripts/check_logging_inventory.py
 "$python_path" scripts/check_release_evidence.py
 "$python_path" scripts/check_device_test_evidence.py
 "$python_path" scripts/check_adversarial_test_evidence.py

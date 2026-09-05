@@ -328,6 +328,16 @@ Additionally:
 - Show in-app security notifications for repeated failed logins, account recovery, new sessions, audit-integrity failure, backup failure, and overdue security updates where detectable.
 - Verification failure must never be hidden by a later successful check; both results remain recorded.
 
+The maintained logging inventory in `docs/LOGGING_INVENTORY.md` and
+`docs/logging-inventory.json` implements the repository-deliverable inventory for these layers. It
+source-checks 143 application, protected-audit, and maintenance event identifiers, documents all 13
+current stack layers, records destination/readers/retention/redaction rules, and verifies the
+bounded 20 MiB × 5-file Docker policy on every production Compose service. Protected audit records
+remain application-lifetime data with encrypted backup and signed-checkpoint retention; current
+GitHub and Tailscale provider retention and the VM journal require release review. Django's
+security stream is still co-located with operational logs, so a logically separate protected
+security-log destination remains an open control.
+
 ## 13. Backup and recovery
 
 ### 13.1 Recovery objectives

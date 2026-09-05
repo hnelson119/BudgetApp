@@ -30,6 +30,9 @@ try {
     & $pythonPath scripts\check_cryptographic_inventory.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $pythonPath scripts\check_logging_inventory.py
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     & $pythonPath scripts\check_release_evidence.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

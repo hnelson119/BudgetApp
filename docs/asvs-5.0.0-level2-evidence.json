@@ -19,9 +19,9 @@
       "not_applicable": 80
     },
     "status": {
-      "implemented": 106,
+      "implemented": 107,
       "not_applicable": 80,
-      "not_started": 10,
+      "not_started": 9,
       "partial": 57
     }
   },
@@ -4281,14 +4281,13 @@
       "level": 2,
       "description": "Verify that an inventory exists documenting the logging performed at each layer of the application's technology stack, what events are being logged, log formats, where that logging is stored, how it is used, how access to it is controlled, and for how long logs are kept.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "A complete layer-by-layer logging inventory, access model, and retention schedule has not been documented.",
+      "status": "implemented",
+      "assessment": "The machine-validated inventory covers every application, web, relay, database, container, host, provider, browser, security-test, and CI layer with source-derived event catalogs, formats, destinations, uses, readers, retention, sensitive-data rules, integrity limits, and explicit separate-destination gaps without claiming release verification.",
       "evidence": [
-        "SECURITY_PLAN.md",
-        "core/logging.py",
-        "core/errors.py",
-        "audit/services.py",
-        "tests/test_logging.py"
+        "docs/logging-inventory.json",
+        "docs/LOGGING_INVENTORY.md",
+        "scripts/check_logging_inventory.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
