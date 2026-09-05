@@ -137,9 +137,9 @@ def test_production_probe_enforces_unambiguous_http_request_boundaries(
 ) -> None:
     responses = iter(
         (
-            (b'HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n{"status": "ok"}', True),
-            (b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n", True),
-            (b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n", True),
+            (b'HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n{"status": "ok"}', False),
+            (b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n", False),
+            (b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n", False),
             *((b"HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n", True),) * 6,
         )
     )

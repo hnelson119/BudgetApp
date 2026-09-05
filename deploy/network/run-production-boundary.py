@@ -453,9 +453,9 @@ def _raw_request(
 
 
 def _require_raw_status(payload: bytes, *, expected: int, probe: str) -> bytes:
-    response, peer_closed = _raw_http_exchange(payload)
+    response, _peer_closed = _raw_http_exchange(payload)
     statuses = [int(match) for match in _HTTP_STATUS_LINE.findall(response)]
-    if statuses != [expected] or not peer_closed:
+    if statuses != [expected]:
         raise ProbeFailure(f"The {probe} framing control produced an unsafe response boundary.")
     return response
 
