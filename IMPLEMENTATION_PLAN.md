@@ -374,14 +374,16 @@ references, absence records, review cadence, and the absence of embedded private
 private hostnames. Internal PostgreSQL and service TLS remain honest open controls, and live
 certificate, Tailscale, and SSH observations remain release-only.
 
-The logging-inventory slice now documents all 13 current application, service, host, provider,
+The logging-inventory and separate-archive slices now document all 14 current application, service, host, provider,
 client, and test-output layers, including their event contracts, formats, destinations, uses,
 readers, retention, sensitive-data rules, integrity/availability properties, and limitations. Its
-strict validator derives 143 event entries from application and maintenance source, verifies the
-bounded Docker local-driver policy on every production Compose service, checks Gunicorn/nginx
-access-log behavior, and enforces evidence and a 90-day review cadence. Live host/provider
-observations and the logically separate protected security-log destination remain open release
-work.
+strict validator derives 149 event entries from application, collector, and maintenance source,
+verifies the bounded Docker local-driver policy, checks Gunicorn/nginx access-log behavior, and
+enforces the networkless collector, read-only socket, collector-only archive, evidence, and 90-day
+review boundaries. The collector independently validates/redacts each security record, persists it
+with restrictive modes, creates minimized warning-or-higher alerts, and exposes fixed delivery and
+rejection failures. Live retention, alert review/escalation, and host/provider observations remain
+release work.
 
 The SBOM slice now maintains a deterministic CycloneDX inventory of all 83 locked or pinned
 production, development, build, test, and CI inputs and their six approved repository services. Its

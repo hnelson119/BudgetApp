@@ -355,13 +355,15 @@ Additionally:
 
 The maintained logging inventory in `docs/LOGGING_INVENTORY.md` and
 `docs/logging-inventory.json` implements the repository-deliverable inventory for these layers. It
-source-checks 143 application, protected-audit, and maintenance event identifiers, documents all 13
-current stack layers, records destination/readers/retention/redaction rules, and verifies the
-bounded 20 MiB × 5-file Docker policy on every production Compose service. Protected audit records
-remain application-lifetime data with encrypted backup and signed-checkpoint retention; current
-GitHub and Tailscale provider retention and the VM journal require release review. Django's
-security stream is still co-located with operational logs, so a logically separate protected
-security-log destination remains an open control.
+source-checks 149 application, protected-audit, collector, and maintenance event identifiers,
+documents all 14 current stack layers, records destination/readers/retention/redaction rules, and
+verifies the bounded 20 MiB × 5-file Docker policy on every production Compose service. Production
+also sends each redacted Django security record to a distinct networkless collector through a
+read-only-mounted Unix socket. Only that collector can write or read its persistent archive volume;
+it validates/redacts again, creates minimized warning-or-higher alerts, and emits fixed safe
+delivery/rejection diagnostics. Protected audit records remain application-lifetime data with
+encrypted backup and signed-checkpoint retention; collector delivery, retention, alert review and
+escalation, current GitHub/Tailscale retention, and the VM journal require release review.
 
 ## 13. Backup and recovery
 

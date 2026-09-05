@@ -19,9 +19,9 @@
       "not_applicable": 80
     },
     "status": {
-      "implemented": 111,
+      "implemented": 112,
       "not_applicable": 80,
-      "not_started": 5,
+      "not_started": 4,
       "partial": 57
     }
   },
@@ -4503,12 +4503,19 @@
       "level": 2,
       "description": "Verify that logs are securely transmitted to a logically separate system for analysis, detection, alerting, and escalation. The aim is to ensure that if the application is breached, the logs are not compromised.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "Operational security logs remain in Docker's local log store and are not transmitted to a logically separate system.",
+      "status": "implemented",
+      "assessment": "Production Django security records are sent over a permission-restricted Unix datagram socket to a distinct networkless collector. The application has only a read-only socket mount and cannot access the collector-only archive volume. The collector independently validates and redacts records, persists them with restrictive modes, creates a warning-or-higher alert stream, and emits fixed safe transport or validation failures. Release-candidate retention, review, and escalation observations remain pending.",
       "evidence": [
         "core/logging.py",
-        "audit/services.py",
-        "docs/ASVS_LEVEL2_MAPPING.md"
+        "core/security_log_collector.py",
+        "config/settings/production.py",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "docs/logging-inventory.json",
+        "docs/LOGGING_INVENTORY.md",
+        "scripts/check_logging_inventory.py",
+        "tests/test_security_log_archive.py",
+        "tests/test_network_boundary.py"
       ]
     },
     {

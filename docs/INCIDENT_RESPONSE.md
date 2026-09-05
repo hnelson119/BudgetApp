@@ -20,8 +20,9 @@ reason without copying secrets or financial data. Use the narrowest applicable r
 - Exposed app or infrastructure credential: isolate its consumers and rotate that credential plus
   any credential it could read or administer.
 - Suspected VM, Docker, root, database-administrator, backup-key, or audit-key compromise: stop
-  ingress, disconnect the VM from the tailnet, preserve logs and external checkpoints, and rebuild
-  on a clean VM. Rotating in place is not sufficient assurance.
+  ingress, disconnect the VM from the tailnet, preserve the collector-only security-log volume,
+  other logs, and external checkpoints, and rebuild on a clean VM. Rotating in place is not
+  sufficient assurance.
 - Suspected data or audit manipulation: do not overwrite the system. Preserve the VM, verify the
   external checkpoint, and follow `docs/BACKUP_AND_RESTORE.md` into a new restore target.
 
@@ -200,7 +201,15 @@ provider-side password/passkey/session recovery before the device is trusted aga
 
 After containment or rotation, run the private-ingress preflight, audit-chain/checkpoint verification,
 encrypted backup/restore check, and real password-plus-MFA smoke tests. Review bounded application,
-Tailscale, UFW, SSH, Docker, PostgreSQL, backup, and integrity logs for the incident window. Record
+the minimized collector alert summary, Tailscale, UFW, SSH, Docker, PostgreSQL, backup, and integrity
+logs for the incident window:
+
+```bash
+docker compose exec -T security-log python -m core.security_log_collector review
+```
+
+Any warning-or-higher count requires triage against the restricted archive and escalation under the
+scope rules above. Preserve the archive before container or volume cleanup. Record
 only dates, operator, release, affected credential classes, pass/fail outcomes, finding IDs, recovery
 time, and whether old access was rejected. Do not retain tokens, cookies, passwords, TOTP seeds,
 recovery codes, private addresses, raw database rows, or financial values in Git.

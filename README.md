@@ -80,9 +80,10 @@ deployment, provider-managed, and test-only cryptographic boundaries. Its qualit
 also records absent internal-service certificates without pretending those open TLS controls exist;
 see `docs/CRYPTOGRAPHIC_INVENTORY.md`.
 The maintained logging inventory documents events, formats, destinations, operational uses,
-readers, retention, sensitive-data rules, and limitations across all 13 current stack layers. Its
-quality-gate validator derives 143 stable event entries from source and verifies bounded local
-Docker logging without claiming the still-missing separate protected security-log destination; see
+readers, retention, sensitive-data rules, and limitations across all 14 current stack layers. Its
+quality-gate validator derives 149 stable event entries from source and verifies bounded Docker
+logging plus the separate networkless security-log collector. Django can write only through a
+read-only-mounted Unix socket and cannot access the collector-only archive volume; see
 `docs/LOGGING_INVENTORY.md`.
 The maintained CycloneDX SBOM derives 83 third-party production, development, build, test, and CI
 inputs from exact locks and pins, restricts them to six approved repository services, and is checked

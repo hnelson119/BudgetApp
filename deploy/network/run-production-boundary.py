@@ -68,6 +68,7 @@ _EXPECTED_SERVICE_NETWORKS = {
     "notify": {"backend"},
     "restic-key-rotate": set(),
     "restore-verify": {"backend"},
+    "security-log": set(),
     "web": {"backend", "frontend"},
 }
 _NETWORK_BYPASS_KEYS = {
@@ -197,9 +198,9 @@ def validate_compose_boundary(configuration: dict[str, Any]) -> int:
             raise ProbeFailure("A production Compose service is malformed.")
         if any(key in service for key in _NETWORK_BYPASS_KEYS):
             raise ProbeFailure("A production service declares a prohibited network bypass.")
-        if service_name == "restic-key-rotate":
+        if not expected_networks:
             if service.get("network_mode") != "none" or service.get("networks"):
-                raise ProbeFailure("The offline key-rotation service gained network access.")
+                raise ProbeFailure("An offline production service gained network access.")
         elif (
             "network_mode" in service
             or _network_names(service.get("networks")) != expected_networks
@@ -362,15 +363,20 @@ def _environment_names(configuration: dict[str, Any]) -> set[str]:
 
 
 def validate_runtime_inspection(
-    web: dict[str, Any], database: dict[str, Any], ingress: dict[str, Any]
+    web: dict[str, Any],
+    database: dict[str, Any],
+    ingress: dict[str, Any],
+    security_log: dict[str, Any],
 ) -> int:
     web_config = web.get("Config") or {}
     host_config = web.get("HostConfig") or {}
     ingress_config = ingress.get("Config") or {}
     ingress_host_config = ingress.get("HostConfig") or {}
+    security_log_config = security_log.get("Config") or {}
+    security_log_host_config = security_log.get("HostConfig") or {}
     if any(
         container.get("State", {}).get("Running") is not True
-        for container in (web, database, ingress)
+        for container in (web, database, ingress, security_log)
     ):
         raise ProbeFailure("A production runtime container is not running.")
     if web_config.get("User") != "10001:10001":
@@ -400,6 +406,16 @@ def validate_runtime_inspection(
         or "no-new-privileges:true" not in (ingress_host_config.get("SecurityOpt") or [])
     ):
         raise ProbeFailure("The running loopback relay lost a hardening control.")
+    if (
+        security_log_config.get("User") != "10003:10003"
+        or security_log_host_config.get("ReadonlyRootfs") is not True
+        or security_log_host_config.get("PidsLimit") != 32
+        or security_log_host_config.get("NetworkMode") != "none"
+        or security_log_host_config.get("PortBindings")
+        or "ALL" not in (security_log_host_config.get("CapDrop") or [])
+        or "no-new-privileges:true" not in (security_log_host_config.get("SecurityOpt") or [])
+    ):
+        raise ProbeFailure("The security-log collector lost an isolation control.")
 
     expected_destinations = {f"/run/secrets/{name}" for name in _EXPECTED_SECRETS}
     secret_mounts = {
@@ -442,7 +458,33 @@ def validate_runtime_inspection(
     ]
     if len(nginx_mounts) != 1 or nginx_mounts[0].get("RW") is not False:
         raise ProbeFailure("The loopback relay configuration is not a single read-only mount.")
-    return 16
+    socket_mounts = [
+        mount
+        for mount in web.get("Mounts") or []
+        if mount.get("Destination") == "/run/security-log"
+    ]
+    if len(socket_mounts) != 1 or socket_mounts[0].get("RW") is not False:
+        raise ProbeFailure("The web security-log socket mount is not read-only.")
+    archive_destinations = {
+        mount.get("Destination"): mount.get("RW") for mount in security_log.get("Mounts") or []
+    }
+    if archive_destinations != {
+        "/run/security-log": True,
+        "/var/lib/security-log": True,
+    } or any(
+        mount.get("Destination") == "/var/lib/security-log" for mount in web.get("Mounts") or []
+    ):
+        raise ProbeFailure("The separate security-log archive mount boundary is invalid.")
+    security_log_secret_mounts = [
+        mount
+        for mount in security_log.get("Mounts") or []
+        if str(mount.get("Destination", "")).startswith("/run/secrets/")
+    ]
+    if security_log_secret_mounts or not _FORBIDDEN_ENVIRONMENT_NAMES.isdisjoint(
+        _environment_names(security_log_config)
+    ):
+        raise ProbeFailure("The security-log collector can access a reusable secret.")
+    return 24
 
 
 def _request(path: str, hostname: str, extra_headers: dict[str, str]) -> tuple[int, Any, bytes]:
@@ -705,7 +747,9 @@ def _socket_reachable(port: int) -> bool:
     return True
 
 
-def validate_runtime_behavior(web_id: str, ingress_id: str) -> tuple[int, int]:
+def validate_runtime_behavior(
+    web_id: str, ingress_id: str, security_log_id: str
+) -> tuple[int, int]:
     uid = _run(["docker", "exec", web_id, "id", "-u"]).strip()
     gid = _run(["docker", "exec", web_id, "id", "-g"]).strip()
     if (uid, gid) != ("10001", "10001"):
@@ -726,6 +770,75 @@ def validate_runtime_behavior(web_id: str, ingress_id: str) -> tuple[int, int]:
             "touch /app/.network-boundary-probe 2>/dev/null",
         ]
     )
+    security_log_uid = _run(["docker", "exec", security_log_id, "id", "-u"]).strip()
+    security_log_gid = _run(["docker", "exec", security_log_id, "id", "-g"]).strip()
+    if (security_log_uid, security_log_gid) != ("10003", "10003"):
+        raise ProbeFailure("The security-log collector has an unexpected numeric identity.")
+    security_log_status = _run(["docker", "exec", security_log_id, "cat", "/proc/1/status"])
+    security_log_fields = dict(
+        line.split(":", 1) for line in security_log_status.splitlines() if ":" in line
+    )
+    if security_log_fields.get("CapEff", "").strip() != "0000000000000000":
+        raise ProbeFailure("The security-log collector retained an effective Linux capability.")
+    if security_log_fields.get("NoNewPrivs", "").strip() != "1":
+        raise ProbeFailure("The security-log collector can acquire new privileges.")
+    _run(["docker", "exec", security_log_id, "sh", "-c", "test ! -e /run/secrets"])
+    _run_expect_failure(
+        ["docker", "exec", security_log_id, "sh", "-c", "touch /security-log-root-probe"]
+    )
+    _run_expect_failure(["docker", "exec", web_id, "sh", "-c", "touch /run/security-log/bypass"])
+    _run(["docker", "exec", web_id, "sh", "-c", "test ! -e /var/lib/security-log"])
+    _run(
+        [
+            "docker",
+            "exec",
+            web_id,
+            "python",
+            "manage.py",
+            "shell",
+            "-c",
+            (
+                "import logging; logging.getLogger('security').warning("
+                "'Security archive probe.', extra={'event':'security.archive.probe'})"
+            ),
+        ]
+    )
+    _run(
+        [
+            "docker",
+            "exec",
+            security_log_id,
+            "python",
+            "-c",
+            (
+                "import json,time; from pathlib import Path; "
+                "events=Path('/var/lib/security-log/security-events.jsonl'); "
+                "alerts=Path('/var/lib/security-log/security-alerts.jsonl'); found=False; "
+                "found=any((time.sleep(.1) is None) and events.exists() and alerts.exists() and "
+                "any(json.loads(line).get('event')=='security.archive.probe' "
+                "for line in events.read_text().splitlines()) for _ in range(20)); "
+                "raise SystemExit(0 if found else 1)"
+            ),
+        ]
+    )
+    archive_modes = _run(
+        [
+            "docker",
+            "exec",
+            security_log_id,
+            "python",
+            "-c",
+            (
+                "import os,stat; from pathlib import Path; "
+                "paths=(Path('/run/security-log'),Path('/run/security-log/security.sock'),"
+                "Path('/var/lib/security-log'),"
+                "Path('/var/lib/security-log/security-events.jsonl')); "
+                "print(','.join(oct(stat.S_IMODE(path.stat().st_mode)) for path in paths))"
+            ),
+        ]
+    ).strip()
+    if archive_modes != "0o711,0o622,0o700,0o600":
+        raise ProbeFailure("The security-log socket or archive modes are unsafe.")
     ingress_uid = _run(["docker", "exec", ingress_id, "id", "-u"]).strip()
     ingress_gid = _run(["docker", "exec", ingress_id, "id", "-g"]).strip()
     if (ingress_uid, ingress_gid) != ("101", "101"):
@@ -797,7 +910,7 @@ def validate_runtime_behavior(web_id: str, ingress_id: str) -> tuple[int, int]:
     )
     if not _socket_reachable(8000) or any(_socket_reachable(port) for port in (5432, 2375, 2376)):
         raise ProbeFailure("The disposable host port boundary does not match the allowlist.")
-    return 8, 14
+    return 8, 25
 
 
 def validate_no_secret_leakage(
@@ -826,7 +939,7 @@ def validate_no_secret_leakage(
             _run(["docker", "history", "--no-trunc", "--format", "{{.CreatedBy}}", image])
             for image in sorted(images)
         ]
-        + [_run([*prefix, "logs", "--no-color", "ingress", "web", "db"])]
+        + [_run([*prefix, "logs", "--no-color", "ingress", "security-log", "web", "db"])]
     )
     if any(value in artifacts for value in values):
         raise ProbeFailure("A reusable secret appeared in runtime metadata, history, or logs.")
@@ -875,10 +988,12 @@ def main() -> None:
         web_id = _container_id(prefix, "web")
         database_id = _container_id(prefix, "db")
         ingress_id = _container_id(prefix, "ingress")
+        security_log_id = _container_id(prefix, "security-log")
         web = _inspect(web_id)
         database = _inspect(database_id)
         ingress = _inspect(ingress_id)
-        inspection_checks = validate_runtime_inspection(web, database, ingress)
+        security_log = _inspect(security_log_id)
+        inspection_checks = validate_runtime_inspection(web, database, ingress, security_log)
         stage = "temporary secret loading"
         secret_values = tuple(
             (secret_directory / _SECRET_FILES[name]).read_text(encoding="ascii").strip()
@@ -890,10 +1005,12 @@ def main() -> None:
         stage = "HTTP request-framing validation"
         framing_checks = validate_request_framing(arguments.hostname)
         stage = "runtime process validation"
-        net04_checks, behavior_checks = validate_runtime_behavior(web_id, ingress_id)
+        net04_checks, behavior_checks = validate_runtime_behavior(
+            web_id, ingress_id, security_log_id
+        )
         stage = "secret non-leakage validation"
         leakage_checks = validate_no_secret_leakage(
-            prefix, (web, database, ingress), secret_directory
+            prefix, (web, database, ingress, security_log), secret_directory
         )
     except ProbeFailure as error:
         print(

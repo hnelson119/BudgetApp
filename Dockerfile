@@ -9,7 +9,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN apk upgrade --no-cache \
     && addgroup -g 10001 -S budget \
-    && adduser -u 10001 -S -D -H -G budget -s /sbin/nologin budget
+    && adduser -u 10001 -S -D -H -G budget -s /sbin/nologin budget \
+    && addgroup -g 10003 -S securityarchive \
+    && adduser -u 10003 -S -D -H -G securityarchive -s /sbin/nologin securityarchive
 
 WORKDIR /app
 
@@ -33,7 +35,11 @@ COPY schedules ./schedules
 COPY spending ./spending
 
 COPY manage.py ./
-RUN mkdir -p /app/staticfiles /app/media && chown -R budget:budget /app
+RUN mkdir -p /app/staticfiles /app/media /run/security-log /var/lib/security-log \
+    && chown -R budget:budget /app \
+    && chown securityarchive:securityarchive /run/security-log /var/lib/security-log \
+    && chmod 0711 /run/security-log \
+    && chmod 0700 /var/lib/security-log
 
 USER budget
 RUN DJANGO_SETTINGS_MODULE=config.settings.build python manage.py collectstatic --noinput

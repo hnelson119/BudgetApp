@@ -76,7 +76,7 @@ def _valid_compose_configuration() -> dict[str, Any]:
 def test_production_probe_accepts_only_loopback_internal_compose_boundary() -> None:
     configuration = _valid_compose_configuration()
 
-    assert PRODUCTION_PROBE.validate_compose_boundary(configuration) == 31
+    assert PRODUCTION_PROBE.validate_compose_boundary(configuration) == 32
 
     configuration["services"]["ingress"]["ports"][0]["host_ip"] = "0.0.0.0"
     with pytest.raises(PRODUCTION_PROBE.ProbeFailure):

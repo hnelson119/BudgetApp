@@ -48,6 +48,7 @@ EXPECTED_LAYER_IDS = {
     "postgresql",
     "protected-household-audit",
     "security-test-output",
+    "security-log-archive",
     "systemd-host-journal",
     "tailscale-provider-logs",
 }
@@ -56,12 +57,11 @@ EXPECTED_EVENT_GROUP_IDS = {
     "django-security-events",
     "maintenance-events",
     "protected-audit-actions",
+    "security-archive-events",
 }
 EXPECTED_GAP_IDS = {
-    "centralized-detection-and-escalation",
     "host-journal-release-verification",
     "optional-tailscale-flow-logging",
-    "separate-security-log-destination",
 }
 EXPECTED_UPDATE_TRIGGERS = {
     "a log producer, event, format, destination, access rule, or retention rule changes",
@@ -83,6 +83,7 @@ EXPECTED_COMPOSE_SERVICES = {
     "notify",
     "restic-key-rotate",
     "restore-verify",
+    "security-log",
     "web",
 }
 LAYER_FIELDS = {
@@ -215,6 +216,14 @@ def _literal_event_catalogs() -> tuple[set[str], set[str]]:
                     ):
                         log_events.add(value.value)
             if isinstance(node, ast.Call):
+                if (
+                    isinstance(node.func, ast.Name)
+                    and node.func.id == "_fixed_diagnostic"
+                    and node.args
+                    and isinstance(node.args[0], ast.Constant)
+                    and isinstance(node.args[0].value, str)
+                ):
+                    log_events.add(node.args[0].value)
                 for keyword in node.keywords:
                     if keyword.arg not in {"action", "audit_action"}:
                         continue
@@ -246,6 +255,26 @@ def _validate_compose_logging_policy() -> None:
     for service_name, service in services.items():
         if not isinstance(service, dict) or service.get("logging") != expected_policy:
             _fail(f"Compose service {service_name!r} does not use the bounded logging policy")
+
+    security_log = services["security-log"]
+    web = services["web"]
+    if (
+        security_log.get("network_mode") != "none"
+        or security_log.get("user") != "10003:10003"
+        or security_log.get("read_only") is not True
+        or security_log.get("cap_drop") != ["ALL"]
+        or security_log.get("volumes")
+        != ["security_log_socket:/run/security-log", "security_log_archive:/var/lib/security-log"]
+    ):
+        _fail("the separate security-log service boundary is incomplete")
+    expected_socket_mount = {
+        "type": "volume",
+        "source": "security_log_socket",
+        "target": "/run/security-log",
+        "read_only": True,
+    }
+    if expected_socket_mount not in (web.get("volumes") or []):
+        _fail("the web security-log socket mount is not read-only")
 
     dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
     if "--access-logfile" in dockerfile or '"--error-logfile", "-"' not in dockerfile:
@@ -364,7 +393,7 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         text_fields=TEXT_EVENT_GROUP_FIELDS,
         list_fields={"events"},
     )
-    gaps, gaps_by_id = _validate_records(
+    gaps, _gaps_by_id = _validate_records(
         data["known_gaps"],
         collection="known_gaps",
         expected_ids=EXPECTED_GAP_IDS,
@@ -394,12 +423,11 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
     for gap in gaps:
         if not all(_ASVS_ID.fullmatch(item) for item in gap["related_asvs"]):
             _fail(f"known gap {gap['id']!r} has an invalid ASVS identifier")
-    if gaps_by_id["separate-security-log-destination"]["related_asvs"] != ["v5.0.0-16.4.3"]:
-        _fail("separate security-log destination must remain mapped to ASVS v5.0.0-16.4.3")
-
     log_events, audit_actions = _literal_event_catalogs()
-    declared_log_events = set(groups_by_id["django-operational-events"]["events"]) | set(
-        groups_by_id["django-security-events"]["events"]
+    declared_log_events = (
+        set(groups_by_id["django-operational-events"]["events"])
+        | set(groups_by_id["django-security-events"]["events"])
+        | set(groups_by_id["security-archive-events"]["events"])
     )
     if declared_log_events != log_events:
         _fail("Django structured event catalog does not match source literals")
@@ -408,6 +436,15 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         "http.request.unhandled_exception",
     ]:
         _fail("Django operational event boundary changed unexpectedly")
+    if groups_by_id["security-archive-events"]["events"] != [
+        "security.archive.alert_recorded",
+        "security.archive.delivery_failed",
+        "security.archive.ready",
+        "security.archive.record_rejected",
+        "security.archive.review_failed",
+        "security.archive.startup_failed",
+    ]:
+        _fail("security-log archive event boundary changed unexpectedly")
     if set(groups_by_id["protected-audit-actions"]["events"]) != audit_actions:
         _fail("protected audit action catalog does not match source literals")
     if set(groups_by_id["maintenance-events"]["events"]) != _maintenance_events():

@@ -26,10 +26,10 @@
     ]
   },
   "summary": {
-    "layers": 13,
-    "event_groups": 4,
-    "event_entries": 143,
-    "known_gaps": 4
+    "layers": 14,
+    "event_groups": 5,
+    "event_entries": 149,
+    "known_gaps": 2
   },
   "layers": [
     {
@@ -78,26 +78,66 @@
         "Django framework security warnings"
       ],
       "format": "The same redacting single-line JSON format as operational logs, with stream fixed to security and event set to a stable catalog identifier.",
-      "destination": "Dedicated Python security handler, then the same process stream and local Docker logging store as operational records.",
+      "destination": "Dedicated Python security handlers send one copy to the process stream and one redacted JSON datagram through the read-only-mounted Unix socket to the separate networkless security-log archive service.",
       "use": [
         "security triage and incident correlation",
         "detect repeated authentication failures and sensitive export activity",
         "support release and adversarial review"
       ],
-      "access_control": "Linux deployment administrators with root-equivalent Docker access; records are not available to household members in the UI.",
-      "retention": "Per-container capacity rotation: 20 MiB per file and 5 files, approximately 100 MiB maximum; elapsed retention depends on event volume.",
+      "access_control": "The Django UID can write datagrams through the socket but cannot list its directory, replace the socket, mount the archive, or read stored records. The isolated collector UID and Linux deployment administrators can access the archive; household members cannot.",
+      "retention": "The operational copy follows Docker's 20 MiB by 5-file rotation. The separate archive uses a persistent collector-only volume and is retained for at least 90 days, with incident holds superseding normal review and removal.",
       "sensitive_data_policy": "Submitted identities, passwords, TOTP and recovery codes, session keys, import contents, search text, financial values, and exception messages are excluded or redacted.",
-      "integrity_and_availability": "Records are JSON-encoded and independently tagged but remain mutable by a host/Docker administrator and share the operational destination.",
-      "limitations": "This stream is not yet transmitted to a logically separate protected destination; ASVS v5.0.0-16.4.3 remains not started.",
+      "integrity_and_availability": "The collector independently validates, allowlists, and redacts every datagram before append-only file writes. The application has no archive mount, so an application-container breach cannot read or alter stored records; the collector healthcheck and fixed local delivery-failure event expose transport loss.",
+      "limitations": "The separate collector and archive remain on the same VM, so a host or Docker-administrator compromise can alter them. Release verification must inspect the live volume, delivery-failure behavior, alert review, retention, and escalation path.",
       "evidence": [
         "core/logging.py",
+        "core/security_log_collector.py",
         "config/settings/base.py",
+        "config/settings/production.py",
         "identity/views.py",
         "imports/views.py",
         "spending/views.py",
         "audit/views.py",
         "compose.yaml",
-        "tests/test_logging.py"
+        "tests/test_logging.py",
+        "tests/test_security_log_archive.py"
+      ]
+    },
+    {
+      "id": "security-log-archive",
+      "stack_layer": "Networkless security-log collector and separate archive",
+      "scope": "production application security records",
+      "event_groups": [
+        "security-archive-events"
+      ],
+      "events": [
+        "validated Django security records appended to the collector-only archive",
+        "warning-or-higher records copied to the bounded alert-review stream",
+        "fixed collector readiness, rejection, startup, and delivery-failure diagnostics",
+        "no operational request, financial audit, database, or raw access records"
+      ],
+      "format": "Validated single-line UTF-8 JSON. The collector accepts only the security stream, approved logger and field sets, UTC timestamps, bounded record sizes, and stable event identifiers, then applies redaction again. Alert records retain only timestamp, severity, event, request correlation, and release.",
+      "destination": "Collector-only security_log_archive Docker volume at /var/lib/security-log. The application mounts only the Unix datagram socket volume read-only and the collector has network_mode none.",
+      "use": [
+        "separate security-event analysis and incident correlation",
+        "warning-or-higher detection and alert-review queue",
+        "operator escalation under the incident-response procedure",
+        "delivery and malformed-record failure detection"
+      ],
+      "access_control": "Numeric collector UID/GID 10003 owns mode-0700 archive storage and mode-0600 files. Django UID/GID 10001 can traverse only the mode-0711 socket directory and write the mode-0622 datagram socket through a read-only mount; it has no archive mount. Host Docker administrators remain trusted.",
+      "retention": "The named archive volume survives container replacement and is retained for at least 90 days. The release owner reviews capacity and removes records only after the retention window or documented incident hold.",
+      "sensitive_data_policy": "Only the formatter's allowlisted fields are accepted. The collector rejects unknown structure and recursively redacts approved strings; passwords, tokens, cookies, raw identities, private endpoints, financial values, request content, and exception messages are prohibited.",
+      "integrity_and_availability": "The collector runs networkless with a read-only root, no capabilities, no new privileges, a distinct UID, and the only writable archive mount. Files are opened append-only without following symlinks and fsynced per record. Health, safe rejection, and fixed delivery-failure diagnostics make loss visible.",
+      "limitations": "The boundary protects stored records from an application-container compromise, not from a trusted host/Docker administrator. Warning alerts require operator review and the release-candidate escalation observation remains pending.",
+      "evidence": [
+        "core/logging.py",
+        "core/security_log_collector.py",
+        "config/settings/production.py",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "tests/test_security_log_archive.py",
+        "tests/test_deployment_config.py",
+        "docs/INCIDENT_RESPONSE.md"
       ]
     },
     {
@@ -257,7 +297,7 @@
       "scope": "production Linux VM",
       "event_groups": [],
       "events": [
-        "stdout and stderr from every one of the 13 production Compose services"
+        "stdout and stderr from every one of the 14 production Compose services"
       ],
       "format": "Docker local driver internal framing and compression around producer-formatted JSON or text records.",
       "destination": "Docker-managed local files on the Linux VM; never an application bind mount.",
@@ -269,7 +309,7 @@
       "retention": "Exactly 5 rotated files at 20 MiB each per service under the Compose policy, approximately 100 MiB maximum per service; oldest records are removed on capacity rollover.",
       "sensitive_data_policy": "The driver does not redact; every producer must apply its own data-minimization policy before writing stdout/stderr.",
       "integrity_and_availability": "Compressed local storage limits disk exhaustion but offers no append-only or off-host integrity guarantee.",
-      "limitations": "Operational and security streams share this destination, which is a documented ASVS v5.0.0-16.4.3 gap.",
+      "limitations": "The Docker copy remains local and administrator-mutable; Django security records additionally use the separate collector-only archive.",
       "evidence": [
         "compose.yaml",
         "tests/test_deployment_config.py"
@@ -464,6 +504,19 @@
       ]
     },
     {
+      "id": "security-archive-events",
+      "layer_id": "security-log-archive",
+      "source": "Literal fixed diagnostic event fields in the security archive handler and collector",
+      "events": [
+        "security.archive.alert_recorded",
+        "security.archive.delivery_failed",
+        "security.archive.ready",
+        "security.archive.record_rejected",
+        "security.archive.review_failed",
+        "security.archive.startup_failed"
+      ]
+    },
+    {
       "id": "protected-audit-actions",
       "layer_id": "protected-household-audit",
       "source": "Literal dotted action keyword values in production Python outside migrations and tests",
@@ -598,19 +651,6 @@
   ],
   "known_gaps": [
     {
-      "id": "separate-security-log-destination",
-      "current_state": "Django security records are tagged but stored with operational logs in the same host-local Docker logging system.",
-      "required_action": "Transmit security logs to a logically separate protected analysis and escalation destination without forwarding prohibited data.",
-      "related_asvs": [
-        "v5.0.0-16.4.3"
-      ],
-      "evidence": [
-        "config/settings/base.py",
-        "compose.yaml",
-        "docs/ASVS_LEVEL2_MAPPING.md"
-      ]
-    },
-    {
       "id": "host-journal-release-verification",
       "current_state": "The repository defines required 30-day host-journal retention, but the live VM setting and available history cannot be proven before deployment.",
       "required_action": "Record sanitized journald retention, capacity, access-group, and sample timer/SSH/firewall/Tailscale event checks for the selected release candidate.",
@@ -621,18 +661,6 @@
       "evidence": [
         "docs/LOGGING_INVENTORY.md",
         "docs/PRIVATE_INGRESS.md"
-      ]
-    },
-    {
-      "id": "centralized-detection-and-escalation",
-      "current_state": "No SIEM, remote alert pipeline, or independent operational-log archive receives Django, PostgreSQL, Docker, or host security records.",
-      "required_action": "Select a household-appropriate protected destination, minimize fields, restrict readers, test delivery/failure alerting, and define incident escalation before marking separate logging verified.",
-      "related_asvs": [
-        "v5.0.0-16.4.3"
-      ],
-      "evidence": [
-        "docs/LOGGING_INVENTORY.md",
-        "docs/ASVS_LEVEL2_MAPPING.md"
       ]
     },
     {
