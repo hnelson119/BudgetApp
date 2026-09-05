@@ -315,6 +315,13 @@ candidate, every cryptographic change, and at least every 90 days.
 - Protect the main branch from unreviewed deployment changes once development begins.
 - Keep production-like secrets and real household data out of development and test fixtures.
 
+The maintained CycloneDX inventory and trusted-source policy are in `docs/SBOM.md` and
+`docs/sbom.cdx.json`. The source-derived catalog covers all 83 current production, development,
+build, test, and CI inputs and fails closed on mutable or unapproved sources. Release CI also emits
+and retains 90-day image-resolved SBOMs for the application, ingress, and backup images so installed
+operating-system components are not omitted. Exact release-candidate artifact preservation and
+review remain release-owner work.
+
 ## 12. Audit, monitoring, and alerting
 
 The protected financial audit design remains defined in `PRODUCT_SPEC.md`.

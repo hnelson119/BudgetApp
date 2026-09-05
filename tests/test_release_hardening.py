@@ -9,6 +9,14 @@ from pathlib import Path
 
 import pytest
 
+from scripts.build_asvs_inventory import (
+    IMPLEMENTED_ASSESSMENT_OVERRIDES,
+    IMPLEMENTED_EVIDENCE_OVERRIDES,
+    IMPLEMENTED_REQUIREMENTS,
+    MAPPING_UPDATED,
+    NOT_STARTED,
+)
+from scripts.build_sbom import TRUSTED_REPOSITORIES, build_sbom
 from scripts.check_adversarial_test_evidence import (
     EXPECTED_CATEGORIES,
     EXPECTED_SCENARIOS,
@@ -34,6 +42,7 @@ from scripts.check_logging_inventory import EXPECTED_GAP_IDS as EXPECTED_LOG_GAP
 from scripts.check_logging_inventory import EXPECTED_LAYER_IDS
 from scripts.check_logging_inventory import validate_inventory as validate_logging_inventory
 from scripts.check_release_evidence import validate_asvs_inventory
+from scripts.check_sbom import validate_sbom
 from scripts.secret_scan import _is_approved_hash_only_file, _is_approved_public_fingerprint
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -176,6 +185,45 @@ def test_logging_inventory_rejects_tampering_and_stale_reviews() -> None:
         validate_logging_inventory(inventory, today=date(2026, 12, 5))
 
 
+def test_sbom_is_complete_and_source_derived() -> None:
+    completed = subprocess.run(
+        [sys.executable, "scripts/check_sbom.py"],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "83 components" in completed.stdout
+    sbom = json.loads((PROJECT_ROOT / "docs/sbom.cdx.json").read_text(encoding="utf-8"))
+    assert sbom == build_sbom()
+    assert sbom["bomFormat"] == "CycloneDX"
+    assert sbom["specVersion"] == "1.6"
+    assert len(sbom["components"]) == 83
+    assert {component["type"] for component in sbom["components"]} == {
+        "application",
+        "container",
+        "library",
+    }
+    repositories = {
+        property_["value"]
+        for component in sbom["components"]
+        for property_ in component["properties"]
+        if property_["name"] == "budget:source-repository"
+    }
+    assert repositories == TRUSTED_REPOSITORIES
+
+
+def test_sbom_rejects_catalog_tampering() -> None:
+    sbom = json.loads((PROJECT_ROOT / "docs/sbom.cdx.json").read_text(encoding="utf-8"))
+    tampered = copy.deepcopy(sbom)
+    tampered["components"][0]["version"] = "mutable"
+
+    with pytest.raises(ValueError, match="is stale"):
+        validate_sbom(tampered)
+
+
 def test_release_evidence_inventory_is_complete_and_validated() -> None:
     completed = subprocess.run(
         [sys.executable, "scripts/check_release_evidence.py"],
@@ -199,9 +247,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 173, "not_applicable": 80},
         "status": {
-            "implemented": 107,
+            "implemented": 108,
             "not_applicable": 80,
-            "not_started": 9,
+            "not_started": 8,
             "partial": 57,
         },
     }
@@ -217,6 +265,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-6.4.3"]["status"] == "implemented"
     assert requirements["v5.0.0-7.4.5"]["status"] == "implemented"
     assert requirements["v5.0.0-11.1.2"]["status"] == "implemented"
+    assert requirements["v5.0.0-15.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-16.1.1"]["status"] == "implemented"
     assert {item["id"] for item in evidence["security_tests"]} == set(range(1, 25))
     assert {item["id"] for item in evidence["release_gates"]} == set(range(1, 13))
@@ -229,6 +278,44 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
         )
         for item in collection
     )
+
+
+def test_asvs_builder_preserves_completed_m10_overrides() -> None:
+    completed_m10 = {
+        "V6.1.2",
+        "V6.2.2",
+        "V6.2.3",
+        "V6.2.11",
+        "V6.2.12",
+        "V6.4.3",
+        "V7.4.5",
+        "V7.5.2",
+        "V11.1.2",
+        "V15.1.2",
+        "V16.1.1",
+    }
+
+    assert MAPPING_UPDATED == "2026-09-05"
+    assert set(NOT_STARTED) == {
+        "V4.2.1",
+        "V12.3.1",
+        "V12.3.3",
+        "V12.3.4",
+        "V13.2.1",
+        "V13.2.4",
+        "V13.2.5",
+        "V16.4.3",
+    }
+    assert completed_m10 <= IMPLEMENTED_REQUIREMENTS
+    assert set(IMPLEMENTED_ASSESSMENT_OVERRIDES) == completed_m10
+    assert set(IMPLEMENTED_EVIDENCE_OVERRIDES) == completed_m10
+    inventory = json.loads(
+        (PROJECT_ROOT / "docs/asvs-5.0.0-level2-evidence.json").read_text(encoding="utf-8")
+    )
+    requirements = {item["source_id"]: item for item in inventory["requirements"]}
+    for source_id in completed_m10:
+        assert requirements[source_id]["assessment"] == IMPLEMENTED_ASSESSMENT_OVERRIDES[source_id]
+        assert requirements[source_id]["evidence"] == IMPLEMENTED_EVIDENCE_OVERRIDES[source_id]
 
 
 def test_asvs_inventory_rejects_catalog_and_disposition_tampering() -> None:
@@ -275,6 +362,19 @@ def test_secret_scan_only_exempts_exact_public_asvs_fingerprints() -> None:
     assert not _is_approved_public_fingerprint(
         "docs/release-evidence.json",
         f'    "source_sha256": "{source_sha256[:-1]}0",',
+    )
+
+
+def test_secret_scan_only_exempts_hash_fields_in_the_generated_sbom() -> None:
+    digest_line = f'    "content": "{"a" * 64}",'
+    revision_line = f'    "version": "{"b" * 40}",'
+
+    assert _is_approved_public_fingerprint("docs/sbom.cdx.json", digest_line)
+    assert _is_approved_public_fingerprint("docs\\sbom.cdx.json", revision_line)
+    assert not _is_approved_public_fingerprint("docs/other.json", digest_line)
+    assert not _is_approved_public_fingerprint("docs/sbom.cdx.json", f'    "token": "{"a" * 64}",')
+    assert not _is_approved_public_fingerprint(
+        "docs/sbom.cdx.json", f'    "content": "{"a" * 63}",'
     )
 
 

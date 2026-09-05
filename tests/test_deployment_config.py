@@ -484,11 +484,15 @@ def test_ci_uses_read_only_permissions_and_immutable_official_actions() -> None:
     assert "aquasec/trivy:0.70.0@sha256:" in workflow
     assert "image --scanners vuln,secret --severity HIGH,CRITICAL --exit-code 1" in workflow
     assert "--volume /var/run/docker.sock:/var/run/docker.sock" in workflow
+    assert "image --format cyclonedx --output" in workflow
+    assert "name: release-image-sboms-${{ github.sha }}" in workflow
+    assert "retention-days: 90" in workflow
 
     action_references = re.findall(r"uses: ([^\s#]+)", workflow)
     assert {reference.split("@")[0] for reference in action_references} == {
         "actions/checkout",
         "actions/setup-python",
+        "actions/upload-artifact",
     }
     assert all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", reference) for reference in action_references)
 

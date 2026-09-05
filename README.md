@@ -84,6 +84,10 @@ readers, retention, sensitive-data rules, and limitations across all 13 current 
 quality-gate validator derives 143 stable event entries from source and verifies bounded local
 Docker logging without claiming the still-missing separate protected security-log destination; see
 `docs/LOGGING_INVENTORY.md`.
+The maintained CycloneDX SBOM derives 83 third-party production, development, build, test, and CI
+inputs from exact locks and pins, restricts them to six approved repository services, and is checked
+for drift on every quality run. CI also retains image-resolved SBOMs for all three release images;
+see `docs/SBOM.md`.
 See
 `docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. The guarded
 production-derived network probe and Linux VM runbook are in `docs/PRIVATE_INGRESS.md`; actual
@@ -251,6 +255,7 @@ python manage.py makemigrations --check --dry-run --settings=config.settings.tes
 python scripts/secret_scan.py
 python scripts/check_cryptographic_inventory.py
 python scripts/check_logging_inventory.py
+python scripts/check_sbom.py
 python scripts/check_release_evidence.py
 python scripts/check_device_test_evidence.py
 python scripts/check_adversarial_test_evidence.py
@@ -295,5 +300,6 @@ automatically.
 11. [`docs/PASSWORD_BLOCKLIST.md`](docs/PASSWORD_BLOCKLIST.md) — prohibited identifiers and offline breached-password corpus maintenance
 12. [`docs/CRYPTOGRAPHIC_INVENTORY.md`](docs/CRYPTOGRAPHIC_INVENTORY.md) — maintained key, algorithm, certificate, and purpose inventory
 13. [`docs/LOGGING_INVENTORY.md`](docs/LOGGING_INVENTORY.md) — maintained event, destination, access, retention, and sensitive-data inventory
+14. [`docs/SBOM.md`](docs/SBOM.md) — maintained CycloneDX inventory, approved repositories, and release retention procedure
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.

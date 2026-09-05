@@ -19,9 +19,9 @@
       "not_applicable": 80
     },
     "status": {
-      "implemented": 107,
+      "implemented": 108,
       "not_applicable": 80,
-      "not_started": 9,
+      "not_started": 8,
       "partial": 57
     }
   },
@@ -4064,12 +4064,15 @@
       "level": 2,
       "description": "Verify that an inventory catalog, such as software bill of materials (SBOM), is maintained of all third-party libraries in use, including verifying that components come from pre-defined, trusted, and continually maintained repositories.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "Locked dependency inventories exist, but a generated and retained SBOM is not yet part of the release gate.",
+      "status": "implemented",
+      "assessment": "The deterministic CycloneDX inventory derives all production, development, build, test, and CI components from exact locks, digest-pinned images, checksummed source, Go pins, and immutable actions, enforces the approved repository set, and is complemented by 90-day image-resolved SBOM artifacts for all three release images without claiming release-candidate verification.",
       "evidence": [
-        "SECURITY_PLAN.md",
-        "requirements-prod.lock",
-        "docs/ASVS_LEVEL2_MAPPING.md"
+        "docs/sbom.cdx.json",
+        "docs/SBOM.md",
+        "scripts/build_sbom.py",
+        "scripts/check_sbom.py",
+        ".github/workflows/quality.yml",
+        "tests/test_release_hardening.py"
       ]
     },
     {

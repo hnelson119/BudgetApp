@@ -4,6 +4,9 @@ FROM golang:1.26.6-alpine3.24@sha256:3889b425f035be855a72fb4755265311293b6d41452
 ARG RESTIC_VERSION=0.19.1
 ARG RESTIC_SHA256=bb9b1a19040744d26d8a79be029d4e6b189c45ccc9d8831d7fe367d3c33df725
 
+ENV GOPROXY=https://proxy.golang.org \
+    GOSUMDB=sum.golang.org
+
 WORKDIR /src/restic
 ADD --checksum=sha256:${RESTIC_SHA256} \
     https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic-${RESTIC_VERSION}.tar.gz \

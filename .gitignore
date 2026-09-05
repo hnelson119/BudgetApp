@@ -42,3 +42,4 @@ backups/
 
 # Security tools may record internal URLs, package paths, and attack evidence.
 security-reports/
+sbom-output/

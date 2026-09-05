@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-08-24"
+MAPPING_UPDATED = "2026-09-05"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -247,26 +247,6 @@ NOT_STARTED: dict[str, str] = {
         "A production reverse-proxy and Gunicorn request-smuggling compatibility test has not "
         "been completed."
     ),
-    "V6.1.2": "A product-specific prohibited-password word list has not been documented.",
-    "V6.2.2": "The application does not yet provide a user password-change flow.",
-    "V6.2.3": "The missing password-change flow cannot yet require the current and new password.",
-    "V6.2.11": "A product-specific prohibited-password word list is not yet enforced.",
-    "V6.2.12": (
-        "Passwords are checked against Django's common-password list, not a maintained "
-        "breached-password corpus."
-    ),
-    "V6.4.3": (
-        "A documented forgotten-password recovery process that preserves MFA strength has not "
-        "been implemented."
-    ),
-    "V7.4.5": (
-        "There is no dedicated administrator operation to terminate an arbitrary user's sessions "
-        "without also resetting MFA."
-    ),
-    "V7.5.2": "Users can terminate all sessions but cannot yet review individual active sessions.",
-    "V11.1.2": (
-        "A complete cryptographic key, algorithm, and certificate inventory has not been produced."
-    ),
     "V12.3.1": (
         "The application-to-PostgreSQL connection is isolated on an internal Docker network but "
         "is not encrypted with TLS."
@@ -285,14 +265,6 @@ NOT_STARTED: dict[str, str] = {
     ),
     "V13.2.4": "The deployment has no explicit outbound network allowlist.",
     "V13.2.5": "The web container has no explicit application-server egress allowlist.",
-    "V15.1.2": (
-        "Locked dependency inventories exist, but a generated and retained SBOM is not yet part "
-        "of the release gate."
-    ),
-    "V16.1.1": (
-        "A complete layer-by-layer logging inventory, access model, and retention schedule has "
-        "not been documented."
-    ),
     "V16.4.3": (
         "Operational security logs remain in Docker's local log store and are not transmitted to "
         "a logically separate system."
@@ -333,7 +305,10 @@ IMPLEMENTED_REQUIREMENTS = {
     "V5.4.1",
     "V5.4.2",
     "V6.1.1",
+    "V6.1.2",
     "V6.2.1",
+    "V6.2.2",
+    "V6.2.3",
     "V6.2.4",
     "V6.2.5",
     "V6.2.6",
@@ -341,10 +316,13 @@ IMPLEMENTED_REQUIREMENTS = {
     "V6.2.8",
     "V6.2.9",
     "V6.2.10",
+    "V6.2.11",
+    "V6.2.12",
     "V6.3.1",
     "V6.3.2",
     "V6.3.3",
     "V6.4.2",
+    "V6.4.3",
     "V6.5.1",
     "V6.5.2",
     "V6.5.3",
@@ -359,11 +337,14 @@ IMPLEMENTED_REQUIREMENTS = {
     "V7.4.1",
     "V7.4.3",
     "V7.4.4",
+    "V7.4.5",
+    "V7.5.2",
     "V8.2.1",
     "V8.2.2",
     "V8.2.3",
     "V8.3.1",
     "V8.4.1",
+    "V11.1.2",
     "V11.2.1",
     "V11.3.1",
     "V11.3.2",
@@ -382,12 +363,14 @@ IMPLEMENTED_REQUIREMENTS = {
     "V14.3.2",
     "V14.3.3",
     "V15.1.1",
+    "V15.1.2",
     "V15.2.1",
     "V15.2.3",
     "V15.3.1",
     "V15.3.3",
     "V15.3.5",
     "V15.3.7",
+    "V16.1.1",
     "V16.2.1",
     "V16.2.2",
     "V16.2.4",
@@ -397,6 +380,144 @@ IMPLEMENTED_REQUIREMENTS = {
     "V16.4.1",
     "V16.5.1",
     "V16.5.3",
+}
+
+IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V6.1.2": (
+        "The exact product and system identifiers plus normalized separator, leetspeak, prefix, "
+        "suffix, and short-numeric permutations are documented; release-candidate verification "
+        "remains pending."
+    ),
+    "V6.2.2": (
+        "A recent-authentication-protected self-service flow changes the password, rotates the "
+        "surviving session, revokes other sessions, and creates protected audit evidence."
+    ),
+    "V6.2.3": (
+        "The password-change form and transactional view require both the accepted current "
+        "password and a separately validated new password after recent password-plus-MFA "
+        "verification."
+    ),
+    "V6.2.11": (
+        "ContextSpecificPasswordValidator enforces the documented normalized product and system "
+        "identifier permutations through every Django-validated new or changed password path; "
+        "release-candidate verification remains pending."
+    ),
+    "V6.2.12": (
+        "New and changed passwords are compared locally with a packaged, integrity-checked, "
+        "freshness-bounded hash-only breached-password corpus; hardened settings fail closed and "
+        "no candidate-derived value leaves the process. Release-candidate verification remains "
+        "pending."
+    ),
+    "V6.4.3": (
+        "Public password recovery requires a confirmed TOTP or unused single-use recovery code, "
+        "returns a generic rate-limited result, never authenticates the requester, revokes every "
+        "prior session, and requires fresh MFA after the replacement password."
+    ),
+    "V7.4.5": (
+        "A guarded trusted-console operation terminates one arbitrary account's sessions or every "
+        "account's sessions independently of credential reset, with explicit confirmation, "
+        "server-side version rotation, stored-session deletion, redacted security logging, and "
+        "protected household audit events. Dated release-candidate replay verification remains "
+        "pending."
+    ),
+    "V7.5.2": (
+        "Users can review their current-version server-side sessions and, after recent "
+        "authentication, terminate an individual session or all sessions through non-reversible "
+        "action references."
+    ),
+    "V11.1.2": (
+        "The machine-validated inventory covers application, deployment, provider-managed, and "
+        "test-only key, algorithm, and certificate boundaries; it defines permitted and "
+        "prohibited uses, protected and excluded data, rotation, retirement, review cadence, and "
+        "known absences without claiming release verification."
+    ),
+    "V15.1.2": (
+        "The deterministic CycloneDX inventory derives all production, development, build, test, "
+        "and CI components from exact locks, digest-pinned images, checksummed source, Go pins, "
+        "and immutable actions, enforces the approved repository set, and is complemented by "
+        "90-day image-resolved SBOM artifacts for all three release images without claiming "
+        "release-candidate verification."
+    ),
+    "V16.1.1": (
+        "The machine-validated inventory covers every application, web, relay, database, "
+        "container, host, provider, browser, security-test, and CI layer with source-derived event "
+        "catalogs, formats, destinations, uses, readers, retention, sensitive-data rules, "
+        "integrity limits, and explicit separate-destination gaps without claiming release "
+        "verification."
+    ),
+}
+
+IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
+    "V6.1.2": [
+        "docs/PASSWORD_BLOCKLIST.md",
+        "config/settings/base.py",
+        "identity/password_validation.py",
+        "tests/test_password_policy.py",
+    ],
+    "V6.2.2": ["identity/forms.py", "identity/views.py", "tests/test_account_security.py"],
+    "V6.2.3": ["identity/forms.py", "identity/views.py", "tests/test_account_security.py"],
+    "V6.2.11": [
+        "config/settings/base.py",
+        "identity/password_validation.py",
+        "identity/forms.py",
+        "identity/management/commands/bootstrap_household.py",
+        "identity/management/commands/reset_user_password.py",
+        "tests/test_password_policy.py",
+    ],
+    "V6.2.12": [
+        "config/settings/base.py",
+        "config/settings/hardened.py",
+        "identity/password_validation.py",
+        "identity/data/breached-passwords-v1.txt",
+        "identity/management/commands/build_breached_password_corpus.py",
+        "docs/PASSWORD_BLOCKLIST.md",
+        "tests/test_password_policy.py",
+    ],
+    "V6.4.3": [
+        "identity/forms.py",
+        "identity/services/mfa.py",
+        "identity/services/recovery.py",
+        "identity/views.py",
+        "deploy/pentest/run-session-security.py",
+        "tests/test_password_recovery.py",
+    ],
+    "V7.4.5": [
+        "identity/services/sessions.py",
+        "identity/management/commands/revoke_user_sessions.py",
+        "deploy/pentest/run-session-security.py",
+        "scripts/run-session-security.sh",
+        "tests/test_identity_commands.py",
+        "tests/test_pentest_harness.py",
+        "docs/INCIDENT_RESPONSE.md",
+        "docs/ADVERSARIAL_TESTING.md#sess-03",
+        "docs/SECURITY_FINDINGS.md#M10-F023",
+    ],
+    "V7.5.2": [
+        "identity/services/sessions.py",
+        "identity/views.py",
+        "deploy/pentest/run-session-security.py",
+        "tests/test_account_security.py",
+    ],
+    "V11.1.2": [
+        "docs/cryptographic-inventory.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "scripts/check_cryptographic_inventory.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V15.1.2": [
+        "docs/sbom.cdx.json",
+        "docs/SBOM.md",
+        "scripts/build_sbom.py",
+        "scripts/check_sbom.py",
+        ".github/workflows/quality.yml",
+        "tests/test_release_hardening.py",
+    ],
+    "V16.1.1": [
+        "docs/logging-inventory.json",
+        "docs/LOGGING_INVENTORY.md",
+        "scripts/check_logging_inventory.py",
+        "tests/test_release_hardening.py",
+    ],
 }
 
 
@@ -452,6 +573,13 @@ def _validate_policy(source_requirements: list[dict[str, Any]]) -> None:
         raise ValueError(
             f"ASVS requirements are both implemented and not started: {sorted(active_overlap)}"
         )
+    if set(IMPLEMENTED_ASSESSMENT_OVERRIDES) != set(IMPLEMENTED_EVIDENCE_OVERRIDES):
+        raise ValueError("implemented ASVS assessment and evidence overrides disagree")
+    unknown_overrides = set(IMPLEMENTED_ASSESSMENT_OVERRIDES) - IMPLEMENTED_REQUIREMENTS
+    if unknown_overrides:
+        raise ValueError(
+            f"implemented ASVS overrides reference inactive IDs: {sorted(unknown_overrides)}"
+        )
 
 
 def build_inventory(source_path: Path) -> dict[str, Any]:
@@ -488,9 +616,10 @@ def build_inventory(source_path: Path) -> dict[str, Any]:
         elif source_id in IMPLEMENTED_REQUIREMENTS:
             applicability = "applicable"
             status = "implemented"
-            assessment = (
+            assessment = IMPLEMENTED_ASSESSMENT_OVERRIDES.get(
+                source_id,
                 "The mapped control has repeatable implementation evidence; a dated "
-                "release-candidate run is still required before verification."
+                "release-candidate run is still required before verification.",
             )
         else:
             applicability = "applicable"
@@ -512,7 +641,9 @@ def build_inventory(source_path: Path) -> dict[str, Any]:
             "applicability": applicability,
             "status": status,
             "assessment": assessment,
-            "evidence": _evidence(chapter_id, section_id),
+            "evidence": IMPLEMENTED_EVIDENCE_OVERRIDES.get(
+                source_id, _evidence(chapter_id, section_id)
+            ),
         }
         if reason:
             item["reason"] = reason
