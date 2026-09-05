@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import socket
 import stat
 import subprocess
@@ -20,7 +21,7 @@ _EXPECTED_SECRETS = {
     "django_mfa_encryption_key",
     "postgres_runtime_password",
 }
-_ALL_SECRET_NAMES = {
+_REQUIRED_SECRET_NAMES = {
     *_EXPECTED_SECRETS,
     "postgres_admin_password",
     "postgres_migration_password",
@@ -28,6 +29,31 @@ _ALL_SECRET_NAMES = {
     "postgres_audit_password",
     "audit_checkpoint_signing_key",
     "restic_repository_password",
+}
+_SECRET_FILES = {
+    **{name: name for name in _REQUIRED_SECRET_NAMES},
+    "django_mfa_encryption_key_next": "django_mfa_encryption_key.next",
+    "postgres_admin_password_next": (  # pragma: allowlist secret
+        "postgres_admin_password.next"
+    ),
+    "restic_repository_password_next": (  # pragma: allowlist secret
+        "restic_repository_password.next"
+    ),
+}
+_ALL_SECRET_NAMES = set(_SECRET_FILES)
+_SECRET_BEARING_SERVICES = {
+    "backup",
+    "db",
+    "db-admin-key-rotate",
+    "db-bootstrap",
+    "import-cleanup",
+    "integrity",
+    "mfa-key-rotate",
+    "migrate",
+    "notify",
+    "restic-key-rotate",
+    "restore-verify",
+    "web",
 }
 _FORBIDDEN_ENVIRONMENT_NAMES = {
     "DJANGO_SECRET_KEY",
@@ -41,6 +67,8 @@ _FORBIDDEN_ENVIRONMENT_NAMES = {
     "RESTIC_PASSWORD",
 }
 _MAXIMUM_RESPONSE_SIZE = 1024 * 1024
+_MAXIMUM_RAW_REQUEST_SIZE = 64 * 1024
+_HTTP_STATUS_LINE = re.compile(rb"(?m)^HTTP/1\.[01] ([1-5][0-9]{2})")
 
 
 class ProbeFailure(RuntimeError):
@@ -185,11 +213,11 @@ def validate_secret_sources(configuration: dict[str, Any], secret_directory: Pat
             or "environment" in secret
         ):
             raise ProbeFailure("A Compose secret source is malformed.")
-        actual_source = Path(str(secret["file"])).resolve(strict=True)
-        expected_source = (secret_directory / name).resolve(strict=True)
+        actual_source = Path(str(secret["file"])).resolve()
+        expected_source = (secret_directory / _SECRET_FILES[name]).resolve()
         if actual_source != expected_source:
             raise ProbeFailure("A Compose secret resolves outside the supplied secret directory.")
-    return 10
+    return len(_ALL_SECRET_NAMES) + 1
 
 
 def validate_secret_files(secret_directory: Path) -> int:
@@ -200,8 +228,14 @@ def validate_secret_files(secret_directory: Path) -> int:
     if linux_mode_checks and stat.S_IMODE(directory_status.st_mode) != 0o700:
         raise ProbeFailure("The Linux secret directory mode is not 0700.")
     for name in sorted(_ALL_SECRET_NAMES):
-        path = secret_directory / name
-        if path.is_symlink() or not path.is_file():
+        path = secret_directory / _SECRET_FILES[name]
+        if path.is_symlink():
+            raise ProbeFailure("A production secret is not a regular nonsymlink file.")
+        if not path.exists():
+            if name in _REQUIRED_SECRET_NAMES:
+                raise ProbeFailure("A required production secret file is missing.")
+            continue
+        if not path.is_file():
             raise ProbeFailure("A production secret is not a regular nonsymlink file.")
         file_status = path.stat()
         if linux_mode_checks and (
@@ -210,7 +244,7 @@ def validate_secret_files(secret_directory: Path) -> int:
             or file_status.st_gid != directory_status.st_gid
         ):
             raise ProbeFailure("A Linux secret has an unsafe mode, owner, or group.")
-    return 11 if linux_mode_checks else 10
+    return len(_ALL_SECRET_NAMES) + (2 if linux_mode_checks else 1)
 
 
 def validate_secret_reader_group(configuration: dict[str, Any], secret_directory: Path) -> int:
@@ -218,25 +252,25 @@ def validate_secret_reader_group(configuration: dict[str, Any], secret_directory
     if not isinstance(services, dict):
         raise ProbeFailure("The Compose service catalog is malformed.")
     reader_groups: set[str] = set()
-    secret_service_count = 0
-    for service in services.values():
+    secret_services: set[str] = set()
+    for service_name, service in services.items():
         if not isinstance(service, dict):
             raise ProbeFailure("A Compose service entry is malformed.")
         if not _references(service.get("secrets")):
             continue
-        secret_service_count += 1
+        secret_services.add(str(service_name))
         group_add = service.get("group_add") or []
         if not isinstance(group_add, list) or len(group_add) != 1:
             raise ProbeFailure("A secret-bearing service lacks the dedicated reader group.")
         reader_groups.add(str(group_add[0]))
-    if secret_service_count != 9 or len(reader_groups) != 1:
-        raise ProbeFailure("Secret-bearing services do not share one bounded reader group.")
+    if secret_services != _SECRET_BEARING_SERVICES or len(reader_groups) != 1:
+        raise ProbeFailure("The secret-bearing service and reader-group boundary is invalid.")
     reader_group = reader_groups.pop()
     if not reader_group.isdecimal() or reader_group == "0":
         raise ProbeFailure("The secret-reader group is not a non-root numeric GID.")
     if os.name != "nt" and int(reader_group) != secret_directory.stat().st_gid:
         raise ProbeFailure("The Compose secret-reader GID does not own the Linux secret files.")
-    return 11
+    return len(_SECRET_BEARING_SERVICES) + 2
 
 
 def _container_id(prefix: list[str], service: str) -> str:
@@ -376,6 +410,174 @@ def _wait_for_web(hostname: str) -> None:
             return
         time.sleep(1)
     raise ProbeFailure("The disposable production web service did not become ready.")
+
+
+def _raw_http_exchange(payload: bytes) -> tuple[bytes, bool]:
+    if not payload or len(payload) > _MAXIMUM_RAW_REQUEST_SIZE:
+        raise ProbeFailure("An HTTP framing probe payload has an invalid size.")
+    try:
+        with socket.create_connection(("127.0.0.1", 8000), timeout=3) as connection:
+            connection.settimeout(3)
+            connection.sendall(payload)
+            response = bytearray()
+            peer_closed = False
+            while len(response) <= _MAXIMUM_RESPONSE_SIZE:
+                try:
+                    chunk = connection.recv(65536)
+                except TimeoutError:
+                    break
+                if not chunk:
+                    peer_closed = True
+                    break
+                response.extend(chunk)
+    except OSError as error:
+        raise ProbeFailure("The raw HTTP framing probe could not reach loopback.") from error
+    if len(response) > _MAXIMUM_RESPONSE_SIZE:
+        raise ProbeFailure("A raw HTTP framing response was unexpectedly large.")
+    return bytes(response), peer_closed
+
+
+def _raw_request(
+    hostname: str,
+    *,
+    request_line: str,
+    headers: tuple[str, ...],
+    body: bytes = b"",
+) -> bytes:
+    try:
+        head = "\r\n".join((request_line, f"Host: {hostname}", *headers, "", "")).encode("ascii")
+    except UnicodeEncodeError as error:
+        raise ProbeFailure("The HTTP framing hostname is not ASCII.") from error
+    return head + body
+
+
+def _require_raw_status(payload: bytes, *, expected: int, probe: str) -> bytes:
+    response, peer_closed = _raw_http_exchange(payload)
+    statuses = [int(match) for match in _HTTP_STATUS_LINE.findall(response)]
+    if statuses != [expected]:
+        raise ProbeFailure(
+            f"The {probe} framing control produced statuses={statuses!r}, "
+            f"peer_closed={peer_closed!r}."
+        )
+    return response
+
+
+def _require_framing_rejection(payload: bytes, *, probe: str) -> None:
+    response, peer_closed = _raw_http_exchange(payload)
+    statuses = [int(match) for match in _HTTP_STATUS_LINE.findall(response)]
+    if len(statuses) != 1 or statuses[0] not in {400, 501} or not peer_closed:
+        raise ProbeFailure(
+            f"The {probe} framing ambiguity produced statuses={statuses!r}, "
+            f"peer_closed={peer_closed!r}."
+        )
+
+
+def validate_request_framing(hostname: str) -> int:
+    normal_get = _raw_request(
+        hostname,
+        request_line="GET /health/live/ HTTP/1.1",
+        headers=("X-Forwarded-Proto: https", "Connection: close"),
+    )
+    get_response = _require_raw_status(normal_get, expected=200, probe="bodyless GET")
+    if b'{"status": "ok"}' not in get_response:
+        raise ProbeFailure("The bodyless GET framing control did not reach Django.")
+
+    normal_content_length = _raw_request(
+        hostname,
+        request_line="GET /health/live/ HTTP/1.1",
+        headers=(
+            "X-Forwarded-Proto: https",
+            "Content-Length: 0",
+            "Connection: close",
+        ),
+    )
+    _require_raw_status(normal_content_length, expected=200, probe="Content-Length")
+
+    normal_chunked = _raw_request(
+        hostname,
+        request_line="GET /health/live/ HTTP/1.1",
+        headers=(
+            "X-Forwarded-Proto: https",
+            "Transfer-Encoding: chunked",
+            "Connection: close",
+        ),
+        body=b"0\r\n\r\n",
+    )
+    _require_raw_status(normal_chunked, expected=200, probe="chunked transfer")
+
+    canary = _raw_request(
+        hostname,
+        request_line="GET /framing-canary HTTP/1.1",
+        headers=("X-Forwarded-Proto: https", "Connection: close"),
+    )
+    ambiguous_requests = {
+        "Transfer-Encoding plus Content-Length": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Transfer-Encoding: chunked",
+                "Content-Length: 4",
+                "Connection: keep-alive",
+            ),
+            body=b"0\r\n\r\n" + canary,
+        ),
+        "Content-Length plus Transfer-Encoding": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Content-Length: 5",
+                "Transfer-Encoding: chunked",
+                "Connection: keep-alive",
+            ),
+            body=b"0\r\n\r\n" + canary,
+        ),
+        "conflicting Content-Length": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Content-Length: 0",
+                "Content-Length: 5",
+                "Connection: keep-alive",
+            ),
+            body=canary,
+        ),
+        "multiple transfer codings": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Transfer-Encoding: chunked, identity",
+                "Connection: keep-alive",
+            ),
+            body=b"0\r\n\r\n" + canary,
+        ),
+        "whitespace before header colon": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Transfer-Encoding : chunked",
+                "Connection: keep-alive",
+            ),
+            body=b"0\r\n\r\n" + canary,
+        ),
+        "obsolete folded transfer header": _raw_request(
+            hostname,
+            request_line="GET /health/live/ HTTP/1.1",
+            headers=(
+                "X-Forwarded-Proto: https",
+                "Transfer-Encoding:\r\n chunked",
+                "Connection: keep-alive",
+            ),
+            body=b"0\r\n\r\n" + canary,
+        ),
+    }
+    for probe, payload in ambiguous_requests.items():
+        _require_framing_rejection(payload, probe=probe)
+    return 9
 
 
 def validate_http_boundary(hostname: str, secret_values: tuple[str, ...]) -> tuple[int, int]:
@@ -539,8 +741,11 @@ def validate_no_secret_leakage(
 ) -> int:
     values: list[str] = []
     for name in sorted(_ALL_SECRET_NAMES):
+        path = secret_directory / _SECRET_FILES[name]
+        if not path.exists():
+            continue
         try:
-            value = (secret_directory / name).read_text(encoding="ascii").strip()
+            value = path.read_text(encoding="ascii").strip()
         except (OSError, UnicodeError) as error:
             raise ProbeFailure("A disposable production secret could not be inspected.") from error
         if len(value) < 32:
@@ -610,11 +815,14 @@ def main() -> None:
         inspection_checks = validate_runtime_inspection(web, database, ingress)
         stage = "temporary secret loading"
         secret_values = tuple(
-            (secret_directory / name).read_text(encoding="ascii").strip()
+            (secret_directory / _SECRET_FILES[name]).read_text(encoding="ascii").strip()
             for name in sorted(_ALL_SECRET_NAMES)
+            if (secret_directory / _SECRET_FILES[name]).exists()
         )
         stage = "HTTP boundary validation"
         net03_checks, net05_checks = validate_http_boundary(arguments.hostname, secret_values)
+        stage = "HTTP request-framing validation"
+        framing_checks = validate_request_framing(arguments.hostname)
         stage = "runtime process validation"
         net04_checks, behavior_checks = validate_runtime_behavior(web_id, ingress_id)
         stage = "secret non-leakage validation"
@@ -636,6 +844,7 @@ def main() -> None:
     print(f"NET-03 pre-deployment controls passed ({net03_checks} HTTPS-policy checks).")
     print(f"NET-04 pre-deployment controls passed ({net04_checks} isolation checks).")
     print(f"NET-05 pre-deployment controls passed ({net05_checks} header/error checks).")
+    print(f"HTTP-FRAMING controls passed ({framing_checks} request-boundary checks).")
     print(
         "NET-06 pre-deployment controls passed "
         f"({compose_checks + inspection_checks + behavior_checks + leakage_checks} runtime checks)."

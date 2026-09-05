@@ -94,7 +94,7 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 108 implemented, 57 partial, 8 not
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 109 implemented, 57 partial, 7 not
   started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
   are internal service TLS, stronger backend authentication, egress allowlisting, and logically
   separate security-log storage. See
@@ -130,8 +130,11 @@ real household data.
   administrator operation; release-candidate replay testing remains pending.
 - A production-derived disposable probe now verifies the Compose port/network boundary, exact
   proxy-header contract, runtime least privilege, blocked application egress, and local secret
-  non-leakage. The separate private-ingress runbook provides a least-privilege grants template and
-  guarded VM preflight. Actual Tailscale identity, certificate, firewall, approved/unapproved-device,
+  non-leakage. Its dedicated CI job also drives three valid and six ambiguous or malformed HTTP/1.1
+  message boundaries through the production nginx/Gunicorn images; ambiguity must yield exactly one
+  rejection and connection closure. The separate private-ingress runbook provides a least-privilege
+  grants template, guarded VM preflight, and bounded HTTP/2/3 length-mismatch procedure. Actual
+  Tailscale identity, HTTP/2/3 receiver behavior, certificate, firewall, approved/unapproved-device,
   and authenticated-cookie observations still require the Linux VM and cannot be marked verified
   from the disposable run.
 - The disposable ZAP baseline completed for unauthenticated traffic and both MFA-authenticated

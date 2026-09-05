@@ -2,7 +2,7 @@
   "$schema": "https://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:a27ee3da-65d4-5fa9-b257-78af0560ee85",
+  "serialNumber": "urn:uuid:17466475-7bc4-5166-a6c2-0040d1c3affe",
   "version": 1,
   "metadata": {
     "component": {
@@ -15,7 +15,7 @@
     "properties": [
       {
         "name": "budget:inventory-fingerprint-sha256",
-        "value": "fb2748f84cfdd413e34440f53a65000b4c94fccb14911a67ca02da8bc3605b55"
+        "value": "9fef01a59dc06943a56730cc816b280e3ebec20a0989b69239e31bd4804d53a8"
       },
       {
         "name": "budget:maintenance-procedure",
@@ -37,7 +37,7 @@
       "properties": [
         {
           "name": "budget:source-files",
-          "value": ".github/workflows/browser.yml,.github/workflows/quality.yml,.github/workflows/restore-rehearsal.yml,.github/workflows/upgrade-rehearsal.yml"
+          "value": ".github/workflows/browser.yml,.github/workflows/http-framing.yml,.github/workflows/quality.yml,.github/workflows/restore-rehearsal.yml,.github/workflows/upgrade-rehearsal.yml"
         },
         {
           "name": "budget:source-repository",

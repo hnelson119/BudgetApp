@@ -80,6 +80,25 @@ Tailscale-provisioned certificate names can appear in public certificate-transpa
 a neutral machine name that reveals no family name or financial purpose. Application HTTP remains
 on loopback only; the browser-facing connection is HTTPS.
 
+### HTTP request-framing boundary
+
+The repository pins the application-side message boundary to nginx receiving HTTP/1.1 and proxying
+HTTP/1.1 to Gunicorn with complete request buffering enabled. The production-derived probe sends
+three valid forms—a bodyless request, an explicit zero `Content-Length`, and a zero-length chunked
+body—and six ambiguity cases: both framing headers in either order, conflicting duplicate lengths,
+multiple transfer codings, whitespace before a header colon, and obsolete folded transfer syntax.
+Every ambiguity includes a harmless trailing `/framing-canary` request where applicable. A pass
+requires one `400` or `501` response, connection closure, and no second response.
+
+`.github/workflows/http-framing.yml` runs this probe against the actual production nginx and
+Gunicorn images for every pull request. That repeatable test covers the internal HTTP/1.1 boundary;
+it does not claim that the release Tailscale edge has been observed. During release-candidate
+testing, use an approved, bounded HTTP/2-capable client to send only `GET /health/live/` with a
+declared `Content-Length` inconsistent with its ended DATA stream through the exact Tailscale HTTPS
+hostname. If HTTP/3 is enabled for that candidate, repeat at HTTP/3. Pass only if the edge rejects or
+resets the single stream without forwarding an application response. Do not pipeline another route,
+scan other hosts, or retain raw private hostname, address, or response data.
+
 ## 3. Host and home-network firewall
 
 Before enabling UFW, verify SSH key login in a second Tailscale-connected terminal. Disable SSH
@@ -115,6 +134,8 @@ production Compose services, and verifies the following without printing secret 
 - internal-only application/database networks and the relay's exact `127.0.0.1:8000` publish;
 - no host PostgreSQL or Docker-administration port;
 - canonical proxy scheme/host handling, safe redirects, HSTS, and production errors;
+- three valid and six ambiguous/malformed HTTP/1.1 request-framing cases, including a trailing
+  request canary that must never produce a second response;
 - UID/GID 10001, zero effective capabilities, no-new-privileges, a read-only root filesystem, and
   the bounded writable `/tmp` mount;
 - only the runtime database identity and its three read-only secret mounts;
@@ -160,7 +181,10 @@ The automated preflights do not replace these bounded observations:
    browser back/refresh does not reveal data after logout.
 5. For `NET-04` and `NET-05`, repeat the documented exact-port and safe alternate-host/forwarded-
    header checks through the deployed proxy. Do not weaken the proxy or firewall to create a test.
-6. Revoke the temporary device and confirm its existing browser/SSH connections and new connection
+6. For `NET-05`, perform the bounded HTTP/2 message-length mismatch check above and the HTTP/3
+   equivalent if enabled. Record only protocol, expected rejection/reset, observed status, and pass
+   or finding ID; do not retain the malformed request or private endpoint details.
+7. Revoke the temporary device and confirm its existing browser/SSH connections and new connection
    attempts fail. Review only sanitized application, Tailscale, UFW, SSH, and Docker summaries.
 
 Record the candidate commit, date, tester, device roles, expected/observed result, and any sanitized

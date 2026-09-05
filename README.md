@@ -225,6 +225,11 @@ Docker networks. A separate secretless, read-only nginx relay is the only servic
 non-internal ingress network and the only service bound to loopback port 8000. Put private Tailscale
 HTTPS in front of that relay and never forward the port from the router.
 
+The production-derived boundary runner also sends valid and ambiguous HTTP/1.1 message framing
+through the actual nginx/Gunicorn images. Its pull-request workflow requires every ambiguity to
+produce exactly one rejection and a closed connection. This does not replace the runbook's bounded
+release-candidate check of Tailscale's browser-facing HTTP/2/3 message-length handling.
+
 Follow [`docs/PRIVATE_INGRESS.md`](docs/PRIVATE_INGRESS.md) to apply the least-privilege tailnet
 policy, configure Tailscale Serve and UFW, run the VM preflight, and complete the required approved-
 and unapproved-device release checks. The runbook deliberately leaves `NET-01` and `NET-02` pending

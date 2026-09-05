@@ -247,9 +247,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 173, "not_applicable": 80},
         "status": {
-            "implemented": 108,
+            "implemented": 109,
             "not_applicable": 80,
-            "not_started": 8,
+            "not_started": 7,
             "partial": 57,
         },
     }
@@ -257,6 +257,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-9.1.1"]["status"] == "not_applicable"
     assert requirements["v5.0.0-10.4.1"]["status"] == "not_applicable"
     assert requirements["v5.0.0-17.3.2"]["status"] == "not_applicable"
+    assert requirements["v5.0.0-4.2.1"]["status"] == "implemented"
     assert requirements["v5.0.0-12.3.1"]["status"] == "not_started"
     assert requirements["v5.0.0-16.4.3"]["status"] == "not_started"
     assert requirements["v5.0.0-6.1.2"]["status"] == "implemented"
@@ -282,6 +283,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
 
 def test_asvs_builder_preserves_completed_m10_overrides() -> None:
     completed_m10 = {
+        "V4.2.1",
         "V6.1.2",
         "V6.2.2",
         "V6.2.3",
@@ -297,7 +299,6 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
 
     assert MAPPING_UPDATED == "2026-09-05"
     assert set(NOT_STARTED) == {
-        "V4.2.1",
         "V12.3.1",
         "V12.3.3",
         "V12.3.4",

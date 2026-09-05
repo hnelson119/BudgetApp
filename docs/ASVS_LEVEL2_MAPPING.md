@@ -31,9 +31,9 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 173 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 80 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 108 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Implemented | 109 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
 | Partial | 57 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
-| Not started | 8 | The control is absent or its required verification has not been designed. |
+| Not started | 7 | The control is absent or its required verification has not been designed. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -59,8 +59,13 @@ and records protected household audit events. Release-candidate verification rem
 
 ### HTTP and backend communication
 
-- `v5.0.0-4.2.1`: test the production reverse-proxy and Gunicorn combination for HTTP request
-  boundary ambiguity and smuggling behavior.
+The production-derived request-boundary harness implements `v5.0.0-4.2.1` for the nginx-to-Gunicorn
+HTTP/1.1 boundary. It accepts three valid body encodings and requires six ambiguous or malformed
+forms to produce exactly one rejection followed by connection closure; a trailing harmless request
+acts as a smuggling canary. The dedicated read-only CI workflow runs the actual production images.
+Tailscale Serve's browser-facing HTTP/2 or HTTP/3 message-length behavior remains an explicit dated
+release-candidate check rather than a claimed verification. See `docs/PRIVATE_INGRESS.md`.
+
 - `v5.0.0-12.3.1`, `v5.0.0-12.3.3`, `v5.0.0-12.3.4`: inventory and encrypt internal service
   communication, including application-to-PostgreSQL traffic, with an explicit certificate trust
   policy.

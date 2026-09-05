@@ -82,20 +82,110 @@ def test_production_probe_ties_compose_sources_to_guarded_secret_directory(
     secret_directory.mkdir(mode=0o700)
     secret_configuration = {}
     for name in PRODUCTION_PROBE._ALL_SECRET_NAMES:
-        path = secret_directory / name
+        path = secret_directory / PRODUCTION_PROBE._SECRET_FILES[name]
         path.write_text("x" * 64, encoding="ascii")
         path.chmod(0o440)
         secret_configuration[name] = {"file": str(path)}
     configuration = {"secrets": secret_configuration}
 
-    assert PRODUCTION_PROBE.validate_secret_sources(configuration, secret_directory) == 10
-    assert PRODUCTION_PROBE.validate_secret_files(secret_directory) in {10, 11}
+    assert PRODUCTION_PROBE.validate_secret_sources(configuration, secret_directory) == 13
+    assert PRODUCTION_PROBE.validate_secret_files(secret_directory) in {13, 14}
+
+    for name in PRODUCTION_PROBE._ALL_SECRET_NAMES - PRODUCTION_PROBE._REQUIRED_SECRET_NAMES:
+        optional_path = secret_directory / PRODUCTION_PROBE._SECRET_FILES[name]
+        optional_path.chmod(0o600)
+        optional_path.unlink()
+    assert PRODUCTION_PROBE.validate_secret_files(secret_directory) in {13, 14}
+
+    required_name = next(iter(PRODUCTION_PROBE._REQUIRED_SECRET_NAMES))
+    required_path = secret_directory / PRODUCTION_PROBE._SECRET_FILES[required_name]
+    required_path.chmod(0o600)
+    required_path.unlink()
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="required production secret"):
+        PRODUCTION_PROBE.validate_secret_files(secret_directory)
 
     foreign_path = tmp_path / "foreign-secret"
     foreign_path.write_text("x" * 64, encoding="ascii")
     configuration["secrets"]["django_secret_key"]["file"] = str(foreign_path)
     with pytest.raises(PRODUCTION_PROBE.ProbeFailure):
         PRODUCTION_PROBE.validate_secret_sources(configuration, secret_directory)
+
+
+def test_production_probe_allowlists_every_secret_bearing_service(tmp_path: Path) -> None:
+    secret_directory = tmp_path / "secrets"
+    secret_directory.mkdir()
+    reader_group = str(secret_directory.stat().st_gid or 10002)
+    configuration = {
+        "services": {
+            name: {"secrets": ["placeholder"], "group_add": [reader_group]}
+            for name in PRODUCTION_PROBE._SECRET_BEARING_SERVICES
+        }
+    }
+
+    assert PRODUCTION_PROBE.validate_secret_reader_group(configuration, secret_directory) == 14
+
+    configuration["services"]["unexpected"] = {
+        "secrets": ["placeholder"],
+        "group_add": [reader_group],
+    }
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="service and reader-group boundary"):
+        PRODUCTION_PROBE.validate_secret_reader_group(configuration, secret_directory)
+
+
+def test_production_probe_enforces_unambiguous_http_request_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    responses = iter(
+        (
+            (b'HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n{"status": "ok"}', False),
+            (b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n", False),
+            (b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n", False),
+            *((b"HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n", True),) * 6,
+        )
+    )
+    payloads: list[bytes] = []
+
+    def exchange(payload: bytes) -> tuple[bytes, bool]:
+        payloads.append(payload)
+        return next(responses)
+
+    monkeypatch.setattr(PRODUCTION_PROBE, "_raw_http_exchange", exchange)
+
+    assert PRODUCTION_PROBE.validate_request_framing("budget.example.ts.net") == 9
+    assert len(payloads) == 9
+    assert payloads[0].startswith(b"GET /health/live/ HTTP/1.1\r\n")
+    assert b"Content-Length: 0\r\n" in payloads[1]
+    assert payloads[2].endswith(b"Transfer-Encoding: chunked\r\nConnection: close\r\n\r\n0\r\n\r\n")
+    assert all(payload.count(b"GET /framing-canary HTTP/1.1") == 1 for payload in payloads[3:])
+    assert b"Transfer-Encoding: chunked\r\nContent-Length: 4\r\n" in payloads[3]
+    assert b"Content-Length: 0\r\nContent-Length: 5\r\n" in payloads[5]
+    assert b"Transfer-Encoding : chunked\r\n" in payloads[7]
+    assert b"Transfer-Encoding:\r\n chunked\r\n" in payloads[8]
+
+
+@pytest.mark.parametrize(
+    "exchange_result",
+    (
+        (b"HTTP/1.1 200 OK\r\n\r\n", True),
+        (b"HTTP/1.1 400 Bad Request\r\n\r\n", False),
+        (
+            b"HTTP/1.1 400 Bad Request\r\n\r\nHTTP/1.1 404 Not Found\r\n\r\n",
+            True,
+        ),
+    ),
+)
+def test_production_probe_rejects_unsafe_ambiguous_request_results(
+    monkeypatch: pytest.MonkeyPatch,
+    exchange_result: tuple[bytes, bool],
+) -> None:
+    monkeypatch.setattr(
+        PRODUCTION_PROBE,
+        "_raw_http_exchange",
+        lambda _payload: exchange_result,
+    )
+
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match=r"statuses=.*peer_closed"):
+        PRODUCTION_PROBE._require_framing_rejection(b"ambiguous", probe="test")
 
 
 def test_private_ingress_accepts_exact_tagged_https_only_configuration() -> None:
@@ -200,6 +290,9 @@ def test_network_runners_are_bounded_and_keep_release_checks_honest() -> None:
         encoding="utf-8"
     )
     runbook = (PROJECT_ROOT / "docs/PRIVATE_INGRESS.md").read_text(encoding="utf-8")
+    framing_workflow = (PROJECT_ROOT / ".github/workflows/http-framing.yml").read_text(
+        encoding="utf-8"
+    )
 
     for runner in (powershell_runner, linux_runner):
         assert "budgetapp-network-boundary" in runner
@@ -216,3 +309,7 @@ def test_network_runners_are_bounded_and_keep_release_checks_honest() -> None:
     assert '"tag:budget-server:8000"' in policy
     assert "cannot satisfy" in runbook
     assert "NET-01" in runbook and "NET-02" in runbook
+    assert "permissions:\n  contents: read" in framing_workflow
+    assert "pull_request_target" not in framing_workflow
+    assert "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" in framing_workflow
+    assert "sh scripts/run-network-boundary.sh" in framing_workflow

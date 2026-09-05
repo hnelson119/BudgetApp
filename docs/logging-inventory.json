@@ -361,6 +361,7 @@
       "evidence": [
         ".github/workflows/quality.yml",
         ".github/workflows/browser.yml",
+        ".github/workflows/http-framing.yml",
         ".github/workflows/restore-rehearsal.yml",
         ".github/workflows/upgrade-rehearsal.yml",
         "docs/RELEASE_HARDENING.md",

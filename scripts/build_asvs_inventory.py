@@ -243,10 +243,6 @@ EXCLUDED_REQUIREMENTS: dict[str, str] = {
 }
 
 NOT_STARTED: dict[str, str] = {
-    "V4.2.1": (
-        "A production reverse-proxy and Gunicorn request-smuggling compatibility test has not "
-        "been completed."
-    ),
     "V12.3.1": (
         "The application-to-PostgreSQL connection is isolated on an internal Docker network but "
         "is not encrypted with TLS."
@@ -298,6 +294,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V3.5.1",
     "V3.5.3",
     "V4.1.1",
+    "V4.2.1",
     "V5.2.1",
     "V5.2.2",
     "V5.3.1",
@@ -383,6 +380,12 @@ IMPLEMENTED_REQUIREMENTS = {
 }
 
 IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V4.2.1": (
+        "The production-derived nginx and Gunicorn boundary accepts three valid HTTP/1.1 message "
+        "forms and must reject six ambiguous or malformed framing forms with exactly one error "
+        "response and a closed connection. Browser-facing Tailscale HTTP/2 or HTTP/3 validation "
+        "remains a dated release-candidate check."
+    ),
     "V6.1.2": (
         "The exact product and system identifiers plus normalized separator, leetspeak, prefix, "
         "suffix, and short-numeric permutations are documented; release-candidate verification "
@@ -448,6 +451,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
 }
 
 IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
+    "V4.2.1": [
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        ".github/workflows/http-framing.yml",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md",
+    ],
     "V6.1.2": [
         "docs/PASSWORD_BLOCKLIST.md",
         "config/settings/base.py",
