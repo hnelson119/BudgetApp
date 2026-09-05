@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "updated": "2026-09-01",
+  "updated": "2026-09-05",
   "release_candidate": null,
   "status_definitions": {
     "not_started": "No release verification has been performed.",

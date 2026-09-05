@@ -1,0 +1,850 @@
+{
+  "schema_version": 1,
+  "inventory_updated": "2026-09-05",
+  "review": {
+    "owner": "release owner",
+    "cadence_days": 90,
+    "next_review_due": "2026-12-04",
+    "procedure": "docs/CRYPTOGRAPHIC_INVENTORY.md",
+    "update_triggers": [
+      "application or infrastructure cryptography changes",
+      "a key, certificate, trust boundary, or secret consumer changes",
+      "a pinned cryptographic dependency or managed provider changes",
+      "every release candidate",
+      "a security finding or incident affects cryptographic material"
+    ]
+  },
+  "scope": {
+    "included": [
+      "application-owned cryptography",
+      "deployment cryptography protecting application data or access",
+      "provider-managed cryptography at the private ingress boundary",
+      "test-only cryptographic exceptions that must not reach production"
+    ],
+    "excluded": [
+      "actual key, password, seed, certificate, hostname, and account values",
+      "generic operating-system cryptography not used by the deployment",
+      "identity-provider internals outside the household deployment boundary"
+    ]
+  },
+  "summary": {
+    "cryptographic_keys": 9,
+    "algorithms": 13,
+    "certificates": 2,
+    "known_absences": 4
+  },
+  "cryptographic_keys": [
+    {
+      "id": "django-signing-key",
+      "name": "Django signing key",
+      "state": "active",
+      "owner": "deployment administrator",
+      "boundary": "application",
+      "material_type": "independent random symmetric key material, at least 50 characters",
+      "generation": "Generate with an operating-system CSPRNG directly into the protected secret file.",
+      "storage": "Root-owned deployment secret file; mounted read-only only into approved Django containers.",
+      "consumers": [
+        "Django framework signing for database-backed session payloads",
+        "login-throttle pseudonymization",
+        "opaque active-session references"
+      ],
+      "algorithms": [
+        "hmac-sha256"
+      ],
+      "permitted_uses": [
+        "Django framework signing",
+        "domain-separated keyed identifiers that never leave the authenticated application"
+      ],
+      "prohibited_uses": [
+        "MFA seed encryption",
+        "audit checkpoint signing",
+        "backup encryption",
+        "password or recovery-code hashing"
+      ],
+      "protected_data": [
+        "session payload authenticity",
+        "pseudonymous login-throttle keys",
+        "opaque session action references"
+      ],
+      "excluded_data": [
+        "MFA seeds",
+        "audit checkpoints",
+        "backup contents",
+        "database credentials"
+      ],
+      "rotation": "Stop ingress and all Django consumers, atomically replace the file, recreate containers, and prove all prior sessions fail.",
+      "retirement": "Destroy after the replacement is verified; it is not retained because old application signatures must remain invalid.",
+      "evidence": [
+        "config/settings/hardened.py",
+        "identity/services/throttling.py",
+        "identity/services/sessions.py",
+        "compose.yaml",
+        "docs/INCIDENT_RESPONSE.md"
+      ]
+    },
+    {
+      "id": "mfa-encryption-key",
+      "name": "MFA seed-encryption key",
+      "state": "active",
+      "owner": "deployment administrator",
+      "boundary": "application",
+      "material_type": "independent random symmetric input key, at least 43 characters",
+      "generation": "Generate at least 32 random bytes with an operating-system CSPRNG directly into the protected secret file.",
+      "storage": "Root-owned deployment secret file; mounted read-only only into approved Django consumers.",
+      "consumers": [
+        "MFA enrollment and verification",
+        "guarded MFA key-rotation operation"
+      ],
+      "algorithms": [
+        "sha256",
+        "fernet-v1"
+      ],
+      "permitted_uses": [
+        "derive one domain-separated Fernet key",
+        "encrypt and authenticate TOTP seeds at rest"
+      ],
+      "prohibited_uses": [
+        "Django signing",
+        "password hashing",
+        "audit checkpoint signing",
+        "backup encryption",
+        "general database-field encryption"
+      ],
+      "protected_data": [
+        "per-user TOTP seeds"
+      ],
+      "excluded_data": [
+        "passwords",
+        "recovery codes",
+        "financial records",
+        "audit records"
+      ],
+      "rotation": "Use the guarded transaction to decrypt every current-version seed, atomically re-encrypt all seeds under a higher version, and record protected audit events.",
+      "retirement": "Retain the previous key only in protected recovery custody until rotation and rollback verification finish, then destroy it.",
+      "evidence": [
+        "identity/services/mfa.py",
+        "config/settings/hardened.py",
+        "compose.yaml",
+        "docs/INCIDENT_RESPONSE.md",
+        "tests/test_mfa.py"
+      ]
+    },
+    {
+      "id": "user-totp-seeds",
+      "name": "Per-user TOTP seeds",
+      "state": "active",
+      "owner": "household member",
+      "boundary": "application",
+      "material_type": "160-bit random per-user symmetric authentication key",
+      "generation": "Generate 20 random bytes with the Python secrets CSPRNG during enrollment and display only through the authenticated enrollment flow.",
+      "storage": "Stored only inside authenticated Fernet ciphertext in PostgreSQL; authenticator copies are controlled by each member.",
+      "consumers": [
+        "server-side TOTP verification",
+        "member authenticator application"
+      ],
+      "algorithms": [
+        "os-csprng",
+        "totp-hmac-sha1"
+      ],
+      "permitted_uses": [
+        "generate six-digit TOTP authentication codes for the owning account"
+      ],
+      "prohibited_uses": [
+        "encrypt application data",
+        "sign sessions or audit checkpoints",
+        "authenticate another account",
+        "logging or analytics"
+      ],
+      "protected_data": [
+        "possession-factor authentication for one account"
+      ],
+      "excluded_data": [
+        "financial data",
+        "passwords",
+        "other users' authentication"
+      ],
+      "rotation": "Reset MFA after device loss or suspected disclosure, invalidate existing seeds and recovery codes, revoke sessions, and enroll a newly generated seed.",
+      "retirement": "Delete the encrypted seed and all associated recovery-code hashes during reset; never archive the seed.",
+      "evidence": [
+        "identity/services/mfa.py",
+        "identity/models.py",
+        "docs/INCIDENT_RESPONSE.md",
+        "tests/test_mfa.py"
+      ]
+    },
+    {
+      "id": "audit-checkpoint-signing-key",
+      "name": "Audit checkpoint signing key",
+      "state": "active",
+      "owner": "deployment administrator",
+      "boundary": "deployment",
+      "material_type": "independent random HMAC key, generated as 48 random bytes and validated at 32 bytes minimum",
+      "generation": "Generate with an operating-system CSPRNG directly into an independently protected secret file.",
+      "storage": "Root-owned secret file mounted read-only only into the integrity container; recovery and retired verification copies stay off-VM.",
+      "consumers": [
+        "audit integrity checkpoint writer",
+        "historical checkpoint verifier"
+      ],
+      "algorithms": [
+        "hmac-sha256"
+      ],
+      "permitted_uses": [
+        "authenticate canonical audit checkpoint documents for the matching key ID"
+      ],
+      "prohibited_uses": [
+        "application runtime signing",
+        "MFA encryption",
+        "backup encryption",
+        "rewriting historical checkpoints under a new key ID"
+      ],
+      "protected_data": [
+        "authenticity of external audit checkpoint documents"
+      ],
+      "excluded_data": [
+        "audit event confidentiality",
+        "application sessions",
+        "database records"
+      ],
+      "rotation": "Write a final checkpoint under the old key ID, archive that key offline, promote a new key and monotonically new ID, then write and verify a new checkpoint.",
+      "retirement": "Keep retired keys offline and identified because historical checkpoints require their original key; never remount them into the web container.",
+      "evidence": [
+        "audit/checkpoints.py",
+        "config/settings/integrity.py",
+        "compose.yaml",
+        "docs/INCIDENT_RESPONSE.md",
+        "tests/test_checkpoints.py"
+      ]
+    },
+    {
+      "id": "restic-repository-password",
+      "name": "Restic repository password",
+      "state": "active",
+      "owner": "deployment administrator",
+      "boundary": "deployment",
+      "material_type": "independent random repository unlock password, generated as 48 random bytes",
+      "generation": "Generate with an operating-system CSPRNG directly into the protected backup secret file.",
+      "storage": "Root-owned deployment file mounted only into the backup, restore, and key-rotation containers; independent recovery copy stored off-VM.",
+      "consumers": [
+        "Restic backup",
+        "restore verification",
+        "Restic key rotation"
+      ],
+      "algorithms": [
+        "restic-scrypt"
+      ],
+      "permitted_uses": [
+        "derive a Restic repository wrapping key and unlock the repository master keys"
+      ],
+      "prohibited_uses": [
+        "database authentication",
+        "Django signing",
+        "direct application-field encryption",
+        "command-line, environment-variable, log, or source-control transport"
+      ],
+      "protected_data": [
+        "Restic repository master keys"
+      ],
+      "excluded_data": [
+        "application sessions",
+        "MFA seeds",
+        "live database authentication"
+      ],
+      "rotation": "Use Restic key passwd with old and staged password files, verify repository access and integrity, prove the old password fails, then atomically promote the staged file.",
+      "retirement": "Destroy the old password after the replacement, backup, restore, and recovery copy are verified.",
+      "evidence": [
+        "deploy/backup/rotate-restic-key.sh",
+        "deploy/backup/backup.sh",
+        "compose.yaml",
+        "docs/BACKUP_AND_RESTORE.md",
+        "docs/INCIDENT_RESPONSE.md",
+        "https://github.com/restic/restic/blob/master/doc/design.rst"
+      ]
+    },
+    {
+      "id": "restic-master-keys",
+      "name": "Restic repository master encryption and MAC keys",
+      "state": "active",
+      "owner": "Restic 0.19.1",
+      "boundary": "deployment",
+      "material_type": "Restic-generated 256-bit AES key plus 256-bit Poly1305-AES key material",
+      "generation": "Generated by Restic from its CSPRNG when the repository is initialized.",
+      "storage": "Wrapped in Restic key files inside the encrypted repository; plaintext exists only inside the networkless backup tooling process while unlocked.",
+      "consumers": [
+        "Restic 0.19.1 repository implementation"
+      ],
+      "algorithms": [
+        "restic-aes256-ctr-poly1305-aes",
+        "sha256"
+      ],
+      "permitted_uses": [
+        "encrypt and authenticate repository objects",
+        "identify and integrity-check repository objects with SHA-256"
+      ],
+      "prohibited_uses": [
+        "application runtime cryptography",
+        "database authentication",
+        "export from Restic into logs or source control"
+      ],
+      "protected_data": [
+        "PostgreSQL backup dumps",
+        "Restic repository metadata"
+      ],
+      "excluded_data": [
+        "live database traffic",
+        "browser traffic",
+        "application sessions"
+      ],
+      "rotation": "A password change only rewraps the master keys. Suspected master-key disclosure requires a new repository and complete re-encryption of retained backups.",
+      "retirement": "Retire the entire old repository only after independently verifying the replacement repository and required retention history.",
+      "evidence": [
+        "deploy/backup/Dockerfile",
+        "deploy/backup/backup.sh",
+        "docs/BACKUP_AND_RESTORE.md",
+        "https://github.com/restic/restic/blob/master/doc/design.rst"
+      ]
+    },
+    {
+      "id": "tailscale-node-transport-keys",
+      "name": "Tailscale node and WireGuard transport keys",
+      "state": "provider_managed",
+      "owner": "Tailscale node administrator and Tailscale client",
+      "boundary": "provider",
+      "material_type": "per-device Curve25519 node and machine private keys plus ephemeral transport keys",
+      "generation": "Generated locally by each Tailscale client; reusable enrollment keys are prohibited for this deployment.",
+      "storage": "Tailscale client state on each approved device and the VM; never mounted into application containers.",
+      "consumers": [
+        "Tailscale clients on approved household devices",
+        "Tailscale daemon on the private Linux VM"
+      ],
+      "algorithms": [
+        "tailscale-wireguard-suite"
+      ],
+      "permitted_uses": [
+        "authenticate approved tailnet nodes",
+        "establish end-to-end encrypted private network transport"
+      ],
+      "prohibited_uses": [
+        "application data encryption at rest",
+        "shared household identity",
+        "application container mounting",
+        "reusable unattended enrollment"
+      ],
+      "protected_data": [
+        "tailnet device identity",
+        "network traffic between approved Tailscale nodes"
+      ],
+      "excluded_data": [
+        "application database encryption at rest",
+        "Django sessions",
+        "backup repository contents"
+      ],
+      "rotation": "Expire or remove compromised devices in the Tailscale administration plane and enroll the replacement device with a freshly generated node key.",
+      "retirement": "Remove the node from the tailnet and destroy its local Tailscale state; do not reuse its enrollment identity.",
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "docs/INCIDENT_RESPONSE.md",
+        "https://tailscale.com/docs/concepts/node-keys",
+        "https://www.wireguard.com/protocol/"
+      ]
+    },
+    {
+      "id": "tailscale-serve-tls-private-key",
+      "name": "Tailscale Serve TLS private key and ACME account key",
+      "state": "provider_managed",
+      "owner": "Tailscale daemon on the private Linux VM",
+      "boundary": "provider",
+      "material_type": "locally generated private keys for the public-trust TLS certificate and ACME account",
+      "generation": "Generated locally by Tailscale Serve while provisioning the Let's Encrypt certificate; Tailscale does not receive the private keys.",
+      "storage": "Tailscale daemon state on the Linux VM; never copied into the repository or application containers.",
+      "consumers": [
+        "Tailscale Serve HTTPS terminator"
+      ],
+      "algorithms": [
+        "tls12-tls13"
+      ],
+      "permitted_uses": [
+        "authenticate the exact neutral ts.net service hostname and terminate private HTTPS"
+      ],
+      "prohibited_uses": [
+        "public Funnel exposure",
+        "application signing",
+        "application-field or backup encryption",
+        "export into the checkout"
+      ],
+      "protected_data": [
+        "browser-to-private-ingress confidentiality, integrity, and server authentication"
+      ],
+      "excluded_data": [
+        "container-internal database traffic",
+        "data at rest",
+        "SSH administration"
+      ],
+      "rotation": "Tailscale Serve renews its managed certificate; each release records the live leaf key algorithm, validity, issuer, and fingerprint only in protected release evidence.",
+      "retirement": "Disable Serve and remove the node when retiring the hostname; treat any exported private material as compromised and replace it.",
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "deploy/network/verify-private-ingress.py",
+        "https://tailscale.com/docs/how-to/set-up-https-certificates"
+      ]
+    },
+    {
+      "id": "ssh-administrator-keys",
+      "name": "Linux VM administrator SSH keys",
+      "state": "deployment_managed",
+      "owner": "deployment administrator",
+      "boundary": "deployment",
+      "material_type": "per-administrator asymmetric SSH keys and VM host keys selected by the hardened host configuration",
+      "generation": "Generate independently on administrator devices and the VM with current operating-system SSH tooling; password SSH is prohibited.",
+      "storage": "Private user keys remain on administrator devices; host private keys remain on the VM; only public user keys enter authorized_keys.",
+      "consumers": [
+        "administrator SSH clients",
+        "Linux VM SSH daemon"
+      ],
+      "algorithms": [
+        "ssh-approved-suite"
+      ],
+      "permitted_uses": [
+        "key-only administration over the Tailscale network"
+      ],
+      "prohibited_uses": [
+        "application login",
+        "shared administrator identities",
+        "application or backup encryption",
+        "direct root login"
+      ],
+      "protected_data": [
+        "administrator and VM host authentication"
+      ],
+      "excluded_data": [
+        "household-member application authentication",
+        "browser traffic",
+        "database records"
+      ],
+      "rotation": "Remove a compromised public key from authorized_keys, replace affected host keys when needed, and verify access from a second approved device before enforcement changes.",
+      "retirement": "Remove public authorization immediately and securely erase the retired private key from the owning device.",
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "docs/INCIDENT_RESPONSE.md"
+      ]
+    }
+  ],
+  "algorithms": [
+    {
+      "id": "django-pbkdf2-hmac-sha256",
+      "name": "Django PBKDF2-HMAC-SHA256 password hashing",
+      "security_status": "approved",
+      "scope": "production application",
+      "parameters": "Django 5.2.17 PBKDF2PasswordHasher, 1,000,000 iterations, random per-value salt; primary production hasher",
+      "consumers": [
+        "user password hashes",
+        "MFA recovery-code hashes",
+        "dummy hashes used to equalize absent-record work"
+      ],
+      "permitted_uses": [
+        "one-way password and recovery-code verification"
+      ],
+      "prohibited_uses": [
+        "general integrity hashing",
+        "encryption",
+        "fast identifiers"
+      ],
+      "evidence": [
+        "pyproject.toml",
+        "config/settings/base.py",
+        "identity/services/mfa.py",
+        "identity/services/recovery.py"
+      ]
+    },
+    {
+      "id": "hmac-sha256",
+      "name": "HMAC-SHA256",
+      "security_status": "approved",
+      "scope": "application and deployment",
+      "parameters": "Domain-separated messages; keys are purpose-specific except Django-owned signing and keyed-reference uses of its signing key",
+      "consumers": [
+        "audit checkpoint authentication",
+        "Django signing",
+        "login-throttle pseudonymization",
+        "opaque active-session references"
+      ],
+      "permitted_uses": [
+        "keyed authenticity and pseudonymization with the assigned key purpose"
+      ],
+      "prohibited_uses": [
+        "encryption",
+        "unkeyed password hashing",
+        "cross-purpose key reuse"
+      ],
+      "evidence": [
+        "audit/checkpoints.py",
+        "identity/services/throttling.py",
+        "identity/services/sessions.py"
+      ]
+    },
+    {
+      "id": "sha256",
+      "name": "SHA-256",
+      "security_status": "approved",
+      "scope": "application and backup tooling",
+      "parameters": "Full 256-bit digest; domain-separated when deriving the MFA Fernet key",
+      "consumers": [
+        "audit event hash chain",
+        "offline corpus provenance and payload integrity",
+        "MFA Fernet key derivation",
+        "Restic object identifiers and integrity checks"
+      ],
+      "permitted_uses": [
+        "unkeyed content integrity and identifiers",
+        "fixed-length derivation from already random MFA key material"
+      ],
+      "prohibited_uses": [
+        "password storage",
+        "authenticity without a key",
+        "derivation from human-memorable secrets"
+      ],
+      "evidence": [
+        "audit/services.py",
+        "identity/password_validation.py",
+        "identity/services/mfa.py",
+        "https://github.com/restic/restic/blob/master/doc/design.rst"
+      ]
+    },
+    {
+      "id": "fernet-v1",
+      "name": "Fernet version 1 authenticated encryption",
+      "security_status": "approved",
+      "scope": "application",
+      "parameters": "256-bit composite key split into 128-bit AES-CBC encryption and 128-bit HMAC-SHA256 signing keys; random 128-bit IV; PKCS7 padding",
+      "consumers": [
+        "TOTP seed encryption at rest"
+      ],
+      "permitted_uses": [
+        "small TOTP seed payloads bound to user ID and key version"
+      ],
+      "prohibited_uses": [
+        "large files",
+        "financial record encryption",
+        "tokens accepted without successful authentication"
+      ],
+      "evidence": [
+        "identity/services/mfa.py",
+        "pyproject.toml",
+        "https://github.com/fernet/spec/blob/master/Spec.md"
+      ]
+    },
+    {
+      "id": "totp-hmac-sha1",
+      "name": "RFC 6238 TOTP with HMAC-SHA1",
+      "security_status": "compatibility_only",
+      "scope": "application authentication",
+      "parameters": "160-bit random seed, 30-second step, six digits, one-step clock drift, replay prevention by last accepted step",
+      "consumers": [
+        "TOTP authenticator enrollment and verification"
+      ],
+      "permitted_uses": [
+        "TOTP compatibility for possession-factor authentication"
+      ],
+      "prohibited_uses": [
+        "password hashing",
+        "signatures",
+        "general integrity checks",
+        "encryption"
+      ],
+      "evidence": [
+        "identity/services/mfa.py",
+        "tests/test_mfa.py"
+      ]
+    },
+    {
+      "id": "password-blocklist-sha1",
+      "name": "Full SHA-1 digest for offline breached-password membership",
+      "security_status": "compatibility_only",
+      "scope": "password validation",
+      "parameters": "Full uppercase 40-hex-character digest; local hash-only corpus; usedforsecurity disabled; no network lookup",
+      "consumers": [
+        "offline breached-password validator"
+      ],
+      "permitted_uses": [
+        "exact compatibility lookup in the reviewed breached-password corpus"
+      ],
+      "prohibited_uses": [
+        "password storage",
+        "collision resistance",
+        "signatures",
+        "integrity or authentication"
+      ],
+      "evidence": [
+        "identity/password_validation.py",
+        "docs/PASSWORD_BLOCKLIST.md",
+        "tests/test_password_policy.py"
+      ]
+    },
+    {
+      "id": "os-csprng",
+      "name": "Operating-system cryptographically secure random generator",
+      "security_status": "approved",
+      "scope": "application and deployment",
+      "parameters": "Python secrets module or OpenSSL rand; requested output length is purpose-specific",
+      "consumers": [
+        "TOTP seeds",
+        "MFA recovery codes",
+        "opaque identifiers and test/deployment secret generation"
+      ],
+      "permitted_uses": [
+        "generate unpredictable keys, codes, nonces, and identifiers"
+      ],
+      "prohibited_uses": [
+        "non-cryptographic pseudo-random generators for security material",
+        "human-invented production secrets"
+      ],
+      "evidence": [
+        "identity/services/mfa.py",
+        "identity/services/sessions.py",
+        "deploy/pentest/generate-secrets.py",
+        "README.md"
+      ]
+    },
+    {
+      "id": "restic-scrypt",
+      "name": "Restic scrypt repository-key derivation",
+      "security_status": "approved",
+      "scope": "backup tooling",
+      "parameters": "Parameters and random salt stored in each Restic key file; derives 64 bytes used to unwrap the repository master keys",
+      "consumers": [
+        "Restic 0.19.1 repository unlock"
+      ],
+      "permitted_uses": [
+        "derive the Restic repository wrapping key from its independent random repository password"
+      ],
+      "prohibited_uses": [
+        "application password hashing",
+        "direct data encryption",
+        "parameter override by application code"
+      ],
+      "evidence": [
+        "deploy/backup/Dockerfile",
+        "https://github.com/restic/restic/blob/master/doc/design.rst"
+      ]
+    },
+    {
+      "id": "restic-aes256-ctr-poly1305-aes",
+      "name": "Restic AES-256-CTR with Poly1305-AES authentication",
+      "security_status": "approved",
+      "scope": "backup tooling",
+      "parameters": "Restic repository format: random 16-byte nonce, 32-byte AES key, and 32-byte Poly1305-AES key material",
+      "consumers": [
+        "Restic 0.19.1 repository encryption and authentication"
+      ],
+      "permitted_uses": [
+        "encrypt and authenticate Restic repository objects"
+      ],
+      "prohibited_uses": [
+        "application-managed encryption",
+        "use without Restic format authentication",
+        "reuse of repository master keys outside Restic"
+      ],
+      "evidence": [
+        "deploy/backup/Dockerfile",
+        "https://github.com/restic/restic/blob/master/doc/design.rst"
+      ]
+    },
+    {
+      "id": "tls12-tls13",
+      "name": "Tailscale Serve TLS 1.2 and TLS 1.3 profile",
+      "security_status": "provider_managed",
+      "scope": "private browser ingress",
+      "parameters": "Go crypto/tls defaults with ECDHE forward secrecy and AEAD selection between AES-128-GCM and ChaCha20-Poly1305; live certificate and negotiation are checked at release",
+      "consumers": [
+        "Tailscale Serve",
+        "approved household browsers"
+      ],
+      "permitted_uses": [
+        "browser-to-private-ingress HTTPS for the exact ts.net hostname"
+      ],
+      "prohibited_uses": [
+        "TLS below version 1.2",
+        "invalid, expired, or hostname-mismatched certificates",
+        "public Funnel exposure"
+      ],
+      "evidence": [
+        "deploy/network/verify-private-ingress.py",
+        "docs/PRIVATE_INGRESS.md",
+        "https://tailscale.com/docs/concepts/tailscale-encryption"
+      ]
+    },
+    {
+      "id": "tailscale-wireguard-suite",
+      "name": "Tailscale WireGuard transport suite",
+      "security_status": "provider_managed",
+      "scope": "private network transport",
+      "parameters": "Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s using Curve25519, ChaCha20-Poly1305, BLAKE2s, SipHash24, and HKDF",
+      "consumers": [
+        "approved Tailscale nodes"
+      ],
+      "permitted_uses": [
+        "end-to-end encrypted transport and node authentication inside the tailnet"
+      ],
+      "prohibited_uses": [
+        "application data-at-rest protection",
+        "replacement for browser HTTPS",
+        "algorithm overrides by application code"
+      ],
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "https://www.wireguard.com/protocol/",
+        "https://tailscale.com/docs/concepts/tailscale-encryption"
+      ]
+    },
+    {
+      "id": "ssh-approved-suite",
+      "name": "Operating-system approved SSH public-key suite",
+      "security_status": "deployment_managed",
+      "scope": "Linux VM administration",
+      "parameters": "Current hardened OpenSSH client and server policy; exact host and user public-key algorithms are captured during release preflight",
+      "consumers": [
+        "Linux VM SSH daemon",
+        "approved administrator devices"
+      ],
+      "permitted_uses": [
+        "key-only SSH administration over Tailscale"
+      ],
+      "prohibited_uses": [
+        "password SSH",
+        "direct root login",
+        "application authentication",
+        "unreviewed legacy SSH algorithms"
+      ],
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "docs/INCIDENT_RESPONSE.md"
+      ]
+    },
+    {
+      "id": "test-md5-password-hasher",
+      "name": "Django MD5 test password hasher",
+      "security_status": "test_only",
+      "scope": "fast local unit tests only",
+      "parameters": "Django MD5PasswordHasher selected only by config.settings.test",
+      "consumers": [
+        "fast deterministic test settings"
+      ],
+      "permitted_uses": [
+        "synthetic local unit-test password fixtures"
+      ],
+      "prohibited_uses": [
+        "production, hardened, pentest, browser, migration, backup, or release-candidate settings",
+        "real credentials",
+        "security-strength assertions"
+      ],
+      "evidence": [
+        "config/settings/test.py",
+        "config/settings/hardened.py",
+        "tests/test_production_settings.py"
+      ]
+    }
+  ],
+  "certificates": [
+    {
+      "id": "tailscale-serve-leaf-certificate",
+      "name": "Private application HTTPS leaf certificate",
+      "state": "deployment_managed",
+      "owner": "Tailscale Serve on the Linux VM",
+      "boundary": "provider",
+      "issuer": "Let's Encrypt through Tailscale HTTPS certificate provisioning",
+      "subject": "Exact neutral production hostname under the active ts.net tailnet domain; actual hostname is not committed",
+      "key_residency": "Generated and stored locally in Tailscale daemon state; never mounted into an application container or received by Tailscale",
+      "algorithms": [
+        "tls12-tls13"
+      ],
+      "validation": "Release preflight validates public trust, hostname, validity, TLS 1.2 or 1.3, HSTS, HTTPS-only Serve configuration, and Funnel-disabled state.",
+      "renewal": "Managed by Tailscale Serve; Let's Encrypt leaf certificates have a 90-day lifetime. Record the sanitized live issuer, validity, public-key algorithm, and fingerprint per release.",
+      "prohibited_uses": [
+        "public internet exposure",
+        "other hostnames",
+        "application signing or data-at-rest encryption"
+      ],
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "deploy/network/verify-private-ingress.py",
+        "https://tailscale.com/docs/how-to/set-up-https-certificates"
+      ]
+    },
+    {
+      "id": "browser-public-trust-roots",
+      "name": "Approved browser public TLS trust roots",
+      "state": "provider_managed",
+      "owner": "approved device operating system and browser vendor",
+      "boundary": "provider",
+      "issuer": "Platform trust store vendors",
+      "subject": "Public roots and intermediates required to validate the Tailscale-provisioned Let's Encrypt chain",
+      "key_residency": "Root private keys remain with their certificate authorities and are never available to this deployment.",
+      "algorithms": [
+        "tls12-tls13"
+      ],
+      "validation": "Current approved browsers must build a valid chain without bypasses; certificate errors fail the release check.",
+      "renewal": "Managed through approved-device operating-system and browser updates; stale clients are removed from the tailnet.",
+      "prohibited_uses": [
+        "custom trust bypasses",
+        "self-signed production certificates",
+        "disabled certificate validation"
+      ],
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "deploy/network/verify-private-ingress.py"
+      ]
+    }
+  ],
+  "known_absences": [
+    {
+      "id": "internal-postgresql-tls",
+      "current_state": "No PostgreSQL TLS certificate or key is configured on the internal Docker network.",
+      "required_action": "Implement and verify authenticated encrypted database connections before release.",
+      "related_asvs": [
+        "v5.0.0-12.3.1",
+        "v5.0.0-12.3.2",
+        "v5.0.0-12.3.3"
+      ],
+      "evidence": [
+        "compose.yaml",
+        "docs/ASVS_LEVEL2_MAPPING.md"
+      ]
+    },
+    {
+      "id": "internal-service-certificates",
+      "current_state": "No application-container, nginx-relay, or backup-service certificate exists; those hops remain confined to internal or loopback-only networks.",
+      "required_action": "Reassess if a trust boundary changes; do not invent a certificate record for an absent control.",
+      "related_asvs": [
+        "v5.0.0-12.3.1"
+      ],
+      "evidence": [
+        "compose.yaml",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    },
+    {
+      "id": "application-client-certificates",
+      "current_state": "The application does not issue, accept, or manage client certificates.",
+      "required_action": "Reassess before adding mutual TLS or certificate-authenticated clients.",
+      "related_asvs": [
+        "v5.0.0-11.1.2"
+      ],
+      "evidence": [
+        "config/settings/production.py",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    },
+    {
+      "id": "reusable-tailscale-auth-keys",
+      "current_state": "Reusable Tailscale enrollment keys are prohibited and are not part of the deployment.",
+      "required_action": "If automation ever requires enrollment material, inventory it before use, preapprove and narrowly scope it, set a short expiry, and store it outside the checkout.",
+      "related_asvs": [
+        "v5.0.0-11.1.2"
+      ],
+      "evidence": [
+        "SECURITY_PLAN.md",
+        "docs/PRIVATE_INGRESS.md",
+        "docs/INCIDENT_RESPONSE.md"
+      ]
+    }
+  ]
+}

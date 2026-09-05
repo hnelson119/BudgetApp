@@ -1,7 +1,7 @@
 # OWASP ASVS 5.0.0 Level 2 mapping
 
 Status: requirement-level applicability complete; release verification pending  
-Last updated: 2026-09-04
+Last updated: 2026-09-05
 
 ## Scope and source integrity
 
@@ -31,9 +31,9 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 173 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 80 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 105 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Implemented | 106 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
 | Partial | 57 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
-| Not started | 11 | The control is absent or its required verification has not been designed. |
+| Not started | 10 | The control is absent or its required verification has not been designed. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -70,7 +70,11 @@ and records protected household audit events. Release-candidate verification rem
 
 ### Cryptography, supply chain, and logging
 
-- `v5.0.0-11.1.2`: create the complete key, algorithm, and certificate inventory.
+The machine-validated key, algorithm, and certificate inventory implements `v5.0.0-11.1.2` with
+explicit permitted/prohibited uses, protected/excluded data, rotation, retirement, provider
+boundaries, test-only exceptions, review cadence, and known absences. See
+`docs/CRYPTOGRAPHIC_INVENTORY.md`; release-candidate verification remains pending.
+
 - `v5.0.0-15.1.2`: generate and retain an SBOM as release evidence.
 - `v5.0.0-16.1.1`: document the complete logging inventory, access model, destinations, and
   retention.

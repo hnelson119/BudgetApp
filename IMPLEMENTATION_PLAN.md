@@ -1,7 +1,7 @@
 # Household Budget Application — Implementation Plan
 
 Status: Milestones 0–9 code-deliverable work and local verification complete; Milestone 10 release hardening in progress
-Last updated: 2026-09-04
+Last updated: 2026-09-05
 
 ## 1. Locked architecture
 
@@ -359,6 +359,14 @@ appends protected events to affected household audit streams. A production-deriv
 PostgreSQL harness proves both scopes reject replay and always rebuilds its one-off images after
 finding and remediating the stale-image evidence defect `M10-F023`. Release-candidate replay testing
 is still pending.
+
+The cryptographic-inventory slice now assigns stable records to every current application,
+deployment, provider-managed, and test-only key, algorithm, and certificate boundary. The strict
+validator checks record completeness, evidence paths, purpose separation, dependency/version
+contracts, compatibility-only SHA-1 uses, the test-only MD5 exception, certificate/algorithm
+references, absence records, review cadence, and the absence of embedded private material or exact
+private hostnames. Internal PostgreSQL and service TLS remain honest open controls, and live
+certificate, Tailscale, and SSH observations remain release-only.
 
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 

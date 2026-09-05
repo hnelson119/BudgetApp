@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-09-04",
+  "mapping_updated": "2026-09-05",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -19,9 +19,9 @@
       "not_applicable": 80
     },
     "status": {
-      "implemented": 105,
+      "implemented": 106,
       "not_applicable": 80,
-      "not_started": 11,
+      "not_started": 10,
       "partial": 57
     }
   },
@@ -3236,14 +3236,13 @@
       "level": 2,
       "description": "Verify that a cryptographic inventory is performed, maintained, regularly updated, and includes all cryptographic keys, algorithms, and certificates used by the application. It must also document where keys can and cannot be used in the system, and the types of data that can and cannot be protected using the keys.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "A complete cryptographic key, algorithm, and certificate inventory has not been produced.",
+      "status": "implemented",
+      "assessment": "The machine-validated inventory covers application, deployment, provider-managed, and test-only key, algorithm, and certificate boundaries; it defines permitted and prohibited uses, protected and excluded data, rotation, retirement, review cadence, and known absences without claiming release verification.",
       "evidence": [
-        "SECURITY_PLAN.md",
-        "identity/services/mfa.py",
-        "audit/checkpoints.py",
-        "tests/test_mfa.py",
-        "tests/test_checkpoints.py"
+        "docs/cryptographic-inventory.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "scripts/check_cryptographic_inventory.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
