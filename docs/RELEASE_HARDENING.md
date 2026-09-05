@@ -94,10 +94,10 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 109 implemented, 57 partial, 7 not
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 111 implemented, 57 partial, 5 not
   started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
-  are internal service TLS, stronger backend authentication, egress allowlisting, and logically
-  separate security-log storage. See
+  are internal service TLS, stronger backend authentication, and logically separate security-log
+  storage. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
 - The maintained cryptographic inventory now covers 9 key classes, 13 algorithm profiles, 2
   certificate classes, and 4 intentional absences across application, deployment, provider, and
@@ -128,8 +128,9 @@ real household data.
   events. The production-derived disposable PostgreSQL harness proves both scopes reject replay and
   now rebuilds every one-off image after finding and remediating `M10-F023`. This implements the
   administrator operation; release-candidate replay testing remains pending.
-- A production-derived disposable probe now verifies the Compose port/network boundary, exact
-  proxy-header contract, runtime least privilege, blocked application egress, and local secret
+- A production-derived disposable probe now verifies the exact Compose service/network allowlist,
+  application and database internal-only routes, the relay's single static upstream, the exact
+  proxy-header contract, runtime least privilege, blocked Django egress, and local secret
   non-leakage. Its dedicated CI job also drives three valid and six ambiguous or malformed HTTP/1.1
   message boundaries through the production nginx/Gunicorn images; ambiguity must yield exactly one
   rejection and connection closure. The separate private-ingress runbook provides a least-privilege

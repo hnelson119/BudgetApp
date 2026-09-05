@@ -55,6 +55,32 @@ _SECRET_BEARING_SERVICES = {
     "restore-verify",
     "web",
 }
+_EXPECTED_SERVICE_NETWORKS = {
+    "backup": {"backend"},
+    "db": {"backend"},
+    "db-admin-key-rotate": {"backend"},
+    "db-bootstrap": {"backend"},
+    "import-cleanup": {"backend"},
+    "ingress": {"frontend", "ingress"},
+    "integrity": {"backend"},
+    "mfa-key-rotate": {"backend"},
+    "migrate": {"backend"},
+    "notify": {"backend"},
+    "restic-key-rotate": set(),
+    "restore-verify": {"backend"},
+    "web": {"backend", "frontend"},
+}
+_NETWORK_BYPASS_KEYS = {
+    "cap_add",
+    "device_cgroup_rules",
+    "devices",
+    "dns",
+    "dns_search",
+    "external_links",
+    "extra_hosts",
+    "links",
+    "privileged",
+}
 _FORBIDDEN_ENVIRONMENT_NAMES = {
     "DJANGO_SECRET_KEY",
     "DJANGO_MFA_ENCRYPTION_KEY",
@@ -69,6 +95,7 @@ _FORBIDDEN_ENVIRONMENT_NAMES = {
 _MAXIMUM_RESPONSE_SIZE = 1024 * 1024
 _MAXIMUM_RAW_REQUEST_SIZE = 64 * 1024
 _HTTP_STATUS_LINE = re.compile(rb"(?m)^HTTP/1\.[01] ([1-5][0-9]{2})")
+_EXPECTED_PROXY_DESTINATION = "proxy_pass http://web:8000;"
 
 
 class ProbeFailure(RuntimeError):
@@ -133,23 +160,55 @@ def _network_names(value: Any) -> set[str]:
     raise ProbeFailure("A Compose network reference is malformed.")
 
 
+def validate_relay_destination(configuration: str) -> int:
+    outbound_directives = [
+        line.strip()
+        for line in configuration.splitlines()
+        if re.match(r"^(?:fastcgi|grpc|memcached|proxy|scgi|uwsgi)_pass(?:\s|$)", line.strip())
+    ]
+    if outbound_directives != [_EXPECTED_PROXY_DESTINATION] or any(
+        line.strip().startswith(("include ", "resolver ")) for line in configuration.splitlines()
+    ):
+        raise ProbeFailure("The loopback relay destination does not match the internal allowlist.")
+    return 1
+
+
 def validate_compose_boundary(configuration: dict[str, Any]) -> int:
     services = configuration.get("services")
     networks = configuration.get("networks")
     if not isinstance(services, dict) or not isinstance(networks, dict):
         raise ProbeFailure("The production Compose model is incomplete.")
-    if not all(
-        isinstance(networks.get(name), dict) and networks[name].get("internal") is True
-        for name in ("frontend", "backend")
-    ) or not isinstance(networks.get("ingress"), dict):
-        raise ProbeFailure("Production Docker networks are not internal-only.")
+    if set(networks) != {"ingress", "frontend", "backend"} or not all(
+        isinstance(networks.get(name), dict) for name in networks
+    ):
+        raise ProbeFailure("Production Docker networks do not match the network allowlist.")
+    if not all(networks[name].get("internal") is True for name in ("frontend", "backend")):
+        raise ProbeFailure("Application and database networks are not internal-only.")
     if networks["ingress"].get("internal") is True:
         raise ProbeFailure("The loopback relay network cannot publish a host port.")
+    if networks["ingress"].get("external") is True:
+        raise ProbeFailure("The loopback relay uses an unmanaged Docker network.")
+    if set(services) != set(_EXPECTED_SERVICE_NETWORKS):
+        raise ProbeFailure("The production service catalog does not match the network allowlist.")
+
+    for service_name, expected_networks in _EXPECTED_SERVICE_NETWORKS.items():
+        service = services[service_name]
+        if not isinstance(service, dict):
+            raise ProbeFailure("A production Compose service is malformed.")
+        if any(key in service for key in _NETWORK_BYPASS_KEYS):
+            raise ProbeFailure("A production service declares a prohibited network bypass.")
+        if service_name == "restic-key-rotate":
+            if service.get("network_mode") != "none" or service.get("networks"):
+                raise ProbeFailure("The offline key-rotation service gained network access.")
+        elif (
+            "network_mode" in service
+            or _network_names(service.get("networks")) != expected_networks
+        ):
+            raise ProbeFailure("A production service has an unexpected network attachment.")
 
     published: list[tuple[str, Any]] = []
     for service_name, service in services.items():
-        if not isinstance(service, dict):
-            raise ProbeFailure("A production Compose service is malformed.")
+        assert isinstance(service, dict)
         for port in service.get("ports", []) or []:
             published.append((str(service_name), port))
     if len(published) != 1 or published[0][0] != "ingress":
@@ -181,6 +240,12 @@ def validate_compose_boundary(configuration: dict[str, Any]) -> int:
         raise ProbeFailure("The web publish or relay secret boundary is invalid.")
     if _references(web.get("secrets")) != _EXPECTED_SECRETS:
         raise ProbeFailure("The web service receives an unexpected secret set.")
+    environment = web.get("environment")
+    if not isinstance(environment, dict) or (
+        str(environment.get("DATABASE_HOST")),
+        str(environment.get("DATABASE_PORT")),
+    ) != ("db", "5432"):
+        raise ProbeFailure("The web service database destination is outside the allowlist.")
     if (
         str(web.get("user")) != "10001:10001"
         or web.get("read_only") is not True
@@ -197,7 +262,7 @@ def validate_compose_boundary(configuration: dict[str, Any]) -> int:
         or "no-new-privileges:true" not in (ingress.get("security_opt") or [])
     ):
         raise ProbeFailure("The loopback relay is missing a runtime hardening control.")
-    return 15
+    return 18 + len(_EXPECTED_SERVICE_NETWORKS)
 
 
 def validate_secret_sources(configuration: dict[str, Any], secret_directory: Path) -> int:
@@ -674,6 +739,7 @@ def validate_runtime_behavior(web_id: str, ingress_id: str) -> tuple[int, int]:
     _run_expect_failure(["docker", "exec", ingress_id, "sh", "-c", "touch /network-boundary-probe"])
     _run(["docker", "exec", ingress_id, "sh", "-c", "test ! -e /run/secrets"])
     _run(["docker", "exec", ingress_id, "nc", "-z", "-w", "2", "web", "8000"])
+    validate_relay_destination(_run(["docker", "exec", ingress_id, "cat", "/etc/nginx/nginx.conf"]))
     _run(
         [
             "docker",
@@ -731,7 +797,7 @@ def validate_runtime_behavior(web_id: str, ingress_id: str) -> tuple[int, int]:
     )
     if not _socket_reachable(8000) or any(_socket_reachable(port) for port in (5432, 2375, 2376)):
         raise ProbeFailure("The disposable host port boundary does not match the allowlist.")
-    return 8, 13
+    return 8, 14
 
 
 def validate_no_secret_leakage(

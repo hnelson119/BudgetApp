@@ -24,16 +24,16 @@ VM_PROBE = _load_script("private_ingress_probe", "deploy/network/verify-private-
 
 
 def _valid_compose_configuration() -> dict[str, Any]:
-    return {
-        "networks": {
-            "ingress": {},
-            "frontend": {"internal": True},
-            "backend": {"internal": True},
-        },
-        "services": {
+    services = {
+        name: ({"network_mode": "none"} if not networks else {"networks": dict.fromkeys(networks)})
+        for name, networks in PRODUCTION_PROBE._EXPECTED_SERVICE_NETWORKS.items()
+    }
+    services.update(
+        {
             "db": {"networks": {"backend": None}},
             "web": {
                 "networks": {"frontend": None, "backend": None},
+                "environment": {"DATABASE_HOST": "db", "DATABASE_PORT": "5432"},
                 "secrets": [
                     {"source": "django_secret_key"},
                     {"source": "django_mfa_encryption_key"},
@@ -61,18 +61,76 @@ def _valid_compose_configuration() -> dict[str, Any]:
                 "pids_limit": 64,
                 "security_opt": ["no-new-privileges:true"],
             },
+        }
+    )
+    return {
+        "networks": {
+            "ingress": {},
+            "frontend": {"internal": True},
+            "backend": {"internal": True},
         },
+        "services": services,
     }
 
 
 def test_production_probe_accepts_only_loopback_internal_compose_boundary() -> None:
     configuration = _valid_compose_configuration()
 
-    assert PRODUCTION_PROBE.validate_compose_boundary(configuration) == 15
+    assert PRODUCTION_PROBE.validate_compose_boundary(configuration) == 31
 
     configuration["services"]["ingress"]["ports"][0]["host_ip"] = "0.0.0.0"
     with pytest.raises(PRODUCTION_PROBE.ProbeFailure):
         PRODUCTION_PROBE.validate_compose_boundary(configuration)
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    (
+        lambda configuration: configuration["networks"]["ingress"].update({"internal": True}),
+        lambda configuration: configuration["networks"]["ingress"].update({"external": True}),
+        lambda configuration: configuration["services"].update(
+            {"unexpected": {"networks": {"backend": None}}}
+        ),
+        lambda configuration: configuration["services"]["web"].update(
+            {"networks": {"frontend": None}}
+        ),
+        lambda configuration: configuration["services"]["web"].update({"network_mode": "host"}),
+        lambda configuration: configuration["services"]["web"].update(
+            {"extra_hosts": ["outside:192.0.2.1"]}
+        ),
+        lambda configuration: configuration["services"]["web"].update({"cap_add": ["NET_ADMIN"]}),
+        lambda configuration: configuration["services"]["restic-key-rotate"].update(
+            {"network_mode": "bridge"}
+        ),
+        lambda configuration: configuration["services"]["web"]["environment"].update(
+            {"DATABASE_HOST": "outside"}
+        ),
+    ),
+)
+def test_production_probe_rejects_egress_allowlist_bypasses(mutator: Any) -> None:
+    configuration = _valid_compose_configuration()
+    mutator(configuration)
+
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure):
+        PRODUCTION_PROBE.validate_compose_boundary(configuration)
+
+
+def test_production_probe_accepts_only_the_static_internal_relay_destination() -> None:
+    configuration = (PROJECT_ROOT / "deploy" / "network" / "nginx.conf").read_text(encoding="utf-8")
+
+    assert PRODUCTION_PROBE.validate_relay_destination(configuration) == 1
+
+    for replacement in (
+        "proxy_pass http://db:5432;",
+        "proxy_pass http://$upstream;",
+        "proxy_pass https://example.com;",
+        "proxy_pass http://web:8000;\n            grpc_pass grpc://example.com:443;",
+        "proxy_pass http://web:8000;\n            include /tmp/alternate-upstream.conf;",
+    ):
+        with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="relay destination"):
+            PRODUCTION_PROBE.validate_relay_destination(
+                configuration.replace("proxy_pass http://web:8000;", replacement)
+            )
 
 
 def test_production_probe_ties_compose_sources_to_guarded_secret_directory(
