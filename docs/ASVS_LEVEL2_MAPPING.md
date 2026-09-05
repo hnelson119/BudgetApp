@@ -31,9 +31,9 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 173 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 80 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 111 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Implemented | 112 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
 | Partial | 57 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
-| Not started | 5 | The control is absent or its required verification has not been designed. |
+| Not started | 4 | The control is absent or its required verification has not been designed. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -94,14 +94,15 @@ module pins, and immutable actions. CI separately generates and retains image-re
 all three release images. See `docs/SBOM.md`; exact release-candidate preservation and review remain
 pending.
 
-The maintained logging inventory implements `v5.0.0-16.1.1` across all 13 current stack layers. It
-documents events, formats, destinations, uses, access controls, retention, sensitive-data rules,
-integrity/availability properties, and limitations. Its validator derives 143 stable event entries
-from application and maintenance source, verifies every production Compose logging policy, and
-enforces evidence and review cadence. See `docs/LOGGING_INVENTORY.md`; release-candidate and live
-host/provider verification remain pending.
-
-- `v5.0.0-16.4.3`: transmit security logs to a logically separate protected destination.
+The maintained logging inventory implements `v5.0.0-16.1.1` across all 14 current stack layers and
+the separate security archive implements `v5.0.0-16.4.3`. Production sends redacted security JSON
+through a permission-restricted Unix socket to a distinct networkless collector; Django cannot
+mount or read its archive volume. The collector validates and redacts again, writes restrictive
+append-only records, creates minimized warning-or-higher alerts, and exposes safe delivery and
+validation failures. The validator derives 149 stable event entries, verifies every Compose logging
+and collector isolation policy, and enforces evidence and review cadence. See
+`docs/LOGGING_INVENTORY.md`; release-candidate delivery, retention, alert review, escalation, and
+live host/provider verification remain pending.
 
 ## Applicability policy
 
@@ -111,8 +112,8 @@ providers, OAuth/OIDC, self-contained authentication tokens, and WebRTC. Every e
 specific reason.
 
 A control is not excluded merely because the application is private, small, or currently lacks the
-infrastructure to meet it. Internal TLS, short-lived service authentication, and separate log
-storage therefore remain applicable gaps.
+infrastructure to meet it. Internal TLS and short-lived service authentication therefore remain
+applicable gaps.
 Future OAuth, public hosting, external identity, WebSocket, bank-sync, email, or file-processing
 features require re-evaluating the associated exclusions before merge.
 

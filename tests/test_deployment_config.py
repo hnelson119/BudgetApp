@@ -190,10 +190,37 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert "secrets" not in ingress
     assert "group_add" not in ingress
 
+    security_log = compose["services"]["security-log"]
+    assert security_log["network_mode"] == "none"
+    assert security_log["user"] == "10003:10003"
+    assert security_log["read_only"] is True
+    assert security_log["cap_drop"] == ["ALL"]
+    assert security_log["pids_limit"] == 32
+    assert "secrets" not in security_log
+    assert "environment" not in security_log
+    assert {volume.split(":")[0] for volume in security_log["volumes"]} == {
+        "security_log_socket",
+        "security_log_archive",
+    }
+    assert set(compose["volumes"]) >= {"security_log_socket", "security_log_archive"}
+    socket_mount = next(volume for volume in web["volumes"] if isinstance(volume, dict))
+    assert socket_mount == {
+        "type": "volume",
+        "source": "security_log_socket",
+        "target": "/run/security-log",
+        "read_only": True,
+    }
+    assert "security-log" in web["depends_on"]
+
     relay_dockerfile = (PROJECT_ROOT / "deploy/network/Dockerfile").read_text(encoding="utf-8")
     assert "FROM nginx:1.30.4-alpine@sha256:" in relay_dockerfile
     assert "RUN apk upgrade --no-cache" in relay_dockerfile
     assert "USER 101:101" in relay_dockerfile
+
+    application_dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "adduser -u 10003" in application_dockerfile
+    assert "chmod 0711 /run/security-log" in application_dockerfile
+    assert "chmod 0700 /var/lib/security-log" in application_dockerfile
 
     secret_services = {
         "db",

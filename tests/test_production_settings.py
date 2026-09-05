@@ -70,3 +70,5 @@ def test_production_settings_pin_exact_private_ingress_and_proxy_boundary() -> N
     assert "SESSION_COOKIE_DOMAIN = None" in hardened_file
     assert "CSRF_COOKIE_DOMAIN = None" in hardened_file
     assert "Shared hardened settings cannot be selected directly." in hardened_file
+    assert '"socket_path": "/run/security-log/security.sock"' in production_file
+    assert 'append("security_archive")' in production_file

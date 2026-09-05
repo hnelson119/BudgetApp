@@ -259,10 +259,6 @@ NOT_STARTED: dict[str, str] = {
         "Backend database authentication still uses long-lived, file-mounted passwords rather "
         "than short-term or certificate credentials."
     ),
-    "V16.4.3": (
-        "Operational security logs remain in Docker's local log store and are not transmitted to "
-        "a logically separate system."
-    ),
 }
 
 IMPLEMENTED_REQUIREMENTS = {
@@ -375,6 +371,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V16.3.1",
     "V16.3.4",
     "V16.4.1",
+    "V16.4.3",
     "V16.5.1",
     "V16.5.3",
 }
@@ -461,6 +458,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "catalogs, formats, destinations, uses, readers, retention, sensitive-data rules, "
         "integrity limits, and explicit separate-destination gaps without claiming release "
         "verification."
+    ),
+    "V16.4.3": (
+        "Production Django security records are sent over a permission-restricted Unix datagram "
+        "socket to a distinct networkless collector. The application has only a read-only socket "
+        "mount and cannot access the collector-only archive volume. The collector independently "
+        "validates and redacts records, persists them with restrictive modes, creates a "
+        "warning-or-higher alert stream, and emits fixed safe transport or validation failures. "
+        "Release-candidate retention, review, and escalation observations remain pending."
     ),
 }
 
@@ -556,6 +561,18 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/LOGGING_INVENTORY.md",
         "scripts/check_logging_inventory.py",
         "tests/test_release_hardening.py",
+    ],
+    "V16.4.3": [
+        "core/logging.py",
+        "core/security_log_collector.py",
+        "config/settings/production.py",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "docs/logging-inventory.json",
+        "docs/LOGGING_INVENTORY.md",
+        "scripts/check_logging_inventory.py",
+        "tests/test_security_log_archive.py",
+        "tests/test_network_boundary.py",
     ],
 }
 

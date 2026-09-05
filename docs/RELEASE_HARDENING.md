@@ -94,10 +94,9 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 111 implemented, 57 partial, 5 not
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 112 implemented, 57 partial, 4 not
   started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
-  are internal service TLS, stronger backend authentication, and logically separate security-log
-  storage. See
+  are internal service TLS and stronger backend authentication. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
 - The maintained cryptographic inventory now covers 9 key classes, 13 algorithm profiles, 2
   certificate classes, and 4 intentional absences across application, deployment, provider, and
@@ -105,12 +104,14 @@ real household data.
   evidence, dependency contracts, no embedded material/private hostname, and a 90-day review
   cadence. Internal PostgreSQL/service TLS and live certificate/Tailscale/SSH observations remain
   open release work; implementation of the inventory is not release verification.
-- The maintained logging inventory now covers all 13 current stack layers and 143 source-derived
+- The maintained logging inventory now covers all 14 current stack layers and 149 source-derived
   operational, security, protected-audit, and maintenance event entries. It records formats,
   destinations, uses, readers, retention, redaction, integrity/availability properties, and known
-  limitations; its validator also enforces bounded Docker logging on all production services and a
-  90-day review cadence. Live host/provider observations and a logically separate protected
-  destination for security logs remain open; inventory implementation is not release verification.
+  limitations; its validator also enforces bounded Docker logging, the networkless collector and
+  read-only application socket boundary, and a 90-day review cadence. The collector independently
+  validates/redacts records, writes to its collector-only archive, creates minimized alerts, and
+  emits safe delivery/rejection diagnostics. Live delivery, retention, alert review, escalation,
+  and host/provider observations remain pending; implementation is not release verification.
 - The maintained CycloneDX inventory now derives 83 third-party components from exact locks,
   digest-pinned images, checksummed source, Go pins, and immutable workflow actions, and restricts
   them to six approved repository services. CI additionally retains image-resolved SBOMs for all

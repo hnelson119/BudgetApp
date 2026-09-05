@@ -385,6 +385,33 @@ services:
       - /tmp:rw,noexec,nosuid,size=128m
     logging: *log-policy
 
+  security-log:
+    build:
+      context: ${BUDGET_BUILD_CONTEXT:-.}
+    restart: unless-stopped
+    command: ["python", "-m", "core.security_log_collector", "serve"]
+    network_mode: none
+    volumes:
+      - security_log_socket:/run/security-log
+      - security_log_archive:/var/lib/security-log
+    healthcheck:
+      test: ["CMD", "python", "-m", "core.security_log_collector", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    user: "10003:10003"
+    read_only: true
+    init: true
+    pids_limit: 32
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    logging: *log-policy
+
   ingress:
     build:
       context: ${BUDGET_BUILD_CONTEXT:-.}
@@ -437,8 +464,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      security-log:
+        condition: service_healthy
     volumes:
       - media_data:/app/media
+      - type: volume
+        source: security_log_socket
+        target: /run/security-log
+        read_only: true
     networks:
       - frontend
       - backend
@@ -448,6 +481,8 @@ services:
 volumes:
   postgres_data:
   media_data:
+  security_log_socket:
+  security_log_archive:
 
 networks:
   ingress:

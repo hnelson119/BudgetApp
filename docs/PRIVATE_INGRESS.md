@@ -156,6 +156,9 @@ production Compose services, and verifies the following without printing secret 
 - UID/GID 10001, zero effective capabilities, no-new-privileges, a read-only root filesystem, and
   the bounded writable `/tmp` mount;
 - only the runtime database identity and its three read-only secret mounts;
+- networkless UID/GID 10003 security-log collection, a read-only application socket mount, a
+  collector-only archive volume, restrictive socket/directory/file modes, delivered probe record,
+  and minimized warning alert;
 - required database connectivity, blocked Django-container egress, the relay's single live
   `web:8000` proxy destination, one shared non-root numeric
   secret-reader GID, exact 0700/0440 Linux ownership/modes, and absence of reusable secret values

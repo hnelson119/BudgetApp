@@ -4,6 +4,8 @@ import json
 import logging
 import os
 import re
+import socket
+import sys
 import traceback
 from contextvars import ContextVar, Token
 from datetime import UTC, datetime
@@ -35,6 +37,7 @@ SAFE_RECORD_FIELDS = (
     "check_name",
     "result",
 )
+MAX_SECURITY_LOG_DATAGRAM_BYTES = 32 * 1024
 
 
 def redact_text(value: object) -> str:
@@ -87,6 +90,44 @@ class SecurityStreamFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.__dict__["stream"] = "security"
         return True
+
+
+class UnixDatagramJsonHandler(logging.Handler):
+    """Send one already-redacted JSON record to the isolated archive collector."""
+
+    def __init__(self, socket_path: str) -> None:
+        super().__init__()
+        if not socket_path.startswith("/") or "\x00" in socket_path:
+            raise ValueError("The security-log socket path must be an absolute Linux path.")
+        self.socket_path = socket_path
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            payload = self.format(record).encode("utf-8")
+            if not payload or len(payload) > MAX_SECURITY_LOG_DATAGRAM_BYTES:
+                raise ValueError("The security-log record is outside the bounded datagram size.")
+            unix_family = getattr(socket, "AF_UNIX", None)
+            if unix_family is None:
+                raise OSError("Unix sockets are unavailable.")
+            with socket.socket(unix_family, socket.SOCK_DGRAM) as transport:
+                transport.settimeout(0.25)
+                transport.sendto(payload, self.socket_path)
+        except (OSError, UnicodeError, ValueError):
+            fallback = {
+                "timestamp": datetime.now(tz=UTC).isoformat(timespec="milliseconds"),
+                "level": "ERROR",
+                "logger": "security.archive",
+                "stream": "security",
+                "environment": os.getenv("APP_ENVIRONMENT", "development"),
+                "release": os.getenv("APP_RELEASE", "development"),
+                "request_id": "-",
+                "actor_id": "-",
+                "household_id": "-",
+                "message": "Security-log delivery failed.",
+                "event": "security.archive.delivery_failed",
+            }
+            sys.stderr.write(json.dumps(fallback, separators=(",", ":")) + "\n")
+            sys.stderr.flush()
 
 
 class RedactingJsonFormatter(logging.Formatter):

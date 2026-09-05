@@ -21,3 +21,12 @@ if CSRF_TRUSTED_ORIGINS != [f"https://{ALLOWED_HOSTS[0]}"]:  # noqa: F405
     raise ImproperlyConfigured(
         "Production CSRF origins must contain only the exact Tailscale HTTPS origin."
     )
+
+LOGGING["handlers"]["security_archive"] = {  # noqa: F405
+    "class": "core.logging.UnixDatagramJsonHandler",
+    "socket_path": "/run/security-log/security.sock",
+    "formatter": "json",
+    "filters": ["request_context", "security_stream"],
+}
+for _security_logger_name in ("security", "django.security"):
+    LOGGING["loggers"][_security_logger_name]["handlers"].append("security_archive")  # noqa: F405

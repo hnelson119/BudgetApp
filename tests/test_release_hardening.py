@@ -121,7 +121,7 @@ def test_logging_inventory_is_complete_and_source_derived() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert "13 layers, 4 event groups" in completed.stdout
+    assert "14 layers, 5 event groups" in completed.stdout
     inventory = json.loads(
         (PROJECT_ROOT / "docs/logging-inventory.json").read_text(encoding="utf-8")
     )
@@ -129,14 +129,15 @@ def test_logging_inventory_is_complete_and_source_derived() -> None:
     assert {item["id"] for item in inventory["event_groups"]} == EXPECTED_LOG_EVENT_GROUP_IDS
     assert {item["id"] for item in inventory["known_gaps"]} == EXPECTED_LOG_GAP_IDS
     assert inventory["summary"] == {
-        "layers": 13,
-        "event_groups": 4,
-        "event_entries": 143,
-        "known_gaps": 4,
+        "layers": 14,
+        "event_groups": 5,
+        "event_entries": 149,
+        "known_gaps": 2,
     }
     groups = {item["id"]: item for item in inventory["event_groups"]}
     assert len(groups["django-operational-events"]["events"]) == 2
     assert len(groups["django-security-events"]["events"]) == 23
+    assert len(groups["security-archive-events"]["events"]) == 6
     assert len(groups["protected-audit-actions"]["events"]) == 83
     assert len(groups["maintenance-events"]["events"]) == 35
 
@@ -247,9 +248,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 173, "not_applicable": 80},
         "status": {
-            "implemented": 111,
+            "implemented": 112,
             "not_applicable": 80,
-            "not_started": 5,
+            "not_started": 4,
             "partial": 57,
         },
     }
@@ -259,7 +260,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-17.3.2"]["status"] == "not_applicable"
     assert requirements["v5.0.0-4.2.1"]["status"] == "implemented"
     assert requirements["v5.0.0-12.3.1"]["status"] == "not_started"
-    assert requirements["v5.0.0-16.4.3"]["status"] == "not_started"
+    assert requirements["v5.0.0-16.4.3"]["status"] == "implemented"
     assert requirements["v5.0.0-6.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-6.2.11"]["status"] == "implemented"
     assert requirements["v5.0.0-6.2.12"]["status"] == "implemented"
@@ -299,6 +300,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V13.2.5",
         "V15.1.2",
         "V16.1.1",
+        "V16.4.3",
     }
 
     assert MAPPING_UPDATED == "2026-09-05"
@@ -307,7 +309,6 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V12.3.3",
         "V12.3.4",
         "V13.2.1",
-        "V16.4.3",
     }
     assert completed_m10 <= IMPLEMENTED_REQUIREMENTS
     assert set(IMPLEMENTED_ASSESSMENT_OVERRIDES) == completed_m10
