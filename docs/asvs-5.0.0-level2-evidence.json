@@ -19,9 +19,9 @@
       "not_applicable": 80
     },
     "status": {
-      "implemented": 109,
+      "implemented": 111,
       "not_applicable": 80,
-      "not_started": 7,
+      "not_started": 5,
       "partial": 57
     }
   },
@@ -3719,12 +3719,14 @@
       "level": 2,
       "description": "Verify that an allowlist is used to define the external resources or systems with which the application is permitted to communicate (e.g., for outbound requests, data loads, or file access). This allowlist can be implemented at the application layer, web server, firewall, or a combination of different layers.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "The deployment has no explicit outbound network allowlist.",
+      "status": "implemented",
+      "assessment": "The production Compose model fixes the exact service catalog and network attachments, rejects network-bypass settings, keeps the application and maintenance workloads on internal networks or no network, and defines no external application destination. The secretless loopback relay retains the non-internal network required for its host publish but its running nginx configuration is restricted to the single internal web upstream. Release-candidate verification remains pending.",
       "evidence": [
         "compose.yaml",
-        "deploy/postgres/bootstrap-roles.sh",
-        "tests/test_deployment_config.py"
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md"
       ]
     },
     {
@@ -3737,12 +3739,14 @@
       "level": 2,
       "description": "Verify that the web or application server is configured with an allowlist of resources or systems to which the server can send requests or load data or files from.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "The web container has no explicit application-server egress allowlist.",
+      "status": "implemented",
+      "assessment": "The Django server is restricted to its internal database destination and cannot connect to an external TCP endpoint, while the secretless nginx server has exactly one static internal proxy destination, web:8000. The production-derived runtime probe checks both paths without claiming release-candidate verification.",
       "evidence": [
         "compose.yaml",
-        "deploy/postgres/bootstrap-roles.sh",
-        "tests/test_deployment_config.py"
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md"
       ]
     },
     {

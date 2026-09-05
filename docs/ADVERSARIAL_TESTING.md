@@ -385,9 +385,12 @@ approved- and unapproved-device observations required by `NET-01` and `NET-02`.
 - From approved and unapproved test devices, attempt connection only to the VM's documented database,
   SSH, metrics, container-engine, and reverse-proxy administrative ports.
 - From the application container, confirm only required database connectivity and credentials are
-  available.
+  available. Inspect the exact Compose service/network catalog, confirm the Django container cannot
+  reach a bounded external TCP endpoint, and confirm the running relay has exactly one static
+  destination, `web:8000`.
 - Pass only if household clients cannot reach PostgreSQL or administrative services, published ports
-  match the allowlist, and the app cannot use migration/owner privileges.
+  and service attachments match the allowlist, the app cannot use migration/owner privileges or
+  external egress, and the relay cannot select another upstream.
 
 <a id="net-05"></a>
 ### NET-05 — Host, forwarded-header, cache, and error-leakage resistance

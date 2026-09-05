@@ -259,8 +259,6 @@ NOT_STARTED: dict[str, str] = {
         "Backend database authentication still uses long-lived, file-mounted passwords rather "
         "than short-term or certificate credentials."
     ),
-    "V13.2.4": "The deployment has no explicit outbound network allowlist.",
-    "V13.2.5": "The web container has no explicit application-server egress allowlist.",
     "V16.4.3": (
         "Operational security logs remain in Docker's local log store and are not transmitted to "
         "a logically separate system."
@@ -350,6 +348,8 @@ IMPLEMENTED_REQUIREMENTS = {
     "V12.2.1",
     "V13.2.2",
     "V13.2.3",
+    "V13.2.4",
+    "V13.2.5",
     "V13.3.1",
     "V13.3.2",
     "V13.4.1",
@@ -434,6 +434,20 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "prohibited uses, protected and excluded data, rotation, retirement, review cadence, and "
         "known absences without claiming release verification."
     ),
+    "V13.2.4": (
+        "The production Compose model fixes the exact service catalog and network attachments, "
+        "rejects network-bypass settings, keeps the application and maintenance workloads on "
+        "internal networks or no network, and defines no external application destination. The "
+        "secretless loopback relay retains the non-internal network required for its host publish "
+        "but its running nginx configuration is restricted to the single internal web upstream. "
+        "Release-candidate verification remains pending."
+    ),
+    "V13.2.5": (
+        "The Django server is restricted to its internal database destination and cannot connect "
+        "to an external TCP endpoint, while the secretless nginx server has exactly one static "
+        "internal proxy destination, web:8000. The production-derived runtime probe checks both "
+        "paths without claiming release-candidate verification."
+    ),
     "V15.1.2": (
         "The deterministic CycloneDX inventory derives all production, development, build, test, "
         "and CI components from exact locks, digest-pinned images, checksummed source, Go pins, "
@@ -514,6 +528,20 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/CRYPTOGRAPHIC_INVENTORY.md",
         "scripts/check_cryptographic_inventory.py",
         "tests/test_release_hardening.py",
+    ],
+    "V13.2.4": [
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md",
+    ],
+    "V13.2.5": [
+        "compose.yaml",
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md",
     ],
     "V15.1.2": [
         "docs/sbom.cdx.json",

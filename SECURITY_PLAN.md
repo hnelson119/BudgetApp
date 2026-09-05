@@ -156,6 +156,17 @@ Require recent password/MFA verification before:
 - Permit only required Tailscale, HTTPS, and restricted administration traffic.
 - Tailscale supplements rather than replaces host firewalling.
 
+### 5.4 Outbound destinations
+
+- Treat the production Compose service catalog and every service/network attachment as a reviewed
+  allowlist; reject host networking, ad hoc links, custom DNS, and host aliases.
+- Keep application, database, and maintenance workloads on internal Docker networks, except for an
+  intentionally offline job using `network_mode: none`.
+- Configure the Django server for only `db:5432` and require a runtime probe to prove that connection
+  works while an external TCP connection fails.
+- Keep the secretless loopback relay's nginx destination literal and singular: `web:8000`. Any new
+  outbound destination or network attachment requires security review and updated boundary tests.
+
 ## 6. Application security controls
 
 ### 6.1 Authorization

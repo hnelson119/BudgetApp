@@ -31,9 +31,9 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 173 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 80 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 109 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Implemented | 111 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
 | Partial | 57 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
-| Not started | 7 | The control is absent or its required verification has not been designed. |
+| Not started | 5 | The control is absent or its required verification has not been designed. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -66,12 +66,19 @@ acts as a smuggling canary. The dedicated read-only CI workflow runs the actual 
 Tailscale Serve's browser-facing HTTP/2 or HTTP/3 message-length behavior remains an explicit dated
 release-candidate check rather than a claimed verification. See `docs/PRIVATE_INGRESS.md`.
 
+The same production-derived boundary implements the outbound allowlists in `v5.0.0-13.2.4` and
+`v5.0.0-13.2.5`. Compose fixes the exact service catalog and network attachments, rejects network
+bypasses, and leaves the Django and maintenance workloads with no external route. The Django
+server's only configured backend is `db:5432`. The secretless relay retains the non-internal network
+needed for its loopback host publish, but the live nginx configuration must contain exactly one
+static destination, `web:8000`. The probe proves the required internal connections, denied Django
+external TCP egress, and running relay destination. Release-candidate verification remains pending.
+
 - `v5.0.0-12.3.1`, `v5.0.0-12.3.3`, `v5.0.0-12.3.4`: inventory and encrypt internal service
   communication, including application-to-PostgreSQL traffic, with an explicit certificate trust
   policy.
 - `v5.0.0-13.2.1`: replace long-lived backend passwords with short-lived or certificate-based
   service authentication where the chosen private-hosting stack can support it.
-- `v5.0.0-13.2.4`, `v5.0.0-13.2.5`: enforce deployment- and application-layer outbound allowlists.
 
 ### Cryptography, supply chain, and logging
 
@@ -104,8 +111,8 @@ providers, OAuth/OIDC, self-contained authentication tokens, and WebRTC. Every e
 specific reason.
 
 A control is not excluded merely because the application is private, small, or currently lacks the
-infrastructure to meet it. Internal TLS, short-lived service authentication, egress restrictions,
-separate log storage and administrator session revocation therefore remain applicable gaps.
+infrastructure to meet it. Internal TLS, short-lived service authentication, and separate log
+storage therefore remain applicable gaps.
 Future OAuth, public hosting, external identity, WebSocket, bank-sync, email, or file-processing
 features require re-evaluating the associated exclusions before merge.
 

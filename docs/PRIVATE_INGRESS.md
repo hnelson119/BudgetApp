@@ -99,6 +99,22 @@ hostname. If HTTP/3 is enabled for that candidate, repeat at HTTP/3. Pass only i
 resets the single stream without forwarding an application response. Do not pipeline another route,
 scan other hosts, or retain raw private hostname, address, or response data.
 
+### Outbound destination allowlist
+
+The initial release has no external application dependency. Compose therefore acts as the
+deployment allowlist: the exact service catalog and every service/network attachment are checked,
+the frontend and backend networks are internal, and the repository key-rotation job has no network
+at all. Host networking, ad hoc links, custom DNS, and host aliases fail the production-derived
+probe. The Django server is configured only for `db:5432`; its required database connection must
+succeed and a bounded external TCP connection must fail.
+
+The secretless nginx relay is the narrow availability exception described in `M10-F014`: Docker
+requires its non-internal ingress network to create the loopback host publish. It receives no
+application secrets or database network and its running configuration must contain exactly one
+static proxy destination, `web:8000`. Adding an integration, URL fetch, remote file load, proxy
+destination, service, or network attachment requires an explicit allowlist change, updated tests,
+and security review before deployment.
+
 ## 3. Host and home-network firewall
 
 Before enabling UFW, verify SSH key login in a second Tailscale-connected terminal. Disable SSH
@@ -131,7 +147,8 @@ On a Linux development host, use `./scripts/run-network-boundary.sh`. The runner
 temporary secrets outside the repository, bootstraps a fresh PostgreSQL volume, starts the actual
 production Compose services, and verifies the following without printing secret values:
 
-- internal-only application/database networks and the relay's exact `127.0.0.1:8000` publish;
+- the exact service/network allowlist, internal-only application/database networks, the offline
+  key-rotation job, and the relay's exact `127.0.0.1:8000` publish;
 - no host PostgreSQL or Docker-administration port;
 - canonical proxy scheme/host handling, safe redirects, HSTS, and production errors;
 - three valid and six ambiguous/malformed HTTP/1.1 request-framing cases, including a trailing
@@ -139,7 +156,8 @@ production Compose services, and verifies the following without printing secret 
 - UID/GID 10001, zero effective capabilities, no-new-privileges, a read-only root filesystem, and
   the bounded writable `/tmp` mount;
 - only the runtime database identity and its three read-only secret mounts;
-- required database connectivity, blocked application-container egress, one shared non-root numeric
+- required database connectivity, blocked Django-container egress, the relay's single live
+  `web:8000` proxy destination, one shared non-root numeric
   secret-reader GID, exact 0700/0440 Linux ownership/modes, and absence of reusable secret values
   from container metadata, image history, and logs; and
 - complete removal of the temporary containers, volumes, networks, and secret directory after

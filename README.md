@@ -220,10 +220,13 @@ but none of the web, migration, administrator, backup, Django, or MFA secrets. T
 should live on an independently protected or read-only mounted location when practical.
 
 The runtime web process cannot migrate the schema and never receives the database administrator,
-migration, backup, or audit passwords. The application and database stay exclusively on internal
-Docker networks. A separate secretless, read-only nginx relay is the only service attached to the
-non-internal ingress network and the only service bound to loopback port 8000. Put private Tailscale
-HTTPS in front of that relay and never forward the port from the router.
+migration, backup, or audit passwords. The exact service/network catalog is enforced as an outbound
+allowlist: application, database, and maintenance workloads stay exclusively on internal Docker
+networks (or no network), and the web service's only backend destination is `db:5432`. A separate
+secretless, read-only nginx relay is the only service attached to the non-internal ingress network
+and the only service bound to loopback port 8000; its running configuration is checked for exactly
+one static destination, `web:8000`. Put private Tailscale HTTPS in front of that relay and never
+forward the port from the router.
 
 The production-derived boundary runner also sends valid and ambiguous HTTP/1.1 message framing
 through the actual nginx/Gunicorn images. Its pull-request workflow requires every ambiguity to
