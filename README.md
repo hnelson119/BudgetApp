@@ -79,6 +79,11 @@ and prohibited uses, protected and excluded data, rotation, and retirement to ap
 deployment, provider-managed, and test-only cryptographic boundaries. Its quality-gate validator
 also records absent internal-service certificates without pretending those open TLS controls exist;
 see `docs/CRYPTOGRAPHIC_INVENTORY.md`.
+The maintained logging inventory documents events, formats, destinations, operational uses,
+readers, retention, sensitive-data rules, and limitations across all 13 current stack layers. Its
+quality-gate validator derives 143 stable event entries from source and verifies bounded local
+Docker logging without claiming the still-missing separate protected security-log destination; see
+`docs/LOGGING_INVENTORY.md`.
 See
 `docs/RELEASE_HARDENING.md` for the honest current status and evidence-handling rules. The guarded
 production-derived network probe and Linux VM runbook are in `docs/PRIVATE_INGRESS.md`; actual
@@ -245,6 +250,7 @@ python -m mypy audit budgets core debts goals households identity imports ledger
 python manage.py makemigrations --check --dry-run --settings=config.settings.test
 python scripts/secret_scan.py
 python scripts/check_cryptographic_inventory.py
+python scripts/check_logging_inventory.py
 python scripts/check_release_evidence.py
 python scripts/check_device_test_evidence.py
 python scripts/check_adversarial_test_evidence.py
@@ -288,5 +294,6 @@ automatically.
 10. [`docs/UPGRADE_AND_ROLLBACK.md`](docs/UPGRADE_AND_ROLLBACK.md) — release upgrade and rollback
 11. [`docs/PASSWORD_BLOCKLIST.md`](docs/PASSWORD_BLOCKLIST.md) — prohibited identifiers and offline breached-password corpus maintenance
 12. [`docs/CRYPTOGRAPHIC_INVENTORY.md`](docs/CRYPTOGRAPHIC_INVENTORY.md) — maintained key, algorithm, certificate, and purpose inventory
+13. [`docs/LOGGING_INVENTORY.md`](docs/LOGGING_INVENTORY.md) — maintained event, destination, access, retention, and sensitive-data inventory
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.

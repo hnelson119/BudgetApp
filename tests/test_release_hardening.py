@@ -27,6 +27,12 @@ from scripts.check_cryptographic_inventory import (
     validate_inventory as validate_cryptographic_inventory,
 )
 from scripts.check_device_test_evidence import validate_matrix, validate_run
+from scripts.check_logging_inventory import (
+    EXPECTED_EVENT_GROUP_IDS as EXPECTED_LOG_EVENT_GROUP_IDS,
+)
+from scripts.check_logging_inventory import EXPECTED_GAP_IDS as EXPECTED_LOG_GAP_IDS
+from scripts.check_logging_inventory import EXPECTED_LAYER_IDS
+from scripts.check_logging_inventory import validate_inventory as validate_logging_inventory
 from scripts.check_release_evidence import validate_asvs_inventory
 from scripts.secret_scan import _is_approved_hash_only_file, _is_approved_public_fingerprint
 
@@ -96,6 +102,80 @@ def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
         validate_cryptographic_inventory(inventory, today=date(2026, 12, 5))
 
 
+def test_logging_inventory_is_complete_and_source_derived() -> None:
+    completed = subprocess.run(
+        [sys.executable, "scripts/check_logging_inventory.py"],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "13 layers, 4 event groups" in completed.stdout
+    inventory = json.loads(
+        (PROJECT_ROOT / "docs/logging-inventory.json").read_text(encoding="utf-8")
+    )
+    assert {item["id"] for item in inventory["layers"]} == EXPECTED_LAYER_IDS
+    assert {item["id"] for item in inventory["event_groups"]} == EXPECTED_LOG_EVENT_GROUP_IDS
+    assert {item["id"] for item in inventory["known_gaps"]} == EXPECTED_LOG_GAP_IDS
+    assert inventory["summary"] == {
+        "layers": 13,
+        "event_groups": 4,
+        "event_entries": 143,
+        "known_gaps": 4,
+    }
+    groups = {item["id"]: item for item in inventory["event_groups"]}
+    assert len(groups["django-operational-events"]["events"]) == 2
+    assert len(groups["django-security-events"]["events"]) == 23
+    assert len(groups["protected-audit-actions"]["events"]) == 83
+    assert len(groups["maintenance-events"]["events"]) == 35
+
+
+def test_logging_inventory_rejects_tampering_and_stale_reviews() -> None:
+    inventory = json.loads(
+        (PROJECT_ROOT / "docs/logging-inventory.json").read_text(encoding="utf-8")
+    )
+
+    duplicate_layer = copy.deepcopy(inventory)
+    duplicate_layer["layers"].append(duplicate_layer["layers"][0])
+    with pytest.raises(ValueError, match="duplicate id"):
+        validate_logging_inventory(duplicate_layer, today=date(2026, 9, 5))
+
+    missing_retention = copy.deepcopy(inventory)
+    missing_retention["layers"][0]["retention"] = ""
+    with pytest.raises(ValueError, match="retention must be non-empty text"):
+        validate_logging_inventory(missing_retention, today=date(2026, 9, 5))
+
+    missing_evidence = copy.deepcopy(inventory)
+    missing_evidence["layers"][0]["evidence"] = ["docs/does-not-exist.md"]
+    with pytest.raises(ValueError, match="missing evidence"):
+        validate_logging_inventory(missing_evidence, today=date(2026, 9, 5))
+
+    unknown_group = copy.deepcopy(inventory)
+    unknown_group["layers"][0]["event_groups"] = ["unknown-events"]
+    with pytest.raises(ValueError, match="unknown event groups"):
+        validate_logging_inventory(unknown_group, today=date(2026, 9, 5))
+
+    changed_source_event = copy.deepcopy(inventory)
+    changed_source_event["event_groups"][0]["events"][0] = "http.request.changed"
+    with pytest.raises(ValueError, match="does not match source literals"):
+        validate_logging_inventory(changed_source_event, today=date(2026, 9, 5))
+
+    embedded_private_key = copy.deepcopy(inventory)
+    embedded_private_key["layers"][0]["destination"] = "BEGIN " + "PRIVATE" + " KEY"
+    with pytest.raises(ValueError, match="private-key material"):
+        validate_logging_inventory(embedded_private_key, today=date(2026, 9, 5))
+
+    exact_hostname = copy.deepcopy(inventory)
+    exact_hostname["layers"][0]["destination"] = "budget.private-tail.ts.net"
+    with pytest.raises(ValueError, match="exact private hostname"):
+        validate_logging_inventory(exact_hostname, today=date(2026, 9, 5))
+
+    with pytest.raises(ValueError, match="review is overdue"):
+        validate_logging_inventory(inventory, today=date(2026, 12, 5))
+
+
 def test_release_evidence_inventory_is_complete_and_validated() -> None:
     completed = subprocess.run(
         [sys.executable, "scripts/check_release_evidence.py"],
@@ -119,9 +199,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 173, "not_applicable": 80},
         "status": {
-            "implemented": 106,
+            "implemented": 107,
             "not_applicable": 80,
-            "not_started": 10,
+            "not_started": 9,
             "partial": 57,
         },
     }
@@ -137,6 +217,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-6.4.3"]["status"] == "implemented"
     assert requirements["v5.0.0-7.4.5"]["status"] == "implemented"
     assert requirements["v5.0.0-11.1.2"]["status"] == "implemented"
+    assert requirements["v5.0.0-16.1.1"]["status"] == "implemented"
     assert {item["id"] for item in evidence["security_tests"]} == set(range(1, 25))
     assert {item["id"] for item in evidence["release_gates"]} == set(range(1, 13))
     assert not any(

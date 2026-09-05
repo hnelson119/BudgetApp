@@ -368,6 +368,15 @@ references, absence records, review cadence, and the absence of embedded private
 private hostnames. Internal PostgreSQL and service TLS remain honest open controls, and live
 certificate, Tailscale, and SSH observations remain release-only.
 
+The logging-inventory slice now documents all 13 current application, service, host, provider,
+client, and test-output layers, including their event contracts, formats, destinations, uses,
+readers, retention, sensitive-data rules, integrity/availability properties, and limitations. Its
+strict validator derives 143 event entries from application and maintenance source, verifies the
+bounded Docker local-driver policy on every production Compose service, checks Gunicorn/nginx
+access-log behavior, and enforces evidence and a 90-day review cadence. Live host/provider
+observations and the logically separate protected security-log destination remain open release
+work.
+
 Exit criteria: every release gate in this plan passes with no unresolved critical defect.
 
 ## 4. Browser support and test matrix

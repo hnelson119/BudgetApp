@@ -1,0 +1,650 @@
+{
+  "schema_version": 1,
+  "inventory_updated": "2026-09-05",
+  "review": {
+    "owner": "release owner",
+    "cadence_days": 90,
+    "next_review_due": "2026-12-04",
+    "procedure": "docs/LOGGING_INVENTORY.md",
+    "update_triggers": [
+      "a log producer, event, format, destination, access rule, or retention rule changes",
+      "a technology-stack layer or managed provider changes",
+      "a security finding or incident changes monitoring needs",
+      "every release candidate",
+      "the cryptographic or data-classification inventory changes"
+    ]
+  },
+  "scope": {
+    "included": [
+      "application operational, security, and protected audit records",
+      "web, relay, database, container, host, and maintenance layers",
+      "Tailscale provider, browser-client, security-test, and CI logging boundaries"
+    ],
+    "excluded": [
+      "actual log records, private hostnames, addresses, account identifiers, and credentials",
+      "unselected future integrations such as bank synchronization and SIEM transport"
+    ]
+  },
+  "summary": {
+    "layers": 13,
+    "event_groups": 4,
+    "event_entries": 143,
+    "known_gaps": 4
+  },
+  "layers": [
+    {
+      "id": "django-operational",
+      "stack_layer": "Django application operational logging",
+      "scope": "production application",
+      "event_groups": [
+        "django-operational-events"
+      ],
+      "events": [
+        "one completion record per routed request except successful health checks",
+        "one sanitized record for each unhandled request exception",
+        "application and management-command messages that reach the root logger"
+      ],
+      "format": "Single-line UTF-8 JSON with timestamp, level, logger, stream, environment, release, request/actor/household correlation IDs, redacted message, allowlisted fields, and exception type plus code locations without exception text.",
+      "destination": "Process stdout or stderr, captured by Gunicorn and the Compose Docker local logging driver on the Linux VM.",
+      "use": [
+        "request diagnostics",
+        "availability and error investigation",
+        "correlation with protected audit and security records"
+      ],
+      "access_control": "Linux deployment administrators with root-equivalent Docker access; not exposed through the application UI.",
+      "retention": "Per-container capacity rotation: 20 MiB per file and 5 files, approximately 100 MiB maximum; elapsed retention depends on event volume.",
+      "sensitive_data_policy": "Free-form text is redacted; only allowlisted structured fields are emitted. Raw paths, query strings, request bodies, headers, financial values, emails, cookies, and exception messages are excluded.",
+      "integrity_and_availability": "JSON encoding prevents record injection, but the local Docker store is administrator-mutable and unavailable after host loss unless preserved during incident response.",
+      "limitations": "No central metrics or logically separate copy exists; healthy readiness/liveness polling is deliberately omitted.",
+      "evidence": [
+        "core/logging.py",
+        "core/middleware.py",
+        "config/settings/base.py",
+        "compose.yaml",
+        "tests/test_logging.py"
+      ]
+    },
+    {
+      "id": "django-security",
+      "stack_layer": "Django application security stream",
+      "scope": "production application",
+      "event_groups": [
+        "django-security-events"
+      ],
+      "events": [
+        "authentication, MFA, recovery, reauthentication, logout, and session-revocation outcomes",
+        "rejected CSV lifecycle operations and integrity-blocked exports",
+        "authorized financial and audit exports",
+        "Django framework security warnings"
+      ],
+      "format": "The same redacting single-line JSON format as operational logs, with stream fixed to security and event set to a stable catalog identifier.",
+      "destination": "Dedicated Python security handler, then the same process stream and local Docker logging store as operational records.",
+      "use": [
+        "security triage and incident correlation",
+        "detect repeated authentication failures and sensitive export activity",
+        "support release and adversarial review"
+      ],
+      "access_control": "Linux deployment administrators with root-equivalent Docker access; records are not available to household members in the UI.",
+      "retention": "Per-container capacity rotation: 20 MiB per file and 5 files, approximately 100 MiB maximum; elapsed retention depends on event volume.",
+      "sensitive_data_policy": "Submitted identities, passwords, TOTP and recovery codes, session keys, import contents, search text, financial values, and exception messages are excluded or redacted.",
+      "integrity_and_availability": "Records are JSON-encoded and independently tagged but remain mutable by a host/Docker administrator and share the operational destination.",
+      "limitations": "This stream is not yet transmitted to a logically separate protected destination; ASVS v5.0.0-16.4.3 remains not started.",
+      "evidence": [
+        "core/logging.py",
+        "config/settings/base.py",
+        "identity/views.py",
+        "imports/views.py",
+        "spending/views.py",
+        "audit/views.py",
+        "compose.yaml",
+        "tests/test_logging.py"
+      ]
+    },
+    {
+      "id": "protected-household-audit",
+      "stack_layer": "Protected financial and security audit stream",
+      "scope": "production application and PostgreSQL",
+      "event_groups": [
+        "protected-audit-actions"
+      ],
+      "events": [
+        "material household financial, schedule, debt, goal, reserve, import, export, notification, and identity changes",
+        "authentication and recovery outcomes needed for household security history",
+        "audit detail access and export activity",
+        "maintenance actions that change protected credentials or staged data"
+      ],
+      "format": "Canonical structured PostgreSQL rows with sequence, UUID, household/actor IDs, timestamp/time zone, action, entity reference, bounded before/after JSON, reason, request ID, previous hash, and SHA-256 event hash.",
+      "destination": "Separately owned budget_audit PostgreSQL schema, with signed chain-head checkpoints copied to an existing off-VM filesystem.",
+      "use": [
+        "household-visible change history",
+        "financial accountability",
+        "security notifications and investigation",
+        "tamper detection and backup/restore comparison"
+      ],
+      "access_control": "Active household membership for summary UI; recent password-plus-MFA verification for detail/export; runtime role can execute only the protected append function; dedicated audit reader is read-only; no application delete/update permission.",
+      "retention": "Live audit rows and checkpoints are retained for the application lifetime with no delete path. Encrypted backup copies follow 7 daily, 4 weekly, and 12 monthly snapshot retention unless a preserved incident copy supersedes normal pruning.",
+      "sensitive_data_policy": "Protected audit may contain the minimum authorized financial before/after facts and bounded reason, but rejects password, token, cookie, session, recovery-code, and TOTP keys and never stores exports or raw CSV files.",
+      "integrity_and_availability": "Transactional append, PostgreSQL ownership/trigger controls, per-household SHA-256 chains, daily verification, off-VM HMAC-SHA256 checkpoints, and encrypted backups provide layered detection and recovery.",
+      "limitations": "Database superusers and host administrators remain trusted; confidentiality relies on host volume controls and encrypted off-VM backups.",
+      "evidence": [
+        "audit/services.py",
+        "audit/checkpoints.py",
+        "audit/models.py",
+        "docs/adr/0003-protected-audit-stream.md",
+        "docs/BACKUP_AND_RESTORE.md",
+        "tests/test_audit.py",
+        "tests/test_checkpoints.py"
+      ]
+    },
+    {
+      "id": "maintenance-security",
+      "stack_layer": "Backup, restore, and credential-rotation maintenance",
+      "scope": "production maintenance containers",
+      "event_groups": [
+        "maintenance-events"
+      ],
+      "events": [
+        "backup repository initialization, start, completion, validation, retention, and failure outcomes",
+        "restore target refusal, start, completion, schema verification, and failure outcomes",
+        "Restic and PostgreSQL administrator credential-rotation start, verification, retirement, completion, and failure outcomes"
+      ],
+      "format": "Single-line JSON with UTC timestamp, level, stable event identifier, and fixed operator-safe message.",
+      "destination": "Container stdout/stderr in the Docker local log store; scheduled systemd service wrappers also record command lifecycle in the host journal.",
+      "use": [
+        "backup and restore monitoring",
+        "credential-rotation verification",
+        "recovery-time and incident investigation"
+      ],
+      "access_control": "Linux deployment administrators; maintenance containers are networkless or restricted and receive only task-specific secrets.",
+      "retention": "Container records use 20 MiB by 5-file rotation. Host service records follow the required 30-day journald policy recorded during deployment review; incident evidence is preserved before normal rollover.",
+      "sensitive_data_policy": "Messages are fixed and omit database rows, repository paths outside generic mount names, credentials, hostnames, private addresses, and command output containing values.",
+      "integrity_and_availability": "Structured output is locally mutable; protected audit events and signed checkpoints independently cover state-changing rotations and restore comparisons where applicable.",
+      "limitations": "No remote log destination exists, and the repository cannot prove the live host journald policy before release-candidate deployment.",
+      "evidence": [
+        "deploy/backup/backup.sh",
+        "deploy/backup/restore-verify.sh",
+        "deploy/backup/rotate-restic-key.sh",
+        "deploy/postgres/rotate-admin-password.sh",
+        "deploy/systemd/household-budget-backup.service",
+        "compose.yaml"
+      ]
+    },
+    {
+      "id": "gunicorn-process",
+      "stack_layer": "Gunicorn application server",
+      "scope": "production application container",
+      "event_groups": [],
+      "events": [
+        "master and worker lifecycle",
+        "startup and process-level failures",
+        "captured Django stdout/stderr",
+        "no raw HTTP access log"
+      ],
+      "format": "Gunicorn text for process lifecycle plus already formatted Django JSON records for captured application output.",
+      "destination": "Container stderr/stdout and the Docker local log store.",
+      "use": [
+        "process health and restart diagnosis",
+        "application output transport"
+      ],
+      "access_control": "Linux deployment administrators with Docker access.",
+      "retention": "Per-container capacity rotation: 20 MiB per file and 5 files, approximately 100 MiB maximum.",
+      "sensitive_data_policy": "Access logging is disabled to avoid raw URLs, queries, addresses, and user-agent data; captured application output remains subject to the JSON allowlist/redaction policy.",
+      "integrity_and_availability": "Local Docker storage only; container replacement does not delete rotated driver logs immediately, but host loss does.",
+      "limitations": "No independent Gunicorn metrics or remote process-log transport is configured.",
+      "evidence": [
+        "Dockerfile",
+        "compose.yaml",
+        "tests/test_deployment_config.py"
+      ]
+    },
+    {
+      "id": "nginx-relay",
+      "stack_layer": "Secretless nginx ingress relay",
+      "scope": "production ingress container",
+      "event_groups": [],
+      "events": [
+        "warning-or-higher relay and upstream errors",
+        "process startup and shutdown",
+        "no HTTP access log"
+      ],
+      "format": "nginx warning/error text to stderr; request access records are disabled.",
+      "destination": "Container stderr and the Docker local log store.",
+      "use": [
+        "relay availability and upstream failure diagnosis"
+      ],
+      "access_control": "Linux deployment administrators with Docker access; the container has no application or infrastructure secrets.",
+      "retention": "Per-container capacity rotation: 20 MiB per file and 5 files, approximately 100 MiB maximum.",
+      "sensitive_data_policy": "Access logging and forwarded client addresses are disabled; error review must not be copied raw into Git or tickets.",
+      "integrity_and_availability": "Local Docker storage only and administrator-mutable.",
+      "limitations": "Tailscale Serve owns browser-facing HTTPS and its request boundary; the relay does not receive the browser address.",
+      "evidence": [
+        "deploy/network/nginx.conf",
+        "deploy/network/Dockerfile",
+        "compose.yaml",
+        "tests/test_deployment_config.py"
+      ]
+    },
+    {
+      "id": "postgresql",
+      "stack_layer": "PostgreSQL database server",
+      "scope": "production database container",
+      "event_groups": [],
+      "events": [
+        "server lifecycle, recovery, checkpoint, and warning/error records emitted by the pinned image defaults",
+        "authentication and database errors at the server boundary",
+        "no all-statement or financial-value query logging"
+      ],
+      "format": "PostgreSQL server text on stderr using the pinned image's standard configuration.",
+      "destination": "Database container stderr and the Docker local log store.",
+      "use": [
+        "database availability and integrity diagnosis",
+        "authentication and migration failure investigation"
+      ],
+      "access_control": "Linux deployment administrators with Docker access; application roles cannot read container logs.",
+      "retention": "Per-container capacity rotation: 20 MiB per file and 5 files, approximately 100 MiB maximum.",
+      "sensitive_data_policy": "Statement-wide logging is not enabled. Operators must treat database errors as sensitive and must not retain SQL parameters, rows, credentials, or financial values in tickets or Git.",
+      "integrity_and_availability": "Local Docker storage is separate from PostgreSQL tables but remains on the same VM and administrator-mutable.",
+      "limitations": "No centralized PostgreSQL log analysis, certificate-authentication log source, or separate security destination exists.",
+      "evidence": [
+        "compose.yaml",
+        "deploy/postgres/bootstrap-roles.sh",
+        "tests/test_deployment_config.py"
+      ]
+    },
+    {
+      "id": "docker-local-storage",
+      "stack_layer": "Docker container log storage",
+      "scope": "production Linux VM",
+      "event_groups": [],
+      "events": [
+        "stdout and stderr from every one of the 13 production Compose services"
+      ],
+      "format": "Docker local driver internal framing and compression around producer-formatted JSON or text records.",
+      "destination": "Docker-managed local files on the Linux VM; never an application bind mount.",
+      "use": [
+        "bounded local operational review through Docker tooling",
+        "source for incident preservation before container or host changes"
+      ],
+      "access_control": "Root or explicitly authorized Docker administrators only; Docker group membership is treated as root-equivalent.",
+      "retention": "Exactly 5 rotated files at 20 MiB each per service under the Compose policy, approximately 100 MiB maximum per service; oldest records are removed on capacity rollover.",
+      "sensitive_data_policy": "The driver does not redact; every producer must apply its own data-minimization policy before writing stdout/stderr.",
+      "integrity_and_availability": "Compressed local storage limits disk exhaustion but offers no append-only or off-host integrity guarantee.",
+      "limitations": "Operational and security streams share this destination, which is a documented ASVS v5.0.0-16.4.3 gap.",
+      "evidence": [
+        "compose.yaml",
+        "tests/test_deployment_config.py"
+      ]
+    },
+    {
+      "id": "systemd-host-journal",
+      "stack_layer": "Linux VM journal and host security services",
+      "scope": "production Linux VM",
+      "event_groups": [],
+      "events": [
+        "backup, integrity, notification, and import-cleanup timer/service lifecycle",
+        "Docker daemon lifecycle and failures",
+        "SSH authentication and sudo activity",
+        "UFW/firewall and Tailscale daemon events available from the hardened host"
+      ],
+      "format": "systemd journal records with trusted host/service metadata and producer text or JSON payload.",
+      "destination": "Persistent systemd journal on the Linux VM.",
+      "use": [
+        "host and scheduled-job monitoring",
+        "SSH, firewall, Tailscale, and service incident investigation"
+      ],
+      "access_control": "Root and the minimum host journal-reader group; household application accounts receive no host login or journal access.",
+      "retention": "Required deployment policy is 30 days with a documented size ceiling; the effective journald configuration and available history are recorded during each release review.",
+      "sensitive_data_policy": "Do not enable shell tracing or credential-bearing command lines. Preserve only sanitized summaries outside the host and treat raw journal exports as restricted incident material.",
+      "integrity_and_availability": "Journal metadata supports ordered local review, but root can modify the host and host loss removes the local copy.",
+      "limitations": "The repository supplies service units but does not own the host-wide journald configuration; release-candidate evidence must verify it.",
+      "evidence": [
+        "deploy/systemd/household-budget-backup.service",
+        "deploy/systemd/household-budget-integrity.service",
+        "deploy/systemd/household-budget-notifications.service",
+        "deploy/systemd/household-budget-import-cleanup.service",
+        "docs/INCIDENT_RESPONSE.md",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    },
+    {
+      "id": "tailscale-provider-logs",
+      "stack_layer": "Tailscale client and provider logging",
+      "scope": "approved devices, Linux VM, and Tailscale control plane",
+      "event_groups": [],
+      "events": [
+        "local Tailscale client/daemon operation and peer contact attempts",
+        "provider configuration changes to the tailnet",
+        "network flow metadata only if the optional plan feature is deliberately enabled",
+        "no application contents or decrypted traffic"
+      ],
+      "format": "Provider-defined local client records and Tailscale configuration-audit JSON; optional network flow records contain node and time/flow metadata.",
+      "destination": "Local approved-device/VM Tailscale logs and Tailscale's central logging service; configuration audit is available in the admin console/API.",
+      "use": [
+        "device and policy change review",
+        "private-network incident investigation",
+        "support diagnostics"
+      ],
+      "access_control": "Tailnet users with administration-console access can view configuration logs; scoped API credentials require logs:configuration:read. Local daemon logs require device/host administration.",
+      "retention": "Tailscale configuration audit logs are retained 90 days. Optional network flow logs, if later enabled, are retained 30 days. Local VM daemon logs follow the 30-day host policy.",
+      "sensitive_data_policy": "Configuration and node metadata are sensitive. Network flow logging does not include traffic content; raw exports remain outside Git and household application records.",
+      "integrity_and_availability": "Provider configuration logs are off-VM; local client delivery and integrity are not guaranteed, and flow logging is not enabled by this repository.",
+      "limitations": "Tailscale logs do not replace application security logs and do not satisfy separate transport for the Django security stream.",
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "docs/INCIDENT_RESPONSE.md",
+        "https://tailscale.com/docs/features/logging",
+        "https://tailscale.com/docs/features/logging/audit-logging",
+        "https://tailscale.com/docs/features/logging/network-flow-logs"
+      ]
+    },
+    {
+      "id": "github-actions",
+      "stack_layer": "GitHub Actions CI and security checks",
+      "scope": "GitHub repository",
+      "event_groups": [],
+      "events": [
+        "workflow/job/step lifecycle and console output",
+        "test, lint, type, evidence, dependency, browser, backup/restore, upgrade/rollback, and image-scan outcomes",
+        "no production runtime logs or secrets"
+      ],
+      "format": "GitHub Actions structured run metadata plus step console text and annotations.",
+      "destination": "GitHub Actions service associated with the repository and immutable commit/run identifiers.",
+      "use": [
+        "pull-request quality and release evidence",
+        "failure diagnosis and reviewed dependency/security changes"
+      ],
+      "access_control": "Repository access and GitHub authorization; workflows have read-only repository permissions unless a reviewed job explicitly requires more.",
+      "retention": "90 days under the repository's current Actions artifact-and-log retention setting; release decisions retain sanitized durable evidence in Git rather than relying on expiring run logs.",
+      "sensitive_data_policy": "Synthetic data only. Raw security reports, real host details, production credentials, and real household data are prohibited; secret scanning and GitHub masking are defense in depth.",
+      "integrity_and_availability": "Provider-managed run records bind to commit SHAs, but expiring or provider-controlled logs are not the durable release record.",
+      "limitations": "CI results do not verify the private Linux VM or real devices and must not be relabeled as release-candidate evidence.",
+      "evidence": [
+        ".github/workflows/quality.yml",
+        ".github/workflows/browser.yml",
+        ".github/workflows/restore-rehearsal.yml",
+        ".github/workflows/upgrade-rehearsal.yml",
+        "docs/RELEASE_HARDENING.md",
+        "https://docs.github.com/en/organizations/managing-organization-settings/configuring-the-retention-period-for-github-actions-artifacts-and-logs-in-your-organization"
+      ]
+    },
+    {
+      "id": "browser-client",
+      "stack_layer": "Approved household browser clients",
+      "scope": "approved household devices",
+      "event_groups": [],
+      "events": [
+        "browser-local developer console and network diagnostics only when an operator deliberately opens them",
+        "no application-managed client telemetry, analytics, or persistent browser log upload"
+      ],
+      "format": "Browser-vendor local diagnostic format.",
+      "destination": "Volatile browser process/profile on the approved device; no application or third-party analytics destination.",
+      "use": [
+        "short-lived troubleshooting on an approved device"
+      ],
+      "access_control": "The signed-in device user and device administrator.",
+      "retention": "Not centrally retained; normally ends with the diagnostic session or browser-managed local history. Any capture is restricted and deleted after sanitized findings are recorded.",
+      "sensitive_data_policy": "Do not preserve cookies, storage, URLs containing sensitive queries, financial payloads, screenshots of real data, or private network details.",
+      "integrity_and_availability": "No server-side completeness or integrity guarantee exists because client telemetry is intentionally absent.",
+      "limitations": "Browser diagnostics are not monitoring and cannot substitute for application/server records.",
+      "evidence": [
+        "docs/REAL_DEVICE_ACCESSIBILITY_TESTING.md",
+        "docs/ADVERSARIAL_TESTING.md",
+        "SECURITY_PLAN.md"
+      ]
+    },
+    {
+      "id": "security-test-output",
+      "stack_layer": "Disposable security and compatibility test output",
+      "scope": "local development and CI synthetic targets",
+      "event_groups": [],
+      "events": [
+        "ZAP, Playwright, authorization, session, CSV, financial-logic, audit-integrity, network, restore, rotation, and upgrade/rollback diagnostics",
+        "sanitized finding and pass/fail summaries"
+      ],
+      "format": "Tool-native raw reports in ignored ephemeral locations; machine-validated sanitized JSON/Markdown summaries for retained evidence.",
+      "destination": "Ignored security-reports directories, disposable containers/volumes, and CI run logs; sanitized findings and evidence schemas are committed only after review.",
+      "use": [
+        "security finding discovery and retest",
+        "release-candidate evidence after sanitization"
+      ],
+      "access_control": "Developer or release owner for raw output; repository readers receive sanitized committed artifacts only.",
+      "retention": "Raw output lasts only through triage/retest and is deleted with the disposable target; CI copies expire after 90 days. Sanitized committed findings and supersession records remain in Git history.",
+      "sensitive_data_policy": "Synthetic data only. Raw reports may still expose attack payloads, cookies, fixture details, or private topology and therefore never enter source control.",
+      "integrity_and_availability": "Sanitized evidence binds to candidate commit and preserves supersession; raw ephemeral output has no durable guarantee.",
+      "limitations": "A structurally ready matrix or development run is not a release pass.",
+      "evidence": [
+        ".gitignore",
+        "docs/RELEASE_HARDENING.md",
+        "docs/ADVERSARIAL_TESTING.md",
+        "docs/BROWSER_TESTING.md",
+        "scripts/check_adversarial_test_evidence.py",
+        "scripts/check_device_test_evidence.py"
+      ]
+    }
+  ],
+  "event_groups": [
+    {
+      "id": "django-operational-events",
+      "layer_id": "django-operational",
+      "source": "Literal structured event fields in application Python outside migrations and tests",
+      "events": [
+        "http.request.completed",
+        "http.request.unhandled_exception"
+      ]
+    },
+    {
+      "id": "django-security-events",
+      "layer_id": "django-security",
+      "source": "Literal structured security event fields in application Python outside migrations and tests",
+      "events": [
+        "audit.detail_access_integrity_failed",
+        "audit.export_integrity_blocked",
+        "audit.history_exported",
+        "auth.login_failed",
+        "auth.logout",
+        "auth.mfa_enrolled",
+        "auth.mfa_failed",
+        "auth.mfa_succeeded",
+        "auth.password_accepted",
+        "auth.password_changed",
+        "auth.password_recovery_submitted",
+        "auth.reauthentication_failed",
+        "auth.reauthentication_succeeded",
+        "auth.recovery_codes_confirmed",
+        "auth.session_revoked",
+        "auth.sessions_administrator_revoked",
+        "auth.sessions_revoked",
+        "import.abandon_rejected",
+        "import.commit_rejected",
+        "import.preview_rejected",
+        "import.upload_rejected",
+        "spending.export_integrity_blocked",
+        "spending.transactions_exported"
+      ]
+    },
+    {
+      "id": "protected-audit-actions",
+      "layer_id": "protected-household-audit",
+      "source": "Literal dotted action keyword values in production Python outside migrations and tests",
+      "events": [
+        "account.archived",
+        "account.balance_observed",
+        "account.created",
+        "account.updated",
+        "audit.detail_viewed",
+        "audit.history_exported",
+        "auth.login_failed",
+        "auth.login_succeeded",
+        "auth.logout",
+        "auth.mfa_emergency_reset",
+        "auth.mfa_enrolled",
+        "auth.mfa_enrollment_required",
+        "auth.mfa_enrollment_restarted",
+        "auth.mfa_failed",
+        "auth.password_changed",
+        "auth.password_emergency_reset",
+        "auth.password_recovered",
+        "auth.password_recovery_failed",
+        "auth.reauthentication_failed",
+        "auth.reauthentication_succeeded",
+        "auth.recovery_codes_confirmed",
+        "auth.session_revoked",
+        "auth.sessions_administrator_revoked",
+        "auth.sessions_revoked",
+        "budget.occurrence_reconciled",
+        "budget.variable_deleted",
+        "card_reserve.entry_reversed",
+        "card_reserve.payment_allocated",
+        "card_reserve.purchase_refunded",
+        "card_reserve.purchase_reserved",
+        "category.archived",
+        "category.created",
+        "category.updated",
+        "debt.account_created",
+        "debt.account_updated",
+        "debt.statement_corrected",
+        "debt.statement_reconciled",
+        "debt.status_changed",
+        "debt.terms_revised",
+        "goal.contribution_recorded",
+        "goal.created",
+        "goal.priority_reserve_allocation_completed",
+        "goal.revised",
+        "household.bootstrap_completed",
+        "import.batch_abandoned",
+        "import.batch_committed",
+        "import.batch_expired",
+        "import.batch_previewed",
+        "import.batch_uploaded",
+        "ledger.balance_adjustment_recorded",
+        "ledger.debt_payment_recorded",
+        "ledger.entry_reversed",
+        "ledger.expense_recorded",
+        "ledger.expense_refund_recorded",
+        "ledger.goal_contribution_recorded",
+        "ledger.income_recorded",
+        "ledger.interest_fee_recorded",
+        "ledger.transfer_recorded",
+        "mortgage.extra_principal_planned",
+        "mortgage.plan_created",
+        "mortgage.plan_revised",
+        "notification.dismissed",
+        "notification.preferences_updated",
+        "notification.read",
+        "pentest.synthetic_data_seeded",
+        "periods.boundary_moved",
+        "periods.period_closed",
+        "periods.period_corrected",
+        "periods.period_reopened",
+        "periods.projection_synchronized",
+        "periods.states_refreshed",
+        "reserve.explicit_allocation_recorded",
+        "reserve.period_delta_recorded",
+        "schedule.occurrence_cancelled",
+        "schedule.occurrence_completed",
+        "schedule.occurrence_moved",
+        "schedule.occurrence_overridden",
+        "schedule.occurrences_synchronized",
+        "schedule.revision_created",
+        "schedule.series_cancelled",
+        "schedule.source_created",
+        "security.mfa_key_rotated",
+        "spending.transactions_exported"
+      ]
+    },
+    {
+      "id": "maintenance-events",
+      "layer_id": "maintenance-security",
+      "source": "Literal structured log and failure event arguments in the production backup, restore, Restic rotation, and PostgreSQL administrator rotation shell scripts",
+      "events": [
+        "backup_completed",
+        "backup_configuration_error",
+        "backup_database_unavailable",
+        "backup_integrity_failed",
+        "backup_repository_initializing",
+        "backup_repository_invalid",
+        "backup_repository_unavailable",
+        "backup_repository_unlock_failed",
+        "backup_retention_failed",
+        "backup_schema_read_failed",
+        "backup_started",
+        "backup_status_write_failed",
+        "backup_stream_failed",
+        "database_admin_rotation_completed",
+        "database_admin_rotation_configuration_error",
+        "database_admin_rotation_retirement_failed",
+        "database_admin_rotation_started",
+        "database_admin_rotation_verification_failed",
+        "restic_key_rotation_completed",
+        "restic_key_rotation_configuration_error",
+        "restic_key_rotation_failed",
+        "restic_key_rotation_repository_error",
+        "restic_key_rotation_retirement_failed",
+        "restic_key_rotation_started",
+        "restic_key_rotation_unlock_failed",
+        "restic_key_rotation_verification_failed",
+        "restore_configuration_error",
+        "restore_repository_unavailable",
+        "restore_repository_unlock_failed",
+        "restore_schema_verification_failed",
+        "restore_stream_failed",
+        "restore_target_exists",
+        "restore_target_refused",
+        "restore_verification_completed",
+        "restore_verification_started"
+      ]
+    }
+  ],
+  "known_gaps": [
+    {
+      "id": "separate-security-log-destination",
+      "current_state": "Django security records are tagged but stored with operational logs in the same host-local Docker logging system.",
+      "required_action": "Transmit security logs to a logically separate protected analysis and escalation destination without forwarding prohibited data.",
+      "related_asvs": [
+        "v5.0.0-16.4.3"
+      ],
+      "evidence": [
+        "config/settings/base.py",
+        "compose.yaml",
+        "docs/ASVS_LEVEL2_MAPPING.md"
+      ]
+    },
+    {
+      "id": "host-journal-release-verification",
+      "current_state": "The repository defines required 30-day host-journal retention, but the live VM setting and available history cannot be proven before deployment.",
+      "required_action": "Record sanitized journald retention, capacity, access-group, and sample timer/SSH/firewall/Tailscale event checks for the selected release candidate.",
+      "related_asvs": [
+        "v5.0.0-16.1.1",
+        "v5.0.0-16.4.2"
+      ],
+      "evidence": [
+        "docs/LOGGING_INVENTORY.md",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    },
+    {
+      "id": "centralized-detection-and-escalation",
+      "current_state": "No SIEM, remote alert pipeline, or independent operational-log archive receives Django, PostgreSQL, Docker, or host security records.",
+      "required_action": "Select a household-appropriate protected destination, minimize fields, restrict readers, test delivery/failure alerting, and define incident escalation before marking separate logging verified.",
+      "related_asvs": [
+        "v5.0.0-16.4.3"
+      ],
+      "evidence": [
+        "docs/LOGGING_INVENTORY.md",
+        "docs/ASVS_LEVEL2_MAPPING.md"
+      ]
+    },
+    {
+      "id": "optional-tailscale-flow-logging",
+      "current_state": "Tailscale configuration audit logging is provider-enabled, but optional network flow logging is not enabled or assumed by this repository.",
+      "required_action": "If the selected plan and household privacy decision enable flow logging, record that change, the 30-day provider retention, reader roles, export destination, and data-minimization review before use.",
+      "related_asvs": [
+        "v5.0.0-16.1.1"
+      ],
+      "evidence": [
+        "https://tailscale.com/docs/features/logging/network-flow-logs",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    }
+  ]
+}
