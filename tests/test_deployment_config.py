@@ -265,6 +265,7 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
         "django_secret_key",
         "django_mfa_encryption_key",
         "django_mfa_encryption_key_next",
+        "postgres_ca_certificate",
         "postgres_runtime_password",
     }
     assert rotation["environment"]["DJANGO_MFA_ENCRYPTION_KEY_NEXT_FILE"] == (
@@ -277,6 +278,7 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert set(database_rotation["secrets"]) == {
         "postgres_admin_password",
         "postgres_admin_password_next",
+        "postgres_ca_certificate",
     }
     assert database_rotation["environment"]["POSTGRES_ADMIN_NEW_PASSWORD_FILE"] == (
         "/run/secrets/postgres_admin_password_next"
@@ -295,6 +297,7 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     assert set(web["secrets"]) == {
         "django_secret_key",
         "django_mfa_encryption_key",
+        "postgres_ca_certificate",
         "postgres_runtime_password",
     }
     assert "postgres_backup_password" not in web["secrets"]
@@ -302,11 +305,13 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     assert all("repository" not in str(volume) for volume in web["volumes"])
 
     assert set(backup["secrets"]) == {
+        "postgres_ca_certificate",
         "postgres_backup_password",
         "restic_repository_password",
     }
     assert set(restore["secrets"]) == {
         "postgres_admin_password",
+        "postgres_ca_certificate",
         "restic_repository_password",
     }
     assert set(rotation["secrets"]) == {
@@ -325,6 +330,7 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     assert restore["volumes"][0]["read_only"] is True
     assert restore["volumes"][0]["bind"]["create_host_path"] is False
     assert set(integrity["secrets"]) == {
+        "postgres_ca_certificate",
         "postgres_audit_password",
         "audit_checkpoint_signing_key",
     }
@@ -335,12 +341,66 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     assert set(notify["secrets"]) == {
         "django_secret_key",
         "django_mfa_encryption_key",
+        "postgres_ca_certificate",
         "postgres_runtime_password",
     }
     assert notify["read_only"] is True
     assert notify["networks"] == ["backend"]
     assert notify["volumes"][0]["read_only"] is True
     assert notify["volumes"][0]["bind"]["create_host_path"] is False
+
+
+def test_production_postgres_requires_exact_internal_ca_and_rejects_plaintext_tcp() -> None:
+    compose = yaml.safe_load((PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    services = compose["services"]
+    database = services["db"]
+    clients = {
+        "backup",
+        "db-admin-key-rotate",
+        "db-bootstrap",
+        "import-cleanup",
+        "integrity",
+        "mfa-key-rotate",
+        "migrate",
+        "notify",
+        "restore-verify",
+        "web",
+    }
+
+    assert database["entrypoint"] == ["/bin/sh", "/usr/local/bin/start-postgres-tls.sh"]
+    assert set(database["secrets"]) == {
+        "postgres_admin_password",
+        "postgres_server_certificate",
+        "postgres_server_private_key",
+    }
+    assert set(database["tmpfs"]) == {
+        "/run/postgresql-tls:rw,noexec,nosuid,nodev,size=1m,mode=0700"
+    }
+    assert {
+        "./deploy/postgres/start-tls.sh:/usr/local/bin/start-postgres-tls.sh:ro",
+        "./deploy/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro",
+    }.issubset(database["volumes"])
+    for service_name in clients:
+        service = services[service_name]
+        assert service["environment"]["PGSSLMODE"] == "verify-full"
+        assert service["environment"]["PGSSLROOTCERT"] == ("/run/secrets/postgres_ca_certificate")
+        assert "postgres_ca_certificate" in service["secrets"]
+
+    policy = (PROJECT_ROOT / "deploy/postgres/pg_hba.conf").read_text(encoding="utf-8")
+    rules = [
+        line.strip()
+        for line in policy.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    assert rules == [
+        "local all all trust",
+        "hostssl all all all scram-sha-256",
+        "hostnossl all all all reject",
+    ]
+    wrapper = (PROJECT_ROOT / "deploy/postgres/start-tls.sh").read_text(encoding="utf-8")
+    assert "ssl=on" in wrapper
+    assert "ssl_min_protocol_version=TLSv1.2" in wrapper
+    assert "hba_file=/etc/postgresql/pg_hba.conf" in wrapper
 
 
 def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_target() -> None:

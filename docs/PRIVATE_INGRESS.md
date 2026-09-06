@@ -3,8 +3,8 @@
 This runbook establishes the release-only network boundary for the dedicated Linux VM. The budget
 service is private: household browsers reach Tailscale Serve over HTTPS, Tailscale Serve proxies to
 a secretless relay on IPv4 loopback, the Django application stays on internal Docker networks, and
-PostgreSQL remains only on Docker's internal backend network. No router port is forwarded and
-Tailscale Funnel is not enabled.
+PostgreSQL remains only on Docker's internal backend network with exact-CA TLS and no plaintext TCP
+fallback. No router port is forwarded and Tailscale Funnel is not enabled.
 
 The disposable workstation probe is useful pre-deployment evidence, but it cannot satisfy
 `NET-01`, `NET-02`, or the deployed portions of `NET-03` through `NET-06`. Those require the actual
@@ -51,6 +51,9 @@ Set `BUDGET_SECRET_GID` to the numeric, non-root `household-budget-secrets` grou
 README, and do not add human users to it. All reusable values stay in root-owned mode-0440 files
 under the mode-0700 `/etc/household-budget/secrets` directory. Compose grants the numeric group only
 to secret-bearing containers, which continue to mount only their service-specific files.
+Generate and secure the PostgreSQL offline authority and deployment server identity before starting
+the database by following `docs/POSTGRES_TLS.md`; the authority private key must not remain on the
+VM.
 
 Start the reviewed Compose project from `/opt/household-budget`:
 
@@ -106,7 +109,11 @@ deployment allowlist: the exact service catalog and every service/network attach
 the frontend and backend networks are internal, and the repository key-rotation job has no network
 at all. Host networking, ad hoc links, custom DNS, and host aliases fail the production-derived
 probe. The Django server is configured only for `db:5432`; its required database connection must
-succeed and a bounded external TCP connection must fail.
+succeed over TLS 1.2 or TLS 1.3 with libpq `verify-full`, an explicit plaintext database attempt
+must fail, and a bounded external TCP connection must fail. PostgreSQL's HBA policy admits SCRAM
+only over `hostssl` and rejects `hostnossl`; the same-container Unix-socket health check does not
+cross a network boundary. The still-HTTP nginx-to-Gunicorn hop is an explicit remaining internal-
+transport gap.
 
 The secretless nginx relay is the narrow availability exception described in `M10-F014`: Docker
 requires its non-internal ingress network to create the loopback host publish. It receives no

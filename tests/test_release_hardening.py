@@ -15,6 +15,8 @@ from scripts.build_asvs_inventory import (
     IMPLEMENTED_REQUIREMENTS,
     MAPPING_UPDATED,
     NOT_STARTED,
+    PARTIAL_ASSESSMENT_OVERRIDES,
+    PARTIAL_EVIDENCE_OVERRIDES,
 )
 from scripts.build_sbom import TRUSTED_REPOSITORIES, build_sbom
 from scripts.check_adversarial_test_evidence import (
@@ -58,7 +60,7 @@ def test_cryptographic_inventory_is_complete_and_current() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert "9 keys, 13 algorithms, 2 certificates" in completed.stdout
+    assert "11 keys, 14 algorithms, 4 certificates" in completed.stdout
     inventory = json.loads(
         (PROJECT_ROOT / "docs/cryptographic-inventory.json").read_text(encoding="utf-8")
     )
@@ -250,8 +252,8 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
         "status": {
             "implemented": 112,
             "not_applicable": 80,
-            "not_started": 4,
-            "partial": 57,
+            "not_started": 2,
+            "partial": 59,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -259,7 +261,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-10.4.1"]["status"] == "not_applicable"
     assert requirements["v5.0.0-17.3.2"]["status"] == "not_applicable"
     assert requirements["v5.0.0-4.2.1"]["status"] == "implemented"
-    assert requirements["v5.0.0-12.3.1"]["status"] == "not_started"
+    assert requirements["v5.0.0-12.3.1"]["status"] == "partial"
+    assert requirements["v5.0.0-12.3.3"]["status"] == "not_started"
+    assert requirements["v5.0.0-12.3.4"]["status"] == "partial"
     assert requirements["v5.0.0-16.4.3"]["status"] == "implemented"
     assert requirements["v5.0.0-6.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-6.2.11"]["status"] == "implemented"
@@ -305,9 +309,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
 
     assert MAPPING_UPDATED == "2026-09-05"
     assert set(NOT_STARTED) == {
-        "V12.3.1",
         "V12.3.3",
-        "V12.3.4",
         "V13.2.1",
     }
     assert completed_m10 <= IMPLEMENTED_REQUIREMENTS
@@ -320,6 +322,12 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
     for source_id in completed_m10:
         assert requirements[source_id]["assessment"] == IMPLEMENTED_ASSESSMENT_OVERRIDES[source_id]
         assert requirements[source_id]["evidence"] == IMPLEMENTED_EVIDENCE_OVERRIDES[source_id]
+    assert set(PARTIAL_ASSESSMENT_OVERRIDES) == {"V12.3.1", "V12.3.4"}
+    assert set(PARTIAL_EVIDENCE_OVERRIDES) == set(PARTIAL_ASSESSMENT_OVERRIDES)
+    for source_id in PARTIAL_ASSESSMENT_OVERRIDES:
+        assert requirements[source_id]["status"] == "partial"
+        assert requirements[source_id]["assessment"] == PARTIAL_ASSESSMENT_OVERRIDES[source_id]
+        assert requirements[source_id]["evidence"] == PARTIAL_EVIDENCE_OVERRIDES[source_id]
 
 
 def test_asvs_inventory_rejects_catalog_and_disposition_tampering() -> None:

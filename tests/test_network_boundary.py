@@ -30,13 +30,30 @@ def _valid_compose_configuration() -> dict[str, Any]:
     }
     services.update(
         {
-            "db": {"networks": {"backend": None}},
+            "db": {
+                "networks": {"backend": None},
+                "entrypoint": ["/bin/sh", "/usr/local/bin/start-postgres-tls.sh"],
+                "secrets": [
+                    {"source": "postgres_admin_password"},
+                    {"source": "postgres_server_certificate"},
+                    {"source": "postgres_server_private_key"},
+                ],
+                "volumes": [
+                    {
+                        "target": "/usr/local/bin/start-postgres-tls.sh",
+                        "read_only": True,
+                    },
+                    {"target": "/etc/postgresql/pg_hba.conf", "read_only": True},
+                ],
+                "tmpfs": ["/run/postgresql-tls:rw,noexec,nosuid,nodev,size=1m,mode=0700"],
+            },
             "web": {
                 "networks": {"frontend": None, "backend": None},
                 "environment": {"DATABASE_HOST": "db", "DATABASE_PORT": "5432"},
                 "secrets": [
                     {"source": "django_secret_key"},
                     {"source": "django_mfa_encryption_key"},
+                    {"source": "postgres_ca_certificate"},
                     {"source": "postgres_runtime_password"},
                 ],
                 "user": "10001:10001",
@@ -63,6 +80,17 @@ def _valid_compose_configuration() -> dict[str, Any]:
             },
         }
     )
+    for service_name in PRODUCTION_PROBE._DATABASE_TLS_CLIENTS:
+        service = services[service_name]
+        service.setdefault("environment", {}).update(
+            {
+                "PGSSLMODE": "verify-full",
+                "PGSSLROOTCERT": "/run/secrets/postgres_ca_certificate",
+            }
+        )
+        secrets = service.setdefault("secrets", [])
+        if {"source": "postgres_ca_certificate"} not in secrets:
+            secrets.append({"source": "postgres_ca_certificate"})
     return {
         "networks": {
             "ingress": {},
@@ -76,7 +104,7 @@ def _valid_compose_configuration() -> dict[str, Any]:
 def test_production_probe_accepts_only_loopback_internal_compose_boundary() -> None:
     configuration = _valid_compose_configuration()
 
-    assert PRODUCTION_PROBE.validate_compose_boundary(configuration) == 32
+    assert PRODUCTION_PROBE.validate_compose_boundary(configuration) == 35
 
     configuration["services"]["ingress"]["ports"][0]["host_ip"] = "0.0.0.0"
     with pytest.raises(PRODUCTION_PROBE.ProbeFailure):
@@ -133,6 +161,24 @@ def test_production_probe_accepts_only_the_static_internal_relay_destination() -
             )
 
 
+def test_production_probe_accepts_only_encrypted_postgres_tcp_authentication() -> None:
+    configuration = (PROJECT_ROOT / "deploy" / "postgres" / "pg_hba.conf").read_text(
+        encoding="utf-8"
+    )
+
+    assert PRODUCTION_PROBE.validate_postgres_hba(configuration) == 1
+
+    for replacement in (
+        "host all all all scram-sha-256",
+        "hostssl all all all trust",
+        "hostnossl all all all scram-sha-256",
+    ):
+        with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="transport policy"):
+            PRODUCTION_PROBE.validate_postgres_hba(
+                configuration.replace("hostssl all all all scram-sha-256", replacement)
+            )
+
+
 def test_production_probe_ties_compose_sources_to_guarded_secret_directory(
     tmp_path: Path,
 ) -> None:
@@ -146,14 +192,22 @@ def test_production_probe_ties_compose_sources_to_guarded_secret_directory(
         secret_configuration[name] = {"file": str(path)}
     configuration = {"secrets": secret_configuration}
 
-    assert PRODUCTION_PROBE.validate_secret_sources(configuration, secret_directory) == 13
-    assert PRODUCTION_PROBE.validate_secret_files(secret_directory) in {13, 14}
+    expected_source_checks = len(PRODUCTION_PROBE._ALL_SECRET_NAMES) + 1
+    expected_file_checks = {
+        len(PRODUCTION_PROBE._ALL_SECRET_NAMES) + 1,
+        len(PRODUCTION_PROBE._ALL_SECRET_NAMES) + 2,
+    }
+    assert (
+        PRODUCTION_PROBE.validate_secret_sources(configuration, secret_directory)
+        == expected_source_checks
+    )
+    assert PRODUCTION_PROBE.validate_secret_files(secret_directory) in expected_file_checks
 
     for name in PRODUCTION_PROBE._ALL_SECRET_NAMES - PRODUCTION_PROBE._REQUIRED_SECRET_NAMES:
         optional_path = secret_directory / PRODUCTION_PROBE._SECRET_FILES[name]
         optional_path.chmod(0o600)
         optional_path.unlink()
-    assert PRODUCTION_PROBE.validate_secret_files(secret_directory) in {13, 14}
+    assert PRODUCTION_PROBE.validate_secret_files(secret_directory) in expected_file_checks
 
     required_name = next(iter(PRODUCTION_PROBE._REQUIRED_SECRET_NAMES))
     required_path = secret_directory / PRODUCTION_PROBE._SECRET_FILES[required_name]

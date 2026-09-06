@@ -243,17 +243,9 @@ EXCLUDED_REQUIREMENTS: dict[str, str] = {
 }
 
 NOT_STARTED: dict[str, str] = {
-    "V12.3.1": (
-        "The application-to-PostgreSQL connection is isolated on an internal Docker network but "
-        "is not encrypted with TLS."
-    ),
     "V12.3.3": (
         "Internal HTTP/service connections have not been comprehensively inventoried and forced "
         "to encrypted transports."
-    ),
-    "V12.3.4": (
-        "No internal service certificate trust policy is implemented because internal service "
-        "TLS is not yet configured."
     ),
     "V13.2.1": (
         "Backend database authentication still uses long-lived, file-mounted passwords rather "
@@ -576,6 +568,38 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
     ],
 }
 
+PARTIAL_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V12.3.1": (
+        "Every production PostgreSQL TCP client requires TLS 1.2 or TLS 1.3 with exact internal-CA "
+        "and hostname verification, and PostgreSQL explicitly rejects plaintext TCP. The internal "
+        "nginx-to-Gunicorn hop still carries application traffic over HTTP, so the all-sensitive-"
+        "communications requirement remains partial."
+    ),
+    "V12.3.4": (
+        "The PostgreSQL internal TLS connection uses a dedicated offline CA, a DNS-constrained db "
+        "server certificate, and libpq verify-full with no broad trust bundle or validation "
+        "bypass. "
+        "Authenticated certificate trust for the still-plaintext nginx-to-Gunicorn hop remains "
+        "open."
+    ),
+}
+
+PARTIAL_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
+    source_id: [
+        "compose.yaml",
+        "config/settings/hardened.py",
+        "deploy/postgres/start-tls.sh",
+        "deploy/postgres/pg_hba.conf",
+        "deploy/network/run-production-boundary.py",
+        "scripts/generate-postgres-tls.py",
+        "tests/test_deployment_config.py",
+        "tests/test_network_boundary.py",
+        "docs/POSTGRES_TLS.md",
+        "docs/cryptographic-inventory.json",
+    ]
+    for source_id in PARTIAL_ASSESSMENT_OVERRIDES
+}
+
 
 def _catalog_sha256(requirements: list[dict[str, Any]]) -> str:
     catalog = [
@@ -636,6 +660,20 @@ def _validate_policy(source_requirements: list[dict[str, Any]]) -> None:
         raise ValueError(
             f"implemented ASVS overrides reference inactive IDs: {sorted(unknown_overrides)}"
         )
+    if set(PARTIAL_ASSESSMENT_OVERRIDES) != set(PARTIAL_EVIDENCE_OVERRIDES):
+        raise ValueError("partial ASVS assessment and evidence overrides disagree")
+    invalid_partial_overrides = set(PARTIAL_ASSESSMENT_OVERRIDES) & (
+        excluded_ids | set(NOT_STARTED) | IMPLEMENTED_REQUIREMENTS
+    )
+    if invalid_partial_overrides:
+        raise ValueError(
+            f"partial ASVS overrides reference non-partial IDs: {sorted(invalid_partial_overrides)}"
+        )
+    unknown_partial_overrides = set(PARTIAL_ASSESSMENT_OVERRIDES) - source_ids
+    if unknown_partial_overrides:
+        raise ValueError(
+            f"partial ASVS overrides reference unknown IDs: {sorted(unknown_partial_overrides)}"
+        )
 
 
 def build_inventory(source_path: Path) -> dict[str, Any]:
@@ -680,9 +718,10 @@ def build_inventory(source_path: Path) -> dict[str, Any]:
         else:
             applicability = "applicable"
             status = "partial"
-            assessment = (
+            assessment = PARTIAL_ASSESSMENT_OVERRIDES.get(
+                source_id,
                 "Relevant controls or documentation exist, but the exact Level 2 requirement "
-                "remains incomplete or has not been fully exercised at its release boundary."
+                "remains incomplete or has not been fully exercised at its release boundary.",
             )
 
         item: dict[str, Any] = {
@@ -698,7 +737,8 @@ def build_inventory(source_path: Path) -> dict[str, Any]:
             "status": status,
             "assessment": assessment,
             "evidence": IMPLEMENTED_EVIDENCE_OVERRIDES.get(
-                source_id, _evidence(chapter_id, section_id)
+                source_id,
+                PARTIAL_EVIDENCE_OVERRIDES.get(source_id, _evidence(chapter_id, section_id)),
             ),
         }
         if reason:

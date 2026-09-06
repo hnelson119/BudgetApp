@@ -94,16 +94,18 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 112 implemented, 57 partial, 4 not
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 112 implemented, 59 partial, 2 not
   started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
   are internal service TLS and stronger backend authentication. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
-- The maintained cryptographic inventory now covers 9 key classes, 13 algorithm profiles, 2
-  certificate classes, and 4 intentional absences across application, deployment, provider, and
+- The maintained cryptographic inventory now covers 11 key classes, 14 algorithm profiles, 4
+  certificate classes, and 3 intentional absences across application, deployment, provider, and
   test-only boundaries. Its validator enforces purpose separation, protected/excluded data,
   evidence, dependency contracts, no embedded material/private hostname, and a 90-day review
-  cadence. Internal PostgreSQL/service TLS and live certificate/Tailscale/SSH observations remain
-  open release work; implementation of the inventory is not release verification.
+  cadence. PostgreSQL TLS now has a dedicated offline CA, DNS-constrained server identity,
+  verify-full clients, and plaintext rejection. The nginx-to-Gunicorn TLS gap, stronger backend
+  authentication, and live certificate/Tailscale/SSH observations remain open release work;
+  implementation of the inventory is not release verification.
 - The maintained logging inventory now covers all 14 current stack layers and 149 source-derived
   operational, security, protected-audit, and maintenance event entries. It records formats,
   destinations, uses, readers, retention, redaction, integrity/availability properties, and known

@@ -8,6 +8,7 @@ project_name="budgetapp-network-boundary"
 probe_hostname="budget-probe.example.ts.net"
 temporary_directory="$(mktemp -d /tmp/budgetapp-network-boundary.XXXXXX)"
 secret_directory="$temporary_directory/secrets"
+authority_directory="$temporary_directory/postgres-authority"
 backup_directory="$temporary_directory/backups"
 checkpoint_directory="$temporary_directory/checkpoints"
 build_context="$temporary_directory/build-context"
@@ -60,6 +61,10 @@ do
   openssl rand -base64 48 | tr -d '\n' > "$secret_directory/$secret_name"
   chmod 440 "$secret_directory/$secret_name"
 done
+python3 "$project_root/scripts/generate-postgres-tls.py" \
+  --authority-directory "$authority_directory" \
+  --deployment-directory "$secret_directory" \
+  --secret-group-id "$(id -g)"
 
 export APP_ENVIRONMENT=production
 export APP_RELEASE=network-boundary-probe

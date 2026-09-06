@@ -263,6 +263,8 @@ filter metadata, row count, and time—not the file, search text, or transaction
 - Protect the Windows volume containing the VM with BitLocker and recovery-key escrow appropriate for the household.
 - Encrypt backups before they leave the VM.
 - Use HTTPS between browsers and the private application even though Tailscale traffic is encrypted.
+- Require authenticated TLS 1.2 or TLS 1.3 for every production PostgreSQL TCP connection, with an
+  exact dedicated CA, `db` hostname verification, and no plaintext fallback.
 - Document encryption-key generation, storage, backup, rotation, compromise response, and retirement.
 - Keep data-encryption and audit-signing keys separate from the database and source repository.
 
@@ -270,9 +272,10 @@ Implementation note: `docs/cryptographic-inventory.json` is the canonical, machi
 inventory of application, deployment, provider-managed, and test-only keys, algorithms, and
 certificates. It assigns every key a purpose, consumers, protected and excluded data, prohibited
 uses, rotation, and retirement; records compatibility-only SHA-1 and test-only MD5 boundaries; and
-tracks absent internal-service certificates without treating them as implemented. The maintenance
-and release-evidence procedure is in `docs/CRYPTOGRAPHIC_INVENTORY.md` and is reviewed every release
-candidate, every cryptographic change, and at least every 90 days.
+tracks implemented PostgreSQL server trust separately from the still-absent nginx-to-Gunicorn TLS
+identity. The database CA/key lifecycle is in `docs/POSTGRES_TLS.md`; inventory maintenance and
+release evidence are in `docs/CRYPTOGRAPHIC_INVENTORY.md` and are reviewed every release candidate,
+every cryptographic change, and at least every 90 days.
 
 ## 9. Secrets management
 

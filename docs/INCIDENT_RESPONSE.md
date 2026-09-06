@@ -154,6 +154,15 @@ credential fails. Then atomically promote the staged file, recreate `db`, run `d
 test migration, runtime, backup, and integrity connections before deleting the temporary recovery
 copy.
 
+Treat disclosure of the PostgreSQL internal CA private key or server private key separately from a
+password rotation. Stop ingress and database clients, preserve bounded evidence, and generate a new
+dedicated CA, server certificate, and server key on a known-good administrator host by following
+`docs/POSTGRES_TLS.md`. Promote the public CA, leaf, and server key as one generation, recreate the
+database and every client, run the production-boundary proof, and confirm the retired CA is no
+longer trusted. Never recover availability by weakening `verify-full` or allowing plaintext TCP.
+Rotate database passwords too when the incident scope or observed sessions cannot rule out their
+exposure.
+
 ## 6. Encrypted-backup repository key rotation
 
 Restic repository passwords are encryption keys, not ordinary file settings. Stage

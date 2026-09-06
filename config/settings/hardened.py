@@ -5,7 +5,7 @@ import os
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403
-from .environment import required_environment, required_secret_file
+from .environment import required_certificate_file, required_environment, required_secret_file
 
 _SETTINGS_MODULE = required_environment("DJANGO_SETTINGS_MODULE")
 if _SETTINGS_MODULE not in {"config.settings.production", "config.settings.pentest"}:
@@ -24,12 +24,20 @@ WHITENOISE_ALLOW_ALL_ORIGINS = False
 SECRET_KEY = required_secret_file("DJANGO_SECRET_KEY", minimum_length=50)
 MFA_ENCRYPTION_KEY = required_secret_file("DJANGO_MFA_ENCRYPTION_KEY", minimum_length=43)
 
-required_database_values = {
+required_database_values: dict[str, str] = {
     "POSTGRES_DB": required_environment("POSTGRES_DB"),
     "POSTGRES_USER": required_environment("POSTGRES_USER"),
     "POSTGRES_PASSWORD": required_secret_file("POSTGRES_PASSWORD"),
     "DATABASE_HOST": required_environment("DATABASE_HOST"),
 }
+database_options = {"options": "-c search_path=public,budget_audit"}
+if _SETTINGS_MODULE == "config.settings.production":
+    database_options.update(
+        {
+            "sslmode": "verify-full",
+            "sslrootcert": required_certificate_file("POSTGRES_SSL_ROOT_CERTIFICATE"),
+        }
+    )
 
 DATABASES = {
     "default": {
@@ -41,7 +49,7 @@ DATABASES = {
         "PORT": os.getenv("DATABASE_PORT", "5432"),
         "CONN_MAX_AGE": int(os.getenv("DATABASE_CONN_MAX_AGE", "60")),
         "CONN_HEALTH_CHECKS": True,
-        "OPTIONS": {"options": "-c search_path=public,budget_audit"},
+        "OPTIONS": database_options,
     }
 }
 

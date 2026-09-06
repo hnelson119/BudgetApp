@@ -76,9 +76,10 @@ account or every account without resetting credentials; it rotates server-side s
 removes stored authenticated and pending-MFA sessions, and writes protected household audit events.
 The maintained cryptographic inventory assigns explicit owners, algorithms, consumers, permitted
 and prohibited uses, protected and excluded data, rotation, and retirement to application,
-deployment, provider-managed, and test-only cryptographic boundaries. Its quality-gate validator
-also records absent internal-service certificates without pretending those open TLS controls exist;
-see `docs/CRYPTOGRAPHIC_INVENTORY.md`.
+deployment, provider-managed, and test-only cryptographic boundaries. Production PostgreSQL now
+requires TLS 1.2 or TLS 1.3, exact internal-CA and `db` hostname verification, and hard plaintext TCP
+rejection; the still-HTTP nginx-to-Gunicorn hop remains explicitly open. See
+`docs/CRYPTOGRAPHIC_INVENTORY.md` and `docs/POSTGRES_TLS.md`.
 The maintained logging inventory documents events, formats, destinations, operational uses,
 readers, retention, sensitive-data rules, and limitations across all 14 current stack layers. Its
 quality-gate validator derives 149 stable event entries from source and verifies bounded Docker
@@ -186,6 +187,14 @@ do
   openssl rand -base64 "$byte_count" | sudo tee \
     "/etc/household-budget/secrets/$secret_name" >/dev/null
 done
+
+# Use an actually mounted offline/removable path outside the checkout and production VM storage.
+offline_authority_dir=/media/offline-custody/household-budget-postgres-ca-v1
+sudo install -d -m 0700 -o root -g root "$offline_authority_dir"
+sudo python3 scripts/generate-postgres-tls.py \
+  --authority-directory "$offline_authority_dir" \
+  --deployment-directory /etc/household-budget/secrets \
+  --secret-group-id "$secret_gid"
 ```
 
 If the dedicated group already exists, omit `groupadd`. Replace `BUDGET_SECRET_GID` in `.env` with
@@ -193,6 +202,10 @@ the numeric value printed by `getent group household-budget-secrets`. Do not add
 member or the deployment account to this group. The root-owned directory is mode 0700 and each
 file is mode 0440; Compose grants only the secret-bearing containers that supplemental numeric GID,
 and each service still mounts only its explicitly allowed files.
+Immediately unmount and secure the offline authority after generation. Its private key must never
+remain on the production VM or enter the deployment secret directory. The database leaf, exact
+trust model, rotation procedure, and fail-closed validation are documented in
+[`docs/POSTGRES_TLS.md`](docs/POSTGRES_TLS.md).
 
 Initialize the least-privilege database roles, apply migrations with the
 dedicated migration identity, and then start the runtime services:
@@ -223,7 +236,9 @@ should live on an independently protected or read-only mounted location when pra
 The runtime web process cannot migrate the schema and never receives the database administrator,
 migration, backup, or audit passwords. The exact service/network catalog is enforced as an outbound
 allowlist: application, database, and maintenance workloads stay exclusively on internal Docker
-networks (or no network), and the web service's only backend destination is `db:5432`. A separate
+networks (or no network), and the web service's only backend destination is `db:5432`. Every
+production database client verifies the dedicated CA and `db` hostname with libpq `verify-full`,
+while PostgreSQL accepts only TLS 1.2 or TLS 1.3 TCP sessions and rejects plaintext TCP. A separate
 secretless, read-only nginx relay is the only service attached to the non-internal ingress network
 and the only service bound to loopback port 8000; its running configuration is checked for exactly
 one static destination, `web:8000`. Put private Tailscale HTTPS in front of that relay and never
@@ -308,7 +323,8 @@ automatically.
 10. [`docs/UPGRADE_AND_ROLLBACK.md`](docs/UPGRADE_AND_ROLLBACK.md) — release upgrade and rollback
 11. [`docs/PASSWORD_BLOCKLIST.md`](docs/PASSWORD_BLOCKLIST.md) — prohibited identifiers and offline breached-password corpus maintenance
 12. [`docs/CRYPTOGRAPHIC_INVENTORY.md`](docs/CRYPTOGRAPHIC_INVENTORY.md) — maintained key, algorithm, certificate, and purpose inventory
-13. [`docs/LOGGING_INVENTORY.md`](docs/LOGGING_INVENTORY.md) — maintained event, destination, access, retention, and sensitive-data inventory
-14. [`docs/SBOM.md`](docs/SBOM.md) — maintained CycloneDX inventory, approved repositories, and release retention procedure
+13. [`docs/POSTGRES_TLS.md`](docs/POSTGRES_TLS.md) — internal database TLS trust, generation, validation, and rotation
+14. [`docs/LOGGING_INVENTORY.md`](docs/LOGGING_INVENTORY.md) — maintained event, destination, access, retention, and sensitive-data inventory
+15. [`docs/SBOM.md`](docs/SBOM.md) — maintained CycloneDX inventory, approved repositories, and release retention procedure
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.
