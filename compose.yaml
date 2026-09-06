@@ -78,6 +78,7 @@ services:
     profiles: ["maintenance"]
     entrypoint: ["/bin/sh", "/usr/local/bin/bootstrap-roles.sh"]
     environment:
+      APP_ENVIRONMENT: production
       DATABASE_HOST: db
       POSTGRES_DB: ${POSTGRES_DB:-household_budget}
       POSTGRES_ADMIN_USER: ${POSTGRES_ADMIN_USER:-budget_admin}

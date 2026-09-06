@@ -1,16 +1,29 @@
 #!/bin/sh
 set -eu
 
-cat <<'SQL' | psql \
-  --host "$DATABASE_HOST" \
-  --username "$POSTGRES_ADMIN_USER" \
-  --dbname "$POSTGRES_DB" \
-  --set ON_ERROR_STOP=1 \
-  --set runtime_user="$POSTGRES_RUNTIME_USER" \
-  --set migration_user="$POSTGRES_MIGRATION_USER" \
-  --set backup_user="$POSTGRES_BACKUP_USER" \
-  --set audit_user="$POSTGRES_AUDIT_USER" \
-  --set admin_user="$POSTGRES_ADMIN_USER"
+run_psql() {
+  psql \
+    --host "$DATABASE_HOST" \
+    --username "$POSTGRES_ADMIN_USER" \
+    --dbname "$POSTGRES_DB" \
+    --set ON_ERROR_STOP=1 \
+    --set runtime_user="$POSTGRES_RUNTIME_USER" \
+    --set migration_user="$POSTGRES_MIGRATION_USER" \
+    --set backup_user="$POSTGRES_BACKUP_USER" \
+    --set audit_user="$POSTGRES_AUDIT_USER" \
+    --set admin_user="$POSTGRES_ADMIN_USER"
+}
+
+: "${APP_ENVIRONMENT:?}"
+case "$APP_ENVIRONMENT" in
+  production|pentest) ;;
+  *)
+    echo "The database bootstrap environment is invalid." >&2
+    exit 1
+    ;;
+esac
+
+cat <<'SQL' | run_psql
 SELECT format(
   'CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT PASSWORD NULL',
   :'runtime_user'
@@ -34,7 +47,6 @@ SELECT format(
   :'audit_user'
 ) WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'audit_user') \gexec
 SELECT format('ALTER ROLE %I INHERIT PASSWORD NULL', :'audit_user') \gexec
-SELECT format('ALTER ROLE %I PASSWORD NULL', :'admin_user') \gexec
 
 SELECT 'CREATE ROLE budget_runtime_access NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE'
 WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'budget_runtime_access') \gexec
@@ -163,6 +175,11 @@ WHERE to_regprocedure(
   'budget_audit.record_checkpoint(uuid,uuid,bigint,bigint,varchar,'
   'timestamp with time zone,varchar,varchar,varchar,varchar,timestamp with time zone)'
 ) IS NOT NULL \gexec
+SQL
+
+if [ "$APP_ENVIRONMENT" = "production" ]; then
+  cat <<'SQL' | run_psql
+SELECT format('ALTER ROLE %I PASSWORD NULL', :'admin_user') \gexec
 DO $block$
 BEGIN
   IF EXISTS (
@@ -174,4 +191,5 @@ BEGIN
 END;
 $block$;
 SQL
+fi
 echo "Database roles and grants are ready."

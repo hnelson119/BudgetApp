@@ -23,6 +23,20 @@ PRODUCTION_PROBE = _load_script(
 VM_PROBE = _load_script("private_ingress_probe", "deploy/network/verify-private-ingress.py")
 
 
+@pytest.mark.parametrize(
+    ("artifact", "expected"),
+    (
+        ('"POSTGRES_PASSWORD="', False),  # pragma: allowlist secret
+        ('"POSTGRES_PASSWORD=exposed"', True),  # pragma: allowlist secret
+        ("Authorization: Bearer exposed", True),  # pragma: allowlist secret
+    ),
+)
+def test_credential_shaped_runtime_values_require_a_nonempty_value(
+    artifact: str, expected: bool
+) -> None:
+    assert bool(PRODUCTION_PROBE._CREDENTIAL_SHAPED_VALUE.search(artifact)) is expected
+
+
 def _valid_compose_configuration() -> dict[str, Any]:
     services = {
         name: ({"network_mode": "none"} if not networks else {"networks": dict.fromkeys(networks)})
@@ -97,6 +111,7 @@ def _valid_compose_configuration() -> dict[str, Any]:
         if {"source": "postgres_ca_certificate"} not in secrets:
             secrets.append({"source": "postgres_ca_certificate"})
         secrets.extend(({"source": certificate}, {"source": private_key}))
+    services["db-bootstrap"]["environment"]["APP_ENVIRONMENT"] = "production"
     return {
         "networks": {
             "ingress": {},
@@ -138,6 +153,9 @@ def test_production_probe_accepts_only_loopback_internal_compose_boundary() -> N
         ),
         lambda configuration: configuration["services"]["web"]["environment"].update(
             {"DATABASE_HOST": "outside"}
+        ),
+        lambda configuration: configuration["services"]["db-bootstrap"]["environment"].update(
+            {"APP_ENVIRONMENT": "pentest"}
         ),
     ),
 )

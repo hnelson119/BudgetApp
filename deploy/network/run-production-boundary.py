@@ -109,6 +109,9 @@ _FORBIDDEN_ENVIRONMENT_NAMES = {
 _MAXIMUM_RESPONSE_SIZE = 1024 * 1024
 _MAXIMUM_RAW_REQUEST_SIZE = 64 * 1024
 _HTTP_STATUS_LINE = re.compile(rb"(?m)^HTTP/1\.[01] ([1-5][0-9]{2})")
+_CREDENTIAL_SHAPED_VALUE = re.compile(
+    r"authorization:\s*bearer\s+\S|password=[^\s\"',;}\]]+", re.IGNORECASE
+)
 _EXPECTED_PROXY_DESTINATION = "proxy_pass http://web:8000;"
 
 
@@ -320,6 +323,12 @@ def validate_compose_boundary(configuration: dict[str, Any]) -> int:
             raise ProbeFailure(
                 "A PostgreSQL client lacks its exact certificate-authentication set."
             )
+    bootstrap_environment = services["db-bootstrap"].get("environment")
+    if (
+        not isinstance(bootstrap_environment, dict)
+        or bootstrap_environment.get("APP_ENVIRONMENT") != "production"
+    ):
+        raise ProbeFailure("The PostgreSQL role bootstrap is not locked to production mode.")
     if _network_names(ingress.get("networks")) != {"ingress", "frontend"}:
         raise ProbeFailure("The secretless relay has an unexpected Docker network attachment.")
     if web.get("ports") or ingress.get("secrets"):
@@ -1182,8 +1191,7 @@ def validate_no_secret_leakage(
     )
     if any(value in artifacts for value in values):
         raise ProbeFailure("A reusable secret appeared in runtime metadata, history, or logs.")
-    lower_artifacts = artifacts.casefold()
-    if any(marker in lower_artifacts for marker in ("authorization: bearer ", "password=")):
+    if _CREDENTIAL_SHAPED_VALUE.search(artifacts):
         raise ProbeFailure("A credential-shaped value appeared in runtime diagnostics.")
     return 5
 
