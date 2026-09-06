@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "inventory_updated": "2026-09-05",
+  "inventory_updated": "2026-09-06",
   "review": {
     "owner": "release owner",
     "cadence_days": 90,
-    "next_review_due": "2026-12-04",
+    "next_review_due": "2026-12-05",
     "procedure": "docs/LOGGING_INVENTORY.md",
     "update_triggers": [
       "a log producer, event, format, destination, access rule, or retention rule changes",
@@ -179,23 +179,23 @@
     {
       "id": "maintenance-security",
       "stack_layer": "Backup, restore, and credential-rotation maintenance",
-      "scope": "production maintenance containers",
+      "scope": "production maintenance containers plus the isolated synthetic PostgreSQL password-rotation rehearsal",
       "event_groups": [
         "maintenance-events"
       ],
       "events": [
         "backup repository initialization, start, completion, validation, retention, and failure outcomes",
         "restore target refusal, start, completion, schema verification, and failure outcomes",
-        "Restic and PostgreSQL administrator credential-rotation start, verification, retirement, completion, and failure outcomes"
+        "Restic production key-rotation outcomes and synthetic pentest-only PostgreSQL administrator password-rotation outcomes"
       ],
       "format": "Single-line JSON with UTC timestamp, level, stable event identifier, and fixed operator-safe message.",
       "destination": "Container stdout/stderr in the Docker local log store; scheduled systemd service wrappers also record command lifecycle in the host journal.",
       "use": [
         "backup and restore monitoring",
-        "credential-rotation verification",
+        "production Restic rotation and synthetic database recovery verification",
         "recovery-time and incident investigation"
       ],
-      "access_control": "Linux deployment administrators; maintenance containers are networkless or restricted and receive only task-specific secrets.",
+      "access_control": "Linux deployment administrators; production maintenance containers are networkless or restricted, and the password-rotation events exist only in the disposable pentest profile.",
       "retention": "Container records use 20 MiB by 5-file rotation. Host service records follow the required 30-day journald policy recorded during deployment review; incident evidence is preserved before normal rollover.",
       "sensitive_data_policy": "Messages are fixed and omit database rows, repository paths outside generic mount names, credentials, hostnames, private addresses, and command output containing values.",
       "integrity_and_availability": "Structured output is locally mutable; protected audit events and signed checkpoints independently cover state-changing rotations and restore comparisons where applicable.",
@@ -284,7 +284,7 @@
       "retention": "Per-container capacity rotation: 20 MiB per file and 5 files, approximately 100 MiB maximum.",
       "sensitive_data_policy": "Statement-wide logging is not enabled. Operators must treat database errors as sensitive and must not retain SQL parameters, rows, credentials, or financial values in tickets or Git.",
       "integrity_and_availability": "Local Docker storage is separate from PostgreSQL tables but remains on the same VM and administrator-mutable.",
-      "limitations": "No centralized PostgreSQL log analysis, certificate-authentication log source, or separate security destination exists.",
+      "limitations": "No centralized PostgreSQL log analysis or separate PostgreSQL security destination exists; certificate-authentication records remain in the VM-local database logs.",
       "evidence": [
         "compose.yaml",
         "deploy/postgres/bootstrap-roles.sh",
@@ -297,7 +297,7 @@
       "scope": "production Linux VM",
       "event_groups": [],
       "events": [
-        "stdout and stderr from every one of the 14 production Compose services"
+        "stdout and stderr from every one of the 13 production Compose services"
       ],
       "format": "Docker local driver internal framing and compression around producer-formatted JSON or text records.",
       "destination": "Docker-managed local files on the Linux VM; never an application bind mount.",
@@ -609,7 +609,7 @@
     {
       "id": "maintenance-events",
       "layer_id": "maintenance-security",
-      "source": "Literal structured log and failure event arguments in the production backup, restore, Restic rotation, and PostgreSQL administrator rotation shell scripts",
+      "source": "Literal structured log and failure event arguments in production backup, restore, and Restic rotation scripts plus the synthetic pentest-only PostgreSQL administrator rotation script",
       "events": [
         "backup_completed",
         "backup_configuration_error",

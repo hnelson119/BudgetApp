@@ -5,7 +5,12 @@ import os
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403
-from .environment import required_certificate_file, required_environment, required_secret_file
+from .environment import (
+    required_certificate_file,
+    required_environment,
+    required_private_key_file,
+    required_secret_file,
+)
 
 _SETTINGS_MODULE = required_environment("DJANGO_SETTINGS_MODULE")
 if _SETTINGS_MODULE not in {"config.settings.production", "config.settings.pentest"}:
@@ -27,7 +32,6 @@ MFA_ENCRYPTION_KEY = required_secret_file("DJANGO_MFA_ENCRYPTION_KEY", minimum_l
 required_database_values: dict[str, str] = {
     "POSTGRES_DB": required_environment("POSTGRES_DB"),
     "POSTGRES_USER": required_environment("POSTGRES_USER"),
-    "POSTGRES_PASSWORD": required_secret_file("POSTGRES_PASSWORD"),
     "DATABASE_HOST": required_environment("DATABASE_HOST"),
 }
 database_options = {"options": "-c search_path=public,budget_audit"}
@@ -36,15 +40,18 @@ if _SETTINGS_MODULE == "config.settings.production":
         {
             "sslmode": "verify-full",
             "sslrootcert": required_certificate_file("POSTGRES_SSL_ROOT_CERTIFICATE"),
+            "sslcert": required_certificate_file("POSTGRES_SSL_CLIENT_CERTIFICATE"),
+            "sslkey": required_private_key_file("POSTGRES_SSL_CLIENT_PRIVATE_KEY"),
         }
     )
+else:
+    required_database_values["POSTGRES_PASSWORD"] = required_secret_file("POSTGRES_PASSWORD")
 
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": required_database_values["POSTGRES_DB"],
         "USER": required_database_values["POSTGRES_USER"],
-        "PASSWORD": required_database_values["POSTGRES_PASSWORD"],
         "HOST": required_database_values["DATABASE_HOST"],
         "PORT": os.getenv("DATABASE_PORT", "5432"),
         "CONN_MAX_AGE": int(os.getenv("DATABASE_CONN_MAX_AGE", "60")),
@@ -52,6 +59,8 @@ DATABASES = {
         "OPTIONS": database_options,
     }
 }
+if "POSTGRES_PASSWORD" in required_database_values:
+    DATABASES["default"]["PASSWORD"] = required_database_values["POSTGRES_PASSWORD"]
 
 DEBUG = False
 ALLOWED_HOSTS = [host.strip() for host in required_environment("DJANGO_ALLOWED_HOSTS").split(",")]

@@ -44,27 +44,46 @@ def test_generator_separates_offline_authority_from_deployment_material(
         secret_group_id=group_id,
     )
 
-    assert {path.name for path in outputs} == {
+    authority_names = {
         "postgres_ca_private_key",
         "postgres_ca_certificate",
+        "postgres_client_ca_private_key",
+        "postgres_client_ca_certificate",
+    }
+    deployment_names = {
+        "postgres_ca_certificate",
+        "postgres_client_ca_certificate",
         "postgres_server_certificate",
         "postgres_server_private_key",
+        *(
+            f"{prefix}_{kind}"
+            for prefix, _common_name in GENERATOR.CLIENT_IDENTITIES
+            for kind in ("certificate", "private_key")
+        ),
     }
+    assert {path.name for path in outputs} == authority_names | deployment_names
+    assert {path.name for path in authority.iterdir()} == authority_names
+    assert {path.name for path in deployment.iterdir()} == deployment_names
     assert (authority / "postgres_ca_private_key").is_file()
     assert not (deployment / "postgres_ca_private_key").exists()
     assert (authority / "postgres_ca_certificate").read_bytes() == (
         deployment / "postgres_ca_certificate"
     ).read_bytes()
+    assert (authority / "postgres_client_ca_certificate").read_bytes() == (
+        deployment / "postgres_client_ca_certificate"
+    ).read_bytes()
+    assert not (deployment / "postgres_client_ca_private_key").exists()
     assert (deployment / "postgres_server_certificate").is_file()
     assert (deployment / "postgres_server_private_key").is_file()
+    for prefix, _common_name in GENERATOR.CLIENT_IDENTITIES:
+        assert (deployment / f"{prefix}_certificate").is_file()
+        assert (deployment / f"{prefix}_private_key").is_file()
     if os.name != "nt":
         assert stat.S_IMODE((authority / "postgres_ca_private_key").stat().st_mode) == 0o600
         assert stat.S_IMODE((authority / "postgres_ca_certificate").stat().st_mode) == 0o644
-        for name in (
-            "postgres_ca_certificate",
-            "postgres_server_certificate",
-            "postgres_server_private_key",
-        ):
+        assert stat.S_IMODE((authority / "postgres_client_ca_private_key").stat().st_mode) == 0o600
+        assert stat.S_IMODE((authority / "postgres_client_ca_certificate").stat().st_mode) == 0o644
+        for name in deployment_names:
             assert stat.S_IMODE((deployment / name).stat().st_mode) == 0o440
 
     with pytest.raises(GENERATOR.GenerationFailure, match="already exists"):
@@ -112,3 +131,31 @@ def test_generator_removes_partial_deployment_outputs_after_failure(
 
     assert not any(authority.iterdir())
     assert not any(deployment.iterdir())
+
+
+def test_generator_issues_separate_purpose_bound_server_and_client_certificates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def recording_openssl(*arguments: str) -> None:
+        calls.append(arguments)
+        _fake_openssl(*arguments)
+
+    monkeypatch.setattr(GENERATOR, "_run_openssl", recording_openssl)
+    GENERATOR.generate_postgres_tls(
+        authority_directory=tmp_path / "authority",
+        deployment_directory=tmp_path / "deployment",
+        secret_group_id=os.getgid() if os.name != "nt" else 10002,
+    )
+
+    subjects = {call[call.index("-subj") + 1] for call in calls if "-subj" in call}
+    assert "/CN=Household Budget PostgreSQL Server CA" in subjects
+    assert "/CN=Household Budget PostgreSQL Client CA" in subjects
+    assert "/CN=db" in subjects
+    client_subjects = {f"/CN={common_name}" for _prefix, common_name in GENERATOR.CLIENT_IDENTITIES}
+    assert client_subjects <= subjects
+    assert sum(call[:1] == ("verify",) and "sslserver" in call for call in calls) == 1
+    assert sum(call[:1] == ("verify",) and "sslclient" in call for call in calls) == len(
+        GENERATOR.CLIENT_IDENTITIES
+    )

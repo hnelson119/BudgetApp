@@ -19,6 +19,8 @@ EXPECTED_KEY_IDS = {
     "audit-checkpoint-signing-key",
     "django-signing-key",
     "mfa-encryption-key",
+    "postgres-client-ca-private-key",
+    "postgres-client-private-keys",
     "postgres-internal-ca-private-key",
     "postgres-server-private-key",
     "restic-master-keys",
@@ -47,11 +49,12 @@ EXPECTED_ALGORITHM_IDS = {
 EXPECTED_CERTIFICATE_IDS = {
     "browser-public-trust-roots",
     "postgres-internal-ca-certificate",
+    "postgres-client-ca-certificate",
+    "postgres-role-client-certificates",
     "postgres-server-certificate",
     "tailscale-serve-leaf-certificate",
 }
 EXPECTED_ABSENCE_IDS = {
-    "application-client-certificates",
     "internal-service-certificates",
     "reusable-tailscale-auth-keys",
 }
@@ -301,10 +304,13 @@ def _validate_dependency_contract(algorithms: dict[str, dict[str, Any]]) -> None
     postgres_hba = (PROJECT_ROOT / "deploy/postgres/pg_hba.conf").read_text(encoding="utf-8")
     if (
         "PGSSLMODE: verify-full" not in compose
+        or "PGSSLCERT:" not in compose
+        or "PGSSLKEY:" not in compose
+        or "postgres_client_ca_certificate" not in compose
         or "postgres_server_private_key" not in compose
         or "ssl_min_protocol_version=TLSv1.2" not in postgres_startup
         or "ssl_max_protocol_version=TLSv1.3" not in postgres_startup
-        or "hostssl all all all scram-sha-256" not in postgres_hba
+        or "hostssl all all all cert map=budget_service" not in postgres_hba
         or "hostnossl all all all reject" not in postgres_hba
     ):
         _fail("the inventoried PostgreSQL TLS policy no longer matches deployment source")

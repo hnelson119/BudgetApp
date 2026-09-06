@@ -6,6 +6,7 @@ from django.core.exceptions import ImproperlyConfigured
 from config.settings.environment import (
     required_certificate_file,
     required_environment,
+    required_private_key_file,
     required_secret_file,
 )
 
@@ -80,3 +81,40 @@ def test_certificate_must_not_be_supplied_inline(monkeypatch: pytest.MonkeyPatch
 
     with pytest.raises(ImproperlyConfigured, match="must not be supplied directly"):
         required_certificate_file("TEST_CERTIFICATE")
+
+
+def test_private_key_returns_only_a_regular_mounted_file_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    private_key_path = tmp_path / "client.key"
+    private_key_path.write_bytes(b"private-key-material")
+    monkeypatch.delenv("TEST_PRIVATE_KEY", raising=False)
+    monkeypatch.setenv("TEST_PRIVATE_KEY_FILE", str(private_key_path))
+
+    assert required_private_key_file("TEST_PRIVATE_KEY") == str(private_key_path)
+
+
+def test_private_key_rejects_inline_empty_and_symlink_values(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("TEST_PRIVATE_KEY", "inline")
+    with pytest.raises(ImproperlyConfigured, match="must not be supplied directly"):
+        required_private_key_file("TEST_PRIVATE_KEY")
+
+    monkeypatch.delenv("TEST_PRIVATE_KEY")
+    empty_path = tmp_path / "empty.key"
+    empty_path.touch()
+    monkeypatch.setenv("TEST_PRIVATE_KEY_FILE", str(empty_path))
+    with pytest.raises(ImproperlyConfigured, match="invalid size"):
+        required_private_key_file("TEST_PRIVATE_KEY")
+
+    target_path = tmp_path / "target.key"
+    target_path.write_bytes(b"private-key-material")
+    link_path = tmp_path / "link.key"
+    try:
+        link_path.symlink_to(target_path)
+    except OSError:
+        pytest.skip("Symbolic links are unavailable for this test account.")
+    monkeypatch.setenv("TEST_PRIVATE_KEY_FILE", str(link_path))
+    with pytest.raises(ImproperlyConfigured, match="nonsymlink"):
+        required_private_key_file("TEST_PRIVATE_KEY")

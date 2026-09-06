@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-09-05",
+  "mapping_updated": "2026-09-06",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -15,13 +15,13 @@
   "catalog_sha256": "7baeb53026600db76513489acaccd93ba60490e785ffad806e2c164c474ad273",
   "summary": {
     "applicability": {
-      "applicable": 173,
-      "not_applicable": 80
+      "applicable": 174,
+      "not_applicable": 79
     },
     "status": {
-      "implemented": 112,
-      "not_applicable": 80,
-      "not_started": 2,
+      "implemented": 114,
+      "not_applicable": 79,
+      "not_started": 1,
       "partial": 59
     }
   },
@@ -3523,16 +3523,18 @@
       "section_name": "General TLS Security Guidance",
       "level": 2,
       "description": "Verify that the application validates that mTLS client certificates are trusted before using the certificate identity for authentication or authorization.",
-      "applicability": "not_applicable",
-      "status": "not_applicable",
-      "assessment": "The application does not use mTLS certificate identity for authentication or authorization.",
+      "applicability": "applicable",
+      "status": "implemented",
+      "assessment": "PostgreSQL validates every production client certificate against a dedicated client CA and maps its exact certificate CN to one configured database role. The runtime proof confirms the web client DN and rejects a web certificate attempting the audit role.",
       "evidence": [
-        "SECURITY_PLAN.md",
-        "config/settings/production.py",
+        "scripts/generate-postgres-tls.py",
         "compose.yaml",
-        "tests/test_production_settings.py"
-      ],
-      "reason": "The application does not use mTLS certificate identity for authentication or authorization."
+        "deploy/postgres/start-tls.sh",
+        "deploy/postgres/pg_hba.conf",
+        "deploy/network/run-production-boundary.py",
+        "tests/test_network_boundary.py",
+        "docs/POSTGRES_TLS.md"
+      ]
     },
     {
       "id": "v5.0.0-12.2.1",
@@ -3681,12 +3683,18 @@
       "level": 2,
       "description": "Verify that communications between backend application components that don't support the application's standard user session mechanism, including APIs, middleware, and data layers, are authenticated. Authentication must use individual service accounts, short-term tokens, or certificate-based authentication and not unchanging credentials such as passwords, API keys, or shared accounts with privileged access.",
       "applicability": "applicable",
-      "status": "not_started",
-      "assessment": "Backend database authentication still uses long-lived, file-mounted passwords rather than short-term or certificate credentials.",
+      "status": "implemented",
+      "assessment": "Every production database client uses a unique purpose-bound certificate identity mapped to its least-privilege role. PostgreSQL accepts no password-authenticated TCP path, and bootstrapping plus the runtime proof require all production login roles to have no password verifier.",
       "evidence": [
+        "scripts/generate-postgres-tls.py",
         "compose.yaml",
+        "config/settings/hardened.py",
         "deploy/postgres/bootstrap-roles.sh",
-        "tests/test_deployment_config.py"
+        "deploy/postgres/pg_hba.conf",
+        "deploy/network/run-production-boundary.py",
+        "tests/test_deployment_config.py",
+        "tests/test_network_boundary.py",
+        "docs/POSTGRES_TLS.md"
       ]
     },
     {

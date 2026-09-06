@@ -325,8 +325,9 @@ containment and staged rotations for application, MFA, PostgreSQL, Restic, audit
 credentials. A production-derived disposable rehearsal transactionally re-encrypts all MFA seeds,
 proves the retired key fails, preserves unrelated sessions during planned rotation, then proves
 emergency password/MFA reset revokes the old session, TOTP, and recovery code before fresh enrollment
-and login. It also proves the PostgreSQL administrator-password helper accepts the replacement and
-rejects the retired password. The restore rehearsal rotates the repository key and restores its
+and login. Its isolated pentest-only exception also proves the synthetic PostgreSQL administrator-
+password helper accepts the replacement and rejects the retired password; production uses no
+database passwords. The restore rehearsal rotates the repository key and restores its
 pre-rotation snapshot using only the replacement. Real Tailscale revocation and full Linux VM
 rotation evidence remain release-only.
 
@@ -371,11 +372,13 @@ deployment, provider-managed, and test-only key, algorithm, and certificate boun
 validator checks record completeness, evidence paths, purpose separation, dependency/version
 contracts, compatibility-only SHA-1 uses, the test-only MD5 exception, certificate/algorithm
 references, absence records, review cadence, and the absence of embedded private material or exact
-private hostnames. Production PostgreSQL now requires TLS 1.2 or TLS 1.3, exact dedicated-CA and
-`db` hostname verification, and hard plaintext TCP rejection. The CA key remains offline, the
-server key is staged into database-only tmpfs, and the production-derived probe observes the live
-TLS session and a rejected plaintext attempt. The nginx-to-Gunicorn TLS boundary and certificate-
-based database client authentication remain honest open controls; live Tailscale and SSH
+private hostnames. Production PostgreSQL now requires mutual TLS 1.2 or TLS 1.3 with separate
+offline server and client authorities, exact `db` hostname verification, unique service-client
+identities, exact role mapping, and hard plaintext and password rejection. The CA keys remain
+offline, the server material and client trust are staged into database-only tmpfs, and the
+production-derived probe observes the live client DN and TLS session, rejects plaintext,
+missing-certificate, and wrong-role attempts, and proves login roles have no password verifiers.
+The nginx-to-Gunicorn TLS boundary remains an honest open control; live Tailscale and SSH
 observations remain release-only.
 
 The logging-inventory and separate-archive slices now document all 14 current application, service, host, provider,

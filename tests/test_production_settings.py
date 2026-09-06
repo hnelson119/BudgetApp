@@ -19,10 +19,11 @@ def test_production_django_security_check_passes(tmp_path: Path) -> None:
     )
     environment.pop("DJANGO_SECRET_KEY", None)
     environment.pop("DJANGO_MFA_ENCRYPTION_KEY", None)
-    environment.pop("POSTGRES_PASSWORD", None)
     environment.pop("POSTGRES_SSL_ROOT_CERTIFICATE", None)
+    environment.pop("POSTGRES_SSL_CLIENT_CERTIFICATE", None)
+    environment.pop("POSTGRES_SSL_CLIENT_PRIVATE_KEY", None)
 
-    for name in ("DJANGO_SECRET_KEY", "DJANGO_MFA_ENCRYPTION_KEY", "POSTGRES_PASSWORD"):
+    for name in ("DJANGO_SECRET_KEY", "DJANGO_MFA_ENCRYPTION_KEY"):
         secret_path = tmp_path / name.casefold()
         secret_path.write_text((f"value-for-{name}-9Z!" * 6), encoding="utf-8")
         environment[f"{name}_FILE"] = str(secret_path)
@@ -32,6 +33,15 @@ def test_production_django_security_check_passes(tmp_path: Path) -> None:
         encoding="ascii",
     )
     environment["POSTGRES_SSL_ROOT_CERTIFICATE_FILE"] = str(ca_path)
+    client_certificate_path = tmp_path / "postgres_client_certificate"
+    client_certificate_path.write_text(
+        "-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----\n",
+        encoding="ascii",
+    )
+    client_key_path = tmp_path / "postgres_client_private_key"
+    client_key_path.write_bytes(b"not-read-by-settings")
+    environment["POSTGRES_SSL_CLIENT_CERTIFICATE_FILE"] = str(client_certificate_path)
+    environment["POSTGRES_SSL_CLIENT_PRIVATE_KEY_FILE"] = str(client_key_path)
 
     result = subprocess.run(
         [sys.executable, "manage.py", "check", "--deploy"],
@@ -45,6 +55,28 @@ def test_production_django_security_check_passes(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     assert "System check identified no issues" in result.stdout
 
+    database_result = subprocess.run(
+        [
+            sys.executable,
+            "manage.py",
+            "shell",
+            "-c",
+            (
+                "from django.conf import settings; database=settings.DATABASES['default']; "
+                "assert database['PASSWORD'] == ''; "
+                "assert {'options', 'sslmode', 'sslrootcert', 'sslcert', 'sslkey'} "
+                "<= set(database['OPTIONS'])"
+            ),
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert database_result.returncode == 0, database_result.stdout + database_result.stderr
+
 
 def test_production_database_search_path_includes_protected_audit_schema(tmp_path: Path) -> None:
     settings_file = (Path(__file__).resolve().parents[1] / "config/settings/hardened.py").read_text(
@@ -54,6 +86,8 @@ def test_production_database_search_path_includes_protected_audit_schema(tmp_pat
     assert '"-c search_path=public,budget_audit"' in settings_file
     assert '"sslmode": "verify-full"' in settings_file
     assert 'required_certificate_file("POSTGRES_SSL_ROOT_CERTIFICATE")' in settings_file
+    assert 'required_certificate_file("POSTGRES_SSL_CLIENT_CERTIFICATE")' in settings_file
+    assert 'required_private_key_file("POSTGRES_SSL_CLIENT_PRIVATE_KEY")' in settings_file
 
 
 def test_production_static_assets_do_not_allow_arbitrary_cross_origin_reads() -> None:

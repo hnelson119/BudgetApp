@@ -1,7 +1,7 @@
 # Release hardening and evidence
 
 Status: Milestone 10 baseline in progress  
-Last updated: 2026-09-05
+Last updated: 2026-09-06
 
 ## Purpose
 
@@ -13,7 +13,7 @@ is not a release pass merely because code or a unit test exists.
 The ASVS review is pinned by upstream tag, source SHA-256, Git blob, and a locally enforced catalog
 fingerprint. Requirement-level applicability and evidence are recorded in
 `docs/asvs-5.0.0-level2-evidence.json`; the review rationale and current gap summary are in
-`docs/ASVS_LEVEL2_MAPPING.md`. The mapping currently contains 173 applicable requirements and 80
+`docs/ASVS_LEVEL2_MAPPING.md`. The mapping currently contains 174 applicable requirements and 79
 requirement-level feature exclusions. None is marked release-verified.
 
 ## Evidence states
@@ -94,17 +94,18 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 112 implemented, 59 partial, 2 not
-  started, 80 justified feature exclusions, and zero verified. The most concrete missing controls
-  are internal service TLS and stronger backend authentication. See
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 114 implemented, 59 partial, 1 not
+  started, 79 justified feature exclusions, and zero verified. The most concrete missing control is
+  comprehensive internal service TLS. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
-- The maintained cryptographic inventory now covers 11 key classes, 14 algorithm profiles, 4
-  certificate classes, and 3 intentional absences across application, deployment, provider, and
+- The maintained cryptographic inventory now covers 13 key classes, 14 algorithm profiles, 6
+  certificate classes, and 2 intentional absences across application, deployment, provider, and
   test-only boundaries. Its validator enforces purpose separation, protected/excluded data,
   evidence, dependency contracts, no embedded material/private hostname, and a 90-day review
-  cadence. PostgreSQL TLS now has a dedicated offline CA, DNS-constrained server identity,
-  verify-full clients, and plaintext rejection. The nginx-to-Gunicorn TLS gap, stronger backend
-  authentication, and live certificate/Tailscale/SSH observations remain open release work;
+  cadence. PostgreSQL now uses separate offline server/client CAs, a DNS-constrained server
+  identity, unique purpose-bound client identities, exact certificate-to-role mapping, and
+  plaintext/password rejection. The nginx-to-Gunicorn TLS gap and live certificate/Tailscale/SSH
+  observations remain open release work;
   implementation of the inventory is not release verification.
 - The maintained logging inventory now covers all 14 current stack layers and 149 source-derived
   operational, security, protected-audit, and maintenance event entries. It records formats,

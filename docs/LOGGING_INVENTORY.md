@@ -1,8 +1,8 @@
 # Logging inventory and maintenance
 
 Status: inventory and separate security archive implemented; release verification pending
-Inventory reviewed: 2026-09-05
-Next scheduled review: 2026-12-04
+Inventory reviewed: 2026-09-06
+Next scheduled review: 2026-12-05
 
 ## Purpose and authority
 
@@ -35,11 +35,11 @@ scope, and supersession data allowed by the relevant evidence schema.
 | Django security | Authentication, MFA/recovery, session, rejected import, and sensitive export outcomes; tagged redacting JSON | Docker copy plus restricted Unix datagrams to the separate archive | Docker copy rotates at 20 MiB × 5; archive minimum 90 days |
 | Security archive | Independently validated/redacted security records and six fixed collector diagnostics | Networkless UID 10003 collector; collector-only volume; warning-or-higher alert queue | Persistent volume, minimum 90 days plus incident holds |
 | Protected household audit | 83 stable financial/security action IDs; canonical hash-chained rows | `budget_audit` schema plus off-VM signed checkpoints; household/recent-auth, append-only runtime, and audit-reader roles | Live application lifetime; backups retain 7 daily, 4 weekly, 12 monthly |
-| Maintenance | 35 backup, restore, Restic, and database-rotation outcomes; fixed JSON | Docker local plus systemd job lifecycle; deployment administrators | Docker capacity bound; host policy 30 days |
+| Maintenance | 35 backup, restore, Restic, and synthetic database-rotation outcomes; fixed JSON | Docker local plus systemd job lifecycle; deployment administrators | Docker capacity bound; host policy 30 days |
 | Gunicorn | Process lifecycle/errors and captured app output; text/JSON | Docker local; deployment administrators | 20 MiB × 5 files; access log disabled |
 | nginx relay | Warning/error and process lifecycle text | Docker local; deployment administrators | 20 MiB × 5 files; access log disabled |
 | PostgreSQL | Server lifecycle/recovery/errors under pinned defaults; text stderr | Docker local; deployment administrators | 20 MiB × 5 files; statement-wide logging disabled |
-| Docker storage | All 14 production service stdout/stderr | VM-local Docker-managed files; root-equivalent Docker readers | Approximately 100 MiB per service, oldest-first rollover |
+| Docker storage | All 13 production service stdout/stderr | VM-local Docker-managed files; root-equivalent Docker readers | Approximately 100 MiB per service, oldest-first rollover |
 | Host journal | Timers, Docker, SSH/sudo, UFW, and Tailscale daemon records | Persistent VM journal; root/minimum journal readers | Required 30 days; verify live setting per release |
 | Tailscale | Local daemon events and provider configuration changes; optional flow metadata | Device/VM logs and provider service; tailnet administrators/scoped API readers | Configuration audit 90 days; optional flow logs 30 days |
 | GitHub Actions | Workflow/check lifecycle and synthetic test output | GitHub repository Actions service; repository-authorized readers | Current repository setting 90 days |
@@ -110,7 +110,7 @@ follow the documented daily/weekly/monthly retention.
 ## Review procedure
 
 1. Run `python scripts/check_logging_inventory.py`. The validator compares the event catalog to
-   Python AST literals and structured maintenance shell calls, checks all 14 production Compose
+   Python AST literals and structured maintenance shell calls, checks all 13 production Compose
    logging policies, validates evidence and retention fields, rejects exact private hostnames and
    embedded credential/key material, and enforces the 90-day review date.
 2. Search every application and deployment source for new loggers, stdout/stderr writes, audit

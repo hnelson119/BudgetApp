@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "inventory_updated": "2026-09-05",
+  "inventory_updated": "2026-09-06",
   "review": {
     "owner": "release owner",
     "cadence_days": 90,
-    "next_review_due": "2026-12-04",
+    "next_review_due": "2026-12-05",
     "procedure": "docs/CRYPTOGRAPHIC_INVENTORY.md",
     "update_triggers": [
       "application or infrastructure cryptography changes",
@@ -28,10 +28,10 @@
     ]
   },
   "summary": {
-    "cryptographic_keys": 11,
+    "cryptographic_keys": 13,
     "algorithms": 14,
-    "certificates": 4,
-    "known_absences": 3
+    "certificates": 6,
+    "known_absences": 2
   },
   "cryptographic_keys": [
     {
@@ -512,6 +512,100 @@
         "docs/POSTGRES_TLS.md",
         "docs/INCIDENT_RESPONSE.md"
       ]
+    },
+    {
+      "id": "postgres-client-ca-private-key",
+      "name": "PostgreSQL client certificate-authority private key",
+      "state": "active",
+      "owner": "deployment administrator",
+      "boundary": "deployment",
+      "material_type": "offline ECDSA P-256 certificate-authority private key",
+      "generation": "Generate with OpenSSL through the guarded PostgreSQL TLS generator in the separate mode-0700 authority directory.",
+      "storage": "Kept only in offline or removable administrator custody; never placed in the deployment secret directory, VM runtime, container, image, environment, log, or repository.",
+      "consumers": [
+        "offline PostgreSQL client-certificate generator"
+      ],
+      "algorithms": [
+        "postgres-internal-tls"
+      ],
+      "permitted_uses": [
+        "sign the fixed PostgreSQL service-client identities"
+      ],
+      "prohibited_uses": [
+        "PostgreSQL server-certificate issuance",
+        "browser or public TLS issuance",
+        "application signing or data encryption",
+        "presence on the production VM or in an application container"
+      ],
+      "protected_data": [
+        "trust root for production PostgreSQL client authentication"
+      ],
+      "excluded_data": [
+        "database contents",
+        "PostgreSQL server authentication",
+        "browser traffic",
+        "backup encryption"
+      ],
+      "rotation": "Generate a new client CA and complete service-client identity set in new staging directories, stop every database client, atomically replace the deployment client CA and all client leaf pairs, recreate PostgreSQL and every client, and rerun the production-boundary proof.",
+      "retirement": "Retain the prior CA key only in protected offline rollback custody until the replacement deployment is verified, then destroy it.",
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "docs/POSTGRES_TLS.md",
+        "docs/INCIDENT_RESPONSE.md",
+        "https://www.postgresql.org/docs/17/auth-cert.html"
+      ]
+    },
+    {
+      "id": "postgres-client-private-keys",
+      "name": "PostgreSQL per-service client private keys",
+      "state": "active",
+      "owner": "deployment administrator and assigned database client service",
+      "boundary": "deployment",
+      "material_type": "nine unique ECDSA P-256 private keys for fixed production service identities",
+      "generation": "Generate each key independently with OpenSSL through the guarded PostgreSQL TLS generator alongside its 397-day client certificate.",
+      "storage": "Each root-owned mode-0440 deployment secret is mounted read-only only into its assigned client container through the dedicated secret-reader group.",
+      "consumers": [
+        "database role bootstrap service",
+        "schema migration service",
+        "MFA key-rotation service",
+        "backup service",
+        "audit-integrity service",
+        "notification service",
+        "import-cleanup service",
+        "restore-verification service",
+        "web service"
+      ],
+      "algorithms": [
+        "postgres-internal-tls"
+      ],
+      "permitted_uses": [
+        "authenticate one fixed service identity to its mapped least-privilege PostgreSQL role"
+      ],
+      "prohibited_uses": [
+        "authentication as a different service or PostgreSQL role",
+        "PostgreSQL server authentication",
+        "application signing or data-at-rest encryption",
+        "browser or public TLS"
+      ],
+      "protected_data": [
+        "production service identity",
+        "authorization to the mapped PostgreSQL role"
+      ],
+      "excluded_data": [
+        "database contents at rest",
+        "PostgreSQL server identity",
+        "browser traffic",
+        "backup repository contents"
+      ],
+      "rotation": "Replace the client authority and all service identities before any leaf expires or immediately after suspected disclosure, recreate affected containers, and rerun the production-boundary proof.",
+      "retirement": "Destroy retired deployment keys after replacement and rollback verification; never reuse a key for another service identity.",
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "compose.yaml",
+        "deploy/postgres/start-tls.sh",
+        "deploy/network/run-production-boundary.py",
+        "docs/POSTGRES_TLS.md"
+      ]
     }
   ],
   "algorithms": [
@@ -760,23 +854,25 @@
     },
     {
       "id": "postgres-internal-tls",
-      "name": "PostgreSQL internal TLS 1.2 and TLS 1.3 profile",
+      "name": "PostgreSQL internal mutual TLS 1.2 and TLS 1.3 profile",
       "security_status": "approved",
       "scope": "production internal database transport",
-      "parameters": "PostgreSQL 17 and OpenSSL TLS 1.2 or TLS 1.3 with an ECDSA P-256 private CA and server leaf, serverAuth extended key usage, DNS SAN db, libpq verify-full hostname and exact-CA validation, and no plaintext TCP fallback",
+      "parameters": "PostgreSQL 17 and OpenSSL TLS 1.2 or TLS 1.3 with separate ECDSA P-256 server and client authorities, purpose-bound serverAuth and clientAuth leaves, DNS SAN db, libpq verify-full hostname and exact-CA validation, exact certificate-CN-to-role mapping, and no plaintext or password-authentication fallback",
       "consumers": [
         "PostgreSQL 17 server",
         "Django production database clients",
         "PostgreSQL production maintenance clients"
       ],
       "permitted_uses": [
-        "encrypted, integrity-protected, server-authenticated PostgreSQL TCP transport on the internal backend network"
+        "encrypted, integrity-protected, mutually authenticated PostgreSQL TCP transport on the internal backend network"
       ],
       "prohibited_uses": [
         "TLS below version 1.2",
         "sslmode values weaker than verify-full",
         "trust outside the dedicated internal CA",
         "plaintext PostgreSQL TCP fallback",
+        "password authentication in the production Compose boundary",
+        "mapping one service certificate to an unauthorized database role",
         "browser or public TLS"
       ],
       "evidence": [
@@ -787,7 +883,8 @@
         "deploy/network/run-production-boundary.py",
         "docs/POSTGRES_TLS.md",
         "https://www.postgresql.org/docs/17/ssl-tcp.html",
-        "https://www.postgresql.org/docs/17/libpq-ssl.html"
+        "https://www.postgresql.org/docs/17/libpq-ssl.html",
+        "https://www.postgresql.org/docs/17/auth-cert.html"
       ]
     },
     {
@@ -966,12 +1063,71 @@
         "deploy/network/run-production-boundary.py",
         "docs/POSTGRES_TLS.md"
       ]
+    },
+    {
+      "id": "postgres-client-ca-certificate",
+      "name": "PostgreSQL client certificate-authority certificate",
+      "state": "active",
+      "owner": "deployment administrator and PostgreSQL server",
+      "boundary": "deployment",
+      "issuer": "Self-issued by the offline Household Budget PostgreSQL client authority",
+      "subject": "Dedicated PostgreSQL client-authentication authority; actual certificate material is not committed",
+      "key_residency": "The public certificate is mounted read-only only into PostgreSQL and copied into database-only tmpfs; its private key remains only in offline administrator custody.",
+      "algorithms": [
+        "postgres-internal-tls"
+      ],
+      "validation": "PostgreSQL uses only this CA to validate client certificates on the cert-authenticated hostssl rule; the production-boundary probe proves an absent client certificate is rejected.",
+      "renewal": "Rotate the client authority and all service-client leaves together before any leaf expires or immediately after suspected authority compromise, then rerun the production-boundary proof.",
+      "prohibited_uses": [
+        "PostgreSQL server identity validation",
+        "trusting unrelated internal services",
+        "browser or public TLS trust",
+        "certificate-validation bypasses"
+      ],
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "compose.yaml",
+        "deploy/postgres/start-tls.sh",
+        "deploy/postgres/pg_hba.conf",
+        "deploy/network/run-production-boundary.py",
+        "docs/POSTGRES_TLS.md"
+      ]
+    },
+    {
+      "id": "postgres-role-client-certificates",
+      "name": "PostgreSQL per-service client certificates",
+      "state": "active",
+      "owner": "deployment administrator and assigned database client services",
+      "boundary": "deployment",
+      "issuer": "Dedicated offline Household Budget PostgreSQL client authority",
+      "subject": "Nine fixed service identities mapped to the administrator, migration, runtime, backup, or audit role as narrowly required",
+      "key_residency": "Each client leaf and its unique private key are root-owned deployment secrets mounted read-only only into the assigned production service.",
+      "algorithms": [
+        "postgres-internal-tls"
+      ],
+      "validation": "Generation verifies clientAuth purpose and chain; PostgreSQL verifies the client CA and exact CN map, while the runtime proof confirms the web identity and rejects both missing certificates and a web-certificate attempt to assume the audit role.",
+      "renewal": "The generated leaf lifetime is 397 days. Rotate the client authority and complete service identity set before expiration, recreate all database clients, and repeat the production-boundary proof.",
+      "prohibited_uses": [
+        "authentication as an unmapped PostgreSQL role",
+        "sharing one private key between service identities",
+        "PostgreSQL server authentication",
+        "browser or public TLS"
+      ],
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "compose.yaml",
+        "deploy/postgres/start-tls.sh",
+        "deploy/postgres/pg_hba.conf",
+        "deploy/network/run-production-boundary.py",
+        "tests/test_network_boundary.py",
+        "docs/POSTGRES_TLS.md"
+      ]
     }
   ],
   "known_absences": [
     {
       "id": "internal-service-certificates",
-      "current_state": "PostgreSQL has exact internal CA and server-certificate trust, but the nginx-to-Gunicorn HTTP hop remains unencrypted on the internal frontend network.",
+      "current_state": "PostgreSQL has mutually authenticated, exact-purpose internal certificates, but the nginx-to-Gunicorn HTTP hop remains unencrypted on the internal frontend network.",
       "required_action": "Implement authenticated TLS from nginx to Gunicorn with a narrowly trusted internal identity, then repeat the production-derived runtime proof.",
       "related_asvs": [
         "v5.0.0-12.3.1",
@@ -981,18 +1137,6 @@
       "evidence": [
         "compose.yaml",
         "deploy/network/nginx.conf",
-        "docs/PRIVATE_INGRESS.md"
-      ]
-    },
-    {
-      "id": "application-client-certificates",
-      "current_state": "The application does not issue, accept, or manage client certificates.",
-      "required_action": "Reassess before adding mutual TLS or certificate-authenticated clients.",
-      "related_asvs": [
-        "v5.0.0-11.1.2"
-      ],
-      "evidence": [
-        "config/settings/production.py",
         "docs/PRIVATE_INGRESS.md"
       ]
     },

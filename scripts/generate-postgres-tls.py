@@ -1,4 +1,4 @@
-"""Generate an offline PostgreSQL CA and deployment server certificate."""
+"""Generate offline PostgreSQL server and client certificate authorities."""
 
 from __future__ import annotations
 
@@ -11,10 +11,24 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-_CA_CERTIFICATE = "postgres_ca_certificate"
-_CA_PRIVATE_KEY = "postgres_ca_private_key"  # pragma: allowlist secret
+_SERVER_CA_CERTIFICATE = "postgres_ca_certificate"
+_SERVER_CA_PRIVATE_KEY = "postgres_ca_private_key"  # pragma: allowlist secret
+_CLIENT_CA_CERTIFICATE = "postgres_client_ca_certificate"
+_CLIENT_CA_PRIVATE_KEY = "postgres_client_ca_private_key"  # pragma: allowlist secret
 _SERVER_CERTIFICATE = "postgres_server_certificate"
 _SERVER_PRIVATE_KEY = "postgres_server_private_key"  # pragma: allowlist secret
+
+CLIENT_IDENTITIES = (
+    ("postgres_db_bootstrap_client", "budget-db-bootstrap"),
+    ("postgres_migrate_client", "budget-migrate"),
+    ("postgres_mfa_key_rotate_client", "budget-mfa-key-rotate"),
+    ("postgres_backup_client", "budget-backup"),
+    ("postgres_integrity_client", "budget-integrity"),
+    ("postgres_notify_client", "budget-notify"),
+    ("postgres_import_cleanup_client", "budget-import-cleanup"),
+    ("postgres_restore_verify_client", "budget-restore-verify"),
+    ("postgres_web_client", "budget-web"),
+)
 
 
 class GenerationFailure(RuntimeError):
@@ -83,6 +97,88 @@ def _install_exclusive(source: Path, destination: Path, *, mode: int, group_id: 
             destination.unlink(missing_ok=True)
 
 
+def _generate_ca(*, key: Path, certificate: Path, common_name: str) -> None:
+    _run_openssl("ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", str(key))
+    _run_openssl(
+        "req",
+        "-x509",
+        "-new",
+        "-sha256",
+        "-days",
+        "3650",
+        "-key",
+        str(key),
+        "-out",
+        str(certificate),
+        "-subj",
+        f"/CN={common_name}",
+        "-addext",
+        "basicConstraints=critical,CA:TRUE,pathlen:0",
+        "-addext",
+        "keyUsage=critical,keyCertSign,cRLSign",
+        "-addext",
+        "subjectKeyIdentifier=hash",
+    )
+    _run_openssl("pkey", "-check", "-noout", "-in", str(key))
+
+
+def _issue_certificate(
+    *,
+    ca_key: Path,
+    ca_certificate: Path,
+    key: Path,
+    request: Path,
+    certificate: Path,
+    extensions: Path,
+    common_name: str,
+    purpose: str,
+) -> None:
+    _run_openssl("ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", str(key))
+    _run_openssl(
+        "req",
+        "-new",
+        "-sha256",
+        "-key",
+        str(key),
+        "-out",
+        str(request),
+        "-subj",
+        f"/CN={common_name}",
+    )
+    _run_openssl(
+        "x509",
+        "-req",
+        "-sha256",
+        "-days",
+        "397",
+        "-in",
+        str(request),
+        "-CA",
+        str(ca_certificate),
+        "-CAkey",
+        str(ca_key),
+        "-set_serial",
+        f"0x{secrets.token_hex(20)}",
+        "-extfile",
+        str(extensions),
+        "-out",
+        str(certificate),
+    )
+    verify_arguments = [
+        "verify",
+        "-CAfile",
+        str(ca_certificate),
+        "-purpose",
+        purpose,
+    ]
+    if purpose == "sslserver":
+        verify_arguments.extend(("-verify_hostname", common_name))
+    verify_arguments.append(str(certificate))
+    _run_openssl(*verify_arguments)
+    _run_openssl("x509", "-checkend", "2592000", "-noout", "-in", str(certificate))
+    _run_openssl("pkey", "-check", "-noout", "-in", str(key))
+
+
 def generate_postgres_tls(
     *, authority_directory: Path, deployment_directory: Path, secret_group_id: int
 ) -> tuple[Path, ...]:
@@ -90,13 +186,25 @@ def generate_postgres_tls(
         raise GenerationFailure("The deployment secret group must be a non-root numeric GID.")
     authority_directory = _prepare_directory(authority_directory, label="authority")
     deployment_directory = _prepare_directory(deployment_directory, label="deployment")
-    destinations = (
-        authority_directory / _CA_PRIVATE_KEY,
-        authority_directory / _CA_CERTIFICATE,
-        deployment_directory / _CA_CERTIFICATE,
+
+    authority_destinations = (
+        authority_directory / _SERVER_CA_PRIVATE_KEY,
+        authority_directory / _SERVER_CA_CERTIFICATE,
+        authority_directory / _CLIENT_CA_PRIVATE_KEY,
+        authority_directory / _CLIENT_CA_CERTIFICATE,
+    )
+    deployment_destinations = (
+        deployment_directory / _SERVER_CA_CERTIFICATE,
+        deployment_directory / _CLIENT_CA_CERTIFICATE,
         deployment_directory / _SERVER_CERTIFICATE,
         deployment_directory / _SERVER_PRIVATE_KEY,
+        *(
+            deployment_directory / f"{prefix}_{kind}"
+            for prefix, _common_name in CLIENT_IDENTITIES
+            for kind in ("certificate", "private_key")
+        ),
     )
+    destinations = (*authority_destinations, *deployment_destinations)
     if any(path.exists() or path.is_symlink() for path in destinations):
         raise GenerationFailure(
             "A PostgreSQL TLS output already exists; use a new staging directory."
@@ -106,12 +214,15 @@ def generate_postgres_tls(
     try:
         with tempfile.TemporaryDirectory(prefix="budgetapp-postgres-tls-") as temporary_name:
             temporary = Path(temporary_name)
-            ca_key = temporary / "ca.key"
-            ca_certificate = temporary / "ca.crt"
+            server_ca_key = temporary / "server-ca.key"
+            server_ca_certificate = temporary / "server-ca.crt"
+            client_ca_key = temporary / "client-ca.key"
+            client_ca_certificate = temporary / "client-ca.crt"
             server_key = temporary / "server.key"
             server_request = temporary / "server.csr"
             server_certificate = temporary / "server.crt"
             server_extensions = temporary / "server.ext"
+            client_extensions = temporary / "client.ext"
             server_extensions.write_text(
                 "basicConstraints=critical,CA:FALSE\n"
                 "keyUsage=critical,digitalSignature\n"
@@ -121,88 +232,82 @@ def generate_postgres_tls(
                 "authorityKeyIdentifier=keyid,issuer\n",
                 encoding="ascii",
             )
+            client_extensions.write_text(
+                "basicConstraints=critical,CA:FALSE\n"
+                "keyUsage=critical,digitalSignature\n"
+                "extendedKeyUsage=clientAuth\n"
+                "subjectKeyIdentifier=hash\n"
+                "authorityKeyIdentifier=keyid,issuer\n",
+                encoding="ascii",
+            )
 
-            _run_openssl("ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", str(ca_key))
-            _run_openssl(
-                "req",
-                "-x509",
-                "-new",
-                "-sha256",
-                "-days",
-                "3650",
-                "-key",
-                str(ca_key),
-                "-out",
-                str(ca_certificate),
-                "-subj",
-                "/CN=Household Budget PostgreSQL Offline CA",
-                "-addext",
-                "basicConstraints=critical,CA:TRUE,pathlen:0",
-                "-addext",
-                "keyUsage=critical,keyCertSign,cRLSign",
-                "-addext",
-                "subjectKeyIdentifier=hash",
+            _generate_ca(
+                key=server_ca_key,
+                certificate=server_ca_certificate,
+                common_name="Household Budget PostgreSQL Server CA",
             )
-            _run_openssl(
-                "ecparam",
-                "-name",
-                "prime256v1",
-                "-genkey",
-                "-noout",
-                "-out",
-                str(server_key),
+            _generate_ca(
+                key=client_ca_key,
+                certificate=client_ca_certificate,
+                common_name="Household Budget PostgreSQL Client CA",
             )
-            _run_openssl(
-                "req",
-                "-new",
-                "-sha256",
-                "-key",
-                str(server_key),
-                "-out",
-                str(server_request),
-                "-subj",
-                "/CN=db",
+            _issue_certificate(
+                ca_key=server_ca_key,
+                ca_certificate=server_ca_certificate,
+                key=server_key,
+                request=server_request,
+                certificate=server_certificate,
+                extensions=server_extensions,
+                common_name="db",
+                purpose="sslserver",
             )
-            _run_openssl(
-                "x509",
-                "-req",
-                "-sha256",
-                "-days",
-                "397",
-                "-in",
-                str(server_request),
-                "-CA",
-                str(ca_certificate),
-                "-CAkey",
-                str(ca_key),
-                "-set_serial",
-                f"0x{secrets.token_hex(20)}",
-                "-extfile",
-                str(server_extensions),
-                "-out",
-                str(server_certificate),
-            )
-            _run_openssl(
-                "verify",
-                "-CAfile",
-                str(ca_certificate),
-                "-purpose",
-                "sslserver",
-                "-verify_hostname",
-                "db",
-                str(server_certificate),
-            )
-            _run_openssl("x509", "-checkend", "2592000", "-noout", "-in", str(server_certificate))
-            _run_openssl("pkey", "-check", "-noout", "-in", str(ca_key))
-            _run_openssl("pkey", "-check", "-noout", "-in", str(server_key))
 
-            install_plan = (
-                (ca_key, destinations[0], 0o600, os.getgid() if os.name != "nt" else 1),
-                (ca_certificate, destinations[1], 0o644, os.getgid() if os.name != "nt" else 1),
-                (ca_certificate, destinations[2], 0o440, secret_group_id),
-                (server_certificate, destinations[3], 0o440, secret_group_id),
-                (server_key, destinations[4], 0o440, secret_group_id),
-            )
+            client_material: list[tuple[Path, Path]] = []
+            for prefix, common_name in CLIENT_IDENTITIES:
+                client_key = temporary / f"{prefix}.key"
+                client_request = temporary / f"{prefix}.csr"
+                client_certificate = temporary / f"{prefix}.crt"
+                _issue_certificate(
+                    ca_key=client_ca_key,
+                    ca_certificate=client_ca_certificate,
+                    key=client_key,
+                    request=client_request,
+                    certificate=client_certificate,
+                    extensions=client_extensions,
+                    common_name=common_name,
+                    purpose="sslclient",
+                )
+                client_material.append((client_certificate, client_key))
+
+            local_group_id = os.getgid() if os.name != "nt" else 1
+            install_plan = [
+                (server_ca_key, authority_destinations[0], 0o600, local_group_id),
+                (server_ca_certificate, authority_destinations[1], 0o644, local_group_id),
+                (client_ca_key, authority_destinations[2], 0o600, local_group_id),
+                (client_ca_certificate, authority_destinations[3], 0o644, local_group_id),
+                (server_ca_certificate, deployment_destinations[0], 0o440, secret_group_id),
+                (client_ca_certificate, deployment_destinations[1], 0o440, secret_group_id),
+                (server_certificate, deployment_destinations[2], 0o440, secret_group_id),
+                (server_key, deployment_destinations[3], 0o440, secret_group_id),
+            ]
+            for index, (client_certificate, client_key) in enumerate(client_material):
+                destination_index = 4 + (index * 2)
+                install_plan.extend(
+                    (
+                        (
+                            client_certificate,
+                            deployment_destinations[destination_index],
+                            0o440,
+                            secret_group_id,
+                        ),
+                        (
+                            client_key,
+                            deployment_destinations[destination_index + 1],
+                            0o440,
+                            secret_group_id,
+                        ),
+                    )
+                )
             for source, destination, mode, group_id in install_plan:
                 _install_exclusive(source, destination, mode=mode, group_id=group_id)
                 created.append(destination)
