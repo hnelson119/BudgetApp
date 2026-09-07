@@ -137,8 +137,8 @@ _EXPECTED_PROXY_TLS_DIRECTIVES = [
 ]
 _EXPECTED_PROXY_SCHEME_MAP = [
     "map $http_x_forwarded_proto $upstream_forwarded_proto {",
-    "default $http_x_forwarded_proto;",
-    '"" http;',
+    "default http;",
+    "https https;",
     "}",
 ]
 _EXPECTED_PROXY_SCHEME_HEADER = "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;"

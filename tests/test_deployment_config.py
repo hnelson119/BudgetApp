@@ -525,7 +525,8 @@ def test_container_does_not_enable_raw_access_logging() -> None:
     assert "proxy_ssl_verify on" in relay_configuration
     assert "proxy_ssl_name web" in relay_configuration
     assert "proxy_ssl_certificate /run/secrets/nginx_client_certificate" in relay_configuration
-    assert '"" http;' in relay_configuration
+    assert "default http;" in relay_configuration
+    assert "https https;" in relay_configuration
     assert "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto" in relay_configuration
     assert 'proxy_set_header X-Forwarded-For ""' in relay_configuration
 
