@@ -109,9 +109,9 @@ _FORBIDDEN_ENVIRONMENT_NAMES = {
 _MAXIMUM_RESPONSE_SIZE = 1024 * 1024
 _MAXIMUM_RAW_REQUEST_SIZE = 64 * 1024
 _HTTP_STATUS_LINE = re.compile(rb"(?m)^HTTP/1\.[01] ([1-5][0-9]{2})")
-_CREDENTIAL_SHAPED_VALUE = re.compile(
-    r"authorization:\s*bearer\s+(?!\[redacted\])[^\s\"',;}\]]{8,}"
-    r"|password=(?!\[redacted\])[^\s\"',;}\]]{8,}",
+_CREDENTIAL_VALUE = re.compile(
+    r"(?:authorization:\s*bearer\s+|password=)(?!\[redacted\])"
+    r"(?P<value>[^\s\"',;}\]]+)",
     re.IGNORECASE,
 )
 _EXPECTED_PROXY_DESTINATION = "proxy_pass http://web:8000;"
@@ -126,6 +126,20 @@ class _RejectRedirects(urllib.request.HTTPRedirectHandler):
         self, request, file_pointer, code, message, headers, new_url
     ):
         return None
+
+
+def _contains_credential_shaped_value(content: str) -> bool:
+    """Detect an unknown high-entropy credential without flagging configuration labels."""
+
+    for match in _CREDENTIAL_VALUE.finditer(content):
+        value = match.group("value")
+        if (
+            len(value) >= 16
+            and any(character.isalpha() for character in value)
+            and any(character.isdigit() for character in value)
+        ):
+            return True
+    return False
 
 
 def _run(command: list[str], *, timeout: int = 120) -> str:
@@ -1207,7 +1221,7 @@ def validate_no_secret_leakage(
     if any(value in artifacts for value in values):
         raise ProbeFailure("A reusable secret appeared in runtime metadata, history, or logs.")
     for category, content in artifact_groups:
-        if _CREDENTIAL_SHAPED_VALUE.search(content):
+        if _contains_credential_shaped_value(content):
             raise ProbeFailure(f"A credential-shaped value appeared in {category}.")
     return 5
 

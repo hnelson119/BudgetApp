@@ -29,14 +29,16 @@ VM_PROBE = _load_script("private_ingress_probe", "deploy/network/verify-private-
         ('"POSTGRES_PASSWORD="', False),  # pragma: allowlist secret
         ('"POSTGRES_PASSWORD=[REDACTED]"', False),  # pragma: allowlist secret
         ("Authorization: Bearer [REDACTED]", False),  # pragma: allowlist secret
-        ('"POSTGRES_PASSWORD=exposed-value"', True),  # pragma: allowlist secret
-        ("Authorization: Bearer exposed-value", True),  # pragma: allowlist secret
+        ('"POSTGRES_PASSWORD=SCRAM-SHA-256"', False),  # pragma: allowlist secret
+        ('"POSTGRES_PASSWORD=authentication"', False),  # pragma: allowlist secret
+        ('"POSTGRES_PASSWORD=exposed-value-1234"', True),  # pragma: allowlist secret
+        ("Authorization: Bearer exposed-token-1234", True),  # pragma: allowlist secret
     ),
 )
-def test_credential_shaped_runtime_values_require_a_nonempty_value(
+def test_credential_shaped_runtime_values_distinguish_tokens_from_configuration(
     artifact: str, expected: bool
 ) -> None:
-    assert bool(PRODUCTION_PROBE._CREDENTIAL_SHAPED_VALUE.search(artifact)) is expected
+    assert PRODUCTION_PROBE._contains_credential_shaped_value(artifact) is expected
 
 
 def _valid_compose_configuration() -> dict[str, Any]:
