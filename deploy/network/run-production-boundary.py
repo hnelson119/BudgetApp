@@ -138,7 +138,7 @@ _EXPECTED_PROXY_TLS_DIRECTIVES = [
 _EXPECTED_PROXY_SCHEME_MAP = [
     "map $http_x_forwarded_proto $upstream_forwarded_proto {",
     "default http;",
-    "https https;",
+    "~^https$ https;",
     "}",
 ]
 _EXPECTED_PROXY_SCHEME_HEADER = "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;"
@@ -910,7 +910,10 @@ def validate_http_boundary(hostname: str, secret_values: tuple[str, ...]) -> tup
         if status not in (301, 302) or headers.get("Location") != (
             f"https://{hostname}/health/live/"
         ):
-            raise ProbeFailure("An ambiguous forwarded scheme bypassed the canonical redirect.")
+            raise ProbeFailure(
+                "The fixed ambiguous forwarded scheme "
+                f"{ambiguous!r} bypassed the canonical redirect."
+            )
 
     status, headers, body = _request(
         "/health/live/",

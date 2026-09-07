@@ -340,7 +340,7 @@ def _validate_dependency_contract(algorithms: dict[str, dict[str, Any]]) -> None
         or "proxy_ssl_certificate /run/secrets/nginx_client_certificate;" not in nginx
         or "proxy_ssl_trusted_certificate /run/secrets/gunicorn_ca_certificate;" not in nginx
         or "default http;" not in nginx
-        or "https https;" not in nginx
+        or "~^https$ https;" not in nginx
         or "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;" not in nginx
     ):
         _fail("the inventoried internal web mutual-TLS policy no longer matches deployment source")

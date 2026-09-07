@@ -212,7 +212,7 @@ def test_production_probe_accepts_only_the_static_internal_relay_destination() -
 
     for current, replacement in (
         ("default http;", "default https;"),
-        ("https https;", "https $http_x_forwarded_proto;"),
+        ("~^https$ https;", "https https;"),
         (
             "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;",
             "proxy_set_header X-Forwarded-Proto $scheme;",
