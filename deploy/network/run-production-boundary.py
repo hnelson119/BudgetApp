@@ -955,7 +955,11 @@ def _socket_reachable(port: int) -> bool:
 
 
 def validate_runtime_behavior(
-    web_id: str, database_id: str, ingress_id: str, security_log_id: str
+    web_id: str,
+    database_id: str,
+    ingress_id: str,
+    security_log_id: str,
+    hostname: str,
 ) -> tuple[int, int]:
     uid = _run(["docker", "exec", web_id, "id", "-u"]).strip()
     gid = _run(["docker", "exec", web_id, "id", "-g"]).strip()
@@ -1073,25 +1077,25 @@ def validate_runtime_behavior(
         raise ProbeFailure("The loopback relay can see an unexpected secret filename.")
     _run(["docker", "exec", ingress_id, "nc", "-z", "-w", "2", "web", "8443"])
     _run_expect_failure(["docker", "exec", ingress_id, "nc", "-z", "-w", "2", "web", "8000"])
-    _run(
-        [
-            "docker",
-            "exec",
-            ingress_id,
-            "sh",
-            "-ec",
-            "wget --help 2>&1 | grep -F -- --no-check-certificate >/dev/null",
-        ]
-    )
+    _run(["docker", "exec", ingress_id, "curl", "--version"])
     _run_expect_failure(
         [
             "docker",
             "exec",
             ingress_id,
-            "wget",
-            "-q",
-            "--no-check-certificate",
-            "-O",
+            "curl",
+            "--silent",
+            "--show-error",
+            "--fail",
+            "--max-time",
+            "5",
+            "--cacert",
+            "/run/secrets/gunicorn_ca_certificate",
+            "--header",
+            f"Host: {hostname}",
+            "--header",
+            "X-Forwarded-Proto: https",
+            "--output",
             "/dev/null",
             "https://web:8443/health/live/",
         ]
@@ -1381,7 +1385,7 @@ def main() -> None:
         framing_checks = validate_request_framing(arguments.hostname)
         stage = "runtime process validation"
         net04_checks, behavior_checks = validate_runtime_behavior(
-            web_id, database_id, ingress_id, security_log_id
+            web_id, database_id, ingress_id, security_log_id, arguments.hostname
         )
         stage = "secret non-leakage validation"
         leakage_checks = validate_no_secret_leakage(

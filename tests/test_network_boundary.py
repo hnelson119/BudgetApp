@@ -240,6 +240,20 @@ def test_production_probe_accepts_only_encrypted_postgres_tcp_authentication() -
             )
 
 
+def test_production_probe_uses_a_ca_validated_certificateless_mtls_negative_probe() -> None:
+    source = (PROJECT_ROOT / "deploy/network/run-production-boundary.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert '"--cacert"' in source
+    assert '"/run/secrets/gunicorn_ca_certificate"' in source
+    assert '"https://web:8443/health/live/"' in source
+    assert (
+        "nginx_client_certificate"
+        not in source[source.index('"--cacert"') : source.index('"--cacert"') + 700]
+    )
+
+
 def test_production_probe_ties_compose_sources_to_guarded_secret_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
