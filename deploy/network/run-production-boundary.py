@@ -1195,9 +1195,12 @@ def validate_no_secret_leakage(
                 for image in sorted(images)
             ),
         ),
-        (
-            "service logs",
-            _run([*prefix, "logs", "--no-color", "ingress", "security-log", "web", "db"]),
+        *(
+            (
+                f"{service} service logs",
+                _run([*prefix, "logs", "--no-color", service]),
+            )
+            for service in ("ingress", "security-log", "web", "db")
         ),
     )
     artifacts = "\n".join(content for _category, content in artifact_groups)
