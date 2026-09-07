@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-09-06",
+  "mapping_updated": "2026-09-07",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 116,
+      "implemented": 118,
       "not_applicable": 79,
-      "partial": 58
+      "partial": 56
     }
   },
   "requirements": [
@@ -3875,12 +3875,14 @@
       "level": 2,
       "description": "Verify that web servers do not expose directory listings to clients unless explicitly intended.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The production nginx relay explicitly disables autoindex, has no root or alias directive, and is validated from the running production-derived configuration so it cannot expose a filesystem directory listing.",
       "evidence": [
-        "Dockerfile",
-        ".dockerignore",
-        "tests/test_deployment_config.py"
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md"
       ]
     },
     {
@@ -3893,12 +3895,14 @@
       "level": 2,
       "description": "Verify that using the HTTP TRACE method is not supported in production environments, to avoid potential information leakage.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The production nginx relay rejects TRACE with 405 before proxying. The production-derived runtime probe sends TRACE with a canary header and requires one 405 response without reflecting that request content.",
       "evidence": [
-        "Dockerfile",
-        ".dockerignore",
-        "tests/test_deployment_config.py"
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md"
       ]
     },
     {

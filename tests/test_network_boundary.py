@@ -181,7 +181,7 @@ def test_production_probe_rejects_egress_allowlist_bypasses(mutator: Any) -> Non
 def test_production_probe_accepts_only_the_static_internal_relay_destination() -> None:
     configuration = (PROJECT_ROOT / "deploy" / "network" / "nginx.conf").read_text(encoding="utf-8")
 
-    assert PRODUCTION_PROBE.validate_relay_destination(configuration) == 14
+    assert PRODUCTION_PROBE.validate_relay_destination(configuration) == 19
 
     for replacement in (
         "proxy_pass http://db:5432;",
@@ -220,6 +220,69 @@ def test_production_probe_accepts_only_the_static_internal_relay_destination() -
     ):
         with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="edge and upstream schemes"):
             PRODUCTION_PROBE.validate_relay_destination(configuration.replace(current, replacement))
+
+    for current, replacement, message in (
+        ("autoindex off;", "autoindex on;", "directory listing"),
+        ("autoindex off;", "autoindex off;\n    root /tmp;", "directory listing"),
+        (
+            "if ($request_method = TRACE) {",
+            "if ($request_method = CONNECT) {",
+            "HTTP TRACE",
+        ),
+        ("return 405;", "return 200;", "HTTP TRACE"),
+    ):
+        with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match=message):
+            PRODUCTION_PROBE.validate_relay_destination(configuration.replace(current, replacement))
+
+
+def test_production_probe_rejects_trace_without_reflecting_request_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payloads: list[bytes] = []
+
+    def exchange(payload: bytes) -> tuple[bytes, bool]:
+        payloads.append(payload)
+        return b"HTTP/1.1 405 Not Allowed\r\nConnection: close\r\n\r\n", True
+
+    monkeypatch.setattr(PRODUCTION_PROBE, "_raw_http_exchange", exchange)
+    monkeypatch.setattr(PRODUCTION_PROBE, "_wait_for_web", lambda _hostname: None)
+    responses = iter(
+        (
+            (302, {"Location": "https://budget.example.ts.net/health/live/"}, b""),
+            (
+                200,
+                {"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"},
+                b'{"status": "ok"}',
+            ),
+            *((302, {"Location": "https://budget.example.ts.net/health/live/"}, b""),) * 3,
+            (200, {}, b""),
+            (400, {}, b""),
+            (404, {"X-Content-Type-Options": "nosniff"}, b"Page not found"),
+        )
+    )
+    monkeypatch.setattr(PRODUCTION_PROBE, "_request", lambda *_args, **_kwargs: next(responses))
+
+    assert PRODUCTION_PROBE.validate_http_boundary("budget.example.ts.net", ()) == (7, 8)
+    assert len(payloads) == 1
+    assert payloads[0].startswith(b"TRACE /health/live/ HTTP/1.1\r\n")
+    assert b"X-Trace-Canary: must-not-be-reflected\r\n" in payloads[0]
+
+
+def test_production_probe_fails_when_trace_content_is_reflected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(PRODUCTION_PROBE, "_wait_for_web", lambda _hostname: None)
+    monkeypatch.setattr(
+        PRODUCTION_PROBE,
+        "_raw_http_exchange",
+        lambda _payload: (
+            b"HTTP/1.1 405 Not Allowed\r\n\r\nX-Trace-Canary: must-not-be-reflected",
+            True,
+        ),
+    )
+
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="reflected request content"):
+        PRODUCTION_PROBE.validate_http_boundary("budget.example.ts.net", ())
 
 
 def test_production_probe_accepts_only_encrypted_postgres_tcp_authentication() -> None:

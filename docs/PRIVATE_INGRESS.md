@@ -124,6 +124,12 @@ edge `X-Forwarded-Proto: https` value to secure and maps every missing or ambigu
 this preserves the canonical browser redirect instead of letting Gunicorn's internal TLS scheme or
 a compound forwarded value masquerade as an HTTPS edge request.
 
+The relay serves no filesystem content: `autoindex` is explicitly disabled and the validated
+configuration contains no `root` or `alias` directive. It also rejects HTTP TRACE with `405` at
+nginx before any request can reach Django. The production-derived probe validates these exact
+directives from the running container, sends a TRACE request containing a harmless canary header,
+and fails if the request is accepted or the canary is reflected.
+
 The nginx relay is the narrow availability exception described in `M10-F014`: Docker requires its
 non-internal ingress network to create the loopback host publish. It receives no Django, database,
 backup, audit, or MFA secret and no database network; its only secrets are the public Gunicorn
@@ -187,7 +193,8 @@ production Compose services, and verifies the following without printing secret 
 - the exact service/network allowlist, internal-only application/database networks, the offline
   key-rotation job, and the relay's exact `127.0.0.1:8000` publish;
 - no host PostgreSQL or Docker-administration port;
-- canonical proxy scheme/host handling, safe redirects, HSTS, and production errors;
+- canonical proxy scheme/host handling, safe redirects, HSTS, production errors, disabled
+  directory indexing, and non-reflective HTTP TRACE rejection;
 - three valid and six ambiguous/malformed HTTP/1.1 request-framing cases, including a trailing
   request canary that must never produce a second response;
 - UID/GID 10001, zero effective capabilities, no-new-privileges, a read-only root filesystem, and

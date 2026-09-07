@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-09-06"
+MAPPING_UPDATED = "2026-09-07"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -333,6 +333,8 @@ IMPLEMENTED_REQUIREMENTS = {
     "V13.3.2",
     "V13.4.1",
     "V13.4.2",
+    "V13.4.3",
+    "V13.4.4",
     "V14.2.1",
     "V14.2.2",
     "V14.2.3",
@@ -450,6 +452,16 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "destination, https://web:8443, with exact server trust and a purpose-bound client "
         "identity. The production-derived runtime probe checks both "
         "paths without claiming release-candidate verification."
+    ),
+    "V13.4.3": (
+        "The production nginx relay explicitly disables autoindex, has no root or alias directive, "
+        "and is validated from the running production-derived configuration so it cannot expose "
+        "a filesystem directory listing."
+    ),
+    "V13.4.4": (
+        "The production nginx relay rejects TRACE with 405 before proxying. The production-derived "
+        "runtime probe sends TRACE with a canary header and requires one 405 response without "
+        "reflecting that request content."
     ),
     "V15.1.2": (
         "The deterministic CycloneDX inventory derives all production, development, build, test, "
@@ -596,6 +608,20 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "compose.yaml",
         "deploy/network/nginx.conf",
         "deploy/network/run-production-boundary.py",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md",
+    ],
+    "V13.4.3": [
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md",
+    ],
+    "V13.4.4": [
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
         "tests/test_network_boundary.py",
         "docs/PRIVATE_INGRESS.md",
     ],
