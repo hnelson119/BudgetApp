@@ -19,8 +19,8 @@ The two authorities have deliberately separate purposes:
   deployment directory, VM runtime, container, image, environment, log, or repository;
 - clients receive the public server CA plus only their own leaf and private key;
 - PostgreSQL receives its server leaf and key plus only the public client CA; and
-- the nginx-to-Gunicorn hop remains a separately tracked HTTP gap. This database control does not
-  imply that every internal service connection is encrypted.
+- the independently purpose-bound nginx-to-Gunicorn mutual-TLS authorities and identities cannot
+  be substituted for any PostgreSQL authority, server, or client identity.
 
 The isolated synthetic pentest stack remains password-based so credential recovery can be
 rehearsed without weakening production. It is not a production deployment path.
@@ -34,7 +34,7 @@ with the dedicated secret-reader group described in the main README.
 
 ```bash
 secret_gid="$(getent group household-budget-secrets | cut -d: -f3)"
-offline_authority_dir=/media/offline-custody/household-budget-postgres-authorities-v1
+offline_authority_dir=/media/offline-custody/household-budget-internal-tls-authorities-v1
 sudo install -d -m 0700 -o root -g root "$offline_authority_dir"
 sudo .venv/bin/python scripts/generate-postgres-tls.py \
   --authority-directory "$offline_authority_dir" \
@@ -42,7 +42,8 @@ sudo .venv/bin/python scripts/generate-postgres-tls.py \
   --secret-group-id "$secret_gid"
 ```
 
-The command creates these files without printing their values:
+The command creates all production internal-TLS material without printing its values. Its
+PostgreSQL outputs are:
 
 | File class | Location and mode | Consumer |
 | --- | --- | --- |
@@ -56,6 +57,13 @@ The command creates these files without printing their values:
 The client service prefixes are `db_bootstrap`, `migrate`, `mfa_key_rotate`, `backup`, `integrity`,
 `notify`, `import_cleanup`, `restore_verify`, and `web`. Unmount and secure the offline authorities
 immediately after generation.
+
+The same guarded invocation also creates separate Gunicorn-server and nginx-client authorities,
+the DNS-constrained `web` server identity, and the sole `budget-ingress` client identity. Their
+deployment files are `gunicorn_ca_certificate`, `gunicorn_client_ca_certificate`,
+`gunicorn_server_certificate`, `gunicorn_server_private_key`, `nginx_client_certificate`, and
+`nginx_client_private_key`; both additional CA private keys remain only in the authority directory.
+They are documented and rotated as an independent trust set in `docs/PRIVATE_INGRESS.md`.
 
 The generator refuses existing output and symlink directories, uses exclusive nonsymlink file
 creation, and removes partially installed output after failure. It generates separate P-256 CAs,
@@ -123,8 +131,8 @@ All generated leaves are valid for 397 days. Schedule a complete rotation before
 wait for the 30-day generator guard. Use new empty authority and deployment staging directories
 because the generator never overwrites material.
 
-1. Generate both replacement authorities and the complete server/client leaf set.
-2. Verify both CA private keys are secured offline and absent from deployment staging.
+1. Generate the replacement internal authorities and the complete server/client leaf sets.
+2. Verify every CA private key is secured offline and absent from deployment staging.
 3. Stop ingress, PostgreSQL, and every database client. Keep a protected rollback copy of the
    complete current deployment certificate set.
 4. Promote the new server CA, client CA, server pair, and all nine client pairs together. Never mix
@@ -140,7 +148,7 @@ bundle, add a password HBA fallback, or loosen the identity map to recover avail
 
 ## Compromise response
 
-Treat disclosure of either CA key, the server key, or any client key as a security incident. Stop
+Treat disclosure of either PostgreSQL CA key, the server key, or any client key as a security incident. Stop
 ingress and database clients, preserve bounded evidence, generate a complete replacement authority
 and leaf set on a known-good administrator host, promote it atomically, and prove the retired client
 and server identities are no longer trusted. Review database and container logs for unauthorized

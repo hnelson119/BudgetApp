@@ -19,9 +19,17 @@ from typing import Any
 _EXPECTED_SECRETS = {
     "django_secret_key",
     "django_mfa_encryption_key",
+    "gunicorn_client_ca_certificate",
+    "gunicorn_server_certificate",
+    "gunicorn_server_private_key",
     "postgres_ca_certificate",
     "postgres_web_client_certificate",
     "postgres_web_client_private_key",
+}
+_EXPECTED_INGRESS_SECRETS = {
+    "gunicorn_ca_certificate",
+    "nginx_client_certificate",
+    "nginx_client_private_key",
 }
 _CLIENT_SECRETS = {
     service: (f"postgres_{prefix}_client_certificate", f"postgres_{prefix}_client_private_key")
@@ -40,6 +48,7 @@ _CLIENT_SECRETS = {
 _ALL_CLIENT_IDENTITY_SECRETS = {name for pair in _CLIENT_SECRETS.values() for name in pair}
 _REQUIRED_SECRET_NAMES = {
     *_EXPECTED_SECRETS,
+    *_EXPECTED_INGRESS_SECRETS,
     "postgres_client_ca_certificate",
     "postgres_server_certificate",
     "postgres_server_private_key",
@@ -60,6 +69,7 @@ _SECRET_BEARING_SERVICES = {
     "db",
     "db-bootstrap",
     "import-cleanup",
+    "ingress",
     "integrity",
     "mfa-key-rotate",
     "migrate",
@@ -114,7 +124,28 @@ _CREDENTIAL_VALUE = re.compile(
     r"(?P<value>[^\s\"',;}\]]+)",
     re.IGNORECASE,
 )
-_EXPECTED_PROXY_DESTINATION = "proxy_pass http://web:8000;"
+_EXPECTED_PROXY_DESTINATION = "proxy_pass https://web:8443;"
+_EXPECTED_PROXY_TLS_DIRECTIVES = [
+    "proxy_ssl_certificate /run/secrets/nginx_client_certificate;",
+    "proxy_ssl_certificate_key /run/secrets/nginx_client_private_key;",
+    "proxy_ssl_name web;",
+    "proxy_ssl_protocols TLSv1.2 TLSv1.3;",
+    "proxy_ssl_server_name on;",
+    "proxy_ssl_trusted_certificate /run/secrets/gunicorn_ca_certificate;",
+    "proxy_ssl_verify on;",
+    "proxy_ssl_verify_depth 1;",
+]
+_EXPECTED_WEB_COMMAND = [
+    "gunicorn",
+    "--config",
+    "python:config.gunicorn",
+    "config.wsgi:application",
+    "--workers",
+    "2",
+    "--error-logfile",
+    "-",
+    "--capture-output",
+]
 
 
 class ProbeFailure(RuntimeError):
@@ -194,16 +225,20 @@ def _network_names(value: Any) -> set[str]:
 
 
 def validate_relay_destination(configuration: str) -> int:
+    lines = [line.strip() for line in configuration.splitlines()]
     outbound_directives = [
-        line.strip()
-        for line in configuration.splitlines()
-        if re.match(r"^(?:fastcgi|grpc|memcached|proxy|scgi|uwsgi)_pass(?:\s|$)", line.strip())
+        line
+        for line in lines
+        if re.match(r"^(?:fastcgi|grpc|memcached|proxy|scgi|uwsgi)_pass(?:\s|$)", line)
     ]
+    tls_directives = [line for line in lines if line.startswith("proxy_ssl_")]
     if outbound_directives != [_EXPECTED_PROXY_DESTINATION] or any(
-        line.strip().startswith(("include ", "resolver ")) for line in configuration.splitlines()
+        line.startswith(("include ", "resolver ")) for line in lines
     ):
         raise ProbeFailure("The loopback relay destination does not match the internal allowlist.")
-    return 1
+    if tls_directives != _EXPECTED_PROXY_TLS_DIRECTIVES:
+        raise ProbeFailure("The loopback relay does not enforce exact upstream mutual TLS.")
+    return 1 + len(_EXPECTED_PROXY_TLS_DIRECTIVES)
 
 
 def validate_postgres_hba(configuration: str) -> int:
@@ -346,11 +381,15 @@ def validate_compose_boundary(configuration: dict[str, Any]) -> int:
     ):
         raise ProbeFailure("The PostgreSQL role bootstrap is not locked to production mode.")
     if _network_names(ingress.get("networks")) != {"ingress", "frontend"}:
-        raise ProbeFailure("The secretless relay has an unexpected Docker network attachment.")
-    if web.get("ports") or ingress.get("secrets"):
-        raise ProbeFailure("The web publish or relay secret boundary is invalid.")
+        raise ProbeFailure("The loopback relay has an unexpected Docker network attachment.")
+    if web.get("ports"):
+        raise ProbeFailure("The web service unexpectedly publishes a host port.")
+    if _references(ingress.get("secrets")) != _EXPECTED_INGRESS_SECRETS:
+        raise ProbeFailure("The loopback relay lacks its exact upstream TLS identity.")
     if _references(web.get("secrets")) != _EXPECTED_SECRETS:
         raise ProbeFailure("The web service receives an unexpected secret set.")
+    if web.get("command") != _EXPECTED_WEB_COMMAND:
+        raise ProbeFailure("Gunicorn does not use the fixed mutual-TLS configuration.")
     environment = web.get("environment")
     if not isinstance(environment, dict) or (
         str(environment.get("DATABASE_HOST")),
@@ -580,14 +619,19 @@ def validate_runtime_inspection(
         }
     ):
         raise ProbeFailure("The web environment exposes a privileged database identity.")
-    ingress_secret_mounts = [
-        mount
+    ingress_secret_mounts = {
+        str(mount.get("Destination")): mount.get("RW")
         for mount in ingress.get("Mounts") or []
         if str(mount.get("Destination", "")).startswith("/run/secrets/")
-    ]
+    }
+    expected_ingress_destinations = {
+        f"/run/secrets/{name}": False for name in _EXPECTED_INGRESS_SECRETS
+    }
     ingress_environment = _environment_names(ingress_config)
-    if ingress_secret_mounts or not _FORBIDDEN_ENVIRONMENT_NAMES.isdisjoint(ingress_environment):
-        raise ProbeFailure("The loopback relay can access a reusable application secret.")
+    if ingress_secret_mounts != expected_ingress_destinations or not (
+        _FORBIDDEN_ENVIRONMENT_NAMES.isdisjoint(ingress_environment)
+    ):
+        raise ProbeFailure("The loopback relay has an unexpected secret boundary.")
     nginx_mounts = [
         mount
         for mount in ingress.get("Mounts") or []
@@ -996,8 +1040,36 @@ def validate_runtime_behavior(
     if ingress_fields.get("NoNewPrivs", "").strip() != "1":
         raise ProbeFailure("The loopback relay can acquire new privileges.")
     _run_expect_failure(["docker", "exec", ingress_id, "sh", "-c", "touch /network-boundary-probe"])
-    _run(["docker", "exec", ingress_id, "sh", "-c", "test ! -e /run/secrets"])
-    _run(["docker", "exec", ingress_id, "nc", "-z", "-w", "2", "web", "8000"])
+    ingress_mounted_names = set(
+        _run(["docker", "exec", ingress_id, "ls", "-1", "/run/secrets"]).splitlines()
+    )
+    if ingress_mounted_names != _EXPECTED_INGRESS_SECRETS:
+        raise ProbeFailure("The loopback relay can see an unexpected secret filename.")
+    _run(["docker", "exec", ingress_id, "nc", "-z", "-w", "2", "web", "8443"])
+    _run_expect_failure(["docker", "exec", ingress_id, "nc", "-z", "-w", "2", "web", "8000"])
+    _run(
+        [
+            "docker",
+            "exec",
+            ingress_id,
+            "sh",
+            "-ec",
+            "wget --help 2>&1 | grep -F -- --no-check-certificate >/dev/null",
+        ]
+    )
+    _run_expect_failure(
+        [
+            "docker",
+            "exec",
+            ingress_id,
+            "wget",
+            "-q",
+            "--no-check-certificate",
+            "-O",
+            "/dev/null",
+            "https://web:8443/health/live/",
+        ]
+    )
     validate_relay_destination(_run(["docker", "exec", ingress_id, "cat", "/etc/nginx/nginx.conf"]))
     validate_postgres_hba(
         _run(["docker", "exec", database_id, "cat", "/etc/postgresql/pg_hba.conf"])
@@ -1174,7 +1246,7 @@ def validate_runtime_behavior(
     )
     if not _socket_reachable(8000) or any(_socket_reachable(port) for port in (5432, 2375, 2376)):
         raise ProbeFailure("The disposable host port boundary does not match the allowlist.")
-    return 8, 34
+    return 8, 39
 
 
 def validate_no_secret_leakage(

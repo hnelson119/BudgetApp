@@ -78,7 +78,8 @@ The maintained cryptographic inventory assigns explicit owners, algorithms, cons
 and prohibited uses, protected and excluded data, rotation, and retirement to application,
 deployment, provider-managed, and test-only cryptographic boundaries. Production PostgreSQL now
 requires TLS 1.2 or TLS 1.3, exact internal-CA and `db` hostname verification, and hard plaintext TCP
-rejection; the still-HTTP nginx-to-Gunicorn hop remains explicitly open. See
+rejection. The nginx-to-Gunicorn hop also requires TLS 1.2 or TLS 1.3 with separate server/client
+CAs, exact `web` hostname verification, and the sole `budget-ingress` client identity. See
 `docs/CRYPTOGRAPHIC_INVENTORY.md` and `docs/POSTGRES_TLS.md`.
 The maintained logging inventory documents events, formats, destinations, operational uses,
 readers, retention, sensitive-data rules, and limitations across all 14 current stack layers. Its
@@ -241,9 +242,12 @@ production database client verifies the dedicated server CA and `db` hostname wi
 `verify-full`, presents a unique purpose-bound client certificate, and is mapped only to its
 least-privilege role. PostgreSQL accepts only certificate-authenticated TLS 1.2 or TLS 1.3 TCP
 sessions and rejects plaintext, absent-certificate, wrong-role, and password fallbacks. A separate
-secretless, read-only nginx relay is the only service attached to the non-internal ingress network
-and the only service bound to loopback port 8000; its running configuration is checked for exactly
-one static destination, `web:8000`. Put private Tailscale HTTPS in front of that relay and never
+read-only nginx relay is the only service attached to the non-internal ingress network and the only
+service bound to loopback port 8000. It receives only its dedicated internal-TLS trust anchor and
+client identity; its running configuration is checked for exactly one static destination,
+`https://web:8443`, exact CA/hostname validation, and client-certificate presentation. Gunicorn
+trusts only the separate nginx client CA and exposes no plaintext production listener. Put private
+Tailscale HTTPS in front of that relay and never
 forward the port from the router.
 
 The production-derived boundary runner also sends valid and ambiguous HTTP/1.1 message framing

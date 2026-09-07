@@ -45,7 +45,7 @@ remains an explicit network-backed command:
 ```
 
 GitHub Actions independently builds the production image without runtime secrets, builds the
-secretless ingress relay from its immutable upstream base while applying current Alpine fixes, and
+minimal ingress relay from its immutable upstream base while applying current Alpine fixes, and
 builds the encrypted backup/restore image from its checksummed Restic source and immutable builder.
 It runs the official Trivy container pinned to an immutable digest against all three resulting
 images. Using a pinned scanner preserves the repository's GitHub-owned-actions-only policy. Any
@@ -94,18 +94,19 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 114 implemented, 59 partial, 1 not
-  started, 79 justified feature exclusions, and zero verified. The most concrete missing control is
-  comprehensive internal service TLS. See
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 116 implemented, 58 partial, 79
+  justified feature exclusions, and zero verified. Internal HTTP service TLS and purpose-specific
+  trust are implemented; live release-boundary verification remains pending. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
-- The maintained cryptographic inventory now covers 13 key classes, 14 algorithm profiles, 6
-  certificate classes, and 2 intentional absences across application, deployment, provider, and
+- The maintained cryptographic inventory now covers 17 key classes, 15 algorithm profiles, 10
+  certificate classes, and 1 intentional absence across application, deployment, provider, and
   test-only boundaries. Its validator enforces purpose separation, protected/excluded data,
   evidence, dependency contracts, no embedded material/private hostname, and a 90-day review
   cadence. PostgreSQL now uses separate offline server/client CAs, a DNS-constrained server
   identity, unique purpose-bound client identities, exact certificate-to-role mapping, and
-  plaintext/password rejection. The nginx-to-Gunicorn TLS gap and live certificate/Tailscale/SSH
-  observations remain open release work;
+  plaintext/password rejection. Nginx and Gunicorn now use distinct offline server/client CAs, an
+  exact `web` server identity, one nginx client identity, TLS 1.2/1.3, and no plaintext production
+  listener. Live certificate/Tailscale/SSH observations remain open release work;
   implementation of the inventory is not release verification.
 - The maintained logging inventory now covers all 14 current stack layers and 149 source-derived
   operational, security, protected-audit, and maintenance event entries. It records formats,
@@ -133,7 +134,7 @@ real household data.
   now rebuilds every one-off image after finding and remediating `M10-F023`. This implements the
   administrator operation; release-candidate replay testing remains pending.
 - A production-derived disposable probe now verifies the exact Compose service/network allowlist,
-  application and database internal-only routes, the relay's single static upstream, the exact
+  application and database internal-only routes, the relay's single mutually authenticated TLS upstream, the exact
   proxy-header contract, runtime least privilege, blocked Django egress, and local secret
   non-leakage. Its dedicated CI job also drives three valid and six ambiguous or malformed HTTP/1.1
   message boundaries through the production nginx/Gunicorn images; ambiguity must yield exactly one

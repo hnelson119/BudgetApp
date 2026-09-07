@@ -31,9 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 114 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 59 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
-| Not started | 1 | The control is absent or its required verification has not been designed. |
+| Implemented | 116 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 58 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -41,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 59
+These are the clearest implementation or operational work items exposed by the mapping. The 58
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -69,23 +68,26 @@ release-candidate check rather than a claimed verification. See `docs/PRIVATE_IN
 The same production-derived boundary implements the outbound allowlists in `v5.0.0-13.2.4` and
 `v5.0.0-13.2.5`. Compose fixes the exact service catalog and network attachments, rejects network
 bypasses, and leaves the Django and maintenance workloads with no external route. The Django
-server's only configured backend is `db:5432`. The secretless relay retains the non-internal network
-needed for its loopback host publish, but the live nginx configuration must contain exactly one
-static destination, `web:8000`. The probe proves the required internal connections, denied Django
-external TCP egress, and running relay destination. Release-candidate verification remains pending.
+server's only configured backend is `db:5432`. The relay retains the non-internal network needed for
+its loopback host publish, but receives only its dedicated Gunicorn server CA and nginx client
+identity. The live nginx configuration must contain exactly one static destination,
+`https://web:8443`, and exact CA/hostname/client-certificate controls. The probe proves the required
+internal connections, denied Django external TCP egress, and running relay destination.
+Release-candidate verification remains pending.
 
 - `v5.0.0-12.1.3` and `v5.0.0-13.2.1` are implemented: every production PostgreSQL client uses a
   unique client certificate from a separate CA, its exact CN maps only to the intended role, no
   password-authenticated production path exists, and login roles have no password verifiers. The
   production-derived proof confirms the live client DN and rejects missing-certificate and
   wrong-role attempts.
-- `v5.0.0-12.3.1` and `v5.0.0-12.3.4` remain partial: PostgreSQL now has purpose-separated mutual
-  TLS 1.2 or TLS 1.3 with exact `db` hostname verification and hard plaintext rejection, but the
-  nginx-to-Gunicorn hop remains HTTP, so the all-sensitive-communications and comprehensive
-  internal-certificate boundaries are incomplete.
-- `v5.0.0-12.3.3`: inventory and force every remaining internal service connection onto an
-  encrypted transport. See `docs/POSTGRES_TLS.md` for the completed database boundary and its
-  explicit limitation.
+- `v5.0.0-12.3.3` and `v5.0.0-12.3.4` are implemented: the only internal HTTP hop requires mutually
+  authenticated TLS 1.2 or TLS 1.3. Nginx verifies the dedicated Gunicorn server CA and exact `web`
+  identity; Gunicorn trusts only the separate nginx client CA, and production exposes no plaintext
+  application listener. PostgreSQL retains its independently purpose-separated mutual-TLS trust.
+- `v5.0.0-12.3.1` and `v5.0.0-12.3.2` remain partial only at the release boundary: all
+  application-managed production TCP paths now encrypt and validate peer identity without fallback,
+  while dated browser-facing Tailscale certificate/trust and key-only SSH observations still require
+  the real VM and approved devices.
 
 ### Cryptography, supply chain, and logging
 
@@ -119,8 +121,8 @@ providers, OAuth/OIDC, self-contained authentication tokens, and WebRTC. Every e
 specific reason.
 
 A control is not excluded merely because the application is private, small, or currently lacks the
-infrastructure to meet it. The remaining internal TLS hop and stronger service authentication
-therefore stay applicable gaps.
+infrastructure to meet it. Live Tailscale, SSH, browser trust, and device-boundary observations
+therefore stay applicable release gaps even though internal service TLS is implemented.
 Future OAuth, public hosting, external identity, WebSocket, bank-sync, email, or file-processing
 features require re-evaluating the associated exclusions before merge.
 

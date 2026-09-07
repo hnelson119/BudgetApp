@@ -445,6 +445,8 @@ services:
     restart: unless-stopped
     entrypoint: ["nginx", "-c", "/etc/nginx/nginx.conf", "-g", "daemon off;"]
     user: "101:101"
+    group_add:
+      - ${BUDGET_SECRET_GID:-10002}
     read_only: true
     init: true
     pids_limit: 64
@@ -458,6 +460,10 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./deploy/network/nginx.conf:/etc/nginx/nginx.conf:ro
+    secrets:
+      - gunicorn_ca_certificate
+      - nginx_client_certificate
+      - nginx_client_private_key
     depends_on:
       - web
     networks:
@@ -482,11 +488,14 @@ services:
       - postgres_ca_certificate
       - postgres_web_client_certificate
       - postgres_web_client_private_key
+      - gunicorn_client_ca_certificate
+      - gunicorn_server_certificate
+      - gunicorn_server_private_key
     command:
       - gunicorn
+      - --config
+      - python:config.gunicorn
       - config.wsgi:application
-      - --bind
-      - 0.0.0.0:8000
       - --workers
       - "2"
       - --error-logfile
@@ -573,6 +582,18 @@ secrets:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_web_client_certificate
   postgres_web_client_private_key:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_web_client_private_key
+  gunicorn_ca_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/gunicorn_ca_certificate
+  gunicorn_client_ca_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/gunicorn_client_ca_certificate
+  gunicorn_server_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/gunicorn_server_certificate
+  gunicorn_server_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/gunicorn_server_private_key
+  nginx_client_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/nginx_client_certificate
+  nginx_client_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/nginx_client_private_key
   audit_checkpoint_signing_key:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/audit_checkpoint_signing_key
   restic_repository_password:

@@ -72,10 +72,14 @@ def _valid_compose_configuration() -> dict[str, Any]:
                 "secrets": [
                     {"source": "django_secret_key"},
                     {"source": "django_mfa_encryption_key"},
+                    {"source": "gunicorn_client_ca_certificate"},
+                    {"source": "gunicorn_server_certificate"},
+                    {"source": "gunicorn_server_private_key"},
                     {"source": "postgres_ca_certificate"},
                     {"source": "postgres_web_client_certificate"},
                     {"source": "postgres_web_client_private_key"},
                 ],
+                "command": list(PRODUCTION_PROBE._EXPECTED_WEB_COMMAND),
                 "user": "10001:10001",
                 "read_only": True,
                 "cap_drop": ["ALL"],
@@ -97,6 +101,9 @@ def _valid_compose_configuration() -> dict[str, Any]:
                 "cap_drop": ["ALL"],
                 "pids_limit": 64,
                 "security_opt": ["no-new-privileges:true"],
+                "secrets": [
+                    {"source": name} for name in sorted(PRODUCTION_PROBE._EXPECTED_INGRESS_SECRETS)
+                ],
             },
         }
     )
@@ -174,19 +181,34 @@ def test_production_probe_rejects_egress_allowlist_bypasses(mutator: Any) -> Non
 def test_production_probe_accepts_only_the_static_internal_relay_destination() -> None:
     configuration = (PROJECT_ROOT / "deploy" / "network" / "nginx.conf").read_text(encoding="utf-8")
 
-    assert PRODUCTION_PROBE.validate_relay_destination(configuration) == 1
+    assert PRODUCTION_PROBE.validate_relay_destination(configuration) == 9
 
     for replacement in (
         "proxy_pass http://db:5432;",
         "proxy_pass http://$upstream;",
         "proxy_pass https://example.com;",
-        "proxy_pass http://web:8000;\n            grpc_pass grpc://example.com:443;",
-        "proxy_pass http://web:8000;\n            include /tmp/alternate-upstream.conf;",
+        "proxy_pass https://web:8443;\n            grpc_pass grpc://example.com:443;",
+        "proxy_pass https://web:8443;\n            include /tmp/alternate-upstream.conf;",
     ):
         with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="relay destination"):
             PRODUCTION_PROBE.validate_relay_destination(
-                configuration.replace("proxy_pass http://web:8000;", replacement)
+                configuration.replace("proxy_pass https://web:8443;", replacement)
             )
+
+    for current, replacement in (
+        ("proxy_ssl_verify on;", "proxy_ssl_verify off;"),
+        ("proxy_ssl_name web;", "proxy_ssl_name attacker.invalid;"),
+        (
+            "proxy_ssl_trusted_certificate /run/secrets/gunicorn_ca_certificate;",
+            "proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;",
+        ),
+        (
+            "proxy_ssl_certificate /run/secrets/nginx_client_certificate;",
+            "",
+        ),
+    ):
+        with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="mutual TLS"):
+            PRODUCTION_PROBE.validate_relay_destination(configuration.replace(current, replacement))
 
 
 def test_production_probe_accepts_only_encrypted_postgres_tcp_authentication() -> None:
@@ -266,7 +288,10 @@ def test_production_probe_allowlists_every_secret_bearing_service(tmp_path: Path
         }
     }
 
-    assert PRODUCTION_PROBE.validate_secret_reader_group(configuration, secret_directory) == 13
+    assert (
+        PRODUCTION_PROBE.validate_secret_reader_group(configuration, secret_directory)
+        == len(PRODUCTION_PROBE._SECRET_BEARING_SERVICES) + 2
+    )
 
     configuration["services"]["unexpected"] = {
         "secrets": ["placeholder"],
