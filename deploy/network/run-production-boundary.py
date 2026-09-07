@@ -142,6 +142,11 @@ _EXPECTED_PROXY_SCHEME_MAP = [
     "}",
 ]
 _EXPECTED_PROXY_SCHEME_HEADER = "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;"
+_EXPECTED_TRACE_REJECTION = [
+    "if ($request_method = TRACE) {",
+    "return 405;",
+    "}",
+]
 _EXPECTED_WEB_COMMAND = [
     "gunicorn",
     "--config",
@@ -245,6 +250,16 @@ def validate_relay_destination(configuration: str) -> int:
         raise ProbeFailure("The loopback relay destination does not match the internal allowlist.")
     if tls_directives != _EXPECTED_PROXY_TLS_DIRECTIVES:
         raise ProbeFailure("The loopback relay does not enforce exact upstream mutual TLS.")
+    autoindex_directives = [line for line in lines if line.startswith("autoindex ")]
+    filesystem_directives = [line for line in lines if line.startswith(("alias ", "root "))]
+    if autoindex_directives != ["autoindex off;"] or filesystem_directives:
+        raise ProbeFailure("The loopback relay can expose an unintended directory listing.")
+    try:
+        trace_index = lines.index(_EXPECTED_TRACE_REJECTION[0])
+    except ValueError as error:
+        raise ProbeFailure("The loopback relay does not reject the HTTP TRACE method.") from error
+    if lines[trace_index : trace_index + 3] != _EXPECTED_TRACE_REJECTION:
+        raise ProbeFailure("The loopback relay does not reject the HTTP TRACE method.")
     scheme_maps = [line for line in lines if line.startswith("map ")]
     scheme_headers = [
         line for line in lines if line.startswith("proxy_set_header X-Forwarded-Proto ")
@@ -261,7 +276,12 @@ def validate_relay_destination(configuration: str) -> int:
         or scheme_headers != [_EXPECTED_PROXY_SCHEME_HEADER]
     ):
         raise ProbeFailure("The loopback relay does not separate edge and upstream schemes.")
-    return 2 + len(_EXPECTED_PROXY_TLS_DIRECTIVES) + len(_EXPECTED_PROXY_SCHEME_MAP)
+    return (
+        4
+        + len(_EXPECTED_PROXY_TLS_DIRECTIVES)
+        + len(_EXPECTED_PROXY_SCHEME_MAP)
+        + len(_EXPECTED_TRACE_REJECTION)
+    )
 
 
 def validate_postgres_hba(configuration: str) -> int:
@@ -893,6 +913,18 @@ def validate_request_framing(hostname: str) -> int:
 
 def validate_http_boundary(hostname: str, secret_values: tuple[str, ...]) -> tuple[int, int]:
     _wait_for_web(hostname)
+    trace_request = _raw_request(
+        hostname,
+        request_line="TRACE /health/live/ HTTP/1.1",
+        headers=(
+            "X-Forwarded-Proto: https",
+            "X-Trace-Canary: must-not-be-reflected",
+            "Connection: close",
+        ),
+    )
+    trace_response = _require_raw_status(trace_request, expected=405, probe="HTTP TRACE")
+    if b"must-not-be-reflected" in trace_response:
+        raise ProbeFailure("The HTTP TRACE response reflected request content.")
     status, headers, body = _request("/health/live/", hostname, {})
     if status not in (301, 302) or headers.get("Location") != f"https://{hostname}/health/live/":
         raise ProbeFailure("Plain HTTP did not redirect to the exact private HTTPS hostname.")
@@ -942,7 +974,7 @@ def validate_http_boundary(hostname: str, secret_values: tuple[str, ...]) -> tup
         raise ProbeFailure("A production error response exposed a reusable secret.")
     if headers.get("X-Content-Type-Options") != "nosniff":
         raise ProbeFailure("A production error response lost its security headers.")
-    return 5, 8
+    return 7, 8
 
 
 def _socket_reachable(port: int) -> bool:

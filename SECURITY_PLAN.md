@@ -331,6 +331,10 @@ error response and connection closure. The browser-facing Tailscale HTTP/2/3 rec
 the bounded message-length mismatch check in `docs/PRIVATE_INGRESS.md` for each release candidate;
 repository automation is implementation evidence, not that live-edge verification.
 
+The nginx relay exposes no filesystem root or alias, explicitly disables directory indexing, and
+returns `405` for HTTP TRACE before proxying. The production-derived probe validates the effective
+configuration and requires TRACE rejection without reflecting a request canary.
+
 ## 11. Software supply chain and secure development
 
 - Commit dependency lock files and verify reproducible builds.
