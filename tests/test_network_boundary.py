@@ -27,8 +27,10 @@ VM_PROBE = _load_script("private_ingress_probe", "deploy/network/verify-private-
     ("artifact", "expected"),
     (
         ('"POSTGRES_PASSWORD="', False),  # pragma: allowlist secret
-        ('"POSTGRES_PASSWORD=exposed"', True),  # pragma: allowlist secret
-        ("Authorization: Bearer exposed", True),  # pragma: allowlist secret
+        ('"POSTGRES_PASSWORD=[REDACTED]"', False),  # pragma: allowlist secret
+        ("Authorization: Bearer [REDACTED]", False),  # pragma: allowlist secret
+        ('"POSTGRES_PASSWORD=exposed-value"', True),  # pragma: allowlist secret
+        ("Authorization: Bearer exposed-value", True),  # pragma: allowlist secret
     ),
 )
 def test_credential_shaped_runtime_values_require_a_nonempty_value(

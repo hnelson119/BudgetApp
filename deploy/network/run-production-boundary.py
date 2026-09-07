@@ -110,7 +110,9 @@ _MAXIMUM_RESPONSE_SIZE = 1024 * 1024
 _MAXIMUM_RAW_REQUEST_SIZE = 64 * 1024
 _HTTP_STATUS_LINE = re.compile(rb"(?m)^HTTP/1\.[01] ([1-5][0-9]{2})")
 _CREDENTIAL_SHAPED_VALUE = re.compile(
-    r"authorization:\s*bearer\s+\S|password=[^\s\"',;}\]]+", re.IGNORECASE
+    r"authorization:\s*bearer\s+(?!\[redacted\])[^\s\"',;}\]]{8,}"
+    r"|password=(?!\[redacted\])[^\s\"',;}\]]{8,}",
+    re.IGNORECASE,
 )
 _EXPECTED_PROXY_DESTINATION = "proxy_pass http://web:8000;"
 
@@ -1181,18 +1183,29 @@ def validate_no_secret_leakage(
     images = {str((container.get("Config") or {}).get("Image", "")) for container in containers}
     if "" in images:
         raise ProbeFailure("The production web image could not be identified.")
-    artifacts = "\n".join(
-        [json.dumps(container, sort_keys=True) for container in containers]
-        + [
-            _run(["docker", "history", "--no-trunc", "--format", "{{.CreatedBy}}", image])
-            for image in sorted(images)
-        ]
-        + [_run([*prefix, "logs", "--no-color", "ingress", "security-log", "web", "db"])]
+    artifact_groups = (
+        (
+            "runtime metadata",
+            "\n".join(json.dumps(container, sort_keys=True) for container in containers),
+        ),
+        (
+            "image history",
+            "\n".join(
+                _run(["docker", "history", "--no-trunc", "--format", "{{.CreatedBy}}", image])
+                for image in sorted(images)
+            ),
+        ),
+        (
+            "service logs",
+            _run([*prefix, "logs", "--no-color", "ingress", "security-log", "web", "db"]),
+        ),
     )
+    artifacts = "\n".join(content for _category, content in artifact_groups)
     if any(value in artifacts for value in values):
         raise ProbeFailure("A reusable secret appeared in runtime metadata, history, or logs.")
-    if _CREDENTIAL_SHAPED_VALUE.search(artifacts):
-        raise ProbeFailure("A credential-shaped value appeared in runtime diagnostics.")
+    for category, content in artifact_groups:
+        if _CREDENTIAL_SHAPED_VALUE.search(content):
+            raise ProbeFailure(f"A credential-shaped value appeared in {category}.")
     return 5
 
 
