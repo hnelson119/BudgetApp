@@ -17,15 +17,6 @@ fail() {
   exit 1
 }
 
-read_secret() {
-  secret_file="$1"
-  secret_name="$2"
-  if [ ! -s "$secret_file" ]; then
-    fail "restore_configuration_error" "$secret_name secret file is missing or empty"
-  fi
-  tr -d '\r\n' < "$secret_file"
-}
-
 validate_identifier() {
   identifier="$1"
   label="$2"
@@ -66,24 +57,11 @@ if [ ! -s "$RESTIC_PASSWORD_FILE" ]; then
   fail "restore_configuration_error" "Restic repository secret file is missing or empty"
 fi
 
-database_password="$(read_secret /run/secrets/postgres_admin_password "PostgreSQL administrator")"
-if [ "${#database_password}" -lt 32 ]; then
-  fail "restore_configuration_error" "PostgreSQL administrator secret is too short"
-fi
-
-pgpass_file=/tmp/pgpass
-printf '%s:%s:*:%s:%s\n' \
-  "$DATABASE_HOST" "$DATABASE_PORT" "$POSTGRES_ADMIN_USER" "$database_password" \
-  > "$pgpass_file"
-chmod 0600 "$pgpass_file"
-unset database_password
-export PGPASSFILE="$pgpass_file"
 export RESTIC_REPOSITORY RESTIC_PASSWORD_FILE
 export RESTIC_CACHE_DIR=/tmp/restic-cache
 
 target_created=false
 cleanup() {
-  rm -f "$pgpass_file"
   if [ "$target_created" = true ] && [ "${restore_completed:-false}" != true ]; then
     dropdb \
       --host "$DATABASE_HOST" \

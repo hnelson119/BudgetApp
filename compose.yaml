@@ -46,9 +46,14 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-household_budget}
       POSTGRES_USER: ${POSTGRES_ADMIN_USER:-budget_admin}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin_password
+      POSTGRES_ADMIN_USER: ${POSTGRES_ADMIN_USER:-budget_admin}
+      POSTGRES_RUNTIME_USER: ${POSTGRES_RUNTIME_USER:-budget_runtime}
+      POSTGRES_MIGRATION_USER: ${POSTGRES_MIGRATION_USER:-budget_migration}
+      POSTGRES_BACKUP_USER: ${POSTGRES_BACKUP_USER:-budget_backup}
+      POSTGRES_AUDIT_USER: ${POSTGRES_AUDIT_USER:-budget_audit}
+      POSTGRES_HOST_AUTH_METHOD: trust
     secrets:
-      - postgres_admin_password
+      - postgres_client_ca_certificate
       - postgres_server_certificate
       - postgres_server_private_key
     group_add:
@@ -73,6 +78,7 @@ services:
     profiles: ["maintenance"]
     entrypoint: ["/bin/sh", "/usr/local/bin/bootstrap-roles.sh"]
     environment:
+      APP_ENVIRONMENT: production
       DATABASE_HOST: db
       POSTGRES_DB: ${POSTGRES_DB:-household_budget}
       POSTGRES_ADMIN_USER: ${POSTGRES_ADMIN_USER:-budget_admin}
@@ -82,50 +88,14 @@ services:
       POSTGRES_AUDIT_USER: ${POSTGRES_AUDIT_USER:-budget_audit}
       PGSSLMODE: verify-full
       PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
+      PGSSLCERT: /run/secrets/postgres_db_bootstrap_client_certificate
+      PGSSLKEY: /run/secrets/postgres_db_bootstrap_client_private_key
     secrets:
-      - postgres_admin_password
       - postgres_ca_certificate
-      - postgres_runtime_password
-      - postgres_migration_password
-      - postgres_backup_password
-      - postgres_audit_password
+      - postgres_db_bootstrap_client_certificate
+      - postgres_db_bootstrap_client_private_key
     volumes:
       - ./deploy/postgres/bootstrap-roles.sh:/usr/local/bin/bootstrap-roles.sh:ro
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - backend
-    read_only: true
-    user: postgres
-    group_add:
-      - ${BUDGET_SECRET_GID:-10002}
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,size=16m
-    logging: *log-policy
-
-  db-admin-key-rotate:
-    image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
-    profiles: ["maintenance"]
-    entrypoint: ["/bin/sh", "/usr/local/bin/rotate-admin-password.sh"]
-    environment:
-      DATABASE_HOST: db
-      POSTGRES_DB: ${POSTGRES_DB:-household_budget}
-      POSTGRES_ADMIN_USER: ${POSTGRES_ADMIN_USER:-budget_admin}
-      POSTGRES_ADMIN_PASSWORD_FILE: /run/secrets/postgres_admin_password
-      POSTGRES_ADMIN_NEW_PASSWORD_FILE: /run/secrets/postgres_admin_password_next
-      PGSSLMODE: verify-full
-      PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
-    secrets:
-      - postgres_admin_password
-      - postgres_admin_password_next
-      - postgres_ca_certificate
-    volumes:
-      - ./deploy/postgres/rotate-admin-password.sh:/usr/local/bin/rotate-admin-password.sh:ro
     depends_on:
       db:
         condition: service_healthy
@@ -151,12 +121,16 @@ services:
     environment:
       <<: *app-environment
       POSTGRES_USER: ${POSTGRES_MIGRATION_USER:-budget_migration}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_migration_password
+      POSTGRES_SSL_CLIENT_CERTIFICATE_FILE: /run/secrets/postgres_migrate_client_certificate
+      POSTGRES_SSL_CLIENT_PRIVATE_KEY_FILE: /run/secrets/postgres_migrate_client_private_key
+      PGSSLCERT: /run/secrets/postgres_migrate_client_certificate
+      PGSSLKEY: /run/secrets/postgres_migrate_client_private_key
     secrets:
       - django_secret_key
       - django_mfa_encryption_key
-      - postgres_migration_password
       - postgres_ca_certificate
+      - postgres_migrate_client_certificate
+      - postgres_migrate_client_private_key
     depends_on:
       db:
         condition: service_healthy
@@ -182,14 +156,18 @@ services:
     environment:
       <<: *app-environment
       POSTGRES_USER: ${POSTGRES_RUNTIME_USER:-budget_runtime}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+      POSTGRES_SSL_CLIENT_CERTIFICATE_FILE: /run/secrets/postgres_mfa_key_rotate_client_certificate
+      POSTGRES_SSL_CLIENT_PRIVATE_KEY_FILE: /run/secrets/postgres_mfa_key_rotate_client_private_key
+      PGSSLCERT: /run/secrets/postgres_mfa_key_rotate_client_certificate
+      PGSSLKEY: /run/secrets/postgres_mfa_key_rotate_client_private_key
       DJANGO_MFA_ENCRYPTION_KEY_NEXT_FILE: /run/secrets/django_mfa_encryption_key_next
     secrets:
       - django_secret_key
       - django_mfa_encryption_key
       - django_mfa_encryption_key_next
-      - postgres_runtime_password
       - postgres_ca_certificate
+      - postgres_mfa_key_rotate_client_certificate
+      - postgres_mfa_key_rotate_client_private_key
     depends_on:
       db:
         condition: service_healthy
@@ -218,9 +196,12 @@ services:
       BACKUP_RETENTION_MONTHLY: ${BACKUP_RETENTION_MONTHLY:-12}
       PGSSLMODE: verify-full
       PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
+      PGSSLCERT: /run/secrets/postgres_backup_client_certificate
+      PGSSLKEY: /run/secrets/postgres_backup_client_private_key
     secrets:
-      - postgres_backup_password
       - postgres_ca_certificate
+      - postgres_backup_client_certificate
+      - postgres_backup_client_private_key
       - restic_repository_password
     volumes:
       - type: bind
@@ -289,7 +270,6 @@ services:
       DATABASE_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:-household_budget}
       POSTGRES_USER: ${POSTGRES_AUDIT_USER:-budget_audit}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_audit_password
       AUDIT_CHECKPOINT_SIGNING_KEY_FILE: /run/secrets/audit_checkpoint_signing_key
       AUDIT_CHECKPOINT_DIRECTORY: /checkpoints
       AUDIT_CHECKPOINT_KEY_ID: ${AUDIT_CHECKPOINT_KEY_ID:-home-v1}
@@ -298,9 +278,14 @@ services:
       POSTGRES_SSL_ROOT_CERTIFICATE_FILE: /run/secrets/postgres_ca_certificate
       PGSSLMODE: verify-full
       PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
+      POSTGRES_SSL_CLIENT_CERTIFICATE_FILE: /run/secrets/postgres_integrity_client_certificate
+      POSTGRES_SSL_CLIENT_PRIVATE_KEY_FILE: /run/secrets/postgres_integrity_client_private_key
+      PGSSLCERT: /run/secrets/postgres_integrity_client_certificate
+      PGSSLKEY: /run/secrets/postgres_integrity_client_private_key
     secrets:
-      - postgres_audit_password
       - postgres_ca_certificate
+      - postgres_integrity_client_certificate
+      - postgres_integrity_client_private_key
       - audit_checkpoint_signing_key
     volumes:
       - type: bind
@@ -324,14 +309,18 @@ services:
     environment:
       <<: *app-environment
       POSTGRES_USER: ${POSTGRES_RUNTIME_USER:-budget_runtime}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+      POSTGRES_SSL_CLIENT_CERTIFICATE_FILE: /run/secrets/postgres_notify_client_certificate
+      POSTGRES_SSL_CLIENT_PRIVATE_KEY_FILE: /run/secrets/postgres_notify_client_private_key
+      PGSSLCERT: /run/secrets/postgres_notify_client_certificate
+      PGSSLKEY: /run/secrets/postgres_notify_client_private_key
       BUDGET_BACKUP_STATUS_FILE: /repository/.last-success
       BUDGET_BACKUP_MAX_AGE_HOURS: ${BUDGET_BACKUP_MAX_AGE_HOURS:-36}
     secrets:
       - django_secret_key
       - django_mfa_encryption_key
-      - postgres_runtime_password
       - postgres_ca_certificate
+      - postgres_notify_client_certificate
+      - postgres_notify_client_private_key
     volumes:
       - type: bind
         source: ${BUDGET_BACKUP_REPOSITORY:-/mnt/household-budget-backups}
@@ -355,12 +344,16 @@ services:
     environment:
       <<: *app-environment
       POSTGRES_USER: ${POSTGRES_RUNTIME_USER:-budget_runtime}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+      POSTGRES_SSL_CLIENT_CERTIFICATE_FILE: /run/secrets/postgres_import_cleanup_client_certificate
+      POSTGRES_SSL_CLIENT_PRIVATE_KEY_FILE: /run/secrets/postgres_import_cleanup_client_private_key
+      PGSSLCERT: /run/secrets/postgres_import_cleanup_client_certificate
+      PGSSLKEY: /run/secrets/postgres_import_cleanup_client_private_key
     secrets:
       - django_secret_key
       - django_mfa_encryption_key
-      - postgres_runtime_password
       - postgres_ca_certificate
+      - postgres_import_cleanup_client_certificate
+      - postgres_import_cleanup_client_private_key
     depends_on:
       db:
         condition: service_healthy
@@ -387,9 +380,12 @@ services:
       RESTORE_TARGET_DB: ${RESTORE_TARGET_DB:-}
       PGSSLMODE: verify-full
       PGSSLROOTCERT: /run/secrets/postgres_ca_certificate
+      PGSSLCERT: /run/secrets/postgres_restore_verify_client_certificate
+      PGSSLKEY: /run/secrets/postgres_restore_verify_client_private_key
     secrets:
-      - postgres_admin_password
       - postgres_ca_certificate
+      - postgres_restore_verify_client_certificate
+      - postgres_restore_verify_client_private_key
       - restic_repository_password
     volumes:
       - type: bind
@@ -476,12 +472,16 @@ services:
     environment:
       <<: *app-environment
       POSTGRES_USER: ${POSTGRES_RUNTIME_USER:-budget_runtime}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_runtime_password
+      POSTGRES_SSL_CLIENT_CERTIFICATE_FILE: /run/secrets/postgres_web_client_certificate
+      POSTGRES_SSL_CLIENT_PRIVATE_KEY_FILE: /run/secrets/postgres_web_client_private_key
+      PGSSLCERT: /run/secrets/postgres_web_client_certificate
+      PGSSLKEY: /run/secrets/postgres_web_client_private_key
     secrets:
       - django_secret_key
       - django_mfa_encryption_key
-      - postgres_runtime_password
       - postgres_ca_certificate
+      - postgres_web_client_certificate
+      - postgres_web_client_private_key
     command:
       - gunicorn
       - config.wsgi:application
@@ -529,24 +529,50 @@ secrets:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/django_mfa_encryption_key
   django_mfa_encryption_key_next:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/django_mfa_encryption_key.next
-  postgres_admin_password:
-    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_admin_password
-  postgres_admin_password_next:
-    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_admin_password.next
   postgres_ca_certificate:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_ca_certificate
+  postgres_client_ca_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_client_ca_certificate
   postgres_server_certificate:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_server_certificate
   postgres_server_private_key:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_server_private_key
-  postgres_runtime_password:
-    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_runtime_password
-  postgres_migration_password:
-    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_migration_password
-  postgres_backup_password:
-    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_backup_password
-  postgres_audit_password:
-    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_audit_password
+  postgres_db_bootstrap_client_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_db_bootstrap_client_certificate
+  postgres_db_bootstrap_client_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_db_bootstrap_client_private_key
+  postgres_migrate_client_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_migrate_client_certificate
+  postgres_migrate_client_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_migrate_client_private_key
+  postgres_mfa_key_rotate_client_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_mfa_key_rotate_client_certificate
+  postgres_mfa_key_rotate_client_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_mfa_key_rotate_client_private_key
+  postgres_backup_client_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_backup_client_certificate
+  postgres_backup_client_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_backup_client_private_key
+  postgres_integrity_client_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_integrity_client_certificate
+  postgres_integrity_client_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_integrity_client_private_key
+  postgres_notify_client_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_notify_client_certificate
+  postgres_notify_client_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_notify_client_private_key
+  postgres_import_cleanup_client_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_import_cleanup_client_certificate
+  postgres_import_cleanup_client_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_import_cleanup_client_private_key
+  postgres_restore_verify_client_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_restore_verify_client_certificate
+  postgres_restore_verify_client_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_restore_verify_client_private_key
+  postgres_web_client_certificate:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_web_client_certificate
+  postgres_web_client_private_key:
+    file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/postgres_web_client_private_key
   audit_checkpoint_signing_key:
     file: ${BUDGET_SECRET_DIR:?Set BUDGET_SECRET_DIR}/audit_checkpoint_signing_key
   restic_repository_password:

@@ -1,39 +1,40 @@
-# PostgreSQL internal TLS
+# PostgreSQL mutual TLS and certificate authentication
 
 Status: implemented for the production Compose boundary; release-candidate evidence pending
 
 ## Security boundary
 
 Every production TCP connection to PostgreSQL must use TLS 1.2 or TLS 1.3, validate the dedicated
-internal certificate authority, and verify the server's exact Docker DNS identity, `db`. PostgreSQL
-accepts password authentication only on `hostssl` records and explicitly rejects `hostnossl`
-connections. The local health check uses a same-container Unix socket and does not cross a network
-trust boundary.
+server certificate authority, verify the exact Docker DNS identity `db`, and present a purpose-bound
+client certificate from a separate client authority. PostgreSQL accepts only the fixed certificate
+identity map on `hostssl`, explicitly rejects `hostnossl`, and stores no password verifier for any
+non-built-in login role. The same-container health check uses a local Unix socket and does not cross
+a network trust boundary.
 
-The dedicated authority is intentionally narrow:
+The two authorities have deliberately separate purposes:
 
-- its private key stays in offline or removable administrator custody and never enters the
-  deployment secret directory, VM runtime, container, image, environment, log, or repository;
-- it signs only the PostgreSQL server identity for DNS name `db`;
-- clients receive only the public CA certificate and use libpq `verify-full`;
-- the server receives its leaf certificate and private key, but not the CA private key; and
+- the server CA signs only the PostgreSQL server identity for DNS name `db`;
+- the client CA signs only the nine fixed production service identities;
+- both CA private keys remain in offline or removable administrator custody and never enter the
+  deployment directory, VM runtime, container, image, environment, log, or repository;
+- clients receive the public server CA plus only their own leaf and private key;
+- PostgreSQL receives its server leaf and key plus only the public client CA; and
 - the nginx-to-Gunicorn hop remains a separately tracked HTTP gap. This database control does not
-  imply that all internal service traffic is encrypted.
+  imply that every internal service connection is encrypted.
 
-Database clients still authenticate with distinct file-mounted SCRAM passwords. Replacing those
-long-lived credentials with certificate authentication is the next backend-authentication slice,
-not part of this server-authentication control.
+The isolated synthetic pentest stack remains password-based so credential recovery can be
+rehearsed without weakening production. It is not a production deployment path.
 
 ## Initial generation
 
 Run generation on a trusted Linux administrator host with OpenSSL available. The authority path
-below must be a mounted offline/removable location outside both the checkout and the production VM's
-persistent storage. The deployment directory must already be root-owned, mode 0700, and owned by the
-dedicated secret-reader group described in the main README.
+must be a mounted offline/removable location outside both the checkout and the production VM's
+persistent storage. The deployment directory must already be root-owned, mode 0700, and associated
+with the dedicated secret-reader group described in the main README.
 
 ```bash
 secret_gid="$(getent group household-budget-secrets | cut -d: -f3)"
-offline_authority_dir=/media/offline-custody/household-budget-postgres-ca-v1
+offline_authority_dir=/media/offline-custody/household-budget-postgres-authorities-v1
 sudo install -d -m 0700 -o root -g root "$offline_authority_dir"
 sudo .venv/bin/python scripts/generate-postgres-tls.py \
   --authority-directory "$offline_authority_dir" \
@@ -43,76 +44,105 @@ sudo .venv/bin/python scripts/generate-postgres-tls.py \
 
 The command creates these files without printing their values:
 
-| File | Location and mode | Consumer |
+| File class | Location and mode | Consumer |
 | --- | --- | --- |
-| `postgres_ca_private_key` | Offline authority directory, 0600 | Offline issuer only |
-| `postgres_ca_certificate` | Offline authority directory, 0644; deployment directory, 0440 | Issuer and approved clients |
-| `postgres_server_certificate` | Deployment directory, 0440 | PostgreSQL server |
-| `postgres_server_private_key` | Deployment directory, 0440 | PostgreSQL server |
+| `postgres_ca_private_key` | Offline authority, 0600 | Server issuer only |
+| `postgres_ca_certificate` | Offline authority, 0644; deployment, 0440 | Server issuer and approved clients |
+| `postgres_client_ca_private_key` | Offline authority, 0600 | Client issuer only |
+| `postgres_client_ca_certificate` | Offline authority, 0644; deployment, 0440 | Client issuer and PostgreSQL |
+| `postgres_server_certificate`, `postgres_server_private_key` | Deployment, 0440 | PostgreSQL only |
+| `postgres_<service>_client_certificate`, `postgres_<service>_client_private_key` | Deployment, 0440 | Exactly one named service |
 
-Unmount and secure the offline authority immediately after generation. Never add its private key to
-the production secret directory to simplify renewal. The generator refuses an existing output,
-uses exclusive nonsymlink file creation, removes partial installed outputs after failure, generates
-a P-256 authority and P-256 server key, limits the leaf to server authentication and DNS SAN `db`,
-and verifies its chain and at least 30 remaining validity days before installation.
+The client service prefixes are `db_bootstrap`, `migrate`, `mfa_key_rotate`, `backup`, `integrity`,
+`notify`, `import_cleanup`, `restore_verify`, and `web`. Unmount and secure the offline authorities
+immediately after generation.
 
-## Runtime enforcement
+The generator refuses existing output and symlink directories, uses exclusive nonsymlink file
+creation, and removes partially installed output after failure. It generates separate P-256 CAs,
+a P-256 server leaf constrained to server authentication and DNS SAN `db`, and unique P-256 client
+leaves constrained to client authentication. Every 397-day leaf is chain- and purpose-validated and
+must have at least 30 remaining validity days before installation.
 
-`deploy/postgres/start-tls.sh` is the database entrypoint. It validates the read-only secret inputs,
-copies the leaf and key into database-only tmpfs, changes them to PostgreSQL ownership and mode 0600,
-then starts PostgreSQL with TLS 1.2–1.3 and the fixed external HBA policy. The CA private key is never
-present. Every production Django, backup, restore, bootstrap, rotation, migration, integrity,
-notification, and cleanup client has both:
+## Exact identity-to-role map
+
+`deploy/postgres/start-tls.sh` validates the configured role identifiers and writes the exact map
+below into database-only tmpfs before PostgreSQL starts:
+
+| Certificate CN | Production service | Mapped database role |
+| --- | --- | --- |
+| `budget-db-bootstrap` | `db-bootstrap` | administrator |
+| `budget-restore-verify` | `restore-verify` | administrator |
+| `budget-migrate` | `migrate` | migration |
+| `budget-backup` | `backup` | backup |
+| `budget-integrity` | `integrity` | audit |
+| `budget-web` | `web` | runtime |
+| `budget-notify` | `notify` | runtime |
+| `budget-import-cleanup` | `import-cleanup` | runtime |
+| `budget-mfa-key-rotate` | `mfa-key-rotate` | runtime |
+
+No wildcard or fallback mapping is allowed. Possessing one service key cannot authenticate as a
+different role. `db-bootstrap` creates or updates each login role with `PASSWORD NULL` and fails if
+any non-built-in login role retains a password verifier.
+
+## Runtime enforcement and proof
+
+Every client uses these libpq controls, with a distinct certificate and key path:
 
 ```text
 PGSSLMODE=verify-full
 PGSSLROOTCERT=/run/secrets/postgres_ca_certificate
+PGSSLCERT=/run/secrets/postgres_<service>_client_certificate
+PGSSLKEY=/run/secrets/postgres_<service>_client_private_key
 ```
 
-Production Django settings independently require the same validated single-certificate PEM path.
-The pentest Compose stack remains a synthetic, isolated exception and is not a production deployment
-path.
+Production Django settings separately validate the root certificate, client certificate, and
+private-key paths during settings loading and do not configure a database password. The database
+startup wrapper copies its three public/secret TLS inputs and generated identity map into mode-0600
+PostgreSQL-owned tmpfs, then starts PostgreSQL with the dedicated CA, exact HBA, and TLS 1.2–1.3.
+The official image requires `POSTGRES_HOST_AUTH_METHOD=trust` only while initializing a fresh data
+directory without a password; its generated data-directory HBA is never active because every
+server start is pinned to the repository's external certificate-only `hba_file`. The boundary probe
+checks both the wrapper and that exact active HBA.
 
-Run the disposable production-boundary proof after generation and before release:
+Run the disposable production-boundary proof before release:
 
 ```bash
 ./scripts/run-network-boundary.sh
 ```
 
-The proof builds the real production images, checks exact Compose and runtime mounts, confirms the
-live Django database session reports TLS 1.2 or TLS 1.3, verifies the server identity file modes,
-and requires an explicit `sslmode=disable` connection to fail. Preserve only its pass/fail summary;
-do not capture secret files, certificate PEM, private keys, or unsanitized container metadata.
+The proof builds the real production images and checks exact Compose/runtime mounts, root-owned
+mode-0440 source secrets, the live HBA and identity map, staged mode-0600 files, and the negotiated
+TLS version and `budget-web` client DN. It requires plaintext, absent-client-certificate, and
+web-certificate-as-audit-role attempts to fail, and confirms directly that no production login role
+has a password verifier. Preserve only its pass/fail summary; never capture PEM, private keys, or
+unsanitized container metadata.
 
 ## Rotation and expiry
 
-The generated server leaf is valid for 397 days. Schedule a complete dedicated-authority rotation
-before expiry; do not wait for the 30-day generator guard. Use new empty offline and deployment
-staging directories because the generator never overwrites existing material.
+All generated leaves are valid for 397 days. Schedule a complete rotation before expiry; do not
+wait for the 30-day generator guard. Use new empty authority and deployment staging directories
+because the generator never overwrites material.
 
-1. Generate a new authority, leaf, and server key in the new staging locations.
-2. Verify the offline authority is secured and its private key is absent from deployment staging.
-3. Stop ingress and every database client. Keep a protected rollback copy of the current three
-   deployment certificate files.
-4. Promote the new public CA, server certificate, and server private key together. Do not mix
+1. Generate both replacement authorities and the complete server/client leaf set.
+2. Verify both CA private keys are secured offline and absent from deployment staging.
+3. Stop ingress, PostgreSQL, and every database client. Keep a protected rollback copy of the
+   complete current deployment certificate set.
+4. Promote the new server CA, client CA, server pair, and all nine client pairs together. Never mix
    generations.
 5. Recreate PostgreSQL and every client so no old mount survives.
-6. Run the disposable production-boundary proof and the application health, migration, backup,
-   restore, and audit-integrity checks.
-7. After the rollback window closes, destroy the retired deployment key and prior offline authority
-   key. Record only sanitized issuer, subject class, validity, public-key algorithm, fingerprint,
-   and test outcome in protected release evidence.
+6. Run the production-boundary proof plus migration, backup, restore, and audit-integrity checks.
+7. After the rollback window closes, destroy retired deployment keys and offline CA keys. Record
+   only sanitized issuer, subject class, validity, public-key algorithm, fingerprint, and outcome.
 
-An interrupted or failed promotion is fail-closed: keep traffic stopped, restore the complete prior
-three-file set, recreate the affected containers, and repeat validation. Never weaken `verify-full`,
-add a broad CA bundle, or permit plaintext TCP to recover availability.
+An interrupted promotion fails closed: keep traffic stopped, restore the complete prior set,
+recreate affected containers, and repeat validation. Never weaken `verify-full`, add a broad trust
+bundle, add a password HBA fallback, or loosen the identity map to recover availability.
 
 ## Compromise response
 
-Treat disclosure of either the CA private key or server private key as a security incident. Stop
-ingress and database clients, preserve bounded evidence, generate an entirely new dedicated
-authority and server identity on a known-good administrator host, promote them as one set, and prove
-the retired CA is no longer trusted. A server-key disclosure does not by itself reveal database
-passwords or encrypted backup keys, but review database and container logs for unauthorized sessions
-and rotate database credentials when exposure or misuse cannot be ruled out. Follow
-`docs/INCIDENT_RESPONSE.md` for notification, evidence, and broader credential rotation.
+Treat disclosure of either CA key, the server key, or any client key as a security incident. Stop
+ingress and database clients, preserve bounded evidence, generate a complete replacement authority
+and leaf set on a known-good administrator host, promote it atomically, and prove the retired client
+and server identities are no longer trusted. Review database and container logs for unauthorized
+sessions and follow `docs/INCIDENT_RESPONSE.md` for notification, evidence handling, application
+secret rotation, and the deliberately separate pentest credential-recovery rehearsal.

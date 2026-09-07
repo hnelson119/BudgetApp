@@ -131,37 +131,26 @@ planned cryptographic rotation; use the password/MFA recovery commands when revo
    If the command succeeds but promotion is interrupted, keep services stopped and promote the
    exact staged/recovery copy. Do not rerun the version-1-to-2 command against version-2 rows.
 
-## 5. PostgreSQL credential rotation
+## 5. PostgreSQL certificate rotation
 
-For `budget_runtime`, `budget_migration`, `budget_backup`, or `budget_audit`, stop only that role's
-consumers, retain a protected copy of the current file, promote the role's staged `.next` file, and
-run `docker compose --profile maintenance run --rm db-bootstrap` while the administrator credential
-is unchanged. Recreate and test the affected consumer. If bootstrap fails, restore the retained
-file before restarting it. The web service must never receive administrator, migration, backup, or
-audit credentials.
+Production login roles have no password verifiers. Every network client instead receives a unique
+client certificate and private key mapped to one least-privilege role. If any server CA, client CA,
+server key, or service-client key may be exposed, stop ingress and every database client, preserve
+bounded evidence, and generate a complete replacement server/client authority and leaf set on a
+known-good administrator host by following `docs/POSTGRES_TLS.md`.
 
-The administrator role requires an in-database change; replacing its initialization file alone
-does not change an existing PostgreSQL cluster. Stage `postgres_admin_password.next`, stop other
-maintenance jobs, and run:
+Promote the new server CA, client CA, server pair, and all nine client pairs as one generation while
+services remain stopped. Recreate PostgreSQL and every client, run `db-bootstrap`, then run the
+production-boundary proof. It must confirm mutual TLS, the exact client-DN map, rejected plaintext,
+missing-certificate, and wrong-role attempts, and zero password verifiers before ingress resumes.
+Confirm the retired authorities and leaves are no longer trusted. Never recover availability by
+weakening `verify-full`, adding a password HBA rule, sharing a client identity, or broadening the
+certificate map.
 
-```bash
-docker compose --profile maintenance run --rm db-admin-key-rotate
-```
-
-The helper reads both values from mounted files, changes the role without placing a password in an
-argument or container definition, reconnects with the staged credential, and proves the retired
-credential fails. Then atomically promote the staged file, recreate `db`, run `db-bootstrap`, and
-test migration, runtime, backup, and integrity connections before deleting the temporary recovery
-copy.
-
-Treat disclosure of the PostgreSQL internal CA private key or server private key separately from a
-password rotation. Stop ingress and database clients, preserve bounded evidence, and generate a new
-dedicated CA, server certificate, and server key on a known-good administrator host by following
-`docs/POSTGRES_TLS.md`. Promote the public CA, leaf, and server key as one generation, recreate the
-database and every client, run the production-boundary proof, and confirm the retired CA is no
-longer trusted. Never recover availability by weakening `verify-full` or allowing plaintext TCP.
-Rotate database passwords too when the incident scope or observed sessions cannot rule out their
-exposure.
+The credential rehearsal deliberately retains a password-based PostgreSQL helper only inside its
+isolated synthetic pentest Compose stack. That test-only exercise proves password recovery for the
+rehearsal fixture; it is not a production rotation mechanism and its password files must never be
+copied into the production secret directory.
 
 ## 6. Encrypted-backup repository key rotation
 

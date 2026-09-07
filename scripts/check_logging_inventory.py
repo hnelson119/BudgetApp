@@ -73,7 +73,6 @@ EXPECTED_UPDATE_TRIGGERS = {
 EXPECTED_COMPOSE_SERVICES = {
     "backup",
     "db",
-    "db-admin-key-rotate",
     "db-bootstrap",
     "import-cleanup",
     "ingress",

@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-09-05"
+MAPPING_UPDATED = "2026-09-06"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -235,10 +235,6 @@ EXCLUDED_REQUIREMENTS: dict[str, str] = {
         "passwords or activation codes."
     ),
     "V7.1.3": "The application has no federated identity or SSO session ecosystem.",
-    "V12.1.3": (
-        "The application does not use mTLS certificate identity for authentication or "
-        "authorization."
-    ),
     "V15.3.2": "The application backend does not currently call user-selected or external URLs.",
 }
 
@@ -246,10 +242,6 @@ NOT_STARTED: dict[str, str] = {
     "V12.3.3": (
         "Internal HTTP/service connections have not been comprehensively inventoried and forced "
         "to encrypted transports."
-    ),
-    "V13.2.1": (
-        "Backend database authentication still uses long-lived, file-mounted passwords rather "
-        "than short-term or certificate credentials."
     ),
 }
 
@@ -333,7 +325,9 @@ IMPLEMENTED_REQUIREMENTS = {
     "V11.3.2",
     "V11.3.3",
     "V11.5.1",
+    "V12.1.3",
     "V12.2.1",
+    "V13.2.1",
     "V13.2.2",
     "V13.2.3",
     "V13.2.4",
@@ -422,6 +416,17 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "test-only key, algorithm, and certificate boundaries; it defines permitted and "
         "prohibited uses, protected and excluded data, rotation, retirement, review cadence, and "
         "known absences without claiming release verification."
+    ),
+    "V12.1.3": (
+        "PostgreSQL validates every production client certificate against a dedicated client CA "
+        "and maps its exact certificate CN to one configured database role. The runtime proof "
+        "confirms the web client DN and rejects a web certificate attempting the audit role."
+    ),
+    "V13.2.1": (
+        "Every production database client uses a unique purpose-bound certificate identity mapped "
+        "to its least-privilege role. PostgreSQL accepts no password-authenticated TCP path, and "
+        "bootstrapping plus the runtime proof require all production login roles to have no "
+        "password verifier."
     ),
     "V13.2.4": (
         "The production Compose model fixes the exact service catalog and network attachments, "
@@ -525,6 +530,26 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/CRYPTOGRAPHIC_INVENTORY.md",
         "scripts/check_cryptographic_inventory.py",
         "tests/test_release_hardening.py",
+    ],
+    "V12.1.3": [
+        "scripts/generate-postgres-tls.py",
+        "compose.yaml",
+        "deploy/postgres/start-tls.sh",
+        "deploy/postgres/pg_hba.conf",
+        "deploy/network/run-production-boundary.py",
+        "tests/test_network_boundary.py",
+        "docs/POSTGRES_TLS.md",
+    ],
+    "V13.2.1": [
+        "scripts/generate-postgres-tls.py",
+        "compose.yaml",
+        "config/settings/hardened.py",
+        "deploy/postgres/bootstrap-roles.sh",
+        "deploy/postgres/pg_hba.conf",
+        "deploy/network/run-production-boundary.py",
+        "tests/test_deployment_config.py",
+        "tests/test_network_boundary.py",
+        "docs/POSTGRES_TLS.md",
     ],
     "V13.2.4": [
         "compose.yaml",

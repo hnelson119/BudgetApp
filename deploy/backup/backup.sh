@@ -17,15 +17,6 @@ fail() {
   exit 1
 }
 
-read_secret() {
-  secret_file="$1"
-  secret_name="$2"
-  if [ ! -s "$secret_file" ]; then
-    fail "backup_configuration_error" "$secret_name secret file is missing or empty"
-  fi
-  tr -d '\r\n' < "$secret_file"
-}
-
 validate_identifier() {
   identifier="$1"
   label="$2"
@@ -62,28 +53,12 @@ if [ ! -d "$RESTIC_REPOSITORY" ] || [ ! -w "$RESTIC_REPOSITORY" ]; then
   fail "backup_repository_unavailable" "The encrypted backup repository is unavailable or read-only"
 fi
 
-database_password="$(read_secret /run/secrets/postgres_backup_password "PostgreSQL backup")"
-if [ "${#database_password}" -lt 32 ]; then
-  fail "backup_configuration_error" "PostgreSQL backup secret is too short"
-fi
 if [ ! -s "$RESTIC_PASSWORD_FILE" ]; then
   fail "backup_configuration_error" "Restic repository secret file is missing or empty"
 fi
 
-pgpass_file=/tmp/pgpass
-printf '%s:%s:%s:%s:%s\n' \
-  "$DATABASE_HOST" "$DATABASE_PORT" "$POSTGRES_DB" "$POSTGRES_BACKUP_USER" \
-  "$database_password" > "$pgpass_file"
-chmod 0600 "$pgpass_file"
-unset database_password
-export PGPASSFILE="$pgpass_file"
 export RESTIC_REPOSITORY RESTIC_PASSWORD_FILE
 export RESTIC_CACHE_DIR=/tmp/restic-cache
-
-cleanup() {
-  rm -f "$pgpass_file"
-}
-trap cleanup EXIT HUP INT TERM
 
 if [ ! -f "$RESTIC_REPOSITORY/config" ]; then
   if find "$RESTIC_REPOSITORY" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then

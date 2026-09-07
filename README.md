@@ -175,9 +175,7 @@ secret_gid="$(getent group household-budget-secrets | cut -d: -f3)"
 sudo install -d -m 0700 -o root -g "$secret_gid" /etc/household-budget/secrets
 for specification in \
   django_secret_key:64 django_mfa_encryption_key:32 \
-  postgres_admin_password:48 postgres_runtime_password:48 \
-  postgres_migration_password:48 postgres_backup_password:48 \
-  postgres_audit_password:48 audit_checkpoint_signing_key:48 \
+  audit_checkpoint_signing_key:48 \
   restic_repository_password:48
 do
   secret_name="${specification%%:*}"
@@ -189,7 +187,7 @@ do
 done
 
 # Use an actually mounted offline/removable path outside the checkout and production VM storage.
-offline_authority_dir=/media/offline-custody/household-budget-postgres-ca-v1
+offline_authority_dir=/media/offline-custody/household-budget-postgres-authorities-v1
 sudo install -d -m 0700 -o root -g root "$offline_authority_dir"
 sudo python3 scripts/generate-postgres-tls.py \
   --authority-directory "$offline_authority_dir" \
@@ -202,8 +200,9 @@ the numeric value printed by `getent group household-budget-secrets`. Do not add
 member or the deployment account to this group. The root-owned directory is mode 0700 and each
 file is mode 0440; Compose grants only the secret-bearing containers that supplemental numeric GID,
 and each service still mounts only its explicitly allowed files.
-Immediately unmount and secure the offline authority after generation. Its private key must never
-remain on the production VM or enter the deployment secret directory. The database leaf, exact
+Immediately unmount and secure the offline authority after generation. Its two private keys must
+never remain on the production VM or enter the deployment secret directory. The server and
+per-service client leaves, exact
 trust model, rotation procedure, and fail-closed validation are documented in
 [`docs/POSTGRES_TLS.md`](docs/POSTGRES_TLS.md).
 
@@ -233,12 +232,15 @@ The integrity container receives the read-only audit database identity and check
 but none of the web, migration, administrator, backup, Django, or MFA secrets. The signing-key file
 should live on an independently protected or read-only mounted location when practical.
 
-The runtime web process cannot migrate the schema and never receives the database administrator,
-migration, backup, or audit passwords. The exact service/network catalog is enforced as an outbound
+The runtime web process cannot migrate the schema and receives only its own database client
+certificate, never another service's private key. Production PostgreSQL login roles have no
+password verifiers. The exact service/network catalog is enforced as an outbound
 allowlist: application, database, and maintenance workloads stay exclusively on internal Docker
 networks (or no network), and the web service's only backend destination is `db:5432`. Every
-production database client verifies the dedicated CA and `db` hostname with libpq `verify-full`,
-while PostgreSQL accepts only TLS 1.2 or TLS 1.3 TCP sessions and rejects plaintext TCP. A separate
+production database client verifies the dedicated server CA and `db` hostname with libpq
+`verify-full`, presents a unique purpose-bound client certificate, and is mapped only to its
+least-privilege role. PostgreSQL accepts only certificate-authenticated TLS 1.2 or TLS 1.3 TCP
+sessions and rejects plaintext, absent-certificate, wrong-role, and password fallbacks. A separate
 secretless, read-only nginx relay is the only service attached to the non-internal ingress network
 and the only service bound to loopback port 8000; its running configuration is checked for exactly
 one static destination, `web:8000`. Put private Tailscale HTTPS in front of that relay and never

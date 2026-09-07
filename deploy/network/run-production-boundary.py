@@ -20,25 +20,36 @@ _EXPECTED_SECRETS = {
     "django_secret_key",
     "django_mfa_encryption_key",
     "postgres_ca_certificate",
-    "postgres_runtime_password",
+    "postgres_web_client_certificate",
+    "postgres_web_client_private_key",
 }
+_CLIENT_SECRETS = {
+    service: (f"postgres_{prefix}_client_certificate", f"postgres_{prefix}_client_private_key")
+    for service, prefix in {
+        "backup": "backup",
+        "db-bootstrap": "db_bootstrap",
+        "import-cleanup": "import_cleanup",
+        "integrity": "integrity",
+        "mfa-key-rotate": "mfa_key_rotate",
+        "migrate": "migrate",
+        "notify": "notify",
+        "restore-verify": "restore_verify",
+        "web": "web",
+    }.items()
+}
+_ALL_CLIENT_IDENTITY_SECRETS = {name for pair in _CLIENT_SECRETS.values() for name in pair}
 _REQUIRED_SECRET_NAMES = {
     *_EXPECTED_SECRETS,
-    "postgres_admin_password",
-    "postgres_migration_password",
-    "postgres_backup_password",
-    "postgres_audit_password",
+    "postgres_client_ca_certificate",
     "postgres_server_certificate",
     "postgres_server_private_key",
     "audit_checkpoint_signing_key",
     "restic_repository_password",
+    *(name for pair in _CLIENT_SECRETS.values() for name in pair),
 }
 _SECRET_FILES = {
     **{name: name for name in _REQUIRED_SECRET_NAMES},
     "django_mfa_encryption_key_next": "django_mfa_encryption_key.next",
-    "postgres_admin_password_next": (  # pragma: allowlist secret
-        "postgres_admin_password.next"
-    ),
     "restic_repository_password_next": (  # pragma: allowlist secret
         "restic_repository_password.next"
     ),
@@ -47,7 +58,6 @@ _ALL_SECRET_NAMES = set(_SECRET_FILES)
 _SECRET_BEARING_SERVICES = {
     "backup",
     "db",
-    "db-admin-key-rotate",
     "db-bootstrap",
     "import-cleanup",
     "integrity",
@@ -58,22 +68,10 @@ _SECRET_BEARING_SERVICES = {
     "restore-verify",
     "web",
 }
-_DATABASE_TLS_CLIENTS = {
-    "backup",
-    "db-admin-key-rotate",
-    "db-bootstrap",
-    "import-cleanup",
-    "integrity",
-    "mfa-key-rotate",
-    "migrate",
-    "notify",
-    "restore-verify",
-    "web",
-}
+_DATABASE_TLS_CLIENTS = set(_CLIENT_SECRETS)
 _EXPECTED_SERVICE_NETWORKS = {
     "backup": {"backend"},
     "db": {"backend"},
-    "db-admin-key-rotate": {"backend"},
     "db-bootstrap": {"backend"},
     "import-cleanup": {"backend"},
     "ingress": {"frontend", "ingress"},
@@ -111,6 +109,11 @@ _FORBIDDEN_ENVIRONMENT_NAMES = {
 _MAXIMUM_RESPONSE_SIZE = 1024 * 1024
 _MAXIMUM_RAW_REQUEST_SIZE = 64 * 1024
 _HTTP_STATUS_LINE = re.compile(rb"(?m)^HTTP/1\.[01] ([1-5][0-9]{2})")
+_CREDENTIAL_VALUE = re.compile(
+    r"(?:authorization:\s*bearer\s+|password=)(?!\[redacted\])"
+    r"(?P<value>[^\s\"',;}\]]+)",
+    re.IGNORECASE,
+)
 _EXPECTED_PROXY_DESTINATION = "proxy_pass http://web:8000;"
 
 
@@ -123,6 +126,20 @@ class _RejectRedirects(urllib.request.HTTPRedirectHandler):
         self, request, file_pointer, code, message, headers, new_url
     ):
         return None
+
+
+def _contains_credential_shaped_value(content: str) -> bool:
+    """Detect an unknown high-entropy credential without flagging configuration labels."""
+
+    for match in _CREDENTIAL_VALUE.finditer(content):
+        value = match.group("value")
+        if (
+            len(value) >= 16
+            and any(character.isalpha() for character in value)
+            and any(character.isdigit() for character in value)
+        ):
+            return True
+    return False
 
 
 def _run(command: list[str], *, timeout: int = 120) -> str:
@@ -197,7 +214,7 @@ def validate_postgres_hba(configuration: str) -> int:
     ]
     if rules != [
         "local all all trust",
-        "hostssl all all all scram-sha-256",
+        "hostssl all all all cert map=budget_service",
         "hostnossl all all all reject",
     ]:
         raise ProbeFailure("The PostgreSQL client-authentication transport policy is invalid.")
@@ -267,8 +284,14 @@ def validate_compose_boundary(configuration: dict[str, Any]) -> int:
         raise ProbeFailure("PostgreSQL is not isolated on the internal backend network.")
     if database.get("entrypoint") != ["/bin/sh", "/usr/local/bin/start-postgres-tls.sh"]:
         raise ProbeFailure("PostgreSQL does not use the guarded TLS startup wrapper.")
+    database_environment = database.get("environment")
+    if (
+        not isinstance(database_environment, dict)
+        or database_environment.get("POSTGRES_HOST_AUTH_METHOD") != "trust"
+    ):
+        raise ProbeFailure("PostgreSQL initialization does not use the fixed external HBA path.")
     if _references(database.get("secrets")) != {
-        "postgres_admin_password",
+        "postgres_client_ca_certificate",
         "postgres_server_certificate",
         "postgres_server_private_key",
     }:
@@ -298,10 +321,30 @@ def validate_compose_boundary(configuration: dict[str, Any]) -> int:
         if not isinstance(client_environment, dict) or (
             str(client_environment.get("PGSSLMODE")),
             str(client_environment.get("PGSSLROOTCERT")),
-        ) != ("verify-full", "/run/secrets/postgres_ca_certificate"):
+            str(client_environment.get("PGSSLCERT")),
+            str(client_environment.get("PGSSLKEY")),
+        ) != (
+            "verify-full",
+            "/run/secrets/postgres_ca_certificate",
+            f"/run/secrets/{_CLIENT_SECRETS[service_name][0]}",
+            f"/run/secrets/{_CLIENT_SECRETS[service_name][1]}",
+        ):
             raise ProbeFailure("A PostgreSQL client does not require exact CA and hostname trust.")
-        if "postgres_ca_certificate" not in _references(client.get("secrets")):
-            raise ProbeFailure("A PostgreSQL client cannot read the pinned internal CA.")
+        client_secret_references = _references(client.get("secrets"))
+        if (
+            "postgres_ca_certificate" not in client_secret_references
+            or client_secret_references & _ALL_CLIENT_IDENTITY_SECRETS
+            != set(_CLIENT_SECRETS[service_name])
+        ):
+            raise ProbeFailure(
+                "A PostgreSQL client lacks its exact certificate-authentication set."
+            )
+    bootstrap_environment = services["db-bootstrap"].get("environment")
+    if (
+        not isinstance(bootstrap_environment, dict)
+        or bootstrap_environment.get("APP_ENVIRONMENT") != "production"
+    ):
+        raise ProbeFailure("The PostgreSQL role bootstrap is not locked to production mode.")
     if _network_names(ingress.get("networks")) != {"ingress", "frontend"}:
         raise ProbeFailure("The secretless relay has an unexpected Docker network attachment.")
     if web.get("ports") or ingress.get("secrets"):
@@ -373,7 +416,7 @@ def validate_secret_files(secret_directory: Path) -> int:
         file_status = path.stat()
         if linux_mode_checks and (
             stat.S_IMODE(file_status.st_mode) != 0o440
-            or file_status.st_uid != directory_status.st_uid
+            or file_status.st_uid != 0
             or file_status.st_gid != directory_status.st_gid
         ):
             raise ProbeFailure("A Linux secret has an unsafe mode, owner, or group.")
@@ -477,6 +520,7 @@ def validate_runtime_inspection(
         for mount in database.get("Mounts") or []
         if mount.get("Destination")
         in {
+            "/run/secrets/postgres_client_ca_certificate",
             "/run/secrets/postgres_server_certificate",
             "/run/secrets/postgres_server_private_key",
             "/usr/local/bin/start-postgres-tls.sh",
@@ -484,6 +528,7 @@ def validate_runtime_inspection(
         }
     }
     if database_tls_mounts != {
+        "/run/secrets/postgres_client_ca_certificate": False,
         "/run/secrets/postgres_server_certificate": False,
         "/run/secrets/postgres_server_private_key": False,
         "/usr/local/bin/start-postgres-tls.sh": False,
@@ -957,6 +1002,21 @@ def validate_runtime_behavior(
     validate_postgres_hba(
         _run(["docker", "exec", database_id, "cat", "/etc/postgresql/pg_hba.conf"])
     )
+    ident_configuration = _run(
+        ["docker", "exec", database_id, "cat", "/run/postgresql-tls/pg_ident.conf"]
+    ).splitlines()
+    if ident_configuration != [
+        "budget_service budget-db-bootstrap budget_admin",
+        "budget_service budget-restore-verify budget_admin",
+        "budget_service budget-migrate budget_migration",
+        "budget_service budget-backup budget_backup",
+        "budget_service budget-integrity budget_audit",
+        "budget_service budget-web budget_runtime",
+        "budget_service budget-notify budget_runtime",
+        "budget_service budget-import-cleanup budget_runtime",
+        "budget_service budget-mfa-key-rotate budget_runtime",
+    ]:
+        raise ProbeFailure("The PostgreSQL certificate identity map is not exact.")
     database_tls_modes = _run(
         [
             "docker",
@@ -967,9 +1027,11 @@ def validate_runtime_behavior(
             "%u:%g:%a",
             "/run/postgresql-tls/server.crt",
             "/run/postgresql-tls/server.key",
+            "/run/postgresql-tls/client-ca.crt",
+            "/run/postgresql-tls/pg_ident.conf",
         ]
     ).splitlines()
-    if database_tls_modes != ["70:70:600", "70:70:600"]:
+    if database_tls_modes != ["70:70:600"] * 4:
         raise ProbeFailure("The staged PostgreSQL server identity has unsafe ownership or mode.")
     _run(
         [
@@ -997,7 +1059,8 @@ def validate_runtime_behavior(
                 (
                     "from django.db import connection; "
                     "cursor=connection.cursor(); cursor.execute("
-                    "'SELECT current_user, ssl, version FROM pg_stat_ssl '"
+                    '"SELECT current_user, ssl, version, "'
+                    "\"client_dn LIKE '%CN=budget-web%' FROM pg_stat_ssl \""
                     "'WHERE pid=pg_backend_pid()'); "
                     "print('|'.join(map(str,cursor.fetchone())))"
                 ),
@@ -1007,8 +1070,8 @@ def validate_runtime_behavior(
         .splitlines()[-1]
     )
     if database_transport not in {
-        "budget_runtime|True|TLSv1.2",
-        "budget_runtime|True|TLSv1.3",
+        "budget_runtime|True|TLSv1.2|True",
+        "budget_runtime|True|TLSv1.3|True",
     }:
         raise ProbeFailure("The web process lacks the required encrypted database session.")
     _run_expect_failure(
@@ -1024,11 +1087,71 @@ def validate_runtime_behavior(
                 "from django.conf import settings; import psycopg; "
                 "database=settings.DATABASES['default']; "
                 "psycopg.connect(host=database['HOST'],port=database['PORT'],"
-                "dbname=database['NAME'],user=database['USER'],password=database['PASSWORD'],"
+                "dbname=database['NAME'],user=database['USER'],"
                 "sslmode='disable',connect_timeout=3)"
             ),
         ]
     )
+    _run_expect_failure(
+        [
+            "docker",
+            "exec",
+            web_id,
+            "python",
+            "manage.py",
+            "shell",
+            "-c",
+            (
+                "from django.conf import settings; import psycopg; "
+                "database=settings.DATABASES['default']; options=database['OPTIONS']; "
+                "psycopg.connect(host=database['HOST'],port=database['PORT'],"
+                "dbname=database['NAME'],user=database['USER'],sslmode='verify-full',"
+                "sslrootcert=options['sslrootcert'],sslcert='',sslkey='',connect_timeout=3)"
+            ),
+        ]
+    )
+    _run_expect_failure(
+        [
+            "docker",
+            "exec",
+            web_id,
+            "python",
+            "manage.py",
+            "shell",
+            "-c",
+            (
+                "from django.conf import settings; import psycopg; "
+                "database=settings.DATABASES['default']; options=database['OPTIONS']; "
+                "psycopg.connect(host=database['HOST'],port=database['PORT'],"
+                "dbname=database['NAME'],user='budget_audit',sslmode='verify-full',"
+                "sslrootcert=options['sslrootcert'],sslcert=options['sslcert'],"
+                "sslkey=options['sslkey'],connect_timeout=3)"
+            ),
+        ]
+    )
+    password_verifiers = _run(
+        [
+            "docker",
+            "exec",
+            "--user",
+            "postgres",
+            database_id,
+            "psql",
+            "--username",
+            "budget_admin",
+            "--dbname",
+            "postgres",
+            "--tuples-only",
+            "--no-align",
+            "--command",
+            (
+                "SELECT count(*) FROM pg_authid WHERE rolcanlogin "
+                "AND rolname !~ '^pg_' AND rolpassword IS NOT NULL"
+            ),
+        ]
+    ).strip()
+    if password_verifiers != "0":
+        raise ProbeFailure("A production PostgreSQL login role retains a password verifier.")
     _run(
         [
             "docker",
@@ -1051,7 +1174,7 @@ def validate_runtime_behavior(
     )
     if not _socket_reachable(8000) or any(_socket_reachable(port) for port in (5432, 2375, 2376)):
         raise ProbeFailure("The disposable host port boundary does not match the allowlist.")
-    return 8, 30
+    return 8, 34
 
 
 def validate_no_secret_leakage(
@@ -1074,19 +1197,32 @@ def validate_no_secret_leakage(
     images = {str((container.get("Config") or {}).get("Image", "")) for container in containers}
     if "" in images:
         raise ProbeFailure("The production web image could not be identified.")
-    artifacts = "\n".join(
-        [json.dumps(container, sort_keys=True) for container in containers]
-        + [
-            _run(["docker", "history", "--no-trunc", "--format", "{{.CreatedBy}}", image])
-            for image in sorted(images)
-        ]
-        + [_run([*prefix, "logs", "--no-color", "ingress", "security-log", "web", "db"])]
+    artifact_groups = (
+        (
+            "runtime metadata",
+            "\n".join(json.dumps(container, sort_keys=True) for container in containers),
+        ),
+        (
+            "image history",
+            "\n".join(
+                _run(["docker", "history", "--no-trunc", "--format", "{{.CreatedBy}}", image])
+                for image in sorted(images)
+            ),
+        ),
+        *(
+            (
+                f"{service} service logs",
+                _run([*prefix, "logs", "--no-color", service]),
+            )
+            for service in ("ingress", "security-log", "web", "db")
+        ),
     )
+    artifacts = "\n".join(content for _category, content in artifact_groups)
     if any(value in artifacts for value in values):
         raise ProbeFailure("A reusable secret appeared in runtime metadata, history, or logs.")
-    lower_artifacts = artifacts.casefold()
-    if any(marker in lower_artifacts for marker in ("authorization: bearer ", "password=")):
-        raise ProbeFailure("A credential-shaped value appeared in runtime diagnostics.")
+    for category, content in artifact_groups:
+        if _contains_credential_shaped_value(content):
+            raise ProbeFailure(f"A credential-shaped value appeared in {category}.")
     return 5
 
 

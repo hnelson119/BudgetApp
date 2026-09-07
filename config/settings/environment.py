@@ -7,6 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 _MAX_SECRET_BYTES = 16 * 1024
 _MAX_CERTIFICATE_BYTES = 64 * 1024
+_MAX_PRIVATE_KEY_BYTES = 64 * 1024
 _PLACEHOLDER_MARKERS = ("change-me", "development-only", "replace-this", "example-secret")
 
 
@@ -77,4 +78,26 @@ def required_certificate_file(name: str) -> str:
         or not value.endswith("-----END CERTIFICATE-----")
     ):
         raise ImproperlyConfigured(f"{name}_FILE is not one PEM certificate.")
+    return str(path)
+
+
+def required_private_key_file(name: str) -> str:
+    """Return a validated mounted private-key path without reading key material."""
+
+    if os.getenv(name):
+        raise ImproperlyConfigured(
+            f"{name} must not be supplied directly; mount the private key and set {name}_FILE."
+        )
+    file_name = os.getenv(f"{name}_FILE", "").strip()
+    if not file_name:
+        raise ImproperlyConfigured(f"{name}_FILE must point to a mounted private-key file.")
+    path = Path(file_name)
+    try:
+        if path.is_symlink() or not path.is_file():
+            raise ImproperlyConfigured(f"{name}_FILE does not identify a regular nonsymlink file.")
+        size = path.stat().st_size
+    except OSError as error:
+        raise ImproperlyConfigured(f"Unable to inspect {name}_FILE.") from error
+    if size <= 0 or size > _MAX_PRIVATE_KEY_BYTES:
+        raise ImproperlyConfigured(f"{name}_FILE has an invalid size.")
     return str(path)

@@ -15,7 +15,7 @@ build_context="$temporary_directory/build-context"
 mkdir -m 700 "$secret_directory" "$backup_directory" "$checkpoint_directory"
 mkdir -m 700 "$build_context"
 
-for command_name in docker git openssl python3 tar; do
+for command_name in docker git openssl python3 sudo tar; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "A required production-boundary command is unavailable: $command_name" >&2
     exit 1
@@ -51,11 +51,6 @@ for secret_name in \
   django_secret_key \
   django_mfa_encryption_key \
   audit_checkpoint_signing_key \
-  postgres_admin_password \
-  postgres_runtime_password \
-  postgres_migration_password \
-  postgres_backup_password \
-  postgres_audit_password \
   restic_repository_password
 do
   openssl rand -base64 48 | tr -d '\n' > "$secret_directory/$secret_name"
@@ -65,6 +60,9 @@ python3 "$project_root/scripts/generate-postgres-tls.py" \
   --authority-directory "$authority_directory" \
   --deployment-directory "$secret_directory" \
   --secret-group-id "$(id -g)"
+find "$secret_directory" -mindepth 1 -maxdepth 1 -type f \
+  -exec sudo chown root:"$(id -g)" {} +
+find "$secret_directory" -mindepth 1 -maxdepth 1 -type f -exec sudo chmod 440 {} +
 
 export APP_ENVIRONMENT=production
 export APP_RELEASE=network-boundary-probe

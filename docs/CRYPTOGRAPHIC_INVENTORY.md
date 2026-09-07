@@ -1,8 +1,8 @@
 # Cryptographic inventory and maintenance
 
 Status: implemented inventory; deployment evidence pending
-Inventory reviewed: 2026-09-05
-Next scheduled review: 2026-12-04
+Inventory reviewed: 2026-09-06
+Next scheduled review: 2026-12-05
 
 ## Purpose and authority
 
@@ -53,9 +53,13 @@ iterations. A dependency update must update the inventory and its tests in the s
 | Tailscale Serve and ACME keys | Tailscale daemon state on VM | Exact-hostname private HTTPS | Funnel, application signing, or data at rest |
 | SSH administrator and host keys | Administrator devices and VM | Key-only VM administration over Tailscale | Application login or shared administration |
 | PostgreSQL internal CA key | Offline/removable administrator custody only | Sign the dedicated `db` server identity | Client issuance, browser trust, data encryption, or VM/container residency |
+| PostgreSQL client CA key | Offline/removable administrator custody only | Sign the fixed service-client identities | Server issuance, browser trust, data encryption, or VM/container residency |
 | PostgreSQL server key | Root-owned deployment secret copied into database-only tmpfs | Authenticate `db` and protect internal database TCP | Client authentication, browser TLS, or data at rest |
+| PostgreSQL per-service client keys | Separate root-owned deployment secrets; one assigned client each | Authenticate one service to its mapped least-privilege role | Another service/role, server identity, browser TLS, or data at rest |
 | PostgreSQL internal CA certificate | Approved database clients | Exact private trust anchor for `db` | Broad internal, browser, or public trust |
+| PostgreSQL client CA certificate | PostgreSQL database tmpfs | Exact trust anchor for client authentication | Server, browser, public, or unrelated internal trust |
 | PostgreSQL server certificate | PostgreSQL database container | DNS-constrained internal server authentication | Any identity other than `db` or any client role |
+| PostgreSQL per-service client certificates | Exactly one assigned database client each | Exact CN-to-role authentication through the fixed map | Unmapped roles, server identity, or shared service authentication |
 | Tailscale Serve certificate | Provider-managed VM state | Publicly trusted HTTPS for the exact neutral hostname | Other names, public exposure, or data-at-rest protection |
 | Browser trust roots | Approved device trust stores | Validate the HTTPS certificate chain | Custom bypasses or self-signed production trust |
 
@@ -76,18 +80,18 @@ silently treated as opaque products.
 3. Inspect dependency and container pins. Confirm Django's production hasher algorithm and work
    factor, the cryptography/Fernet version, Restic version and repository format, and the deployed
    Tailscale/OpenSSH versions. Update parameters and upstream HTTPS references when behavior changes.
-4. Compare every Compose secret mount to the inventory. Database passwords are credentials rather
-   than cryptographic keys, but any new use of one as key material is prohibited until separately
-   inventoried and reviewed.
+4. Compare every Compose secret mount to the inventory. Confirm each database client receives only
+   the server CA and its own leaf/key pair, PostgreSQL receives only its server pair and public
+   client CA, and no production database password secret exists.
 5. On the release VM, run the private-ingress preflight. Record only sanitized certificate issuer,
    validity, public-key algorithm, fingerprint, negotiated TLS version/cipher, and the SSH public-key
    algorithms actually enabled. Do not commit the real hostname or private material.
 6. Confirm each key still has a single documented purpose, explicit consumers, prohibited uses,
    rotation procedure, and retirement rule. Trace discrepancies as security findings rather than
    changing evidence to match an unexplained deployment.
-7. Review the known absences. PostgreSQL server TLS is inventoried and enforced; the
-   nginx-to-Gunicorn HTTP hop and application client-certificate authentication remain tracked gaps.
-   Add a certificate only when it actually exists and is validated.
+7. Review the known absences. PostgreSQL mutual TLS and per-service certificate authentication are
+   inventoried and enforced; the nginx-to-Gunicorn HTTP hop remains a tracked gap. Add a
+   certificate only when it actually exists and is validated.
 8. Set `inventory_updated` to the review date and `next_review_due` to exactly 90 days later. Update
    the human-readable dates together, run the full quality gate, and obtain security review.
 
@@ -98,9 +102,10 @@ material class never authorizes substituting another class. Django signing-key r
 invalidates old sessions. MFA rotation transactionally re-encrypts every seed under a monotonically
 higher key version. Audit checkpoint rotation retains the old verification key offline under its
 original ID. A Restic password rotation rewraps repository master keys; suspected master-key
-disclosure instead requires a new repository and full re-encryption. The PostgreSQL CA stays
-offline; its leaf key reaches only database-owned tmpfs and rotates with the complete dedicated
-trust set. Tailscale Serve and SSH private keys stay outside application containers and are revoked
+disclosure instead requires a new repository and full re-encryption. Both PostgreSQL CA keys stay
+offline; the server key reaches only database-owned tmpfs and each client key reaches only its
+assigned service. They rotate as one complete trust set. Tailscale Serve and SSH private keys stay
+outside application containers and are revoked
 at their owning control plane or host.
 
 After a compromise, preserve required evidence before deletion, isolate affected consumers, replace
@@ -110,10 +115,9 @@ backup/restore, audit-chain, session-replay, MFA, certificate, and private-ingre
 ## Known gaps
 
 This inventory is complete for the current design, including things that are intentionally absent.
-It does not make missing controls pass. Production PostgreSQL server TLS is implemented with exact
-CA and hostname trust plus plaintext rejection, but the nginx-to-Gunicorn hop remains HTTP and
-database clients still authenticate with long-lived file-mounted passwords. ASVS
-`v5.0.0-12.3.1` and `v5.0.0-12.3.4` therefore remain partial, while `v5.0.0-12.3.3` and
-`v5.0.0-13.2.1` remain not started. Browser trust, Tailscale, and SSH observations remain
-release-only evidence on the real Linux VM. No reusable Tailscale auth key or application
-client-certificate PKI currently exists.
+It does not make missing controls pass. Production PostgreSQL mutual TLS is implemented with exact
+server trust, a separate client CA, unique service identities, fixed role mapping, and plaintext and
+password rejection. ASVS `v5.0.0-12.1.3` and `v5.0.0-13.2.1` are implemented, while
+`v5.0.0-12.3.1` and `v5.0.0-12.3.4` remain partial because the nginx-to-Gunicorn hop remains HTTP;
+`v5.0.0-12.3.3` remains not started. Browser trust, Tailscale, and SSH observations remain
+release-only evidence on the real Linux VM. No reusable Tailscale auth key exists.

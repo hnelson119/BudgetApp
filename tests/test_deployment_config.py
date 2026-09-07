@@ -225,7 +225,6 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     secret_services = {
         "db",
         "db-bootstrap",
-        "db-admin-key-rotate",
         "migrate",
         "mfa-key-rotate",
         "backup",
@@ -266,23 +265,15 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
         "django_mfa_encryption_key",
         "django_mfa_encryption_key_next",
         "postgres_ca_certificate",
-        "postgres_runtime_password",
+        "postgres_mfa_key_rotate_client_certificate",
+        "postgres_mfa_key_rotate_client_private_key",
     }
     assert rotation["environment"]["DJANGO_MFA_ENCRYPTION_KEY_NEXT_FILE"] == (
         "/run/secrets/django_mfa_encryption_key_next"
     )
 
-    database_rotation = compose["services"]["db-admin-key-rotate"]
-    assert database_rotation["profiles"] == ["maintenance"]
-    assert database_rotation["networks"] == ["backend"]
-    assert set(database_rotation["secrets"]) == {
-        "postgres_admin_password",
-        "postgres_admin_password_next",
-        "postgres_ca_certificate",
-    }
-    assert database_rotation["environment"]["POSTGRES_ADMIN_NEW_PASSWORD_FILE"] == (
-        "/run/secrets/postgres_admin_password_next"
-    )
+    assert "db-admin-key-rotate" not in compose["services"]
+    assert not any("postgres" in name and "password" in name for name in compose["secrets"])
 
 
 def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
@@ -298,7 +289,8 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
         "django_secret_key",
         "django_mfa_encryption_key",
         "postgres_ca_certificate",
-        "postgres_runtime_password",
+        "postgres_web_client_certificate",
+        "postgres_web_client_private_key",
     }
     assert "postgres_backup_password" not in web["secrets"]
     assert "restic_repository_password" not in web["secrets"]
@@ -306,12 +298,14 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
 
     assert set(backup["secrets"]) == {
         "postgres_ca_certificate",
-        "postgres_backup_password",
+        "postgres_backup_client_certificate",
+        "postgres_backup_client_private_key",
         "restic_repository_password",
     }
     assert set(restore["secrets"]) == {
-        "postgres_admin_password",
         "postgres_ca_certificate",
+        "postgres_restore_verify_client_certificate",
+        "postgres_restore_verify_client_private_key",
         "restic_repository_password",
     }
     assert set(rotation["secrets"]) == {
@@ -331,7 +325,8 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     assert restore["volumes"][0]["bind"]["create_host_path"] is False
     assert set(integrity["secrets"]) == {
         "postgres_ca_certificate",
-        "postgres_audit_password",
+        "postgres_integrity_client_certificate",
+        "postgres_integrity_client_private_key",
         "audit_checkpoint_signing_key",
     }
     assert integrity["networks"] == ["backend"]
@@ -342,7 +337,8 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
         "django_secret_key",
         "django_mfa_encryption_key",
         "postgres_ca_certificate",
-        "postgres_runtime_password",
+        "postgres_notify_client_certificate",
+        "postgres_notify_client_private_key",
     }
     assert notify["read_only"] is True
     assert notify["networks"] == ["backend"]
@@ -356,7 +352,6 @@ def test_production_postgres_requires_exact_internal_ca_and_rejects_plaintext_tc
     database = services["db"]
     clients = {
         "backup",
-        "db-admin-key-rotate",
         "db-bootstrap",
         "import-cleanup",
         "integrity",
@@ -369,7 +364,7 @@ def test_production_postgres_requires_exact_internal_ca_and_rejects_plaintext_tc
 
     assert database["entrypoint"] == ["/bin/sh", "/usr/local/bin/start-postgres-tls.sh"]
     assert set(database["secrets"]) == {
-        "postgres_admin_password",
+        "postgres_client_ca_certificate",
         "postgres_server_certificate",
         "postgres_server_private_key",
     }
@@ -384,7 +379,15 @@ def test_production_postgres_requires_exact_internal_ca_and_rejects_plaintext_tc
         service = services[service_name]
         assert service["environment"]["PGSSLMODE"] == "verify-full"
         assert service["environment"]["PGSSLROOTCERT"] == ("/run/secrets/postgres_ca_certificate")
+        assert service["environment"]["PGSSLCERT"].startswith("/run/secrets/postgres_")
+        assert service["environment"]["PGSSLKEY"].startswith("/run/secrets/postgres_")
         assert "postgres_ca_certificate" in service["secrets"]
+        assert (
+            service["environment"]["PGSSLCERT"].removeprefix("/run/secrets/") in service["secrets"]
+        )
+        assert (
+            service["environment"]["PGSSLKEY"].removeprefix("/run/secrets/") in service["secrets"]
+        )
 
     policy = (PROJECT_ROOT / "deploy/postgres/pg_hba.conf").read_text(encoding="utf-8")
     rules = [
@@ -394,12 +397,14 @@ def test_production_postgres_requires_exact_internal_ca_and_rejects_plaintext_tc
     ]
     assert rules == [
         "local all all trust",
-        "hostssl all all all scram-sha-256",
+        "hostssl all all all cert map=budget_service",
         "hostnossl all all all reject",
     ]
     wrapper = (PROJECT_ROOT / "deploy/postgres/start-tls.sh").read_text(encoding="utf-8")
     assert "ssl=on" in wrapper
     assert "ssl_min_protocol_version=TLSv1.2" in wrapper
+    assert "ssl_ca_file=" in wrapper
+    assert "ident_file=" in wrapper
     assert "hba_file=/etc/postgresql/pg_hba.conf" in wrapper
 
 
@@ -413,6 +418,8 @@ def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_targe
     assert "restic check" in backup_script
     assert "--keep-daily" in backup_script
     assert "PGPASSWORD" not in backup_script
+    assert "PGPASSFILE" not in backup_script
+    assert "PGPASSFILE" not in restore_script
     assert "RESTIC_PASSWORD=" not in backup_script
     assert "RESTIC_PASSWORD_FILE" in backup_script
     assert ".last-success" in backup_script
@@ -464,6 +471,9 @@ def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_targe
     assert '--command "SELECT 1"' in admin_rotation
     assert "retired credential still authenticates" in admin_rotation
     assert "GRANT pg_read_all_data" not in bootstrap
+    assert "PASSWORD NULL" in bootstrap
+    assert "rolpassword IS NOT NULL" in bootstrap
+    assert "PGPASSWORD" not in bootstrap
 
 
 def test_container_does_not_enable_raw_access_logging() -> None:
