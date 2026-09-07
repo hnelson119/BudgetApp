@@ -181,7 +181,7 @@ def test_production_probe_rejects_egress_allowlist_bypasses(mutator: Any) -> Non
 def test_production_probe_accepts_only_the_static_internal_relay_destination() -> None:
     configuration = (PROJECT_ROOT / "deploy" / "network" / "nginx.conf").read_text(encoding="utf-8")
 
-    assert PRODUCTION_PROBE.validate_relay_destination(configuration) == 9
+    assert PRODUCTION_PROBE.validate_relay_destination(configuration) == 14
 
     for replacement in (
         "proxy_pass http://db:5432;",
@@ -208,6 +208,16 @@ def test_production_probe_accepts_only_the_static_internal_relay_destination() -
         ),
     ):
         with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="mutual TLS"):
+            PRODUCTION_PROBE.validate_relay_destination(configuration.replace(current, replacement))
+
+    for current, replacement in (
+        ('"" http;', '"" https;'),
+        (
+            "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;",
+            "proxy_set_header X-Forwarded-Proto $scheme;",
+        ),
+    ):
+        with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="edge and upstream schemes"):
             PRODUCTION_PROBE.validate_relay_destination(configuration.replace(current, replacement))
 
 

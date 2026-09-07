@@ -135,6 +135,13 @@ _EXPECTED_PROXY_TLS_DIRECTIVES = [
     "proxy_ssl_verify on;",
     "proxy_ssl_verify_depth 1;",
 ]
+_EXPECTED_PROXY_SCHEME_MAP = [
+    "map $http_x_forwarded_proto $upstream_forwarded_proto {",
+    "default $http_x_forwarded_proto;",
+    '"" http;',
+    "}",
+]
+_EXPECTED_PROXY_SCHEME_HEADER = "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;"
 _EXPECTED_WEB_COMMAND = [
     "gunicorn",
     "--config",
@@ -238,7 +245,23 @@ def validate_relay_destination(configuration: str) -> int:
         raise ProbeFailure("The loopback relay destination does not match the internal allowlist.")
     if tls_directives != _EXPECTED_PROXY_TLS_DIRECTIVES:
         raise ProbeFailure("The loopback relay does not enforce exact upstream mutual TLS.")
-    return 1 + len(_EXPECTED_PROXY_TLS_DIRECTIVES)
+    scheme_maps = [line for line in lines if line.startswith("map ")]
+    scheme_headers = [
+        line for line in lines if line.startswith("proxy_set_header X-Forwarded-Proto ")
+    ]
+    try:
+        scheme_map_index = lines.index(_EXPECTED_PROXY_SCHEME_MAP[0])
+    except ValueError as error:
+        raise ProbeFailure(
+            "The loopback relay does not separate edge and upstream schemes."
+        ) from error
+    if (
+        scheme_maps != [_EXPECTED_PROXY_SCHEME_MAP[0]]
+        or lines[scheme_map_index : scheme_map_index + 4] != _EXPECTED_PROXY_SCHEME_MAP
+        or scheme_headers != [_EXPECTED_PROXY_SCHEME_HEADER]
+    ):
+        raise ProbeFailure("The loopback relay does not separate edge and upstream schemes.")
+    return 2 + len(_EXPECTED_PROXY_TLS_DIRECTIVES) + len(_EXPECTED_PROXY_SCHEME_MAP)
 
 
 def validate_postgres_hba(configuration: str) -> int:

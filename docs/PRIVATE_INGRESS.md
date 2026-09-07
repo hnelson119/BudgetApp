@@ -119,7 +119,9 @@ login role retains a password verifier. The same-container Unix-socket health ch
 a network boundary. Nginx connects only to `https://web:8443`, validates the dedicated server CA
 and exact `web` DNS identity, and presents its sole `budget-ingress` client certificate. Gunicorn
 trusts only the separate nginx client CA, permits TLS 1.2 or TLS 1.3, and has no plaintext
-production listener.
+production listener. Because the upstream socket is itself TLS, nginx explicitly maps a missing
+edge `X-Forwarded-Proto` value to `http`; this preserves the canonical browser redirect instead of
+letting Gunicorn's internal TLS scheme masquerade as an HTTPS edge request.
 
 The nginx relay is the narrow availability exception described in `M10-F014`: Docker requires its
 non-internal ingress network to create the loopback host publish. It receives no Django, database,
