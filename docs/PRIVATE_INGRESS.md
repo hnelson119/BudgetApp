@@ -2,10 +2,10 @@
 
 This runbook establishes the release-only network boundary for the dedicated Linux VM. The budget
 service is private: household browsers reach Tailscale Serve over HTTPS, Tailscale Serve proxies to
-a secretless relay on IPv4 loopback, the Django application stays on internal Docker networks, and
-PostgreSQL remains only on Docker's internal backend network with exact-purpose mutual TLS,
-certificate-to-role mapping, and no plaintext or password fallback. No router port is forwarded and
-Tailscale Funnel is not enabled.
+a minimal relay on IPv4 loopback, and the Django application stays on internal Docker networks.
+Nginx reaches Gunicorn only through purpose-separated mutual TLS, while PostgreSQL remains only on
+Docker's internal backend network with exact-purpose mutual TLS, certificate-to-role mapping, and
+no plaintext or password fallback. No router port is forwarded and Tailscale Funnel is not enabled.
 
 The disposable workstation probe is useful pre-deployment evidence, but it cannot satisfy
 `NET-01`, `NET-02`, or the deployed portions of `NET-03` through `NET-06`. Those require the actual
@@ -52,9 +52,9 @@ Set `BUDGET_SECRET_GID` to the numeric, non-root `household-budget-secrets` grou
 README, and do not add human users to it. All reusable values stay in root-owned mode-0440 files
 under the mode-0700 `/etc/household-budget/secrets` directory. Compose grants the numeric group only
 to secret-bearing containers, which continue to mount only their service-specific files.
-Generate and secure both PostgreSQL offline authorities plus the deployment server and per-service
-client identities before starting the database by following `docs/POSTGRES_TLS.md`; neither
-authority private key may remain on the VM.
+Generate and secure all four internal offline authorities plus the PostgreSQL and HTTP deployment
+identities before starting the stack by following `docs/POSTGRES_TLS.md` and the internal-web
+boundary below. No authority private key may remain on the VM.
 
 Start the reviewed Compose project from `/opt/household-budget`:
 
@@ -87,7 +87,8 @@ on loopback only; the browser-facing connection is HTTPS.
 ### HTTP request-framing boundary
 
 The repository pins the application-side message boundary to nginx receiving HTTP/1.1 and proxying
-HTTP/1.1 to Gunicorn with complete request buffering enabled. The production-derived probe sends
+HTTP/1.1 to Gunicorn inside mutually authenticated TLS with complete request buffering enabled. The
+production-derived probe sends
 three valid forms—a bodyless request, an explicit zero `Content-Length`, and a zero-length chunked
 body—and six ambiguity cases: both framing headers in either order, conflicting duplicate lengths,
 multiple transfer codings, whitespace before a header colon, and obsolete folded transfer syntax.
@@ -115,15 +116,41 @@ must fail, and a bounded external TCP connection must fail. PostgreSQL's HBA pol
 client certificates from the dedicated client CA through an exact service-identity-to-role map and
 rejects `hostnossl`; missing-certificate and wrong-role attempts must also fail, and no production
 login role retains a password verifier. The same-container Unix-socket health check does not cross
-a network boundary. The still-HTTP nginx-to-Gunicorn hop is an explicit remaining internal-
-transport gap.
+a network boundary. Nginx connects only to `https://web:8443`, validates the dedicated server CA
+and exact `web` DNS identity, and presents its sole `budget-ingress` client certificate. Gunicorn
+trusts only the separate nginx client CA, permits TLS 1.2 or TLS 1.3, and has no plaintext
+production listener. Because the upstream socket is itself TLS, nginx maps only an exact lowercase
+edge `X-Forwarded-Proto: https` value to secure and maps every missing or ambiguous value to `http`;
+this preserves the canonical browser redirect instead of letting Gunicorn's internal TLS scheme or
+a compound forwarded value masquerade as an HTTPS edge request.
 
-The secretless nginx relay is the narrow availability exception described in `M10-F014`: Docker
-requires its non-internal ingress network to create the loopback host publish. It receives no
-application secrets or database network and its running configuration must contain exactly one
-static proxy destination, `web:8000`. Adding an integration, URL fetch, remote file load, proxy
+The nginx relay is the narrow availability exception described in `M10-F014`: Docker requires its
+non-internal ingress network to create the loopback host publish. It receives no Django, database,
+backup, audit, or MFA secret and no database network; its only secrets are the public Gunicorn
+server CA and its own leaf/key pair. Its running configuration must contain exactly one static
+proxy destination, `https://web:8443`, with certificate validation enabled. Adding an integration,
+URL fetch, remote file load, proxy
 destination, service, or network attachment requires an explicit allowlist change, updated tests,
 and security review before deployment.
+
+### Internal web mutual TLS lifecycle
+
+The shared generator `scripts/generate-postgres-tls.py` also creates the HTTP trust set. The offline
+authority directory contains `gunicorn_ca_private_key` and `gunicorn_client_ca_private_key` plus
+their public certificates. The deployment directory contains only the public CA certificates, the
+DNS-constrained `web` server leaf/key, and the `budget-ingress` client leaf/key. The server CA must
+never issue client certificates, the client CA must never issue server certificates, and neither CA
+private key belongs on the VM after generation.
+
+Nginx receives only `gunicorn_ca_certificate`, `nginx_client_certificate`, and
+`nginx_client_private_key`. Gunicorn receives only `gunicorn_client_ca_certificate`,
+`gunicorn_server_certificate`, and `gunicorn_server_private_key`. All six deployment files use the
+same root-owned mode-0440 secret-reader boundary as the PostgreSQL material. Rotate the six files as
+one trust set: stop `ingress` and `web`, generate into a new empty staging directory from trusted
+offline custody, verify both certificate purposes and the exact `web` hostname, atomically promote
+the complete set, recreate `web` then `ingress`, run the production boundary probe, and destroy the
+retired leaf keys after rollback custody is no longer required. Never mix old and new CA/leaf files
+or reuse a PostgreSQL authority for this hop.
 
 ## 3. Host and home-network firewall
 
@@ -170,9 +197,10 @@ production Compose services, and verifies the following without printing secret 
   collector-only archive volume, restrictive socket/directory/file modes, delivered probe record,
   and minimized warning alert;
 - required database connectivity, blocked Django-container egress, the relay's single live
-  `web:8000` proxy destination, one shared non-root numeric
-  secret-reader GID, exact 0700/0440 Linux ownership/modes, and absence of reusable secret values
-  from container metadata, image history, and logs; and
+  `https://web:8443` proxy destination, exact server CA/name validation, client-certificate
+  presentation, rejection of the plaintext Gunicorn port and a certificate-less TLS request, one
+  shared non-root numeric secret-reader GID, exact 0700/0440 Linux ownership/modes, and absence of
+  reusable secret values from container metadata, image history, and logs; and
 - complete removal of the temporary containers, volumes, networks, and secret directory after
   success or failure.
 
@@ -226,6 +254,8 @@ addresses, secret matches, raw financial responses, or broad scan output in Git.
 
 - Re-run both preflights after Compose, proxy, Tailscale policy, UFW, SSH, hostname, or secret-mount
   changes and before every release candidate.
+- Rotate the complete nginx/Gunicorn trust set after either leaf or CA compromise; do not expose the
+  plaintext port, disable peer verification, or reuse the PostgreSQL CAs as a recovery shortcut.
 - A changed Tailscale hostname requires updating both production hostname values together and a
   new VM preflight. Do not temporarily add the old name as an alias.
 - If Serve or UFW verification fails, take the application out of service and restore the last

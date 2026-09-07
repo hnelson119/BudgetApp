@@ -1,4 +1,4 @@
-"""Generate offline PostgreSQL server and client certificate authorities."""
+"""Generate offline authorities and leaf certificates for internal production TLS."""
 
 from __future__ import annotations
 
@@ -17,6 +17,14 @@ _CLIENT_CA_CERTIFICATE = "postgres_client_ca_certificate"
 _CLIENT_CA_PRIVATE_KEY = "postgres_client_ca_private_key"  # pragma: allowlist secret
 _SERVER_CERTIFICATE = "postgres_server_certificate"
 _SERVER_PRIVATE_KEY = "postgres_server_private_key"  # pragma: allowlist secret
+_GUNICORN_SERVER_CA_CERTIFICATE = "gunicorn_ca_certificate"
+_GUNICORN_SERVER_CA_PRIVATE_KEY = "gunicorn_ca_private_key"  # pragma: allowlist secret
+_GUNICORN_CLIENT_CA_CERTIFICATE = "gunicorn_client_ca_certificate"
+_GUNICORN_CLIENT_CA_PRIVATE_KEY = "gunicorn_client_ca_private_key"  # pragma: allowlist secret
+_GUNICORN_SERVER_CERTIFICATE = "gunicorn_server_certificate"
+_GUNICORN_SERVER_PRIVATE_KEY = "gunicorn_server_private_key"  # pragma: allowlist secret
+_NGINX_CLIENT_CERTIFICATE = "nginx_client_certificate"
+_NGINX_CLIENT_PRIVATE_KEY = "nginx_client_private_key"  # pragma: allowlist secret
 
 CLIENT_IDENTITIES = (
     ("postgres_db_bootstrap_client", "budget-db-bootstrap"),
@@ -59,7 +67,7 @@ def _run_openssl(*arguments: str) -> None:
     except (OSError, subprocess.TimeoutExpired) as error:
         raise GenerationFailure("OpenSSL could not complete certificate generation.") from error
     if completed.returncode != 0:
-        raise GenerationFailure("OpenSSL rejected the PostgreSQL certificate configuration.")
+        raise GenerationFailure("OpenSSL rejected the internal TLS certificate configuration.")
 
 
 def _write_all(descriptor: int, payload: bytes) -> None:
@@ -179,7 +187,7 @@ def _issue_certificate(
     _run_openssl("pkey", "-check", "-noout", "-in", str(key))
 
 
-def generate_postgres_tls(
+def generate_internal_tls(
     *, authority_directory: Path, deployment_directory: Path, secret_group_id: int
 ) -> tuple[Path, ...]:
     if secret_group_id <= 0:
@@ -192,6 +200,10 @@ def generate_postgres_tls(
         authority_directory / _SERVER_CA_CERTIFICATE,
         authority_directory / _CLIENT_CA_PRIVATE_KEY,
         authority_directory / _CLIENT_CA_CERTIFICATE,
+        authority_directory / _GUNICORN_SERVER_CA_PRIVATE_KEY,
+        authority_directory / _GUNICORN_SERVER_CA_CERTIFICATE,
+        authority_directory / _GUNICORN_CLIENT_CA_PRIVATE_KEY,
+        authority_directory / _GUNICORN_CLIENT_CA_CERTIFICATE,
     )
     deployment_destinations = (
         deployment_directory / _SERVER_CA_CERTIFICATE,
@@ -203,11 +215,17 @@ def generate_postgres_tls(
             for prefix, _common_name in CLIENT_IDENTITIES
             for kind in ("certificate", "private_key")
         ),
+        deployment_directory / _GUNICORN_SERVER_CA_CERTIFICATE,
+        deployment_directory / _GUNICORN_CLIENT_CA_CERTIFICATE,
+        deployment_directory / _GUNICORN_SERVER_CERTIFICATE,
+        deployment_directory / _GUNICORN_SERVER_PRIVATE_KEY,
+        deployment_directory / _NGINX_CLIENT_CERTIFICATE,
+        deployment_directory / _NGINX_CLIENT_PRIVATE_KEY,
     )
     destinations = (*authority_destinations, *deployment_destinations)
     if any(path.exists() or path.is_symlink() for path in destinations):
         raise GenerationFailure(
-            "A PostgreSQL TLS output already exists; use a new staging directory."
+            "An internal TLS output already exists; use a new staging directory."
         )
 
     created: list[Path] = []
@@ -223,6 +241,17 @@ def generate_postgres_tls(
             server_certificate = temporary / "server.crt"
             server_extensions = temporary / "server.ext"
             client_extensions = temporary / "client.ext"
+            gunicorn_server_ca_key = temporary / "gunicorn-server-ca.key"
+            gunicorn_server_ca_certificate = temporary / "gunicorn-server-ca.crt"
+            gunicorn_client_ca_key = temporary / "gunicorn-client-ca.key"
+            gunicorn_client_ca_certificate = temporary / "gunicorn-client-ca.crt"
+            gunicorn_server_key = temporary / "gunicorn-server.key"
+            gunicorn_server_request = temporary / "gunicorn-server.csr"
+            gunicorn_server_certificate = temporary / "gunicorn-server.crt"
+            gunicorn_server_extensions = temporary / "gunicorn-server.ext"
+            nginx_client_key = temporary / "nginx-client.key"
+            nginx_client_request = temporary / "nginx-client.csr"
+            nginx_client_certificate = temporary / "nginx-client.crt"
             server_extensions.write_text(
                 "basicConstraints=critical,CA:FALSE\n"
                 "keyUsage=critical,digitalSignature\n"
@@ -240,6 +269,15 @@ def generate_postgres_tls(
                 "authorityKeyIdentifier=keyid,issuer\n",
                 encoding="ascii",
             )
+            gunicorn_server_extensions.write_text(
+                "basicConstraints=critical,CA:FALSE\n"
+                "keyUsage=critical,digitalSignature\n"
+                "extendedKeyUsage=serverAuth\n"
+                "subjectAltName=DNS:web\n"
+                "subjectKeyIdentifier=hash\n"
+                "authorityKeyIdentifier=keyid,issuer\n",
+                encoding="ascii",
+            )
 
             _generate_ca(
                 key=server_ca_key,
@@ -250,6 +288,16 @@ def generate_postgres_tls(
                 key=client_ca_key,
                 certificate=client_ca_certificate,
                 common_name="Household Budget PostgreSQL Client CA",
+            )
+            _generate_ca(
+                key=gunicorn_server_ca_key,
+                certificate=gunicorn_server_ca_certificate,
+                common_name="Household Budget Gunicorn Server CA",
+            )
+            _generate_ca(
+                key=gunicorn_client_ca_key,
+                certificate=gunicorn_client_ca_certificate,
+                common_name="Household Budget Nginx Client CA",
             )
             _issue_certificate(
                 ca_key=server_ca_key,
@@ -279,7 +327,29 @@ def generate_postgres_tls(
                 )
                 client_material.append((client_certificate, client_key))
 
+            _issue_certificate(
+                ca_key=gunicorn_server_ca_key,
+                ca_certificate=gunicorn_server_ca_certificate,
+                key=gunicorn_server_key,
+                request=gunicorn_server_request,
+                certificate=gunicorn_server_certificate,
+                extensions=gunicorn_server_extensions,
+                common_name="web",
+                purpose="sslserver",
+            )
+            _issue_certificate(
+                ca_key=gunicorn_client_ca_key,
+                ca_certificate=gunicorn_client_ca_certificate,
+                key=nginx_client_key,
+                request=nginx_client_request,
+                certificate=nginx_client_certificate,
+                extensions=client_extensions,
+                common_name="budget-ingress",
+                purpose="sslclient",
+            )
+
             local_group_id = os.getgid() if os.name != "nt" else 1
+            gunicorn_destination_index = 4 + (len(CLIENT_IDENTITIES) * 2)
             install_plan = [
                 (server_ca_key, authority_destinations[0], 0o600, local_group_id),
                 (server_ca_certificate, authority_destinations[1], 0o644, local_group_id),
@@ -289,6 +359,20 @@ def generate_postgres_tls(
                 (client_ca_certificate, deployment_destinations[1], 0o440, secret_group_id),
                 (server_certificate, deployment_destinations[2], 0o440, secret_group_id),
                 (server_key, deployment_destinations[3], 0o440, secret_group_id),
+                (gunicorn_server_ca_key, authority_destinations[4], 0o600, local_group_id),
+                (
+                    gunicorn_server_ca_certificate,
+                    authority_destinations[5],
+                    0o644,
+                    local_group_id,
+                ),
+                (gunicorn_client_ca_key, authority_destinations[6], 0o600, local_group_id),
+                (
+                    gunicorn_client_ca_certificate,
+                    authority_destinations[7],
+                    0o644,
+                    local_group_id,
+                ),
             ]
             for index, (client_certificate, client_key) in enumerate(client_material):
                 destination_index = 4 + (index * 2)
@@ -308,6 +392,46 @@ def generate_postgres_tls(
                         ),
                     )
                 )
+            install_plan.extend(
+                (
+                    (
+                        gunicorn_server_ca_certificate,
+                        deployment_destinations[gunicorn_destination_index],
+                        0o440,
+                        secret_group_id,
+                    ),
+                    (
+                        gunicorn_client_ca_certificate,
+                        deployment_destinations[gunicorn_destination_index + 1],
+                        0o440,
+                        secret_group_id,
+                    ),
+                    (
+                        gunicorn_server_certificate,
+                        deployment_destinations[gunicorn_destination_index + 2],
+                        0o440,
+                        secret_group_id,
+                    ),
+                    (
+                        gunicorn_server_key,
+                        deployment_destinations[gunicorn_destination_index + 3],
+                        0o440,
+                        secret_group_id,
+                    ),
+                    (
+                        nginx_client_certificate,
+                        deployment_destinations[gunicorn_destination_index + 4],
+                        0o440,
+                        secret_group_id,
+                    ),
+                    (
+                        nginx_client_key,
+                        deployment_destinations[gunicorn_destination_index + 5],
+                        0o440,
+                        secret_group_id,
+                    ),
+                )
+            )
             for source, destination, mode, group_id in install_plan:
                 _install_exclusive(source, destination, mode=mode, group_id=group_id)
                 created.append(destination)
@@ -325,16 +449,16 @@ def main() -> int:
     parser.add_argument("--secret-group-id", type=int, required=True)
     arguments = parser.parse_args()
     if shutil.which("openssl") is None:
-        parser.error("OpenSSL is required for PostgreSQL TLS generation.")
+        parser.error("OpenSSL is required for internal TLS generation.")
     try:
-        generate_postgres_tls(
+        generate_internal_tls(
             authority_directory=arguments.authority_directory,
             deployment_directory=arguments.deployment_directory,
             secret_group_id=arguments.secret_group_id,
         )
     except GenerationFailure as error:
         parser.error(str(error))
-    print("Generated PostgreSQL TLS material without printing private values.")
+    print("Generated internal TLS material without printing private values.")
     return 0
 
 

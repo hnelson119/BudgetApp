@@ -84,7 +84,7 @@ $temporaryDirectory = Join-Path (
     [IO.Path]::GetTempPath()
 ) ("budgetapp-network-boundary-" + [Guid]::NewGuid().ToString("N"))
 $secretDirectory = Join-Path $temporaryDirectory "secrets"
-$authorityDirectory = Join-Path $temporaryDirectory "postgres-authority"
+$authorityDirectory = Join-Path $temporaryDirectory "internal-tls-authority"
 $backupDirectory = Join-Path $temporaryDirectory "backups"
 $checkpointDirectory = Join-Path $temporaryDirectory "checkpoints"
 [IO.Directory]::CreateDirectory($secretDirectory) | Out-Null
@@ -109,14 +109,14 @@ foreach ($secretName in $secretSizes.Keys) {
 
 $python = Join-Path $projectRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $python)) {
-    throw "The project virtual environment is required for PostgreSQL TLS generation."
+    throw "The project virtual environment is required for internal TLS generation."
 }
 & $python (Join-Path $projectRoot "scripts\generate-postgres-tls.py") `
     --authority-directory $authorityDirectory `
     --deployment-directory $secretDirectory `
     --secret-group-id 10002
 if ($LASTEXITCODE -ne 0) {
-    throw "The disposable PostgreSQL TLS material could not be generated."
+    throw "The disposable internal TLS material could not be generated."
 }
 
 $environmentValues = @{

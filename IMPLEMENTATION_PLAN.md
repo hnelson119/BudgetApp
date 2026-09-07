@@ -303,9 +303,9 @@ for a release candidate without treating engine automation as a manual pass. Its
 also found and remediated nonportable HTML date defaults and font-metric-dependent narrow summary-
 card overflow. The browser/device matrix remains at 0 of 18 required release-candidate targets, and
 the manual adversarial matrix remains at 0 of 3 required targets, until actual candidate testing is
-performed. A production-derived network helper now verifies the loopback-only secretless ingress
-relay, the exact service/network allowlist, internal application/database routes, the relay's single
-static upstream, exact proxy trust, runtime identities and mounts, blocked Django egress, and secret
+performed. A production-derived network helper now verifies the loopback-only ingress relay, the
+exact service/network allowlist, internal application/database routes, the relay's single mutually
+authenticated TLS upstream, exact proxy trust, runtime identities and mounts, blocked Django egress, and secret
 non-leakage. A separate guarded Linux VM preflight and
 least-privilege tailnet grants template are ready, but real Tailscale, firewall, TLS, approved-
 device, and unapproved-device evidence remains release-only.
@@ -378,8 +378,9 @@ identities, exact role mapping, and hard plaintext and password rejection. The C
 offline, the server material and client trust are staged into database-only tmpfs, and the
 production-derived probe observes the live client DN and TLS session, rejects plaintext,
 missing-certificate, and wrong-role attempts, and proves login roles have no password verifiers.
-The nginx-to-Gunicorn TLS boundary remains an honest open control; live Tailscale and SSH
-observations remain release-only.
+The nginx-to-Gunicorn hop now uses mutually authenticated TLS 1.2 or TLS 1.3 with purpose-separated
+offline authorities, exact `web` hostname verification, one nginx client identity, and no plaintext
+production listener. Live Tailscale and SSH observations remain release-only.
 
 The logging-inventory and separate-archive slices now document all 14 current application, service, host, provider,
 client, and test-output layers, including their event contracts, formats, destinations, uses,

@@ -7,7 +7,7 @@ Next scheduled review: 2026-12-05
 ## Purpose and authority
 
 `docs/cryptographic-inventory.json` is the canonical machine-readable inventory for cryptographic
-keys, algorithms, certificates, and intentionally absent certificate boundaries. This runbook
+keys, algorithms, certificates, and intentionally absent cryptographic material. This runbook
 explains how to maintain it without committing sensitive values. Together they implement the
 repository-deliverable portion of ASVS `v5.0.0-11.1.2`; they do not claim that the future release
 candidate or private Linux VM has been verified.
@@ -60,6 +60,12 @@ iterations. A dependency update must update the inventory and its tests in the s
 | PostgreSQL client CA certificate | PostgreSQL database tmpfs | Exact trust anchor for client authentication | Server, browser, public, or unrelated internal trust |
 | PostgreSQL server certificate | PostgreSQL database container | DNS-constrained internal server authentication | Any identity other than `db` or any client role |
 | PostgreSQL per-service client certificates | Exactly one assigned database client each | Exact CN-to-role authentication through the fixed map | Unmapped roles, server identity, or shared service authentication |
+| Gunicorn server CA key | Offline/removable administrator custody only | Sign the dedicated `web` server identity | Client issuance, database/browser trust, or VM/container residency |
+| nginx client CA key | Offline/removable administrator custody only | Sign the sole `budget-ingress` client identity | Server issuance, database/browser trust, or VM/container residency |
+| Gunicorn server key and certificate | Root-owned secrets mounted only into `web` | Authenticate DNS name `web` and protect the internal HTTP hop | Client authentication, database TLS, browser TLS, or data at rest |
+| nginx client key and certificate | Root-owned secrets mounted only into `ingress` | Authenticate the sole relay client to Gunicorn | Server identity, database TLS, browser TLS, or another client |
+| Gunicorn server CA certificate | nginx ingress only | Exact private trust anchor for DNS name `web` | Broad internal, database, browser, or public trust |
+| nginx client CA certificate | Gunicorn web service only | Exact trust anchor for the sole relay client | Server, database, browser, public, or unrelated internal trust |
 | Tailscale Serve certificate | Provider-managed VM state | Publicly trusted HTTPS for the exact neutral hostname | Other names, public exposure, or data-at-rest protection |
 | Browser trust roots | Approved device trust stores | Validate the HTTPS certificate chain | Custom bypasses or self-signed production trust |
 
@@ -81,17 +87,18 @@ silently treated as opaque products.
    factor, the cryptography/Fernet version, Restic version and repository format, and the deployed
    Tailscale/OpenSSH versions. Update parameters and upstream HTTPS references when behavior changes.
 4. Compare every Compose secret mount to the inventory. Confirm each database client receives only
-   the server CA and its own leaf/key pair, PostgreSQL receives only its server pair and public
-   client CA, and no production database password secret exists.
+   the PostgreSQL server CA and its own leaf/key pair; PostgreSQL receives only its server pair and
+   public client CA; nginx receives only the Gunicorn server CA and its client pair; Gunicorn
+   receives only its server pair and public nginx client CA; and no database password secret exists.
 5. On the release VM, run the private-ingress preflight. Record only sanitized certificate issuer,
    validity, public-key algorithm, fingerprint, negotiated TLS version/cipher, and the SSH public-key
    algorithms actually enabled. Do not commit the real hostname or private material.
 6. Confirm each key still has a single documented purpose, explicit consumers, prohibited uses,
    rotation procedure, and retirement rule. Trace discrepancies as security findings rather than
    changing evidence to match an unexplained deployment.
-7. Review the known absences. PostgreSQL mutual TLS and per-service certificate authentication are
-   inventoried and enforced; the nginx-to-Gunicorn HTTP hop remains a tracked gap. Add a
-   certificate only when it actually exists and is validated.
+7. Review the known absences. PostgreSQL and nginx-to-Gunicorn mutual TLS are inventoried and
+   enforced with independent trust sets. Add material only when it actually exists and its
+   generation, consumer separation, and validation are covered by executable evidence.
 8. Set `inventory_updated` to the review date and `next_review_due` to exactly 90 days later. Update
    the human-readable dates together, run the full quality gate, and obtain security review.
 
@@ -104,7 +111,8 @@ higher key version. Audit checkpoint rotation retains the old verification key o
 original ID. A Restic password rotation rewraps repository master keys; suspected master-key
 disclosure instead requires a new repository and full re-encryption. Both PostgreSQL CA keys stay
 offline; the server key reaches only database-owned tmpfs and each client key reaches only its
-assigned service. They rotate as one complete trust set. Tailscale Serve and SSH private keys stay
+assigned service. They rotate as one complete trust set. The Gunicorn server and nginx client CAs
+also stay offline; their two leaves rotate together as a separate trust set. Tailscale Serve and SSH private keys stay
 outside application containers and are revoked
 at their owning control plane or host.
 
@@ -117,7 +125,8 @@ backup/restore, audit-chain, session-replay, MFA, certificate, and private-ingre
 This inventory is complete for the current design, including things that are intentionally absent.
 It does not make missing controls pass. Production PostgreSQL mutual TLS is implemented with exact
 server trust, a separate client CA, unique service identities, fixed role mapping, and plaintext and
-password rejection. ASVS `v5.0.0-12.1.3` and `v5.0.0-13.2.1` are implemented, while
-`v5.0.0-12.3.1` and `v5.0.0-12.3.4` remain partial because the nginx-to-Gunicorn hop remains HTTP;
-`v5.0.0-12.3.3` remains not started. Browser trust, Tailscale, and SSH observations remain
+password rejection. The nginx-to-Gunicorn hop separately requires mutual TLS with exact CA and DNS
+validation and no plaintext production listener. ASVS `v5.0.0-12.1.3`, `v5.0.0-12.3.3`,
+`v5.0.0-12.3.4`, and `v5.0.0-13.2.1` are implemented. `v5.0.0-12.3.1` and
+`v5.0.0-12.3.2` remain partial only because browser trust, Tailscale, and SSH observations remain
 release-only evidence on the real Linux VM. No reusable Tailscale auth key exists.

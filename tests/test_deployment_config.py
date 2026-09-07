@@ -1,5 +1,6 @@
 import importlib
 import re
+import ssl
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -187,8 +188,36 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert ingress["read_only"] is True
     assert ingress["cap_drop"] == ["ALL"]
     assert ingress["pids_limit"] == 64
-    assert "secrets" not in ingress
-    assert "group_add" not in ingress
+    assert set(ingress["secrets"]) == {
+        "gunicorn_ca_certificate",
+        "nginx_client_certificate",
+        "nginx_client_private_key",
+    }
+    assert ingress["group_add"] == ["${BUDGET_SECRET_GID:-10002}"]
+    assert set(web["secrets"]) >= {
+        "gunicorn_client_ca_certificate",
+        "gunicorn_server_certificate",
+        "gunicorn_server_private_key",
+    }
+    assert web["command"][:4] == [
+        "gunicorn",
+        "--config",
+        "python:config.gunicorn",
+        "config.wsgi:application",
+    ]
+
+    gunicorn_configuration = importlib.import_module("config.gunicorn")
+    assert gunicorn_configuration.bind == "0.0.0.0:8443"
+    assert gunicorn_configuration.cert_reqs == ssl.CERT_REQUIRED
+    assert gunicorn_configuration.ca_certs == "/run/secrets/gunicorn_client_ca_certificate"
+
+    class Context:
+        minimum_version: ssl.TLSVersion | None = None
+        maximum_version: ssl.TLSVersion | None = None
+
+    context = gunicorn_configuration.ssl_context(None, Context)
+    assert context.minimum_version == ssl.TLSVersion.TLSv1_2
+    assert context.maximum_version == ssl.TLSVersion.TLSv1_3
 
     security_log = compose["services"]["security-log"]
     assert security_log["network_mode"] == "none"
@@ -288,6 +317,9 @@ def test_backup_credentials_and_repository_are_isolated_from_web() -> None:
     assert set(web["secrets"]) == {
         "django_secret_key",
         "django_mfa_encryption_key",
+        "gunicorn_client_ca_certificate",
+        "gunicorn_server_certificate",
+        "gunicorn_server_private_key",
         "postgres_ca_certificate",
         "postgres_web_client_certificate",
         "postgres_web_client_private_key",
@@ -489,8 +521,13 @@ def test_container_does_not_enable_raw_access_logging() -> None:
 
     relay_configuration = (PROJECT_ROOT / "deploy/network/nginx.conf").read_text(encoding="utf-8")
     assert "access_log off" in relay_configuration
-    assert "proxy_pass http://web:8000" in relay_configuration
-    assert "proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto" in (relay_configuration)
+    assert "proxy_pass https://web:8443" in relay_configuration
+    assert "proxy_ssl_verify on" in relay_configuration
+    assert "proxy_ssl_name web" in relay_configuration
+    assert "proxy_ssl_certificate /run/secrets/nginx_client_certificate" in relay_configuration
+    assert "default http;" in relay_configuration
+    assert "~^https$ https;" in relay_configuration
+    assert "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto" in relay_configuration
     assert 'proxy_set_header X-Forwarded-For ""' in relay_configuration
 
 

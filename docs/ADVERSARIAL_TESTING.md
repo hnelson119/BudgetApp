@@ -387,7 +387,7 @@ approved- and unapproved-device observations required by `NET-01` and `NET-02`.
 - From the application container, confirm only required database connectivity and credentials are
   available. Inspect the exact Compose service/network catalog, confirm the Django container cannot
   reach a bounded external TCP endpoint, and confirm the running relay has exactly one static
-  destination, `web:8000`.
+  mutually authenticated TLS destination, `https://web:8443`.
 - Pass only if household clients cannot reach PostgreSQL or administrative services, published ports
   and service attachments match the allowlist, the app cannot use migration/owner privileges or
   external egress, and the relay cannot select another upstream.

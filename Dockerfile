@@ -44,6 +44,6 @@ RUN mkdir -p /app/staticfiles /app/media /run/security-log /var/lib/security-log
 USER budget
 RUN DJANGO_SETTINGS_MODULE=config.settings.build python manage.py collectstatic --noinput
 
-EXPOSE 8000
+EXPOSE 8000 8443
 
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--error-logfile", "-", "--capture-output"]

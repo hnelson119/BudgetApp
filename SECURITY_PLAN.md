@@ -164,8 +164,10 @@ Require recent password/MFA verification before:
   intentionally offline job using `network_mode: none`.
 - Configure the Django server for only `db:5432` and require a runtime probe to prove that connection
   works while an external TCP connection fails.
-- Keep the secretless loopback relay's nginx destination literal and singular: `web:8000`. Any new
-  outbound destination or network attachment requires security review and updated boundary tests.
+- Keep the loopback relay's nginx destination literal and singular: `https://web:8443`. Give it
+  only the dedicated Gunicorn server CA and nginx client identity, require exact `web` hostname
+  verification, and reject plaintext or certificate-less upstream connections. Any new outbound
+  destination or network attachment requires security review and updated boundary tests.
 
 ## 6. Application security controls
 
@@ -266,6 +268,9 @@ filter metadata, row count, and time—not the file, search text, or transaction
 - Require authenticated TLS 1.2 or TLS 1.3 for every production PostgreSQL TCP connection, with an
   exact dedicated server CA, `db` hostname verification, a separate client CA, unique purpose-bound
   service certificates, exact certificate-to-role mapping, and no plaintext or password fallback.
+- Require mutually authenticated TLS 1.2 or TLS 1.3 from nginx to Gunicorn, with distinct offline
+  server/client CAs, an exact `web` server identity, a sole `budget-ingress` client identity, and no
+  plaintext Gunicorn listener in production.
 - Document encryption-key generation, storage, backup, rotation, compromise response, and retirement.
 - Keep data-encryption and audit-signing keys separate from the database and source repository.
 
@@ -273,8 +278,9 @@ Implementation note: `docs/cryptographic-inventory.json` is the canonical, machi
 inventory of application, deployment, provider-managed, and test-only keys, algorithms, and
 certificates. It assigns every key a purpose, consumers, protected and excluded data, prohibited
 uses, rotation, and retirement; records compatibility-only SHA-1 and test-only MD5 boundaries; and
-tracks implemented PostgreSQL mutual trust separately from the still-absent nginx-to-Gunicorn TLS
-identity. The database CA/key lifecycle is in `docs/POSTGRES_TLS.md`; inventory maintenance and
+tracks the independently purpose-bound PostgreSQL and nginx-to-Gunicorn mutual-TLS identities. The
+database CA/key lifecycle is in `docs/POSTGRES_TLS.md`; the internal HTTP lifecycle is in
+`docs/PRIVATE_INGRESS.md`; inventory maintenance and
 release evidence are in `docs/CRYPTOGRAPHIC_INVENTORY.md` and are reviewed every release candidate,
 every cryptographic change, and at least every 90 days.
 
@@ -318,8 +324,8 @@ every cryptographic change, and at least every 90 days.
 - Apply memory, process, and storage limits.
 - Pin base images and dependencies; use minimal maintained images.
 
-The production ingress buffers complete requests and uses HTTP/1.1 on both sides of the
-nginx-to-Gunicorn boundary. A dedicated production-image CI probe accepts valid bodyless,
+The production ingress buffers complete requests and uses HTTP/1.1 semantics inside mutually
+authenticated TLS on the nginx-to-Gunicorn boundary. A dedicated production-image CI probe accepts valid bodyless,
 content-length, and chunked requests while requiring ambiguous or malformed framing to produce one
 error response and connection closure. The browser-facing Tailscale HTTP/2/3 receiver must undergo
 the bounded message-length mismatch check in `docs/PRIVATE_INGRESS.md` for each release candidate;

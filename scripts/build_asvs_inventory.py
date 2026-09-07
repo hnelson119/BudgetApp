@@ -238,12 +238,7 @@ EXCLUDED_REQUIREMENTS: dict[str, str] = {
     "V15.3.2": "The application backend does not currently call user-selected or external URLs.",
 }
 
-NOT_STARTED: dict[str, str] = {
-    "V12.3.3": (
-        "Internal HTTP/service connections have not been comprehensively inventoried and forced "
-        "to encrypted transports."
-    ),
-}
+NOT_STARTED: dict[str, str] = {}
 
 IMPLEMENTED_REQUIREMENTS = {
     "V1.1.2",
@@ -327,6 +322,8 @@ IMPLEMENTED_REQUIREMENTS = {
     "V11.5.1",
     "V12.1.3",
     "V12.2.1",
+    "V12.3.3",
+    "V12.3.4",
     "V13.2.1",
     "V13.2.2",
     "V13.2.3",
@@ -422,6 +419,16 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "and maps its exact certificate CN to one configured database role. The runtime proof "
         "confirms the web client DN and rejects a web certificate attempting the audit role."
     ),
+    "V12.3.3": (
+        "The only internal HTTP service hop uses mutually authenticated TLS 1.2 or TLS 1.3: "
+        "nginx validates the DNS-constrained web server against a dedicated CA, Gunicorn trusts "
+        "only the separate nginx client CA, and neither side exposes a plaintext listener."
+    ),
+    "V12.3.4": (
+        "PostgreSQL and the nginx-to-Gunicorn hop use separate purpose-bound offline server and "
+        "client CAs. Each TLS client trusts only its intended internal server CA and exact DNS "
+        "name; each server trusts only its intended client CA."
+    ),
     "V13.2.1": (
         "Every production database client uses a unique purpose-bound certificate identity mapped "
         "to its least-privilege role. PostgreSQL accepts no password-authenticated TCP path, and "
@@ -432,14 +439,16 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "The production Compose model fixes the exact service catalog and network attachments, "
         "rejects network-bypass settings, keeps the application and maintenance workloads on "
         "internal networks or no network, and defines no external application destination. The "
-        "secretless loopback relay retains the non-internal network required for its host publish "
-        "but its running nginx configuration is restricted to the single internal web upstream. "
+        "TLS-only loopback relay retains the non-internal network required for its host publish "
+        "but its running nginx configuration is restricted to the single authenticated internal "
+        "web upstream. "
         "Release-candidate verification remains pending."
     ),
     "V13.2.5": (
         "The Django server is restricted to its internal database destination and cannot connect "
-        "to an external TCP endpoint, while the secretless nginx server has exactly one static "
-        "internal proxy destination, web:8000. The production-derived runtime probe checks both "
+        "to an external TCP endpoint, while nginx has exactly one static internal proxy "
+        "destination, https://web:8443, with exact server trust and a purpose-bound client "
+        "identity. The production-derived runtime probe checks both "
         "paths without claiming release-candidate verification."
     ),
     "V15.1.2": (
@@ -540,6 +549,31 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "tests/test_network_boundary.py",
         "docs/POSTGRES_TLS.md",
     ],
+    "V12.3.3": [
+        "compose.yaml",
+        "config/gunicorn.py",
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "scripts/generate-postgres-tls.py",
+        "tests/test_deployment_config.py",
+        "tests/test_network_boundary.py",
+        "tests/test_postgres_tls.py",
+        "docs/PRIVATE_INGRESS.md",
+        "docs/cryptographic-inventory.json",
+    ],
+    "V12.3.4": [
+        "compose.yaml",
+        "config/gunicorn.py",
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "deploy/postgres/start-tls.sh",
+        "scripts/generate-postgres-tls.py",
+        "tests/test_network_boundary.py",
+        "tests/test_postgres_tls.py",
+        "docs/PRIVATE_INGRESS.md",
+        "docs/POSTGRES_TLS.md",
+        "docs/cryptographic-inventory.json",
+    ],
     "V13.2.1": [
         "scripts/generate-postgres-tls.py",
         "compose.yaml",
@@ -595,17 +629,14 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
 
 PARTIAL_ASSESSMENT_OVERRIDES: dict[str, str] = {
     "V12.3.1": (
-        "Every production PostgreSQL TCP client requires TLS 1.2 or TLS 1.3 with exact internal-CA "
-        "and hostname verification, and PostgreSQL explicitly rejects plaintext TCP. The internal "
-        "nginx-to-Gunicorn hop still carries application traffic over HTTP, so the all-sensitive-"
-        "communications requirement remains partial."
+        "Every application-managed production TCP connection now requires TLS 1.2 or TLS 1.3 "
+        "without a plaintext fallback. Dated verification of browser-facing Tailscale HTTPS and "
+        "key-only administrative SSH on the release VM remains pending."
     ),
-    "V12.3.4": (
-        "The PostgreSQL internal TLS connection uses a dedicated offline CA, a DNS-constrained db "
-        "server certificate, and libpq verify-full with no broad trust bundle or validation "
-        "bypass. "
-        "Authenticated certificate trust for the still-plaintext nginx-to-Gunicorn hop remains "
-        "open."
+    "V12.3.2": (
+        "Production libpq clients and nginx validate their internal server certificates against "
+        "purpose-specific CAs and exact DNS names before sending application data. Dated browser "
+        "trust-store verification against the release Tailscale hostname remains pending."
     ),
 }
 
@@ -615,6 +646,8 @@ PARTIAL_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "config/settings/hardened.py",
         "deploy/postgres/start-tls.sh",
         "deploy/postgres/pg_hba.conf",
+        "config/gunicorn.py",
+        "deploy/network/nginx.conf",
         "deploy/network/run-production-boundary.py",
         "scripts/generate-postgres-tls.py",
         "tests/test_deployment_config.py",

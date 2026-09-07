@@ -28,10 +28,10 @@
     ]
   },
   "summary": {
-    "cryptographic_keys": 13,
-    "algorithms": 14,
-    "certificates": 6,
-    "known_absences": 2
+    "cryptographic_keys": 17,
+    "algorithms": 15,
+    "certificates": 10,
+    "known_absences": 1
   },
   "cryptographic_keys": [
     {
@@ -606,6 +606,178 @@
         "deploy/network/run-production-boundary.py",
         "docs/POSTGRES_TLS.md"
       ]
+    },
+    {
+      "id": "gunicorn-server-ca-private-key",
+      "name": "Gunicorn server certificate-authority private key",
+      "state": "active",
+      "owner": "deployment administrator",
+      "boundary": "deployment",
+      "material_type": "offline ECDSA P-256 certificate-authority private key",
+      "generation": "Generate with OpenSSL through the guarded internal TLS generator in a new mode-0700 authority directory.",
+      "storage": "Kept only in offline or removable administrator custody; never placed in the deployment secret directory, VM runtime, container, image, environment, log, or repository.",
+      "consumers": [
+        "offline Gunicorn server-certificate generator"
+      ],
+      "algorithms": [
+        "internal-web-mtls"
+      ],
+      "permitted_uses": [
+        "sign the dedicated Gunicorn server certificate for the internal web DNS identity"
+      ],
+      "prohibited_uses": [
+        "client-certificate issuance",
+        "PostgreSQL, browser, or public TLS issuance",
+        "application signing or data encryption",
+        "presence on the production VM or in an application container"
+      ],
+      "protected_data": [
+        "trust root for the internal Gunicorn server identity"
+      ],
+      "excluded_data": [
+        "database traffic",
+        "nginx client authentication",
+        "browser traffic",
+        "backup encryption"
+      ],
+      "rotation": "Generate a new server CA and web identity with the nginx client trust set in new staging directories, stop ingress, atomically replace the six deployment certificate files, recreate nginx and Gunicorn, and rerun the production-boundary proof.",
+      "retirement": "Retain the prior CA key only in protected offline rollback custody until the replacement deployment is verified, then destroy it.",
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "compose.yaml",
+        "docs/PRIVATE_INGRESS.md",
+        "docs/INCIDENT_RESPONSE.md"
+      ]
+    },
+    {
+      "id": "gunicorn-server-private-key",
+      "name": "Gunicorn internal server private key",
+      "state": "active",
+      "owner": "deployment administrator and Gunicorn web service",
+      "boundary": "deployment",
+      "material_type": "ECDSA P-256 private key for the internal web DNS identity",
+      "generation": "Generate with OpenSSL through the guarded internal TLS generator alongside a 397-day server certificate.",
+      "storage": "Root-owned mode-0440 deployment secret mounted read-only only into the Gunicorn web container through the dedicated secret-reader group.",
+      "consumers": [
+        "Gunicorn production web service"
+      ],
+      "algorithms": [
+        "internal-web-mtls"
+      ],
+      "permitted_uses": [
+        "authenticate Gunicorn and establish encrypted internal HTTP sessions with nginx"
+      ],
+      "prohibited_uses": [
+        "client authentication",
+        "PostgreSQL or browser TLS",
+        "application signing or data-at-rest encryption",
+        "mounting into nginx or another client"
+      ],
+      "protected_data": [
+        "internal Gunicorn server identity",
+        "confidentiality and integrity of the internal HTTP hop"
+      ],
+      "excluded_data": [
+        "database traffic",
+        "browser-to-ingress traffic",
+        "application data at rest",
+        "backup repository contents"
+      ],
+      "rotation": "Rotate with both internal web authorities and the nginx client identity before the leaf expires, recreate nginx and Gunicorn, and rerun the production-boundary proof.",
+      "retirement": "Destroy the prior deployment key after replacement and rollback verification; the retired container retains no writable copy.",
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "config/gunicorn.py",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    },
+    {
+      "id": "nginx-client-ca-private-key",
+      "name": "nginx client certificate-authority private key",
+      "state": "active",
+      "owner": "deployment administrator",
+      "boundary": "deployment",
+      "material_type": "offline ECDSA P-256 certificate-authority private key",
+      "generation": "Generate with OpenSSL through the guarded internal TLS generator in the separate mode-0700 authority directory.",
+      "storage": "Kept only in offline or removable administrator custody; never placed in the deployment secret directory, VM runtime, container, image, environment, log, or repository.",
+      "consumers": [
+        "offline nginx client-certificate generator"
+      ],
+      "algorithms": [
+        "internal-web-mtls"
+      ],
+      "permitted_uses": [
+        "sign the sole budget-ingress client identity"
+      ],
+      "prohibited_uses": [
+        "server-certificate issuance",
+        "PostgreSQL, browser, or public TLS issuance",
+        "application signing or data encryption",
+        "presence on the production VM or in an application container"
+      ],
+      "protected_data": [
+        "trust root for nginx client authentication to Gunicorn"
+      ],
+      "excluded_data": [
+        "database traffic",
+        "Gunicorn server authentication",
+        "browser traffic",
+        "backup encryption"
+      ],
+      "rotation": "Generate a new client CA and nginx identity with the Gunicorn server trust set in new staging directories, stop ingress, atomically replace the six deployment certificate files, recreate nginx and Gunicorn, and rerun the production-boundary proof.",
+      "retirement": "Retain the prior CA key only in protected offline rollback custody until the replacement deployment is verified, then destroy it.",
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "compose.yaml",
+        "docs/PRIVATE_INGRESS.md",
+        "docs/INCIDENT_RESPONSE.md"
+      ]
+    },
+    {
+      "id": "nginx-client-private-key",
+      "name": "nginx internal client private key",
+      "state": "active",
+      "owner": "deployment administrator and nginx ingress relay",
+      "boundary": "deployment",
+      "material_type": "ECDSA P-256 private key for the sole budget-ingress client identity",
+      "generation": "Generate with OpenSSL through the guarded internal TLS generator alongside a 397-day client certificate.",
+      "storage": "Root-owned mode-0440 deployment secret mounted read-only only into the nginx ingress container through the dedicated secret-reader group.",
+      "consumers": [
+        "nginx production ingress relay"
+      ],
+      "algorithms": [
+        "internal-web-mtls"
+      ],
+      "permitted_uses": [
+        "authenticate the sole nginx relay client to the Gunicorn web service"
+      ],
+      "prohibited_uses": [
+        "server authentication",
+        "PostgreSQL or browser TLS",
+        "application signing or data-at-rest encryption",
+        "mounting into Gunicorn or another client"
+      ],
+      "protected_data": [
+        "nginx relay client identity",
+        "authorization to connect to the internal Gunicorn listener"
+      ],
+      "excluded_data": [
+        "database traffic",
+        "Gunicorn server identity",
+        "browser traffic",
+        "backup repository contents"
+      ],
+      "rotation": "Rotate with both internal web authorities and the Gunicorn server identity before the leaf expires, recreate nginx and Gunicorn, and rerun the production-boundary proof.",
+      "retirement": "Destroy the retired deployment key after replacement and rollback verification; never reuse it for another client identity.",
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "deploy/network/nginx.conf",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "docs/PRIVATE_INGRESS.md"
+      ]
     }
   ],
   "algorithms": [
@@ -888,6 +1060,36 @@
       ]
     },
     {
+      "id": "internal-web-mtls",
+      "name": "Internal nginx-to-Gunicorn mutual TLS 1.2 and TLS 1.3 profile",
+      "security_status": "approved",
+      "scope": "production internal HTTP transport",
+      "parameters": "nginx and Gunicorn with OpenSSL TLS 1.2 or TLS 1.3, separate ECDSA P-256 server and client authorities, purpose-bound serverAuth and clientAuth leaves, DNS SAN web, exact CA and hostname validation, and no plaintext production listener",
+      "consumers": [
+        "nginx production ingress relay",
+        "Gunicorn production web service"
+      ],
+      "permitted_uses": [
+        "encrypted, integrity-protected, mutually authenticated HTTP transport on the internal frontend network"
+      ],
+      "prohibited_uses": [
+        "TLS below version 1.2",
+        "disabled server-certificate verification",
+        "trust outside either dedicated internal web CA",
+        "plaintext nginx-to-Gunicorn fallback",
+        "reuse for PostgreSQL, browser, or public TLS",
+        "issuing any client identity other than budget-ingress"
+      ],
+      "evidence": [
+        "compose.yaml",
+        "config/gunicorn.py",
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "scripts/generate-postgres-tls.py",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    },
+    {
       "id": "tailscale-wireguard-suite",
       "name": "Tailscale WireGuard transport suite",
       "security_status": "provider_managed",
@@ -1122,24 +1324,122 @@
         "tests/test_network_boundary.py",
         "docs/POSTGRES_TLS.md"
       ]
-    }
-  ],
-  "known_absences": [
+    },
     {
-      "id": "internal-service-certificates",
-      "current_state": "PostgreSQL has mutually authenticated, exact-purpose internal certificates, but the nginx-to-Gunicorn HTTP hop remains unencrypted on the internal frontend network.",
-      "required_action": "Implement authenticated TLS from nginx to Gunicorn with a narrowly trusted internal identity, then repeat the production-derived runtime proof.",
-      "related_asvs": [
-        "v5.0.0-12.3.1",
-        "v5.0.0-12.3.3",
-        "v5.0.0-12.3.4"
+      "id": "gunicorn-server-ca-certificate",
+      "name": "Gunicorn server certificate-authority certificate",
+      "state": "active",
+      "owner": "deployment administrator and nginx ingress relay",
+      "boundary": "deployment",
+      "issuer": "Self-issued by the offline Household Budget Gunicorn server authority",
+      "subject": "Dedicated internal Gunicorn server authority; actual certificate material is not committed",
+      "key_residency": "The public certificate is mounted read-only only into nginx; its private key remains only in offline administrator custody.",
+      "algorithms": [
+        "internal-web-mtls"
+      ],
+      "validation": "nginx enables proxy certificate verification with only this mounted CA file and verifies the exact web DNS name before sending application traffic.",
+      "renewal": "Rotate both internal web authorities and leaves before either leaf expires or immediately after suspected authority compromise, then rerun the production-boundary proof.",
+      "prohibited_uses": [
+        "trusting unrelated internal services",
+        "PostgreSQL, browser, or public TLS trust",
+        "certificate-validation bypasses",
+        "client-certificate issuance"
       ],
       "evidence": [
-        "compose.yaml",
+        "scripts/generate-postgres-tls.py",
         "deploy/network/nginx.conf",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
         "docs/PRIVATE_INGRESS.md"
       ]
     },
+    {
+      "id": "gunicorn-server-certificate",
+      "name": "Gunicorn internal server certificate",
+      "state": "active",
+      "owner": "deployment administrator and Gunicorn web service",
+      "boundary": "deployment",
+      "issuer": "Dedicated offline Household Budget Gunicorn server authority",
+      "subject": "Exact internal Docker DNS identity web with matching DNS subject alternative name",
+      "key_residency": "The leaf and private key are root-owned secrets mounted read-only only into Gunicorn; only the public dedicated CA reaches nginx.",
+      "algorithms": [
+        "internal-web-mtls"
+      ],
+      "validation": "Generation verifies serverAuth purpose, chain, DNS name, and at least 30 remaining validity days; nginx verifies the exact CA and web hostname, while the boundary probe rejects the plaintext port.",
+      "renewal": "The generated leaf lifetime is 397 days. Rotate the complete internal web trust set in new staging directories before expiration and verify the disposable production boundary before promotion.",
+      "prohibited_uses": [
+        "any DNS identity other than web",
+        "client authentication",
+        "PostgreSQL, browser, or public TLS",
+        "application signing or data-at-rest encryption"
+      ],
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "config/gunicorn.py",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    },
+    {
+      "id": "nginx-client-ca-certificate",
+      "name": "nginx client certificate-authority certificate",
+      "state": "active",
+      "owner": "deployment administrator and Gunicorn web service",
+      "boundary": "deployment",
+      "issuer": "Self-issued by the offline Household Budget nginx client authority",
+      "subject": "Dedicated nginx client-authentication authority; actual certificate material is not committed",
+      "key_residency": "The public certificate is mounted read-only only into Gunicorn; its private key remains only in offline administrator custody.",
+      "algorithms": [
+        "internal-web-mtls"
+      ],
+      "validation": "Gunicorn requires a client certificate chained to only this CA on every production connection; no plaintext production listener is configured.",
+      "renewal": "Rotate both internal web authorities and leaves before either leaf expires or immediately after suspected authority compromise, then rerun the production-boundary proof.",
+      "prohibited_uses": [
+        "Gunicorn server identity validation",
+        "trusting unrelated internal services",
+        "PostgreSQL, browser, or public TLS trust",
+        "certificate-validation bypasses"
+      ],
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "config/gunicorn.py",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    },
+    {
+      "id": "nginx-client-certificate",
+      "name": "nginx internal client certificate",
+      "state": "active",
+      "owner": "deployment administrator and nginx ingress relay",
+      "boundary": "deployment",
+      "issuer": "Dedicated offline Household Budget nginx client authority",
+      "subject": "Sole purpose-bound client identity budget-ingress",
+      "key_residency": "The leaf and its private key are root-owned secrets mounted read-only only into nginx; only the public dedicated client CA reaches Gunicorn.",
+      "algorithms": [
+        "internal-web-mtls"
+      ],
+      "validation": "Generation verifies clientAuth purpose and chain; Gunicorn requires the dedicated client CA, while the production-boundary proof rejects a connection without the nginx client identity.",
+      "renewal": "The generated leaf lifetime is 397 days. Rotate the complete internal web trust set before expiration, recreate nginx and Gunicorn, and repeat the production-boundary proof.",
+      "prohibited_uses": [
+        "authentication as another internal client",
+        "sharing the private key with another service",
+        "server authentication",
+        "PostgreSQL, browser, or public TLS"
+      ],
+      "evidence": [
+        "scripts/generate-postgres-tls.py",
+        "deploy/network/nginx.conf",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    }
+  ],
+  "known_absences": [
     {
       "id": "reusable-tailscale-auth-keys",
       "current_state": "Reusable Tailscale enrollment keys are prohibited and are not part of the deployment.",

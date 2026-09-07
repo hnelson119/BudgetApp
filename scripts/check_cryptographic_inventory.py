@@ -18,7 +18,11 @@ INVENTORY_PATH = PROJECT_ROOT / "docs" / "cryptographic-inventory.json"
 EXPECTED_KEY_IDS = {
     "audit-checkpoint-signing-key",
     "django-signing-key",
+    "gunicorn-server-ca-private-key",
+    "gunicorn-server-private-key",
     "mfa-encryption-key",
+    "nginx-client-ca-private-key",
+    "nginx-client-private-key",
     "postgres-client-ca-private-key",
     "postgres-client-private-keys",
     "postgres-internal-ca-private-key",
@@ -34,6 +38,7 @@ EXPECTED_ALGORITHM_IDS = {
     "django-pbkdf2-hmac-sha256",
     "fernet-v1",
     "hmac-sha256",
+    "internal-web-mtls",
     "os-csprng",
     "password-blocklist-sha1",
     "postgres-internal-tls",
@@ -48,6 +53,10 @@ EXPECTED_ALGORITHM_IDS = {
 }
 EXPECTED_CERTIFICATE_IDS = {
     "browser-public-trust-roots",
+    "gunicorn-server-ca-certificate",
+    "gunicorn-server-certificate",
+    "nginx-client-ca-certificate",
+    "nginx-client-certificate",
     "postgres-internal-ca-certificate",
     "postgres-client-ca-certificate",
     "postgres-role-client-certificates",
@@ -55,7 +64,6 @@ EXPECTED_CERTIFICATE_IDS = {
     "tailscale-serve-leaf-certificate",
 }
 EXPECTED_ABSENCE_IDS = {
-    "internal-service-certificates",
     "reusable-tailscale-auth-keys",
 }
 EXPECTED_UPDATE_TRIGGERS = {
@@ -300,6 +308,8 @@ def _validate_dependency_contract(algorithms: dict[str, dict[str, Any]]) -> None
         _fail("the inventoried test-only MD5 exception no longer matches test settings")
 
     compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    gunicorn = (PROJECT_ROOT / "config/gunicorn.py").read_text(encoding="utf-8")
+    nginx = (PROJECT_ROOT / "deploy/network/nginx.conf").read_text(encoding="utf-8")
     postgres_startup = (PROJECT_ROOT / "deploy/postgres/start-tls.sh").read_text(encoding="utf-8")
     postgres_hba = (PROJECT_ROOT / "deploy/postgres/pg_hba.conf").read_text(encoding="utf-8")
     if (
@@ -314,6 +324,26 @@ def _validate_dependency_contract(algorithms: dict[str, dict[str, Any]]) -> None
         or "hostnossl all all all reject" not in postgres_hba
     ):
         _fail("the inventoried PostgreSQL TLS policy no longer matches deployment source")
+
+    if (
+        "gunicorn_client_ca_certificate" not in compose
+        or "gunicorn_server_private_key" not in compose
+        or "nginx_client_certificate" not in compose
+        or 'bind = "0.0.0.0:8443"' not in gunicorn
+        or "cert_reqs = ssl.CERT_REQUIRED" not in gunicorn
+        or "context.minimum_version = ssl.TLSVersion.TLSv1_2" not in gunicorn
+        or "context.maximum_version = ssl.TLSVersion.TLSv1_3" not in gunicorn
+        or "proxy_pass https://web:8443;" not in nginx
+        or "proxy_ssl_name web;" not in nginx
+        or "proxy_ssl_verify on;" not in nginx
+        or "proxy_ssl_protocols TLSv1.2 TLSv1.3;" not in nginx
+        or "proxy_ssl_certificate /run/secrets/nginx_client_certificate;" not in nginx
+        or "proxy_ssl_trusted_certificate /run/secrets/gunicorn_ca_certificate;" not in nginx
+        or "default http;" not in nginx
+        or "~^https$ https;" not in nginx
+        or "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;" not in nginx
+    ):
+        _fail("the inventoried internal web mutual-TLS policy no longer matches deployment source")
 
 
 def validate_inventory(data: Any, *, today: date | None = None) -> None:
