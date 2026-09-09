@@ -62,6 +62,14 @@ _CONTENT_SECURITY_POLICY = "; ".join(
 )
 
 
+def _is_operational_path(path: str) -> bool:
+    segments = (segment.casefold() for segment in path.split("/") if segment)
+    return any(
+        segment in _RESERVED_OPERATIONAL_SEGMENTS or segment.startswith(("openapi.", "swagger."))
+        for segment in segments
+    )
+
+
 class ProxyBoundaryMiddleware:
     """Canonicalize only the proxy signal the private deployment trusts."""
 
@@ -74,6 +82,21 @@ class ProxyBoundaryMiddleware:
             request.META.pop("HTTP_X_FORWARDED_PROTO", None)
         for name in ("HTTP_FORWARDED", "HTTP_X_FORWARDED_HOST", "HTTP_X_FORWARDED_PORT"):
             request.META.pop(name, None)
+        return self.get_response(request)
+
+
+class NonBrowserTransportBoundaryMiddleware:
+    """Reject insecure operational requests instead of hiding them behind redirects."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        if _is_operational_path(request.path_info) and not request.is_secure():
+            response = HttpResponse(status=400)
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
         return self.get_response(request)
 
 
@@ -101,12 +124,7 @@ class OperationalEndpointBoundaryMiddleware:
         path = request.path_info
         if path == _PUBLIC_OPERATIONAL_PATH:
             return self.get_response(request)
-        segments = (segment.casefold() for segment in path.split("/") if segment)
-        if any(
-            segment in _RESERVED_OPERATIONAL_SEGMENTS
-            or segment.startswith(("openapi.", "swagger."))
-            for segment in segments
-        ):
+        if _is_operational_path(path):
             return HttpResponse(status=404)
         return self.get_response(request)
 

@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 119,
+      "implemented": 120,
       "not_applicable": 79,
-      "partial": 55
+      "partial": 54
     }
   },
   "requirements": [
@@ -1131,12 +1131,17 @@
       "level": 2,
       "description": "Verify that only user-facing endpoints (intended for manual web-browser access) automatically redirect from HTTP to HTTPS, while other services or endpoints do not implement transparent redirects. This is to avoid a situation where a client is erroneously sending unencrypted HTTP requests, but since the requests are being automatically redirected to HTTPS, the leakage of sensitive data goes undiscovered.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "A hardened pre-redirect boundary classifies reserved documentation and monitoring paths as non-browser endpoints. Missing or ambiguous trusted proxy schemes receive an empty 400 response without Location, while a representative browser page retains its exact canonical HTTPS redirect; the production-derived runtime probe exercises both paths.",
       "evidence": [
-        "config/settings/production.py",
         "core/middleware.py",
-        "tests/test_web_foundation.py"
+        "config/settings/production.py",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_logging.py",
+        "tests/test_network_boundary.py",
+        "tests/test_production_settings.py",
+        "docs/PRIVATE_INGRESS.md"
       ]
     },
     {

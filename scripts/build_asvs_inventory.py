@@ -267,6 +267,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V3.5.1",
     "V3.5.3",
     "V4.1.1",
+    "V4.1.2",
     "V4.2.1",
     "V5.2.1",
     "V5.2.2",
@@ -363,6 +364,12 @@ IMPLEMENTED_REQUIREMENTS = {
 }
 
 IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V4.1.2": (
+        "A hardened pre-redirect boundary classifies reserved documentation and monitoring paths "
+        "as non-browser endpoints. Missing or ambiguous trusted proxy schemes receive an empty "
+        "400 response without Location, while a representative browser page retains its exact "
+        "canonical HTTPS redirect; the production-derived runtime probe exercises both paths."
+    ),
     "V4.2.1": (
         "The production-derived nginx and Gunicorn boundary accepts three valid HTTP/1.1 message "
         "forms and must reject six ambiguous or malformed framing forms with exactly one error "
@@ -495,6 +502,16 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
 }
 
 IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
+    "V4.1.2": [
+        "core/middleware.py",
+        "config/settings/production.py",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_logging.py",
+        "tests/test_network_boundary.py",
+        "tests/test_production_settings.py",
+        "docs/PRIVATE_INGRESS.md",
+    ],
     "V4.2.1": [
         "deploy/network/nginx.conf",
         "deploy/network/run-production-boundary.py",

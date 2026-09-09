@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 119 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 55 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 120 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 54 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 55
+These are the clearest implementation or operational work items exposed by the mapping. The 54
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -57,6 +57,12 @@ confirmation and a bounded reason, rotates server-side versions, removes matchin
 and records protected household audit events. Release-candidate verification remains pending.
 
 ### HTTP and backend communication
+
+The hardened pre-redirect boundary implements `v5.0.0-4.1.2`: browser-facing pages retain their
+canonical HTTP-to-HTTPS redirect, but liveness and every reserved documentation or monitoring path
+return an empty `400` with no `Location` when the trusted HTTPS signal is absent or ambiguous. The
+production-derived probe exercises both outcomes so an accidentally plaintext service client is
+not hidden behind a successful redirect.
 
 The production-derived request-boundary harness implements `v5.0.0-4.2.1` for the nginx-to-Gunicorn
 HTTP/1.1 boundary. It accepts three valid body encodings and requires six ambiguous or malformed

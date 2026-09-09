@@ -108,6 +108,9 @@ def test_production_settings_pin_exact_private_ingress_and_proxy_boundary() -> N
         production_file
     )
     assert 'MIDDLEWARE.insert(0, "core.middleware.ProxyBoundaryMiddleware")' in hardened_file
+    assert 'MIDDLEWARE.insert(1, "core.middleware.NonBrowserTransportBoundaryMiddleware")' in (
+        production_file
+    )
     assert 'MIDDLEWARE.insert(2, "core.middleware.HostBoundaryMiddleware")' in hardened_file
     assert '"core.middleware.OperationalEndpointBoundaryMiddleware"' in hardened_file
     assert 'MIDDLEWARE.index("core.middleware.AuthenticatedNoStoreMiddleware")' in hardened_file

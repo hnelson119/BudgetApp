@@ -138,6 +138,15 @@ production stack, as do representative documentation and monitoring paths. Addin
 or API-documentation endpoint requires an explicit middleware allowlist change, updated production
 probe, and security review.
 
+The HTTPS redirect is deliberately limited to browser-facing pages. Before Django's redirect
+middleware runs, the hardened transport boundary classifies the liveness endpoint and every
+reserved documentation or monitoring path as non-browser traffic. If the exact trusted HTTPS proxy
+signal is missing or ambiguous, those paths return an empty `400` with no `Location`; they never
+hide a plaintext service request behind a transparent redirect. The production-derived probe
+requires this failure for the liveness route under missing, uppercase, compound, and whitespace
+scheme values and for every blocked operational-path representative. A normal login page must
+still redirect to its exact private HTTPS URL.
+
 The nginx relay is the narrow availability exception described in `M10-F014`: Docker requires its
 non-internal ingress network to create the loopback host publish. It receives no Django, database,
 backup, audit, or MFA secret and no database network; its only secrets are the public Gunicorn
@@ -201,7 +210,8 @@ production Compose services, and verifies the following without printing secret 
 - the exact service/network allowlist, internal-only application/database networks, the offline
   key-rotation job, and the relay's exact `127.0.0.1:8000` publish;
 - no host PostgreSQL or Docker-administration port;
-- canonical proxy scheme/host handling, safe redirects, HSTS, production errors, disabled
+- canonical proxy scheme/host handling, browser-only safe redirects, non-browser plaintext
+  rejection, HSTS, production errors, disabled
   directory indexing, non-reflective HTTP TRACE rejection, and an exact public operational-route
   allowlist with empty hardened `404` responses for blocked endpoints;
 - three valid and six ambiguous/malformed HTTP/1.1 request-framing cases, including a trailing
