@@ -480,9 +480,9 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
     ),
     "V14.3.1": (
         "Every secure server-side session termination response directs the browser to clear "
-        "cache, cookies, and origin storage. Logout forms also synchronously clear Web Storage, begin "
-        "Cache Storage and IndexedDB removal, and replace the authenticated DOM independently "
-        "of the network response; the browser lifecycle test exercises both paths."
+        "cache, cookies, and origin storage. Logout forms also synchronously clear Web Storage, "
+        "begin Cache Storage and IndexedDB removal, and replace the authenticated DOM "
+        "independently of the network response; the browser lifecycle test exercises both paths."
     ),
     "V15.1.2": (
         "The deterministic CycloneDX inventory derives all production, development, build, test, "
