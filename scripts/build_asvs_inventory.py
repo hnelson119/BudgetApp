@@ -299,6 +299,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V6.5.3",
     "V6.5.4",
     "V6.5.5",
+    "V7.1.1",
     "V7.2.1",
     "V7.2.2",
     "V7.2.3",
@@ -418,6 +419,12 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "Users can review their current-version server-side sessions and, after recent "
         "authentication, terminate an individual session or all sessions through non-reversible "
         "action references."
+    ),
+    "V7.1.1": (
+        "The session policy documents and justifies the enforced one-hour inactivity and "
+        "twelve-hour overall limits against the current NIST SP 800-63B AAL2 recommendation, "
+        "including the stricter overall boundary, browser-only persistence, termination behavior, "
+        "and change-control requirements."
     ),
     "V11.1.2": (
         "The machine-validated inventory covers application, deployment, provider-managed, and "
@@ -576,6 +583,15 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "identity/views.py",
         "deploy/pentest/run-session-security.py",
         "tests/test_account_security.py",
+    ],
+    "V7.1.1": [
+        "docs/SESSION_SECURITY.md",
+        "config/settings/base.py",
+        "config/settings/hardened.py",
+        "identity/services/sessions.py",
+        "identity/middleware.py",
+        "tests/test_authentication.py",
+        "tests/test_release_hardening.py",
     ],
     "V11.1.2": [
         "docs/cryptographic-inventory.json",

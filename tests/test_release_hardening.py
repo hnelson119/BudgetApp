@@ -8,6 +8,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from django.conf import settings
 
 from scripts.build_asvs_inventory import (
     IMPLEMENTED_ASSESSMENT_OVERRIDES,
@@ -250,9 +251,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 121,
+            "implemented": 122,
             "not_applicable": 79,
-            "partial": 53,
+            "partial": 52,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -275,6 +276,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-6.2.12"]["status"] == "implemented"
     assert requirements["v5.0.0-6.4.3"]["status"] == "implemented"
     assert requirements["v5.0.0-7.4.5"]["status"] == "implemented"
+    assert requirements["v5.0.0-7.1.1"]["status"] == "implemented"
     assert requirements["v5.0.0-11.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-13.2.4"]["status"] == "implemented"
     assert requirements["v5.0.0-13.2.1"]["status"] == "implemented"
@@ -304,6 +306,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V6.2.11",
         "V6.2.12",
         "V6.4.3",
+        "V7.1.1",
         "V7.4.5",
         "V7.5.2",
         "V11.1.2",
@@ -340,6 +343,28 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         assert requirements[source_id]["status"] == "partial"
         assert requirements[source_id]["assessment"] == PARTIAL_ASSESSMENT_OVERRIDES[source_id]
         assert requirements[source_id]["evidence"] == PARTIAL_EVIDENCE_OVERRIDES[source_id]
+
+
+def test_session_security_policy_matches_enforced_timeouts() -> None:
+    policy = (PROJECT_ROOT / "docs/SESSION_SECURITY.md").read_text(encoding="utf-8")
+
+    assert settings.SESSION_IDLE_TIMEOUT_SECONDS == 60 * 60
+    assert settings.SESSION_ABSOLUTE_TIMEOUT_SECONDS == 60 * 60 * 12
+    assert settings.SESSION_COOKIE_AGE == settings.SESSION_ABSOLUTE_TIMEOUT_SECONDS
+    assert settings.SESSION_ACTIVITY_UPDATE_SECONDS == 60
+    assert settings.RECENT_AUTH_TIMEOUT_SECONDS == 10 * 60
+    assert all(
+        statement in policy
+        for statement in (
+            "1 hour",
+            "12 hours",
+            "24 hours",
+            "10 minutes",
+            "does not extend this limit",
+            "SESSION_EXPIRE_AT_BROWSER_CLOSE",
+            "https://pages.nist.gov/800-63-4/sp800-63b/aal/#aal2reauth",
+        )
+    )
 
 
 def test_asvs_inventory_rejects_catalog_and_disposition_tampering() -> None:

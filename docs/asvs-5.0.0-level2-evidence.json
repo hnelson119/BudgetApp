@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 121,
+      "implemented": 122,
       "not_applicable": 79,
-      "partial": 53
+      "partial": 52
     }
   },
   "requirements": [
@@ -2124,12 +2124,16 @@
       "level": 2,
       "description": "Verify that the user's session inactivity timeout and absolute maximum session lifetime are documented, are appropriate in combination with other controls, and that the documentation includes justification for any deviations from NIST SP 800-63B re-authentication requirements.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The session policy documents and justifies the enforced one-hour inactivity and twelve-hour overall limits against the current NIST SP 800-63B AAL2 recommendation, including the stricter overall boundary, browser-only persistence, termination behavior, and change-control requirements.",
       "evidence": [
+        "docs/SESSION_SECURITY.md",
+        "config/settings/base.py",
+        "config/settings/hardened.py",
         "identity/services/sessions.py",
         "identity/middleware.py",
-        "tests/test_authentication.py"
+        "tests/test_authentication.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
