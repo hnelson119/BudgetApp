@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-09-07",
+  "mapping_updated": "2026-09-09",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 118,
+      "implemented": 119,
       "not_applicable": 79,
-      "partial": 56
+      "partial": 55
     }
   },
   "requirements": [
@@ -3915,12 +3915,17 @@
       "level": 2,
       "description": "Verify that documentation (such as for internal APIs) and monitoring endpoints are not exposed unless explicitly intended.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The hardened application reserves documentation and monitoring route namespaces and exposes only the exact minimal liveness endpoint. The production-derived runtime probe requires the existing database-readiness route and representative documentation, metrics, schema, debug, and actuator paths to return empty hardened 404 responses.",
       "evidence": [
-        "Dockerfile",
-        ".dockerignore",
-        "tests/test_deployment_config.py"
+        "core/middleware.py",
+        "config/settings/hardened.py",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_logging.py",
+        "tests/test_network_boundary.py",
+        "tests/test_production_settings.py",
+        "docs/PRIVATE_INGRESS.md"
       ]
     },
     {

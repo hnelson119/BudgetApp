@@ -335,6 +335,11 @@ The nginx relay exposes no filesystem root or alias, explicitly disables directo
 returns `405` for HTTP TRACE before proxying. The production-derived probe validates the effective
 configuration and requires TRACE rejection without reflecting a request canary.
 
+Hardened settings reserve documentation, schema, debug, and monitoring route namespaces. Only the
+exact minimal `/health/live/` endpoint is intentionally exposed; the database-readiness view and
+representative documentation or monitoring paths must return empty hardened `404` responses in the
+production-derived runtime probe.
+
 ## 11. Software supply chain and secure development
 
 - Commit dependency lock files and verify reproducible builds.

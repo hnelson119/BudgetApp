@@ -23,6 +23,29 @@ exception_logger = logging.getLogger("budget.exception")
 
 _VALID_REQUEST_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{7,63}$")
 _VALID_CONTEXT_ID = re.compile(r"^[0-9a-fA-F-]{32,36}$")
+_PUBLIC_OPERATIONAL_PATH = "/health/live/"
+_RESERVED_OPERATIONAL_SEGMENTS = frozenset(
+    {
+        "__debug__",
+        "actuator",
+        "api-docs",
+        "debug",
+        "doc",
+        "docs",
+        "documentation",
+        "health",
+        "healthz",
+        "livez",
+        "metrics",
+        "openapi",
+        "prometheus",
+        "readyz",
+        "redoc",
+        "schema",
+        "swagger",
+        "swagger-ui",
+    }
+)
 _CONTENT_SECURITY_POLICY = "; ".join(
     (
         "default-src 'self'",
@@ -65,6 +88,26 @@ class HostBoundaryMiddleware:
             request.get_host()
         except DisallowedHost:
             return HttpResponse(status=400)
+        return self.get_response(request)
+
+
+class OperationalEndpointBoundaryMiddleware:
+    """Expose only the intentionally public liveness endpoint from reserved namespaces."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        path = request.path_info
+        if path == _PUBLIC_OPERATIONAL_PATH:
+            return self.get_response(request)
+        segments = (segment.casefold() for segment in path.split("/") if segment)
+        if any(
+            segment in _RESERVED_OPERATIONAL_SEGMENTS
+            or segment.startswith(("openapi.", "swagger."))
+            for segment in segments
+        ):
+            return HttpResponse(status=404)
         return self.get_response(request)
 
 

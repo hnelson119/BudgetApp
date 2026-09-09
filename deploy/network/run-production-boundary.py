@@ -147,6 +147,17 @@ _EXPECTED_TRACE_REJECTION = [
     "return 405;",
     "}",
 ]
+_BLOCKED_OPERATIONAL_PATHS = (
+    "/health/ready/",
+    "/metrics/",
+    "/docs/",
+    "/api/docs/",
+    "/openapi.json",
+    "/swagger-ui/",
+    "/redoc/",
+    "/__debug__/",
+    "/actuator/health",
+)
 _EXPECTED_WEB_COMMAND = [
     "gunicorn",
     "--config",
@@ -977,6 +988,22 @@ def validate_http_boundary(hostname: str, secret_values: tuple[str, ...]) -> tup
     return 7, 8
 
 
+def validate_operational_endpoint_boundary(hostname: str, secret_values: tuple[str, ...]) -> int:
+    for path in _BLOCKED_OPERATIONAL_PATHS:
+        status, headers, body = _request(path, hostname, {"X-Forwarded-Proto": "https"})
+        serialized = json.dumps(dict(headers)).encode() + body
+        if (
+            status != 404
+            or body
+            or headers.get("X-Content-Type-Options") != "nosniff"
+            or any(value.encode() in serialized for value in secret_values)
+        ):
+            raise ProbeFailure(
+                "A documentation or monitoring endpoint crossed the production boundary."
+            )
+    return len(_BLOCKED_OPERATIONAL_PATHS)
+
+
 def _socket_reachable(port: int) -> bool:
     try:
         connection = socket.create_connection(("127.0.0.1", port), timeout=1)
@@ -1413,6 +1440,8 @@ def main() -> None:
         )
         stage = "HTTP boundary validation"
         net03_checks, net05_checks = validate_http_boundary(arguments.hostname, secret_values)
+        stage = "operational endpoint boundary validation"
+        net05_checks += validate_operational_endpoint_boundary(arguments.hostname, secret_values)
         stage = "HTTP request-framing validation"
         framing_checks = validate_request_framing(arguments.hostname)
         stage = "runtime process validation"

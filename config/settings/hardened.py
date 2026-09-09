@@ -20,6 +20,10 @@ MIDDLEWARE = [*MIDDLEWARE]  # noqa: F405
 MIDDLEWARE.insert(0, "core.middleware.ProxyBoundaryMiddleware")
 MIDDLEWARE.insert(2, "core.middleware.HostBoundaryMiddleware")
 MIDDLEWARE.insert(3, "whitenoise.middleware.WhiteNoiseMiddleware")
+MIDDLEWARE.insert(
+    MIDDLEWARE.index("core.middleware.AuthenticatedNoStoreMiddleware"),
+    "core.middleware.OperationalEndpointBoundaryMiddleware",
+)
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
