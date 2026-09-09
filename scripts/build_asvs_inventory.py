@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-09-07"
+MAPPING_UPDATED = "2026-09-09"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -335,6 +335,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V13.4.2",
     "V13.4.3",
     "V13.4.4",
+    "V13.4.5",
     "V14.2.1",
     "V14.2.2",
     "V14.2.3",
@@ -462,6 +463,12 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "The production nginx relay rejects TRACE with 405 before proxying. The production-derived "
         "runtime probe sends TRACE with a canary header and requires one 405 response without "
         "reflecting that request content."
+    ),
+    "V13.4.5": (
+        "The hardened application reserves documentation and monitoring route namespaces and "
+        "exposes only the exact minimal liveness endpoint. The production-derived runtime probe "
+        "requires the existing database-readiness route and representative documentation, metrics, "
+        "schema, debug, and actuator paths to return empty hardened 404 responses."
     ),
     "V15.1.2": (
         "The deterministic CycloneDX inventory derives all production, development, build, test, "
@@ -623,6 +630,16 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "deploy/network/run-production-boundary.py",
         "scripts/run-network-boundary.sh",
         "tests/test_network_boundary.py",
+        "docs/PRIVATE_INGRESS.md",
+    ],
+    "V13.4.5": [
+        "core/middleware.py",
+        "config/settings/hardened.py",
+        "deploy/network/run-production-boundary.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_logging.py",
+        "tests/test_network_boundary.py",
+        "tests/test_production_settings.py",
         "docs/PRIVATE_INGRESS.md",
     ],
     "V15.1.2": [

@@ -1,7 +1,7 @@
 # OWASP ASVS 5.0.0 Level 2 mapping
 
 Status: requirement-level applicability complete; release verification pending  
-Last updated: 2026-09-07
+Last updated: 2026-09-09
 
 ## Scope and source integrity
 
@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 118 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 56 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 119 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 55 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 56
+These are the clearest implementation or operational work items exposed by the mapping. The 55
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -79,6 +79,13 @@ The relay also implements `v5.0.0-13.4.3` and `v5.0.0-13.4.4`: its production co
 explicitly disables directory indexing, contains no filesystem `root` or `alias`, and rejects
 HTTP TRACE with `405` before proxying. The runtime probe validates the effective nginx
 configuration and requires a canary-bearing TRACE request to be rejected without reflection.
+
+The hardened application implements `v5.0.0-13.4.5` by reserving documentation and monitoring
+route namespaces and exposing only the exact, intentionally minimal `/health/live/` response. The
+database-readiness route remains useful in non-production development but is blocked at the
+production application boundary. The production-derived probe requires that route and
+representative metrics, documentation, schema, debug, and actuator paths to return empty hardened
+`404` responses.
 
 - `v5.0.0-12.1.3` and `v5.0.0-13.2.1` are implemented: every production PostgreSQL client uses a
   unique client certificate from a separate CA, its exact CN maps only to the intended role, no

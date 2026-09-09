@@ -18,7 +18,11 @@ from core.logging import (
     reset_actor_context,
     reset_request_context,
 )
-from core.middleware import HostBoundaryMiddleware, ProxyBoundaryMiddleware
+from core.middleware import (
+    HostBoundaryMiddleware,
+    OperationalEndpointBoundaryMiddleware,
+    ProxyBoundaryMiddleware,
+)
 
 TEST_PASSWORD = "safe-test-pass"  # pragma: allowlist secret
 
@@ -200,4 +204,39 @@ def test_host_boundary_rejects_unapproved_hosts_on_every_route(
     assert result.status_code == expected_status
     assert downstream_called is expected_downstream
     if expected_status == 400:
+        assert result.content == b""
+
+
+@pytest.mark.parametrize(
+    ("path", "expected_status", "expected_downstream"),
+    (
+        ("/health/live/", 204, True),
+        ("/budget/", 204, True),
+        ("/health/live", 404, False),
+        ("/health/ready/", 404, False),
+        ("/METRICS/", 404, False),
+        ("/api/docs/", 404, False),
+        ("/internal/openapi.json", 404, False),
+        ("/internal/swagger.json", 404, False),
+        ("/swagger-ui/", 404, False),
+        ("/admin/doc/", 404, False),
+        ("/__debug__/", 404, False),
+    ),
+)
+def test_operational_endpoint_boundary_exposes_only_exact_liveness(
+    path: str, expected_status: int, expected_downstream: bool
+) -> None:
+    downstream_called = False
+
+    def response(request):  # type: ignore[no-untyped-def]
+        nonlocal downstream_called
+        downstream_called = True
+        return HttpResponse(status=204)
+
+    request = RequestFactory().get(path)
+    result = OperationalEndpointBoundaryMiddleware(response)(request)
+
+    assert result.status_code == expected_status
+    assert downstream_called is expected_downstream
+    if expected_status == 404:
         assert result.content == b""

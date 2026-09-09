@@ -130,6 +130,14 @@ nginx before any request can reach Django. The production-derived probe validate
 directives from the running container, sends a TRACE request containing a harmless canary header,
 and fails if the request is accepted or the canary is reflected.
 
+Hardened application settings also reserve documentation and operational namespaces, including
+health, metrics, schema, OpenAPI, Swagger, ReDoc, debug, and actuator routes. Only the exact
+`/health/live/` path is intentionally public, and it returns only `{"status": "ok"}`. The database
+readiness endpoint is available to non-production development but returns an empty `404` in the
+production stack, as do representative documentation and monitoring paths. Adding an operational
+or API-documentation endpoint requires an explicit middleware allowlist change, updated production
+probe, and security review.
+
 The nginx relay is the narrow availability exception described in `M10-F014`: Docker requires its
 non-internal ingress network to create the loopback host publish. It receives no Django, database,
 backup, audit, or MFA secret and no database network; its only secrets are the public Gunicorn
@@ -194,7 +202,8 @@ production Compose services, and verifies the following without printing secret 
   key-rotation job, and the relay's exact `127.0.0.1:8000` publish;
 - no host PostgreSQL or Docker-administration port;
 - canonical proxy scheme/host handling, safe redirects, HSTS, production errors, disabled
-  directory indexing, and non-reflective HTTP TRACE rejection;
+  directory indexing, non-reflective HTTP TRACE rejection, and an exact public operational-route
+  allowlist with empty hardened `404` responses for blocked endpoints;
 - three valid and six ambiguous/malformed HTTP/1.1 request-framing cases, including a trailing
   request canary that must never produce a second response;
 - UID/GID 10001, zero effective capabilities, no-new-privileges, a read-only root filesystem, and

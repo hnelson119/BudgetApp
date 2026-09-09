@@ -285,6 +285,45 @@ def test_production_probe_fails_when_trace_content_is_reflected(
         PRODUCTION_PROBE.validate_http_boundary("budget.example.ts.net", ())
 
 
+def test_production_probe_blocks_operational_endpoints(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requested_paths: list[str] = []
+
+    def request(path: str, _hostname: str, _headers: dict[str, str]):
+        requested_paths.append(path)
+        return 404, {"X-Content-Type-Options": "nosniff"}, b""
+
+    monkeypatch.setattr(PRODUCTION_PROBE, "_request", request)
+
+    assert PRODUCTION_PROBE.validate_operational_endpoint_boundary(
+        "budget.example.ts.net", ()
+    ) == len(PRODUCTION_PROBE._BLOCKED_OPERATIONAL_PATHS)
+    assert requested_paths == list(PRODUCTION_PROBE._BLOCKED_OPERATIONAL_PATHS)
+    assert "/health/ready/" in requested_paths
+
+
+@pytest.mark.parametrize(
+    "response",
+    (
+        (200, {"X-Content-Type-Options": "nosniff"}, b""),
+        (404, {"X-Content-Type-Options": "nosniff"}, b"unexpected body"),
+        (404, {}, b""),
+        (404, {"X-Content-Type-Options": "nosniff", "X-Leak": "runtime-secret"}, b""),
+    ),
+)
+def test_production_probe_rejects_unsafe_operational_endpoint_results(
+    monkeypatch: pytest.MonkeyPatch,
+    response: tuple[int, dict[str, str], bytes],
+) -> None:
+    monkeypatch.setattr(PRODUCTION_PROBE, "_request", lambda *_args, **_kwargs: response)
+
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="documentation or monitoring"):
+        PRODUCTION_PROBE.validate_operational_endpoint_boundary(
+            "budget.example.ts.net", ("runtime-secret",)
+        )
+
+
 def test_production_probe_accepts_only_encrypted_postgres_tcp_authentication() -> None:
     configuration = (PROJECT_ROOT / "deploy" / "postgres" / "pg_hba.conf").read_text(
         encoding="utf-8"
