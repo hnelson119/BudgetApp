@@ -140,6 +140,11 @@ def test_browser_specs_cover_real_mfa_security_accessibility_and_workflows() -> 
     assert "page.goBack()" in lifecycle
     assert "browser.newContext(" in lifecycle
     assert "household-budget-theme" in lifecycle
+    assert "data-terminate-session" in lifecycle
+    assert "private-local-state" in lifecycle
+    assert "private-session-state" in lifecycle
+    assert "private-cache" in lifecycle
+    assert "private-database" in lifecycle
     assert "pentest_budget_sessionid" in lifecycle
     assert "Sign out" in lifecycle
     assert "createHmac" in support and 'readFileSync(path, "ascii")' in support

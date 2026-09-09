@@ -240,10 +240,13 @@ def test_logout_is_post_only_and_audited(client: Client, household_user) -> None
     _login(client)
 
     get_response = client.get(reverse("identity:logout"))
-    post_response = client.post(reverse("identity:logout"))
+    post_response = client.post(reverse("identity:logout"), secure=True)
 
     assert get_response.status_code == 405
     assert post_response.status_code == 302
+    assert post_response.headers["Clear-Site-Data"] == '"cache", "cookies", "storage"'
+    assert post_response.headers["Cache-Control"] == "no-store, private"
+    assert post_response.headers["Pragma"] == "no-cache"
     assert "_auth_user_id" not in client.session
     assert AuditEvent.objects.filter(action="auth.logout").exists()
 
@@ -260,11 +263,13 @@ def test_logout_all_devices_revokes_other_sessions_and_is_audited(
     _login(second_client)
     second_client.post(reverse("identity:mfa-verify"), {"code": codes[1]})
 
-    response = first_client.post(reverse("identity:logout-all"))
-    second_response = second_client.get(reverse("core:home"))
+    response = first_client.post(reverse("identity:logout-all"), secure=True)
+    second_response = second_client.get(reverse("core:home"), secure=True)
 
     assert response.status_code == 302
+    assert response.headers["Clear-Site-Data"] == '"cache", "cookies", "storage"'
     assert second_response.status_code == 302
+    assert second_response.headers["Clear-Site-Data"] == '"cache", "cookies", "storage"'
     assert "_auth_user_id" not in first_client.session
     assert "_auth_user_id" not in second_client.session
     assert AuditEvent.objects.filter(action="auth.sessions_revoked").count() == 1

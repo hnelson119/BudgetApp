@@ -19,6 +19,53 @@
     updateButtonState();
   });
 
+  const clearClientStorage = () => {
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      try {
+        storage.clear();
+      } catch {
+        // A browser privacy mode may make a storage area inaccessible.
+      }
+    }
+    if ("caches" in window) {
+      void window.caches
+        .keys()
+        .then((keys) => Promise.all(keys.map((key) => window.caches.delete(key))))
+        .catch(() => {});
+    }
+    if (typeof window.indexedDB?.databases === "function") {
+      void window.indexedDB
+        .databases()
+        .then((databases) => {
+          for (const database of databases) {
+            if (database.name) window.indexedDB.deleteDatabase(database.name);
+          }
+        })
+        .catch(() => {});
+    }
+  };
+
+  const clearAuthenticatedDom = () => {
+    const shell = document.createElement("main");
+    shell.className = "auth-shell";
+    const card = document.createElement("section");
+    card.className = "auth-card";
+    const heading = document.createElement("h1");
+    heading.textContent = "Signing out";
+    const message = document.createElement("p");
+    message.textContent = "This browser has cleared the private workspace.";
+    card.append(heading, message);
+    shell.append(card);
+    document.body.replaceChildren(shell);
+  };
+
+  document.querySelectorAll("form[data-terminate-session]").forEach((form) => {
+    form.addEventListener("submit", () => {
+      clearClientStorage();
+      window.setTimeout(clearAuthenticatedDom, 0);
+    });
+  });
+
   const frequency = document.querySelector("#id_frequency");
   if (frequency instanceof HTMLSelectElement) {
     const conditionalFields = [

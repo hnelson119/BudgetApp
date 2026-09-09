@@ -38,7 +38,7 @@
           <button type="submit" class="primary-button">Verify authenticator</button>
         </form>
 
-        <form method="post" action="{% url 'identity:logout' %}" class="inline-action">
+        <form method="post" action="{% url 'identity:logout' %}" class="inline-action" data-terminate-session>
           {% csrf_token %}
           <button type="submit" class="text-button">Sign out instead</button>
         </form>

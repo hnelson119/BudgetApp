@@ -250,9 +250,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 120,
+            "implemented": 121,
             "not_applicable": 79,
-            "partial": 54,
+            "partial": 53,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -268,6 +268,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-13.4.3"]["status"] == "implemented"
     assert requirements["v5.0.0-13.4.4"]["status"] == "implemented"
     assert requirements["v5.0.0-13.4.5"]["status"] == "implemented"
+    assert requirements["v5.0.0-14.3.1"]["status"] == "implemented"
     assert requirements["v5.0.0-16.4.3"]["status"] == "implemented"
     assert requirements["v5.0.0-6.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-6.2.11"]["status"] == "implemented"
@@ -315,6 +316,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V13.4.3",
         "V13.4.4",
         "V13.4.5",
+        "V14.3.1",
         "V15.1.2",
         "V16.1.1",
         "V16.4.3",

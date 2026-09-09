@@ -1,12 +1,15 @@
 from collections.abc import Callable
 
+from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 
 from identity.models import MfaCredential, User
 from identity.services.mfa import mfa_is_ready
-from identity.services.sessions import validate_active_session
+from identity.services.sessions import SESSION_TERMINATED_ATTRIBUTE, validate_active_session
+
+_CLEAR_SITE_DATA = '"cache", "cookies", "storage"'
 
 
 class SecureSessionMiddleware:
@@ -16,7 +19,17 @@ class SecureSessionMiddleware:
     def __call__(self, request: HttpRequest) -> HttpResponse:
         if request.user.is_authenticated:
             validate_active_session(request, request.user)
-        return self.get_response(request)
+        elif (
+            settings.SESSION_COOKIE_NAME in request.COOKIES and request.session.session_key is None
+        ):
+            setattr(request, SESSION_TERMINATED_ATTRIBUTE, True)
+        response = self.get_response(request)
+        if getattr(request, SESSION_TERMINATED_ATTRIBUTE, False):
+            response.headers["Cache-Control"] = "no-store, private"
+            response.headers["Pragma"] = "no-cache"
+            if request.is_secure():
+                response.headers["Clear-Site-Data"] = _CLEAR_SITE_DATA
+        return response
 
 
 class MfaRequiredMiddleware:

@@ -57,6 +57,7 @@ from identity.services.sessions import (
     mark_recent_authentication,
     recent_authentication_is_valid,
     revoke_user_session,
+    terminate_session,
 )
 from identity.services.throttling import (
     clear_login_failures,
@@ -657,7 +658,7 @@ def session_revoke_view(request: HttpRequest) -> HttpResponse:
         extra={"event": "auth.session_revoked", "scope": scope},
     )
     if result.is_current:
-        logout(request)
+        terminate_session(request)
         return redirect(reverse("identity:login"))
     messages.success(request, "The selected session was revoked.")
     return redirect(reverse("identity:account-security"))
@@ -677,7 +678,7 @@ def logout_view(request: HttpRequest) -> HttpResponse:
         request_id=current_request_id(),
     )
     security_logger.info("User logged out.", extra={"event": "auth.logout"})
-    logout(request)
+    terminate_session(request)
     return redirect(settings.LOGOUT_REDIRECT_URL)
 
 
@@ -702,5 +703,5 @@ def logout_all_devices_view(request: HttpRequest) -> HttpResponse:
         "All user sessions were revoked.",
         extra={"event": "auth.sessions_revoked"},
     )
-    logout(request)
+    terminate_session(request)
     return redirect(reverse("identity:login"))
