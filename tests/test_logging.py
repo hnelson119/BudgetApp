@@ -20,6 +20,7 @@ from core.logging import (
 )
 from core.middleware import (
     HostBoundaryMiddleware,
+    NonBrowserTransportBoundaryMiddleware,
     OperationalEndpointBoundaryMiddleware,
     ProxyBoundaryMiddleware,
 )
@@ -205,6 +206,41 @@ def test_host_boundary_rejects_unapproved_hosts_on_every_route(
     assert downstream_called is expected_downstream
     if expected_status == 400:
         assert result.content == b""
+
+
+@pytest.mark.parametrize(
+    ("path", "secure", "expected_status", "expected_downstream"),
+    (
+        ("/health/live/", False, 400, False),
+        ("/health/live/", True, 204, True),
+        ("/health/ready/", False, 400, False),
+        ("/api/docs/", False, 400, False),
+        ("/accounts/login/", False, 204, True),
+    ),
+)
+def test_nonbrowser_transport_boundary_rejects_plaintext_without_redirecting(
+    path: str,
+    secure: bool,
+    expected_status: int,
+    expected_downstream: bool,
+) -> None:
+    downstream_called = False
+
+    def response(request):  # type: ignore[no-untyped-def]
+        nonlocal downstream_called
+        downstream_called = True
+        return HttpResponse(status=204)
+
+    request = RequestFactory().get(path, secure=secure)
+    result = NonBrowserTransportBoundaryMiddleware(response)(request)
+
+    assert result.status_code == expected_status
+    assert downstream_called is expected_downstream
+    if expected_status == 400:
+        assert result.content == b""
+        assert "Location" not in result.headers
+        assert result.headers["Cache-Control"] == "no-store"
+        assert result.headers["X-Content-Type-Options"] == "nosniff"
 
 
 @pytest.mark.parametrize(

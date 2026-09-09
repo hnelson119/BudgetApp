@@ -248,13 +248,13 @@ def test_production_probe_rejects_trace_without_reflecting_request_content(
     monkeypatch.setattr(PRODUCTION_PROBE, "_wait_for_web", lambda _hostname: None)
     responses = iter(
         (
-            (302, {"Location": "https://budget.example.ts.net/health/live/"}, b""),
+            (302, {"Location": "https://budget.example.ts.net/accounts/login/"}, b""),
             (
                 200,
                 {"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"},
                 b'{"status": "ok"}',
             ),
-            *((302, {"Location": "https://budget.example.ts.net/health/live/"}, b""),) * 3,
+            *((302, {"Location": "https://budget.example.ts.net/accounts/login/"}, b""),) * 3,
             (200, {}, b""),
             (400, {}, b""),
             (404, {"X-Content-Type-Options": "nosniff"}, b"Page not found"),
@@ -283,6 +283,67 @@ def test_production_probe_fails_when_trace_content_is_reflected(
 
     with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="reflected request content"):
         PRODUCTION_PROBE.validate_http_boundary("budget.example.ts.net", ())
+
+
+def test_production_probe_rejects_insecure_nonbrowser_requests_without_redirecting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    probes: list[tuple[str, dict[str, str]]] = []
+
+    def request(path: str, _hostname: str, headers: dict[str, str]):
+        probes.append((path, headers))
+        return 400, {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}, b""
+
+    monkeypatch.setattr(PRODUCTION_PROBE, "_request", request)
+
+    assert PRODUCTION_PROBE.validate_nonbrowser_transport_boundary(
+        "budget.example.ts.net"
+    ) == 4 + len(PRODUCTION_PROBE._BLOCKED_OPERATIONAL_PATHS)
+    assert probes[0] == ("/health/live/", {})
+    assert [headers.get("X-Forwarded-Proto") for _, headers in probes[1:4]] == list(
+        PRODUCTION_PROBE._AMBIGUOUS_PROXY_SCHEMES
+    )
+    assert [path for path, _ in probes[4:]] == list(PRODUCTION_PROBE._BLOCKED_OPERATIONAL_PATHS)
+
+
+@pytest.mark.parametrize(
+    "response",
+    (
+        (
+            301,
+            {
+                "Location": "https://budget.example.ts.net/health/live/",
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+            },
+            b"",
+        ),
+        (
+            400,
+            {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+            b"unexpected body",
+        ),
+        (
+            400,
+            {
+                "Location": "https://budget.example.ts.net/health/live/",
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+            },
+            b"",
+        ),
+        (400, {"X-Content-Type-Options": "nosniff"}, b""),
+        (400, {"Cache-Control": "no-store"}, b""),
+    ),
+)
+def test_production_probe_rejects_unsafe_nonbrowser_transport_results(
+    monkeypatch: pytest.MonkeyPatch,
+    response: tuple[int, dict[str, str], bytes],
+) -> None:
+    monkeypatch.setattr(PRODUCTION_PROBE, "_request", lambda *_args, **_kwargs: response)
+
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="transparently redirected"):
+        PRODUCTION_PROBE.validate_nonbrowser_transport_boundary("budget.example.ts.net")
 
 
 def test_production_probe_blocks_operational_endpoints(

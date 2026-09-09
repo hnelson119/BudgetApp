@@ -158,6 +158,7 @@ _BLOCKED_OPERATIONAL_PATHS = (
     "/__debug__/",
     "/actuator/health",
 )
+_AMBIGUOUS_PROXY_SCHEMES = ("https,http", "HTTPS", "https http")
 _EXPECTED_WEB_COMMAND = [
     "gunicorn",
     "--config",
@@ -936,11 +937,11 @@ def validate_http_boundary(hostname: str, secret_values: tuple[str, ...]) -> tup
     trace_response = _require_raw_status(trace_request, expected=405, probe="HTTP TRACE")
     if b"must-not-be-reflected" in trace_response:
         raise ProbeFailure("The HTTP TRACE response reflected request content.")
-    status, headers, body = _request("/health/live/", hostname, {})
-    if status not in (301, 302) or headers.get("Location") != f"https://{hostname}/health/live/":
-        raise ProbeFailure("Plain HTTP did not redirect to the exact private HTTPS hostname.")
+    status, headers, body = _request("/accounts/login/", hostname, {})
+    if status not in (301, 302) or headers.get("Location") != f"https://{hostname}/accounts/login/":
+        raise ProbeFailure("A browser page did not redirect to the exact private HTTPS hostname.")
     if body:
-        raise ProbeFailure("The plain-HTTP redirect unexpectedly returned application content.")
+        raise ProbeFailure("The browser-page HTTPS redirect unexpectedly returned content.")
 
     status, headers, body = _request("/health/live/", hostname, {"X-Forwarded-Proto": "https"})
     if status != 200 or json.loads(body) != {"status": "ok"}:
@@ -948,10 +949,12 @@ def validate_http_boundary(hostname: str, secret_values: tuple[str, ...]) -> tup
     if headers.get("Strict-Transport-Security") != ("max-age=31536000; includeSubDomains; preload"):
         raise ProbeFailure("The production HSTS policy is incomplete.")
 
-    for ambiguous in ("https,http", "HTTPS", "https http"):
-        status, headers, _ = _request("/health/live/", hostname, {"X-Forwarded-Proto": ambiguous})
+    for ambiguous in _AMBIGUOUS_PROXY_SCHEMES:
+        status, headers, _ = _request(
+            "/accounts/login/", hostname, {"X-Forwarded-Proto": ambiguous}
+        )
         if status not in (301, 302) or headers.get("Location") != (
-            f"https://{hostname}/health/live/"
+            f"https://{hostname}/accounts/login/"
         ):
             raise ProbeFailure(
                 "The fixed ambiguous forwarded scheme "
@@ -986,6 +989,27 @@ def validate_http_boundary(hostname: str, secret_values: tuple[str, ...]) -> tup
     if headers.get("X-Content-Type-Options") != "nosniff":
         raise ProbeFailure("A production error response lost its security headers.")
     return 7, 8
+
+
+def validate_nonbrowser_transport_boundary(hostname: str) -> int:
+    probes = [
+        ("/health/live/", {}),
+        *[("/health/live/", {"X-Forwarded-Proto": value}) for value in _AMBIGUOUS_PROXY_SCHEMES],
+        *((path, {}) for path in _BLOCKED_OPERATIONAL_PATHS),
+    ]
+    for path, headers_to_send in probes:
+        status, headers, body = _request(path, hostname, headers_to_send)
+        if (
+            status != 400
+            or body
+            or headers.get("Location")
+            or headers.get("Cache-Control") != "no-store"
+            or headers.get("X-Content-Type-Options") != "nosniff"
+        ):
+            raise ProbeFailure(
+                "A non-browser endpoint transparently redirected an insecure request."
+            )
+    return len(probes)
 
 
 def validate_operational_endpoint_boundary(hostname: str, secret_values: tuple[str, ...]) -> int:
@@ -1440,6 +1464,8 @@ def main() -> None:
         )
         stage = "HTTP boundary validation"
         net03_checks, net05_checks = validate_http_boundary(arguments.hostname, secret_values)
+        stage = "non-browser HTTP rejection validation"
+        net03_checks += validate_nonbrowser_transport_boundary(arguments.hostname)
         stage = "operational endpoint boundary validation"
         net05_checks += validate_operational_endpoint_boundary(arguments.hostname, secret_values)
         stage = "HTTP request-framing validation"

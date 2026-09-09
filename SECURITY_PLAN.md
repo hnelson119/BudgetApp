@@ -340,6 +340,11 @@ exact minimal `/health/live/` endpoint is intentionally exposed; the database-re
 representative documentation or monitoring paths must return empty hardened `404` responses in the
 production-derived runtime probe.
 
+Only browser-facing pages may transparently redirect from HTTP to HTTPS. Before redirect handling,
+the hardened transport boundary returns an empty non-redirecting `400` for the liveness endpoint or
+any reserved documentation/monitoring path when the trusted HTTPS proxy signal is missing or
+ambiguous; the production-derived probe exercises both the service rejection and browser redirect.
+
 ## 11. Software supply chain and secure development
 
 - Commit dependency lock files and verify reproducible builds.

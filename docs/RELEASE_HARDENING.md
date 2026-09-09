@@ -94,10 +94,11 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 119 implemented, 55 partial, 79
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 120 implemented, 54 partial, 79
   justified feature exclusions, and zero verified. Internal HTTP service TLS, purpose-specific
-  trust, directory-listing prevention, TRACE rejection, and operational-endpoint minimization are
-  implemented; live release-boundary verification remains pending. See
+  trust, directory-listing prevention, TRACE rejection, operational-endpoint minimization, and
+  non-browser plaintext rejection are implemented; live release-boundary verification remains
+  pending. See
   `docs/ASVS_LEVEL2_MAPPING.md` for exact version-qualified identifiers.
 - The maintained cryptographic inventory now covers 17 key classes, 15 algorithm profiles, 10
   certificate classes, and 1 intentional absence across application, deployment, provider, and

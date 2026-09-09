@@ -22,6 +22,9 @@ if CSRF_TRUSTED_ORIGINS != [f"https://{ALLOWED_HOSTS[0]}"]:  # noqa: F405
         "Production CSRF origins must contain only the exact Tailscale HTTPS origin."
     )
 
+MIDDLEWARE = [*MIDDLEWARE]  # noqa: F405
+MIDDLEWARE.insert(1, "core.middleware.NonBrowserTransportBoundaryMiddleware")
+
 LOGGING["handlers"]["security_archive"] = {  # noqa: F405
     "class": "core.logging.UnixDatagramJsonHandler",
     "socket_path": "/run/security-log/security.sock",
