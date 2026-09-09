@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 120,
+      "implemented": 121,
       "not_applicable": 79,
-      "partial": 54
+      "partial": 53
     }
   },
   "requirements": [
@@ -4057,12 +4057,18 @@
       "level": 1,
       "description": "Verify that authenticated data is cleared from client storage, such as the browser DOM, after the client or session is terminated. The 'Clear-Site-Data' HTTP response header field may be able to help with this but the client-side should also be able to clear up if the server connection is not available when the session is terminated.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Every secure server-side session termination response directs the browser to clear cache, cookies, and origin storage. Logout forms also synchronously clear Web Storage, begin Cache Storage and IndexedDB removal, and replace the authenticated DOM independently of the network response; the browser lifecycle test exercises both paths.",
       "evidence": [
-        "core/middleware.py",
+        "identity/services/sessions.py",
+        "identity/middleware.py",
+        "identity/views.py",
         "core/static/core/app.js",
-        "browser-tests/security-accessibility.spec.mjs"
+        "core/templates/core/app_base.html",
+        "identity/templates/identity/mfa_enroll.html",
+        "browser-tests/session-lifecycle.spec.mjs",
+        "tests/test_authentication.py",
+        "tests/test_browser_harness.py"
       ]
     },
     {

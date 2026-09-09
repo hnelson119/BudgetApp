@@ -26,6 +26,7 @@ SESSION_PENDING_MFA_USER = "security_pending_mfa_user"
 SESSION_PENDING_MFA_STARTED_AT = "security_pending_mfa_started_at"
 SESSION_PENDING_MFA_VERSION = "security_pending_mfa_version"
 SESSION_RECOVERY_CONFIRMATION = "security_recovery_confirmation"
+SESSION_TERMINATED_ATTRIBUTE = "_budget_session_terminated"
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +47,13 @@ class SessionRevocationResult:
 class AdministrativeSessionRevocationResult:
     affected_users: int
     deleted_sessions: int
+
+
+def terminate_session(request: HttpRequest) -> None:
+    """End the server session and mark its response for browser-state cleanup."""
+
+    logout(request)
+    setattr(request, SESSION_TERMINATED_ATTRIBUTE, True)
 
 
 def establish_session_security(request: HttpRequest, user: User) -> None:
@@ -306,15 +314,15 @@ def validate_active_session(request: HttpRequest, user: User) -> bool:
         return True
 
     if session_version != user.session_version:
-        logout(request)
+        terminate_session(request)
         return False
 
     if now - started_at >= settings.SESSION_ABSOLUTE_TIMEOUT_SECONDS:
-        logout(request)
+        terminate_session(request)
         return False
 
     if now - last_seen_at >= settings.SESSION_IDLE_TIMEOUT_SECONDS:
-        logout(request)
+        terminate_session(request)
         return False
 
     if now - last_seen_at >= settings.SESSION_ACTIVITY_UPDATE_SECONDS:

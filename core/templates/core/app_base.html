@@ -54,7 +54,7 @@
             <button class="theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false">
               <span aria-hidden="true">◐</span><span class="button-label"> Theme</span>
             </button>
-            <form method="post" action="{% url 'identity:logout' %}">
+            <form method="post" action="{% url 'identity:logout' %}" data-terminate-session>
               {% csrf_token %}
               <button class="quiet-button" type="submit">Sign out</button>
             </form>

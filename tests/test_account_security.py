@@ -106,9 +106,10 @@ def test_individual_other_session_revocation_is_scoped_and_audited(enrolled_user
     assert response.status_code == 302
     assert response.url == reverse("identity:account-security")
     assert first.get(reverse("core:home")).status_code == 200
-    second_response = second.get(reverse("core:home"))
+    second_response = second.get(reverse("core:home"), secure=True)
     assert second_response.status_code == 302
     assert second_response.url.startswith(reverse("identity:login"))
+    assert second_response.headers["Clear-Site-Data"] == '"cache", "cookies", "storage"'
     event = AuditEvent.objects.get(household=household, action="auth.session_revoked")
     assert event.actor == user
     assert event.after_payload == {"scope": "other"}
@@ -137,10 +138,12 @@ def test_current_session_can_be_revoked_without_exposing_its_key(enrolled_user) 
     revoke_response = client.post(
         reverse("identity:session-revoke"),
         {"session_reference": current.reference},
+        secure=True,
     )
 
     assert revoke_response.status_code == 302
     assert revoke_response.url == reverse("identity:login")
+    assert revoke_response.headers["Clear-Site-Data"] == '"cache", "cookies", "storage"'
     assert "_auth_user_id" not in client.session
     assert not Session.objects.filter(session_key=original_key).exists()
     event = AuditEvent.objects.get(household=household, action="auth.session_revoked")

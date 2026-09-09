@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 120 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 54 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 121 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 53 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 54
+These are the clearest implementation or operational work items exposed by the mapping. The 53
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -55,6 +55,11 @@ The dedicated trusted-console session-revocation operation (`v5.0.0-7.4.5`) can 
 arbitrary account or every account independently of credential reset. It requires explicit scope
 confirmation and a bounded reason, rotates server-side versions, removes matching stored sessions,
 and records protected household audit events. Release-candidate verification remains pending.
+
+Session termination now implements `v5.0.0-14.3.1`: every secure server-driven termination response
+requests browser cache, cookie, and origin-storage removal, while logout forms independently scrub
+Web Storage, Cache Storage, IndexedDB, and the authenticated DOM before a server response is
+available. The dedicated browser lifecycle test covers successful and unavailable-response paths.
 
 ### HTTP and backend communication
 

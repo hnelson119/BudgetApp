@@ -340,6 +340,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V14.2.1",
     "V14.2.2",
     "V14.2.3",
+    "V14.3.1",
     "V14.3.2",
     "V14.3.3",
     "V15.1.1",
@@ -476,6 +477,12 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "exposes only the exact minimal liveness endpoint. The production-derived runtime probe "
         "requires the existing database-readiness route and representative documentation, metrics, "
         "schema, debug, and actuator paths to return empty hardened 404 responses."
+    ),
+    "V14.3.1": (
+        "Every secure server-side session termination response directs the browser to clear "
+        "cache, cookies, and origin storage. Logout forms also synchronously clear Web Storage, begin "
+        "Cache Storage and IndexedDB removal, and replace the authenticated DOM independently "
+        "of the network response; the browser lifecycle test exercises both paths."
     ),
     "V15.1.2": (
         "The deterministic CycloneDX inventory derives all production, development, build, test, "
@@ -658,6 +665,17 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "tests/test_network_boundary.py",
         "tests/test_production_settings.py",
         "docs/PRIVATE_INGRESS.md",
+    ],
+    "V14.3.1": [
+        "identity/services/sessions.py",
+        "identity/middleware.py",
+        "identity/views.py",
+        "core/static/core/app.js",
+        "core/templates/core/app_base.html",
+        "identity/templates/identity/mfa_enroll.html",
+        "browser-tests/session-lifecycle.spec.mjs",
+        "tests/test_authentication.py",
+        "tests/test_browser_harness.py",
     ],
     "V15.1.2": [
         "docs/sbom.cdx.json",
