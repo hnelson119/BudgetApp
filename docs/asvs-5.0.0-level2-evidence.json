@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 125,
+      "implemented": 126,
       "not_applicable": 79,
-      "partial": 49
+      "partial": 48
     }
   },
   "requirements": [
@@ -1159,12 +1159,18 @@
       "level": 2,
       "description": "Verify that any HTTP header field used by the application and set by an intermediary layer, such as a load balancer, a web proxy, or a backend-for-frontend service, cannot be overridden by the end-user. Example headers might include X-Real-IP, X-Forwarded-*, or X-User-ID.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Tailscale Serve overwrites the sole trusted scheme header at the HTTPS edge, while the loopback-only nginx relay replaces it with a canonical value and clears every other forwarding header before the mutually authenticated Gunicorn boundary. Configuration tests and a dated deployed spoofing probe enforce the complete intermediary chain.",
       "evidence": [
-        "config/settings/production.py",
+        "config/settings/hardened.py",
         "core/middleware.py",
-        "tests/test_web_foundation.py"
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "deploy/network/verify-private-ingress.py",
+        "scripts/verify-private-ingress.sh",
+        "tests/test_network_boundary.py",
+        "tests/test_production_settings.py",
+        "docs/PRIVATE_INGRESS.md"
       ]
     },
     {

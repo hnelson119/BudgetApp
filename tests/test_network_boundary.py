@@ -181,7 +181,7 @@ def test_production_probe_rejects_egress_allowlist_bypasses(mutator: Any) -> Non
 def test_production_probe_accepts_only_the_static_internal_relay_destination() -> None:
     configuration = (PROJECT_ROOT / "deploy" / "network" / "nginx.conf").read_text(encoding="utf-8")
 
-    assert PRODUCTION_PROBE.validate_relay_destination(configuration) == 19
+    assert PRODUCTION_PROBE.validate_relay_destination(configuration) == 27
 
     for replacement in (
         "proxy_pass http://db:5432;",
@@ -217,9 +217,38 @@ def test_production_probe_accepts_only_the_static_internal_relay_destination() -
             "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;",
             "proxy_set_header X-Forwarded-Proto $scheme;",
         ),
+        (
+            'proxy_set_header Forwarded "";',
+            "proxy_set_header Forwarded $http_forwarded;",
+        ),
+        (
+            'proxy_set_header X-Forwarded-For "";',
+            "proxy_set_header X-Forwarded-For $http_x_forwarded_for;",
+        ),
+        (
+            'proxy_set_header X-Forwarded-Host "";',
+            "proxy_set_header X-Forwarded-Host $http_x_forwarded_host;",
+        ),
+        (
+            'proxy_set_header X-Forwarded-Port "";',
+            "proxy_set_header X-Forwarded-Port $http_x_forwarded_port;",
+        ),
+        (
+            'proxy_set_header X-Real-IP "";',
+            "proxy_set_header X-Real-IP $http_x_real_ip;",
+        ),
     ):
-        with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="edge and upstream schemes"):
+        with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="intermediary-header boundary"):
             PRODUCTION_PROBE.validate_relay_destination(configuration.replace(current, replacement))
+
+    with pytest.raises(PRODUCTION_PROBE.ProbeFailure, match="intermediary-header boundary"):
+        PRODUCTION_PROBE.validate_relay_destination(
+            configuration.replace(
+                'proxy_set_header X-Real-IP "";',
+                'proxy_set_header X-Real-IP "";\n'
+                "            proxy_set_header X-User-ID $http_x_user_id;",
+            )
+        )
 
     for current, replacement, message in (
         ("autoindex off;", "autoindex on;", "directory listing"),
@@ -573,6 +602,102 @@ LISTEN 0 4096 0.0.0.0:22 0.0.0.0:*
     assert VM_PROBE.validate_serve_status(serve_status, hostname) == 4
     assert VM_PROBE.validate_firewall(firewall_status) == 3
     assert VM_PROBE.validate_listeners(listener_status) == 5
+
+
+def test_private_ingress_proves_forwarding_headers_cannot_be_spoofed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    class Response:
+        status = 200
+
+        @staticmethod
+        def read(_limit: int) -> bytes:
+            return b'{"status": "ok"}'
+
+        @staticmethod
+        def getheader(_name: str) -> None:
+            return None
+
+        @staticmethod
+        def getheaders() -> list[tuple[str, str]]:
+            return [("Content-Type", "application/json")]
+
+    class Connection:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            captured["connection"] = (args, kwargs)
+
+        def request(self, method: str, path: str, *, headers: dict[str, str]) -> None:
+            captured["request"] = (method, path, headers)
+
+        @staticmethod
+        def getresponse() -> Response:
+            return Response()
+
+        def close(self) -> None:
+            captured["closed"] = True
+
+    monkeypatch.setattr(VM_PROBE.http.client, "HTTPSConnection", Connection)
+
+    assert VM_PROBE.validate_forwarded_header_boundary("budget.example.ts.net") == 6
+    assert captured["request"] == (
+        "GET",
+        "/health/live/",
+        {"Accept": "application/json", **VM_PROBE._SPOOFED_FORWARDING_HEADERS},
+    )
+    assert captured["closed"] is True
+
+
+@pytest.mark.parametrize(
+    ("status", "headers", "message"),
+    (
+        (400, [], "overrode"),
+        (200, [("X-Forwarded-For", "198.51.100.77")], "reflected"),
+    ),
+)
+def test_private_ingress_rejects_forwarding_header_override_or_reflection(
+    monkeypatch: pytest.MonkeyPatch,
+    status: int,
+    headers: list[tuple[str, str]],
+    message: str,
+) -> None:
+    class Response:
+        def __init__(self) -> None:
+            self.status = status
+
+        @staticmethod
+        def read(_limit: int) -> bytes:
+            return b'{"status": "ok"}'
+
+        @staticmethod
+        def getheader(_name: str) -> None:
+            return None
+
+        @staticmethod
+        def getheaders() -> list[tuple[str, str]]:
+            return headers
+
+    class Connection:
+        def __init__(self, *_args: Any, **_kwargs: Any) -> None:
+            pass
+
+        @staticmethod
+        def request(*_args: Any, **_kwargs: Any) -> None:
+            pass
+
+        @staticmethod
+        def getresponse() -> Response:
+            return Response()
+
+        @staticmethod
+        def close() -> None:
+            pass
+
+    monkeypatch.setattr(VM_PROBE.http.client, "HTTPSConnection", Connection)
+
+    with pytest.raises(VM_PROBE.VerificationFailure, match=message):
+        VM_PROBE.validate_forwarded_header_boundary("budget.example.ts.net")
 
 
 @pytest.mark.parametrize(

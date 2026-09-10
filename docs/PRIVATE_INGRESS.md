@@ -84,6 +84,23 @@ Tailscale-provisioned certificate names can appear in public certificate-transpa
 a neutral machine name that reveals no family name or financial purpose. Application HTTP remains
 on loopback only; the browser-facing connection is HTTPS.
 
+### Intermediary-header boundary
+
+The application trusts only the exact `X-Forwarded-Proto: https` signal. Tailscale Serve terminates
+the browser TLS connection and overwrites that header for its HTTPS proxy request rather than
+preserving an end-user value. The loopback-only nginx relay then derives a canonical lowercase
+`http` or `https` value and replaces `X-Forwarded-Proto` before the request crosses the mutually
+authenticated Gunicorn boundary. It clears `Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`,
+`X-Forwarded-Port`, and `X-Real-IP`; the application does not use Tailscale identity or forwarded
+client-address headers for authentication, authorization, or throttling.
+
+The production-derived probe rejects any nginx configuration that does not contain the exact
+replacement and clearing directives. The VM release verifier also sends all six forwarding fields
+with harmless spoofing canaries through the deployed Tailscale HTTPS hostname. The request must
+still reach the secure liveness response without a redirect, and no canary may appear in its headers
+or body. This dated deployed check proves the end user cannot override the intermediary values in
+the release proxy chain.
+
 ### HTTP request-framing boundary
 
 The repository pins the application-side message boundary to nginx receiving HTTP/1.1 and proxying

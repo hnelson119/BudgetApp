@@ -16,6 +16,22 @@ _PRIVATE_HOST_PATTERN = re.compile(
     r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.ts\.net"
 )
 _HSTS_POLICY = "max-age=31536000; includeSubDomains; preload"
+_SPOOFED_FORWARDING_HEADERS = {
+    "Forwarded": "for=192.0.2.123;host=forwarded-attacker.invalid;proto=http",
+    "X-Forwarded-For": "198.51.100.77",
+    "X-Forwarded-Host": "forwarded-host-attacker.invalid",
+    "X-Forwarded-Port": "65432",
+    "X-Forwarded-Proto": "http",
+    "X-Real-IP": "203.0.113.91",
+}
+_FORWARDING_CANARIES = (
+    b"192.0.2.123",
+    b"forwarded-attacker.invalid",
+    b"198.51.100.77",
+    b"forwarded-host-attacker.invalid",
+    b"65432",
+    b"203.0.113.91",
+)
 
 
 class VerificationFailure(RuntimeError):
@@ -135,6 +151,40 @@ def validate_https(hostname: str) -> int:
     return 4
 
 
+def validate_forwarded_header_boundary(hostname: str) -> int:
+    """Prove end-user forwarding headers cannot override the trusted proxy chain."""
+
+    connection = http.client.HTTPSConnection(
+        hostname, 443, context=ssl.create_default_context(), timeout=10
+    )
+    try:
+        connection.request(
+            "GET",
+            "/health/live/",
+            headers={"Accept": "application/json", **_SPOOFED_FORWARDING_HEADERS},
+        )
+        response = connection.getresponse()
+        body = response.read(4097)
+        serialized_headers = json.dumps(response.getheaders()).encode()
+        if len(body) > 4096:
+            raise VerificationFailure("The forwarded-header response was unexpectedly large.")
+        if (
+            response.status != 200
+            or response.getheader("Location") is not None
+            or json.loads(body) != {"status": "ok"}
+        ):
+            raise VerificationFailure(
+                "An end-user forwarding header overrode the deployed proxy boundary."
+            )
+        if any(canary in serialized_headers or canary in body for canary in _FORWARDING_CANARIES):
+            raise VerificationFailure(
+                "An end-user forwarding header was reflected by the deployed proxy boundary."
+            )
+    finally:
+        connection.close()
+    return len(_SPOOFED_FORWARDING_HEADERS)
+
+
 def validate_plain_http(hostname: str) -> int:
     connection = http.client.HTTPConnection(hostname, 80, timeout=5)
     try:
@@ -178,6 +228,7 @@ def main() -> None:
         firewall_checks = validate_firewall(arguments.ufw_status.read_text(encoding="utf-8"))
         listener_checks = validate_listeners(arguments.listeners.read_text(encoding="utf-8"))
         tls_checks = validate_https(arguments.hostname)
+        forwarded_header_checks = validate_forwarded_header_boundary(arguments.hostname)
         http_checks = validate_plain_http(arguments.hostname)
     except (VerificationFailure, OSError, UnicodeError, ValueError):
         print("Private-ingress verification failed safely.", file=sys.stderr)
@@ -188,6 +239,10 @@ def main() -> None:
         f"({private_checks + proxy_checks + firewall_checks + listener_checks} boundary checks)."
     )
     print(f"NET-03 deployment controls passed ({tls_checks + http_checks} transport checks).")
+    print(
+        "ASVS V4.1.3 intermediary-header boundary passed "
+        f"({forwarded_header_checks} spoofing checks)."
+    )
     print("Funnel is disabled; the application remains private-network only.")
     print("NET-01 and NET-02 still require the documented two-device release procedure.")
 
