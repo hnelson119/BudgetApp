@@ -15,7 +15,11 @@ from identity.services.mfa import (
     confirm_recovery_codes_saved,
     totp_code,
 )
-from identity.services.sessions import SESSION_AUTH_VERIFIED_AT, active_sessions_for_user
+from identity.services.sessions import (
+    SESSION_AUTH_VERIFIED_AT,
+    SESSION_STARTED_AT,
+    active_sessions_for_user,
+)
 
 CURRENT_PASSWORD = "account-security-current-passphrase"  # pragma: allowlist secret
 NEW_PASSWORD = "account-security-new-passphrase"  # pragma: allowlist secret
@@ -54,6 +58,32 @@ def _make_two_sessions(codes: tuple[str, ...]) -> tuple[Client, Client]:
     _login(first, codes[0])
     _login(second, codes[1])
     return first, second
+
+
+@pytest.mark.django_db
+def test_new_login_revokes_oldest_session_at_account_limit(enrolled_user) -> None:  # type: ignore[no-untyped-def]
+    _, user, codes = enrolled_user
+    clients = [Client() for _ in range(settings.MAX_CONCURRENT_SESSIONS + 1)]
+    for client, code in zip(clients[:-1], codes[: settings.MAX_CONCURRENT_SESSIONS], strict=True):
+        _login(client, code)
+
+    oldest_session = clients[0].session
+    oldest_session[SESSION_STARTED_AT] = 1
+    oldest_session.save()
+    _login(clients[-1], codes[-1])
+
+    active = active_sessions_for_user(
+        user,
+        current_session_key=clients[-1].session.session_key,
+    )
+    assert len(active) == settings.MAX_CONCURRENT_SESSIONS
+    assert active[0].is_current is True
+
+    evicted_response = clients[0].get(reverse("core:home"), secure=True)
+    assert evicted_response.status_code == 302
+    assert evicted_response.url.startswith(reverse("identity:login"))
+    assert evicted_response.headers["Clear-Site-Data"] == '"cache", "cookies", "storage"'
+    assert all(client.get(reverse("core:home")).status_code == 200 for client in clients[1:])
 
 
 @pytest.mark.django_db

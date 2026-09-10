@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 122 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 52 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 123 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 51 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 52
+These are the clearest implementation or operational work items exposed by the mapping. The 51
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -61,6 +61,11 @@ one-hour inactivity limit matches the current NIST AAL2 recommendation; the twel
 limit is deliberately tighter than its 24-hour recommendation for consolidated private financial
 data. Exact settings, reauthentication behavior, browser persistence, and change control are in
 `docs/SESSION_SECURITY.md`.
+
+Concurrent-session behavior now implements `v5.0.0-7.1.2`. Each account may have five unexpired,
+current-version authenticated sessions. A sixth full login succeeds and atomically revokes the
+oldest session while preserving the new one; the displaced browser is cleaned up on its next
+request, and users retain individual and all-device revocation controls.
 
 Session termination now implements `v5.0.0-14.3.1`: every secure server-driven termination response
 requests browser cache, cookie, and origin-storage removal, while logout forms independently scrub

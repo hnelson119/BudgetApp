@@ -27,6 +27,7 @@ SESSION_PENDING_MFA_STARTED_AT = "security_pending_mfa_started_at"
 SESSION_PENDING_MFA_VERSION = "security_pending_mfa_version"
 SESSION_RECOVERY_CONFIRMATION = "security_recovery_confirmation"
 SESSION_TERMINATED_ATTRIBUTE = "_budget_session_terminated"
+SESSION_ESTABLISHED_ATTRIBUTE = "_budget_session_established"
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +64,7 @@ def establish_session_security(request: HttpRequest, user: User) -> None:
     request.session[SESSION_USER_VERSION] = user.session_version
     request.session[SESSION_AUTH_VERIFIED_AT] = now
     request.session.set_expiry(0)
+    setattr(request, SESSION_ESTABLISHED_ATTRIBUTE, True)
 
 
 def establish_pending_mfa(request: HttpRequest, user: User) -> None:
@@ -143,6 +145,51 @@ def active_sessions_for_user(
             )
         )
     return tuple(sorted(rows, key=lambda row: not row.is_current))
+
+
+@transaction.atomic
+def enforce_concurrent_session_limit(
+    user: User,
+    *,
+    current_session_key: str | None,
+    maximum: int,
+) -> int:
+    """Keep the newest authenticated sessions while preserving the current login."""
+
+    if maximum < 1:
+        raise ValueError("The concurrent session maximum must be positive.")
+
+    from identity.models import User
+
+    locked_user = User.objects.select_for_update().only("pk", "session_version").get(pk=user.pk)
+    active_sessions = [
+        session
+        for session in Session.objects.select_for_update().filter(expire_date__gt=timezone.now())
+        if _belongs_to_active_user_session(session, locked_user)
+    ]
+    excess = len(active_sessions) - maximum
+    if excess <= 0:
+        return 0
+
+    def oldest_first(session: Session) -> tuple[datetime, datetime, str]:
+        started_at = _session_timestamp(session.get_decoded().get(SESSION_STARTED_AT))
+        return (
+            started_at or datetime.min.replace(tzinfo=UTC),
+            session.expire_date,
+            session.session_key,
+        )
+
+    candidates = sorted(
+        (
+            session
+            for session in active_sessions
+            if not secrets.compare_digest(session.session_key, current_session_key or "")
+        ),
+        key=oldest_first,
+    )
+    session_keys = [session.session_key for session in candidates[:excess]]
+    deleted, _ = Session.objects.filter(session_key__in=session_keys).delete()
+    return deleted
 
 
 def revoke_user_session(

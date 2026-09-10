@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-09-09",
+  "mapping_updated": "2026-09-10",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 122,
+      "implemented": 123,
       "not_applicable": 79,
-      "partial": 52
+      "partial": 51
     }
   },
   "requirements": [
@@ -2146,12 +2146,15 @@
       "level": 2,
       "description": "Verify that the documentation defines how many concurrent (parallel) sessions are allowed for one account as well as the intended behaviors and actions to be taken when the maximum number of active sessions is reached.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The documented five-session account limit is enforced after a new authenticated session is saved. Per-account database locking serializes enforcement, the new login is preserved, and the oldest current-version session is revoked with cleanup on its next request.",
       "evidence": [
+        "docs/SESSION_SECURITY.md",
+        "config/settings/base.py",
         "identity/services/sessions.py",
         "identity/middleware.py",
-        "tests/test_authentication.py"
+        "tests/test_account_security.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
