@@ -251,9 +251,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 122,
+            "implemented": 123,
             "not_applicable": 79,
-            "partial": 52,
+            "partial": 51,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -277,6 +277,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-6.4.3"]["status"] == "implemented"
     assert requirements["v5.0.0-7.4.5"]["status"] == "implemented"
     assert requirements["v5.0.0-7.1.1"]["status"] == "implemented"
+    assert requirements["v5.0.0-7.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-11.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-13.2.4"]["status"] == "implemented"
     assert requirements["v5.0.0-13.2.1"]["status"] == "implemented"
@@ -307,6 +308,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V6.2.12",
         "V6.4.3",
         "V7.1.1",
+        "V7.1.2",
         "V7.4.5",
         "V7.5.2",
         "V11.1.2",
@@ -325,7 +327,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V16.4.3",
     }
 
-    assert MAPPING_UPDATED == "2026-09-09"
+    assert MAPPING_UPDATED == "2026-09-10"
     assert not NOT_STARTED
     assert completed_m10 <= IMPLEMENTED_REQUIREMENTS
     assert set(IMPLEMENTED_ASSESSMENT_OVERRIDES) == completed_m10
@@ -353,6 +355,10 @@ def test_session_security_policy_matches_enforced_timeouts() -> None:
     assert settings.SESSION_COOKIE_AGE == settings.SESSION_ABSOLUTE_TIMEOUT_SECONDS
     assert settings.SESSION_ACTIVITY_UPDATE_SECONDS == 60
     assert settings.RECENT_AUTH_TIMEOUT_SECONDS == 10 * 60
+    assert settings.MAX_CONCURRENT_SESSIONS == 5
+    assert settings.MIDDLEWARE.index("identity.middleware.ConcurrentSessionLimitMiddleware") < (
+        settings.MIDDLEWARE.index("django.contrib.sessions.middleware.SessionMiddleware")
+    )
     assert all(
         statement in policy
         for statement in (
@@ -360,6 +366,8 @@ def test_session_security_policy_matches_enforced_timeouts() -> None:
             "12 hours",
             "24 hours",
             "10 minutes",
+            "| Concurrent sessions | 5 |",
+            "oldest authenticated session is revoked deterministically",
             "does not extend this limit",
             "SESSION_EXPIRE_AT_BROWSER_CLOSE",
             "https://pages.nist.gov/800-63-4/sp800-63b/aal/#aal2reauth",

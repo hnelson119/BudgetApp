@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 
 from django.conf import settings
@@ -7,9 +8,38 @@ from django.urls import reverse
 
 from identity.models import MfaCredential, User
 from identity.services.mfa import mfa_is_ready
-from identity.services.sessions import SESSION_TERMINATED_ATTRIBUTE, validate_active_session
+from identity.services.sessions import (
+    SESSION_ESTABLISHED_ATTRIBUTE,
+    SESSION_TERMINATED_ATTRIBUTE,
+    enforce_concurrent_session_limit,
+    validate_active_session,
+)
 
 _CLEAR_SITE_DATA = '"cache", "cookies", "storage"'
+security_logger = logging.getLogger("security")
+
+
+class ConcurrentSessionLimitMiddleware:
+    """Enforce the account session cap after SessionMiddleware saves a new login."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+        user = getattr(request, "user", None)
+        if getattr(request, SESSION_ESTABLISHED_ATTRIBUTE, False) and isinstance(user, User):
+            evicted = enforce_concurrent_session_limit(
+                user,
+                current_session_key=request.session.session_key,
+                maximum=settings.MAX_CONCURRENT_SESSIONS,
+            )
+            if evicted:
+                security_logger.warning(
+                    "Oldest user sessions revoked at the concurrent-session limit.",
+                    extra={"event": "auth.session_revoked", "scope": "concurrent_limit"},
+                )
+        return response
 
 
 class SecureSessionMiddleware:

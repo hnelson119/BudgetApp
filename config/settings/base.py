@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "core.middleware.RequestContextMiddleware",
+    "identity.middleware.ConcurrentSessionLimitMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -129,6 +130,7 @@ CSRF_COOKIE_SAMESITE = "Strict"
 SESSION_IDLE_TIMEOUT_SECONDS = 60 * 60
 SESSION_ABSOLUTE_TIMEOUT_SECONDS = 60 * 60 * 12
 SESSION_ACTIVITY_UPDATE_SECONDS = 60
+MAX_CONCURRENT_SESSIONS = 5
 
 LOGIN_RATE_LIMIT_FAILURES = 5
 LOGIN_RATE_LIMIT_WINDOW_SECONDS = 15 * 60

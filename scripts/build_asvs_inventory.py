@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-09-09"
+MAPPING_UPDATED = "2026-09-10"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -300,6 +300,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V6.5.4",
     "V6.5.5",
     "V7.1.1",
+    "V7.1.2",
     "V7.2.1",
     "V7.2.2",
     "V7.2.3",
@@ -425,6 +426,12 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "twelve-hour overall limits against the current NIST SP 800-63B AAL2 recommendation, "
         "including the stricter overall boundary, browser-only persistence, termination behavior, "
         "and change-control requirements."
+    ),
+    "V7.1.2": (
+        "The documented five-session account limit is enforced after a new authenticated session "
+        "is saved. Per-account database locking serializes enforcement, the new "
+        "login is preserved, "
+        "and the oldest current-version session is revoked with cleanup on its next request."
     ),
     "V11.1.2": (
         "The machine-validated inventory covers application, deployment, provider-managed, and "
@@ -591,6 +598,14 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "identity/services/sessions.py",
         "identity/middleware.py",
         "tests/test_authentication.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V7.1.2": [
+        "docs/SESSION_SECURITY.md",
+        "config/settings/base.py",
+        "identity/services/sessions.py",
+        "identity/middleware.py",
+        "tests/test_account_security.py",
         "tests/test_release_hardening.py",
     ],
     "V11.1.2": [
