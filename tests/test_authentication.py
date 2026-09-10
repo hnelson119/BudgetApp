@@ -6,6 +6,8 @@ import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.sessions.backends.db import SessionStore
+from django.contrib.sessions.models import Session
 from django.core.exceptions import PermissionDenied
 from django.test import Client
 from django.urls import reverse
@@ -14,14 +16,20 @@ from audit.models import AuditEvent
 from households.models import Household, HouseholdMembership
 from households.services.access import get_active_household, require_household_membership
 from identity.forms import GENERIC_LOGIN_ERROR
-from identity.models import LoginThrottle
+from identity.models import LoginThrottle, User
 from identity.services.mfa import (
     begin_enrollment,
     confirm_enrollment,
     confirm_recovery_codes_saved,
     totp_code,
 )
-from identity.services.sessions import SESSION_LAST_SEEN_AT
+from identity.services.sessions import (
+    SESSION_LAST_SEEN_AT,
+    SESSION_PENDING_MFA_STARTED_AT,
+    SESSION_PENDING_MFA_USER,
+    SESSION_PENDING_MFA_VERSION,
+    SESSION_USER_VERSION,
+)
 
 TEST_PASSWORD = "correct-horse-battery-test"  # pragma: allowlist secret
 
@@ -54,6 +62,15 @@ def _login(client: Client, *, email: str = "person@example.com", password: str =
         reverse("identity:login"),
         {"username": email, "password": password},
     )
+
+
+def _stored_session(**values: object) -> str:
+    session = SessionStore()
+    for key, value in values.items():
+        session[key] = value
+    session.save()
+    assert session.session_key is not None
+    return session.session_key
 
 
 @pytest.mark.django_db
@@ -178,6 +195,58 @@ def test_unknown_and_inactive_accounts_receive_same_generic_error(
     assert expected in inactive_response.content
     assert expected in unknown_response.content
     assert b"inactive" not in inactive_response.content.lower()
+
+
+@pytest.mark.django_db
+def test_disabling_account_terminates_authenticated_and_pending_sessions(
+    client: Client,
+    household_user,
+) -> None:  # type: ignore[no-untyped-def]
+    _, user = household_user
+    client.force_login(user)
+    authenticated_key = client.session.session_key
+    assert authenticated_key is not None
+    pending_key = _stored_session(
+        **{
+            SESSION_PENDING_MFA_USER: str(user.pk),
+            SESSION_PENDING_MFA_STARTED_AT: int(time.time()),
+            SESSION_PENDING_MFA_VERSION: user.session_version,
+        }
+    )
+    other = User.objects.create_user(email="other@example.com", password=TEST_PASSWORD)
+    other_key = _stored_session(
+        _auth_user_id=str(other.pk),
+        **{SESSION_USER_VERSION: other.session_version},
+    )
+
+    user.is_active = False
+    user.save(update_fields=("is_active",))
+
+    assert not Session.objects.filter(session_key__in=(authenticated_key, pending_key)).exists()
+    assert Session.objects.filter(session_key=other_key).exists()
+    response = client.get(reverse("core:home"), secure=True)
+    assert response.status_code == 302
+    assert response.url.startswith(reverse("identity:login"))
+    assert response.headers["Clear-Site-Data"] == '"cache", "cookies", "storage"'
+
+
+@pytest.mark.django_db
+def test_deleting_account_through_queryset_terminates_its_sessions(
+    client: Client,
+    household_user,
+) -> None:  # type: ignore[no-untyped-def]
+    _, user = household_user
+    client.force_login(user)
+    session_key = client.session.session_key
+    assert session_key is not None
+
+    User.objects.filter(pk=user.pk).delete()
+
+    assert not Session.objects.filter(session_key=session_key).exists()
+    response = client.get(reverse("core:home"), secure=True)
+    assert response.status_code == 302
+    assert response.url.startswith(reverse("identity:login"))
+    assert response.headers["Clear-Site-Data"] == '"cache", "cookies", "storage"'
 
 
 @pytest.mark.django_db

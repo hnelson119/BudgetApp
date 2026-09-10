@@ -28,6 +28,11 @@ termination responses direct the browser to clear its cache, cookies, and origin
 forms also clear supported client storage and authenticated DOM content without waiting for the
 server.
 
+Disabling an existing account synchronously removes all of its stored authenticated and pending-MFA
+sessions. Deleting an account does the same for both individual and queryset deletion paths. A
+browser that later presents one of the displaced cookies is redirected to full login and receives
+the secure client-state cleanup response. Both lifecycle events are recorded in the security log.
+
 The concurrent limit counts only unexpired, current-version authenticated sessions; incomplete MFA
 attempts and stale session versions do not consume a slot. A new valid password-plus-MFA login is
 not rejected at the limit. Instead, the oldest authenticated session is revoked deterministically,
