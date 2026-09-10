@@ -46,7 +46,9 @@ def _mfa_ready(user: User) -> None:
 
 
 @pytest.fixture
-def goal_ui_context(db: object) -> GoalUiContext:
+def goal_ui_context(db: object, monkeypatch: pytest.MonkeyPatch) -> GoalUiContext:
+    monkeypatch.setattr("goals.views._today", lambda _: date(2026, 8, 22))
+    monkeypatch.setattr("core.views.timezone.localdate", lambda **_: date(2026, 8, 22))
     household = Household.objects.create(name="Goal UI Household")
     user = User.objects.create_user(email="goal-ui@example.com", password=TEST_PASSWORD)
     outsider = User.objects.create_user(
