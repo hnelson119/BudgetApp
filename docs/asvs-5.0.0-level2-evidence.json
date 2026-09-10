@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 123,
+      "implemented": 124,
       "not_applicable": 79,
-      "partial": 51
+      "partial": 50
     }
   },
   "requirements": [
@@ -2308,12 +2308,16 @@
       "level": 1,
       "description": "Verify that the application terminates all active sessions when a user account is disabled or deleted (such as an employee leaving the company).",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "User lifecycle hooks synchronously delete every authenticated and pending-MFA session when an existing account is disabled or deleted. Queryset deletion is covered, and a displaced browser receives secure client-state cleanup on its next request.",
       "evidence": [
+        "docs/SESSION_SECURITY.md",
+        "identity/apps.py",
+        "identity/signals.py",
         "identity/services/sessions.py",
-        "identity/views.py",
-        "tests/test_authentication.py"
+        "identity/middleware.py",
+        "tests/test_authentication.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

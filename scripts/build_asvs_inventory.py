@@ -308,6 +308,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V7.3.1",
     "V7.3.2",
     "V7.4.1",
+    "V7.4.2",
     "V7.4.3",
     "V7.4.4",
     "V7.4.5",
@@ -432,6 +433,11 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "is saved. Per-account database locking serializes enforcement, the new "
         "login is preserved, "
         "and the oldest current-version session is revoked with cleanup on its next request."
+    ),
+    "V7.4.2": (
+        "User lifecycle hooks synchronously delete every authenticated and pending-MFA session "
+        "when an existing account is disabled or deleted. Queryset deletion is covered, and a "
+        "displaced browser receives secure client-state cleanup on its next request."
     ),
     "V11.1.2": (
         "The machine-validated inventory covers application, deployment, provider-managed, and "
@@ -606,6 +612,15 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "identity/services/sessions.py",
         "identity/middleware.py",
         "tests/test_account_security.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V7.4.2": [
+        "docs/SESSION_SECURITY.md",
+        "identity/apps.py",
+        "identity/signals.py",
+        "identity/services/sessions.py",
+        "identity/middleware.py",
+        "tests/test_authentication.py",
         "tests/test_release_hardening.py",
     ],
     "V11.1.2": [

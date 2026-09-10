@@ -217,8 +217,9 @@ def _session_belongs_to_user_identity(session: Session, user_id: str) -> bool:
     return data.get("_auth_user_id") == user_id or data.get(SESSION_PENDING_MFA_USER) == user_id
 
 
-def _delete_sessions_for_user(user: User) -> int:
-    user_id = str(user.pk)
+def delete_sessions_for_user_identity(user_id: str) -> int:
+    """Remove authenticated and pending-MFA sessions for one account identity."""
+
     session_keys = [
         session.session_key
         for session in Session.objects.all()
@@ -228,6 +229,10 @@ def _delete_sessions_for_user(user: User) -> int:
         return 0
     deleted, _ = Session.objects.filter(session_key__in=session_keys).delete()
     return deleted
+
+
+def _delete_sessions_for_user(user: User) -> int:
+    return delete_sessions_for_user_identity(str(user.pk))
 
 
 def _validate_administrative_reason(reason: str) -> str:
