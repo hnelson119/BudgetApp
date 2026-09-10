@@ -269,6 +269,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V3.7.2",
     "V4.1.1",
     "V4.1.2",
+    "V4.1.3",
     "V4.2.1",
     "V5.2.1",
     "V5.2.2",
@@ -379,6 +380,12 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "as non-browser endpoints. Missing or ambiguous trusted proxy schemes receive an empty "
         "400 response without Location, while a representative browser page retains its exact "
         "canonical HTTPS redirect; the production-derived runtime probe exercises both paths."
+    ),
+    "V4.1.3": (
+        "Tailscale Serve overwrites the sole trusted scheme header at the HTTPS edge, while the "
+        "loopback-only nginx relay replaces it with a canonical value and clears every other "
+        "forwarding header before the mutually authenticated Gunicorn boundary. Configuration "
+        "tests and a dated deployed spoofing probe enforce the complete intermediary chain."
     ),
     "V4.2.1": (
         "The production-derived nginx and Gunicorn boundary accepts three valid HTTP/1.1 message "
@@ -552,6 +559,17 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "deploy/network/run-production-boundary.py",
         "scripts/run-network-boundary.sh",
         "tests/test_logging.py",
+        "tests/test_network_boundary.py",
+        "tests/test_production_settings.py",
+        "docs/PRIVATE_INGRESS.md",
+    ],
+    "V4.1.3": [
+        "config/settings/hardened.py",
+        "core/middleware.py",
+        "deploy/network/nginx.conf",
+        "deploy/network/run-production-boundary.py",
+        "deploy/network/verify-private-ingress.py",
+        "scripts/verify-private-ingress.sh",
         "tests/test_network_boundary.py",
         "tests/test_production_settings.py",
         "docs/PRIVATE_INGRESS.md",

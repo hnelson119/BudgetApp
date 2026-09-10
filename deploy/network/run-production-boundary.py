@@ -141,7 +141,16 @@ _EXPECTED_PROXY_SCHEME_MAP = [
     "~^https$ https;",
     "}",
 ]
-_EXPECTED_PROXY_SCHEME_HEADER = "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;"
+_EXPECTED_PROXY_HEADERS = [
+    'proxy_set_header Connection "";',
+    'proxy_set_header Forwarded "";',
+    "proxy_set_header Host $http_host;",
+    'proxy_set_header X-Forwarded-For "";',
+    'proxy_set_header X-Forwarded-Host "";',
+    'proxy_set_header X-Forwarded-Port "";',
+    "proxy_set_header X-Forwarded-Proto $upstream_forwarded_proto;",
+    'proxy_set_header X-Real-IP "";',
+]
 _EXPECTED_TRACE_REJECTION = [
     "if ($request_method = TRACE) {",
     "return 405;",
@@ -273,9 +282,7 @@ def validate_relay_destination(configuration: str) -> int:
     if lines[trace_index : trace_index + 3] != _EXPECTED_TRACE_REJECTION:
         raise ProbeFailure("The loopback relay does not reject the HTTP TRACE method.")
     scheme_maps = [line for line in lines if line.startswith("map ")]
-    scheme_headers = [
-        line for line in lines if line.startswith("proxy_set_header X-Forwarded-Proto ")
-    ]
+    proxy_headers = [line for line in lines if line.startswith("proxy_set_header ")]
     try:
         scheme_map_index = lines.index(_EXPECTED_PROXY_SCHEME_MAP[0])
     except ValueError as error:
@@ -285,14 +292,15 @@ def validate_relay_destination(configuration: str) -> int:
     if (
         scheme_maps != [_EXPECTED_PROXY_SCHEME_MAP[0]]
         or lines[scheme_map_index : scheme_map_index + 4] != _EXPECTED_PROXY_SCHEME_MAP
-        or scheme_headers != [_EXPECTED_PROXY_SCHEME_HEADER]
+        or proxy_headers != _EXPECTED_PROXY_HEADERS
     ):
-        raise ProbeFailure("The loopback relay does not separate edge and upstream schemes.")
+        raise ProbeFailure("The loopback relay does not enforce its intermediary-header boundary.")
     return (
         4
         + len(_EXPECTED_PROXY_TLS_DIRECTIVES)
         + len(_EXPECTED_PROXY_SCHEME_MAP)
         + len(_EXPECTED_TRACE_REJECTION)
+        + len(_EXPECTED_PROXY_HEADERS)
     )
 
 

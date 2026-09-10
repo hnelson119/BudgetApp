@@ -90,6 +90,13 @@ return an empty `400` with no `Location` when the trusted HTTPS signal is absent
 production-derived probe exercises both outcomes so an accidentally plaintext service client is
 not hidden behind a successful redirect.
 
+The intermediary chain implements `v5.0.0-4.1.3`: Tailscale Serve overwrites the trusted scheme
+header at its HTTPS edge, nginx accepts only the exact lowercase secure value, replaces the value
+sent to Gunicorn, and clears every other forwarding field. The production-derived configuration
+probe enforces those exact directives. A dated VM release check sends spoofed values for all six
+forwarding fields through the private HTTPS hostname and requires the secure liveness response with
+no redirect or reflected canary.
+
 The production-derived request-boundary harness implements `v5.0.0-4.2.1` for the nginx-to-Gunicorn
 HTTP/1.1 boundary. It accepts three valid body encodings and requires six ambiguous or malformed
 forms to produce exactly one rejection followed by connection closure; a trailing harmless request
