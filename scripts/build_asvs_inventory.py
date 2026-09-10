@@ -266,6 +266,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V3.4.6",
     "V3.5.1",
     "V3.5.3",
+    "V3.7.2",
     "V4.1.1",
     "V4.1.2",
     "V4.2.1",
@@ -368,6 +369,11 @@ IMPLEMENTED_REQUIREMENTS = {
 }
 
 IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V3.7.2": (
+        "A final response boundary rejects malformed, downgraded, and unapproved external redirect "
+        "locations. External redirects require an exact HTTPS authority allowlist entry, and the "
+        "private production profile requires that allowlist to remain empty."
+    ),
     "V4.1.2": (
         "A hardened pre-redirect boundary classifies reserved documentation and monitoring paths "
         "as non-browser endpoints. Missing or ambiguous trusted proxy schemes receive an empty "
@@ -529,6 +535,17 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
 }
 
 IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
+    "V3.7.2": [
+        "docs/REDIRECT_SECURITY.md",
+        "config/settings/base.py",
+        "config/settings/production.py",
+        "core/middleware.py",
+        "identity/views.py",
+        "notifications/models.py",
+        "tests/test_authentication.py",
+        "tests/test_production_settings.py",
+        "tests/test_release_hardening.py",
+    ],
     "V4.1.2": [
         "core/middleware.py",
         "config/settings/production.py",

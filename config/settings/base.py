@@ -47,6 +47,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "identity.middleware.SecureSessionMiddleware",
     "core.middleware.ActorContextMiddleware",
+    "core.middleware.RedirectHostBoundaryMiddleware",
     "core.middleware.AuthenticatedNoStoreMiddleware",
     "core.middleware.ContentSecurityPolicyMiddleware",
     "core.middleware.ExceptionLoggingMiddleware",
@@ -119,6 +120,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
+EXTERNAL_REDIRECT_ALLOWED_HOSTS: tuple[str, ...] = ()
 
 # A session can live for twelve hours, with a shorter idle timeout enforced by
 # application middleware in the authentication milestone.

@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 124,
+      "implemented": 125,
       "not_applicable": 79,
-      "partial": 50
+      "partial": 49
     }
   },
   "requirements": [
@@ -1094,13 +1094,18 @@
       "level": 2,
       "description": "Verify that the application will only automatically redirect the user to a different hostname or domain (which is not controlled by the application) where the destination appears on an allowlist.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "A final response boundary rejects malformed, downgraded, and unapproved external redirect locations. External redirects require an exact HTTPS authority allowlist entry, and the private production profile requires that allowlist to remain empty.",
       "evidence": [
+        "docs/REDIRECT_SECURITY.md",
+        "config/settings/base.py",
         "config/settings/production.py",
         "core/middleware.py",
-        "browser-tests/security-accessibility.spec.mjs",
-        "tests/test_logging.py"
+        "identity/views.py",
+        "notifications/models.py",
+        "tests/test_authentication.py",
+        "tests/test_production_settings.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

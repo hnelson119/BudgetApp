@@ -21,6 +21,8 @@ if CSRF_TRUSTED_ORIGINS != [f"https://{ALLOWED_HOSTS[0]}"]:  # noqa: F405
     raise ImproperlyConfigured(
         "Production CSRF origins must contain only the exact Tailscale HTTPS origin."
     )
+if EXTERNAL_REDIRECT_ALLOWED_HOSTS:  # noqa: F405
+    raise ImproperlyConfigured("Production does not permit external redirect destinations.")
 
 MIDDLEWARE = [*MIDDLEWARE]  # noqa: F405
 MIDDLEWARE.insert(1, "core.middleware.NonBrowserTransportBoundaryMiddleware")

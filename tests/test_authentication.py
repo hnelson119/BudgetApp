@@ -9,7 +9,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.backends.db import SessionStore
 from django.contrib.sessions.models import Session
 from django.core.exceptions import PermissionDenied
-from django.test import Client
+from django.test import Client, override_settings
 from django.urls import reverse
 
 from audit.models import AuditEvent
@@ -176,6 +176,44 @@ def test_login_rejects_external_redirect_target(client: Client, household_user) 
 
     assert response.status_code == 302
     assert response.url == reverse("identity:mfa-enroll")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("destination", "allowed_hosts", "expected_status"),
+    (
+        ("https://testserver/summary", (), 302),
+        ("http://testserver/summary", (), 400),
+        ("https://reports.example/summary", (), 400),
+        ("https://reports.example/summary", ("reports.example",), 302),
+        ("http://reports.example/summary", ("reports.example",), 400),
+        ("//reports.example/summary", ("reports.example",), 400),
+        ("///reports.example/summary", ("reports.example",), 400),
+        ("https://reports.example@attacker.example/", ("reports.example",), 400),
+    ),
+)
+def test_redirect_boundary_requires_an_exact_https_external_allowlist(
+    client: Client,
+    enrolled_household_user,
+    destination: str,
+    allowed_hosts: tuple[str, ...],
+    expected_status: int,
+) -> None:  # type: ignore[no-untyped-def]
+    _, user, _, _ = enrolled_household_user
+    client.force_login(user)
+
+    with override_settings(
+        LOGIN_REDIRECT_URL=destination,
+        EXTERNAL_REDIRECT_ALLOWED_HOSTS=allowed_hosts,
+    ):
+        response = client.get(reverse("identity:login"), secure=True)
+
+    assert response.status_code == expected_status
+    if expected_status == 302:
+        assert response.headers["Location"] == destination
+    else:
+        assert "Location" not in response.headers
+        assert response.headers["Cache-Control"] == "no-store"
 
 
 @pytest.mark.django_db
