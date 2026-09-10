@@ -107,6 +107,7 @@ def test_production_settings_pin_exact_private_ingress_and_proxy_boundary() -> N
     assert "Production CSRF origins must contain only the exact Tailscale HTTPS origin." in (
         production_file
     )
+    assert "Production does not permit external redirect destinations." in production_file
     assert 'MIDDLEWARE.insert(0, "core.middleware.ProxyBoundaryMiddleware")' in hardened_file
     assert 'MIDDLEWARE.insert(1, "core.middleware.NonBrowserTransportBoundaryMiddleware")' in (
         production_file

@@ -251,15 +251,16 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 124,
+            "implemented": 125,
             "not_applicable": 79,
-            "partial": 50,
+            "partial": 49,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
     assert requirements["v5.0.0-9.1.1"]["status"] == "not_applicable"
     assert requirements["v5.0.0-10.4.1"]["status"] == "not_applicable"
     assert requirements["v5.0.0-17.3.2"]["status"] == "not_applicable"
+    assert requirements["v5.0.0-3.7.2"]["status"] == "implemented"
     assert requirements["v5.0.0-4.2.1"]["status"] == "implemented"
     assert requirements["v5.0.0-4.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-12.3.1"]["status"] == "partial"
@@ -300,6 +301,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
 
 def test_asvs_builder_preserves_completed_m10_overrides() -> None:
     completed_m10 = {
+        "V3.7.2",
         "V4.1.2",
         "V4.2.1",
         "V6.1.2",
@@ -375,6 +377,26 @@ def test_session_security_policy_matches_enforced_timeouts() -> None:
             "https://pages.nist.gov/800-63-4/sp800-63b/aal/#aal2reauth",
         )
     )
+
+
+def test_redirect_policy_matches_the_response_and_production_boundaries() -> None:
+    policy = (PROJECT_ROOT / "docs/REDIRECT_SECURITY.md").read_text(encoding="utf-8")
+    production = (PROJECT_ROOT / "config/settings/production.py").read_text(encoding="utf-8")
+
+    assert settings.EXTERNAL_REDIRECT_ALLOWED_HOSTS == ()
+    assert settings.MIDDLEWARE.index("core.middleware.ActorContextMiddleware") < (
+        settings.MIDDLEWARE.index("core.middleware.RedirectHostBoundaryMiddleware")
+    )
+    assert all(
+        statement in policy
+        for statement in (
+            "exact authority",
+            "explicit HTTPS URL",
+            "external allowlist to remain empty",
+            "without a `Location` header",
+        )
+    )
+    assert "Production does not permit external redirect destinations." in production
 
 
 def test_asvs_inventory_rejects_catalog_and_disposition_tampering() -> None:

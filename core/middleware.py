@@ -6,9 +6,11 @@ import time
 import uuid
 from collections.abc import Callable
 
+from django.conf import settings
 from django.core.exceptions import DisallowedHost
 from django.http import HttpRequest, HttpResponse
 from django.utils.deprecation import MiddlewareMixin
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .logging import (
     bind_actor_context,
@@ -60,6 +62,7 @@ _CONTENT_SECURITY_POLICY = "; ".join(
         "style-src 'self'",
     )
 )
+_REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
 
 
 def _is_operational_path(path: str) -> bool:
@@ -186,6 +189,48 @@ class ActorContextMiddleware:
             return response
         finally:
             reset_actor_context(tokens)
+
+
+def _redirect_location_is_allowed(request: HttpRequest, location: str) -> bool:
+    if location != location.strip() or "\\" in location:
+        return False
+    if url_has_allowed_host_and_scheme(
+        location,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return True
+    allowed_external = {
+        str(authority).strip().casefold()
+        for authority in settings.EXTERNAL_REDIRECT_ALLOWED_HOSTS
+        if str(authority).strip()
+    }
+    return bool(allowed_external) and url_has_allowed_host_and_scheme(
+        location.casefold(),
+        allowed_hosts=allowed_external,
+        require_https=True,
+    )
+
+
+class RedirectHostBoundaryMiddleware:
+    """Reject automatic redirects to unapproved external authorities."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+        location = response.headers.get("Location")
+        if (
+            response.status_code in _REDIRECT_STATUS_CODES
+            and location
+            and not _redirect_location_is_allowed(request, location)
+        ):
+            response.status_code = 400
+            del response.headers["Location"]
+            response.content = b""
+            response.headers["Cache-Control"] = "no-store"
+        return response
 
 
 class ExceptionLoggingMiddleware(MiddlewareMixin):
