@@ -351,6 +351,8 @@ IMPLEMENTED_REQUIREMENTS = {
     "V13.4.3",
     "V13.4.4",
     "V13.4.5",
+    "V14.1.1",
+    "V14.1.2",
     "V14.2.1",
     "V14.2.2",
     "V14.2.3",
@@ -586,6 +588,23 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "exposes only the exact minimal liveness endpoint. The production-derived runtime probe "
         "requires the existing database-readiness route and representative documentation, metrics, "
         "schema, debug, and actuator paths to return empty hardened 404 responses."
+    ),
+    "V14.1.1": (
+        "A machine-readable classification identifies all sensitive data created or processed by "
+        "the application across 45 Django models and 10 non-model data surfaces. Every model is "
+        "assigned exactly once at the highest protection needed by any field, and encoded, hashed, "
+        "masked, encrypted, compressed, or pseudonymous derivatives explicitly inherit their "
+        "source classification. The documented deployment and privacy context has mandatory "
+        "jurisdiction, integration, provider, regulated-use, and release reassessment triggers."
+    ),
+    "V14.1.2": (
+        "Four ordered protection levels define requirements for transport and at-rest encryption, "
+        "database-volume encryption, integrity, retention, logging, log access, authorization, "
+        "privacy, confidentiality, encoding, disposal, backups, and client storage. Fifteen "
+        "dataset records apply concrete lifecycle rules and evidence, while the checker pins the "
+        "model registry and implemented cookie, TLS, no-store, browser-cleanup, import-scrubbing, "
+        "export, and encrypted-backup boundaries. Dated database-volume and full control "
+        "verification remains separately tracked under V14.2.4."
     ),
     "V14.3.1": (
         "Every secure server-side session termination response directs the browser to clear "
@@ -951,6 +970,39 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "tests/test_network_boundary.py",
         "tests/test_production_settings.py",
         "docs/PRIVATE_INGRESS.md",
+    ],
+    "V14.1.1": [
+        "docs/DATA_CLASSIFICATION.md",
+        "docs/data-classification.json",
+        "scripts/check_data_classification.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_data_classification.py",
+        "config/settings/base.py",
+        "config/settings/hardened.py",
+        "core/middleware.py",
+        "identity/middleware.py",
+        "imports/services/batches.py",
+        "docs/COMMUNICATION_INVENTORY.md",
+        "docs/LOGGING_INVENTORY.md",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+    ],
+    "V14.1.2": [
+        "docs/DATA_CLASSIFICATION.md",
+        "docs/data-classification.json",
+        "scripts/check_data_classification.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_data_classification.py",
+        "config/settings/base.py",
+        "config/settings/hardened.py",
+        "core/middleware.py",
+        "identity/middleware.py",
+        "core/static/core/app.js",
+        "imports/services/batches.py",
+        "spending/views.py",
+        "audit/views.py",
+        "docs/BACKUP_AND_RESTORE.md",
     ],
     "V14.3.1": [
         "identity/services/sessions.py",

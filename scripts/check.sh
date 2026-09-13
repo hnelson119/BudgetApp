@@ -25,6 +25,7 @@ cd "$project_root"
 "$python_path" scripts/check_os_command_safety.py
 "$python_path" scripts/check_format_string_safety.py
 "$python_path" scripts/check_communication_inventory.py
+"$python_path" scripts/check_data_classification.py
 "$python_path" scripts/check_regex_safety.py
 "$python_path" scripts/check_release_evidence.py
 "$python_path" scripts/check_device_test_evidence.py

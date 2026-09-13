@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 138 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 36 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 140 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 34 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 36
+These are the clearest implementation or operational work items exposed by the mapping. The 34
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -127,6 +127,18 @@ cross-origin reads, strips every CORS permission and timing-origin response fiel
 `Cross-Origin-Resource-Policy` to `same-origin`. The boundary encloses WhiteNoise in hardened
 deployments, whose independent wildcard-origin default also remains disabled following the retested
 `M10-F002` finding.
+
+### Sensitive-data classification
+
+The model-anchored data inventory implements `v5.0.0-14.1.1` and `v5.0.0-14.1.2`. It assigns all
+45 stored Django models exactly once and covers 10 additional request, browser, export, secret,
+backup, log, reference, operational, release, and static-asset surfaces. Four ordered protection
+levels define encryption, database storage, integrity, retention, logging, log access, authorization,
+privacy, confidentiality, encoding, disposal, backup, and client-storage requirements. Encoded,
+hashed, masked, compressed, encrypted, and pseudonymous forms inherit their source classification.
+The checker rejects new unclassified models and drift in the implemented boundaries. Dated host
+volume-encryption and end-to-end protection verification remains honestly partial under
+`v5.0.0-14.2.4`. See `docs/DATA_CLASSIFICATION.md` and `docs/data-classification.json`.
 
 ### HTTP and backend communication
 
