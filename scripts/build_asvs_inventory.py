@@ -252,6 +252,9 @@ IMPLEMENTED_REQUIREMENTS = {
     "V1.3.2",
     "V1.3.7",
     "V1.3.10",
+    "V1.4.1",
+    "V1.4.2",
+    "V1.4.3",
     "V1.5.2",
     "V2.2.1",
     "V2.2.2",
@@ -428,6 +431,27 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "grammars, datetime output grammars, runtime string templates, log message templates, and "
         "percent-format expressions. The one iterated CSV date parser is constrained to an exact "
         "literal format allowlist, and all 11 percent operators are pinned arithmetic modulo."
+    ),
+    "V1.4.1": (
+        "Application-owned Python and JavaScript use managed strings, bytes, objects, and buffers "
+        "without pointer arithmetic or manual allocation. A fail-closed scan rejects application "
+        "native source, unsafe memory and FFI modules, unreviewed buffer views, native-size struct "
+        "formats, and JavaScript raw-memory or WebAssembly APIs. The sole memoryview and two "
+        "explicit big-endian TOTP conversions are pinned and bounds-checked."
+    ),
+    "V1.4.2": (
+        "Python integer arithmetic cannot wrap, financial code cannot convert through binary "
+        "float, and fixed-width TOTP operations are explicitly bounded. The model registry pins "
+        "38 DecimalFields to reviewed money or rate shapes and 37 non-automatic IntegerFields to "
+        "bounded big or positive types; forms, services, models, and database constraints enforce "
+        "finiteness, scale, sign, rate, amount, calendar, upload, and projection limits."
+    ),
+    "V1.4.3": (
+        "Managed runtimes reclaim application allocations without dangling pointers. The checker "
+        "pins all low-level descriptor operations to six reviewed files, requires every fdopen, "
+        "Unix socket, and named temporary file to use a context manager, and rejects new unsafe "
+        "allocation interfaces. Each raw descriptor site has explicit failure and finally cleanup "
+        "or transfers ownership to a context-managed file."
     ),
     "V3.4.2": (
         "The private application deliberately grants no cross-origin reads. An outer same-origin "
@@ -735,6 +759,43 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "imports/services/batches.py",
         "core/logging.py",
         "tests/test_format_string_safety.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V1.4.1": [
+        "docs/MANAGED_RUNTIME_SAFETY.md",
+        "scripts/check_managed_runtime_safety.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "core/security_log_collector.py",
+        "identity/services/mfa.py",
+        "core/static/core/app.js",
+        "docs/SBOM.md",
+        "tests/test_managed_runtime_safety.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V1.4.2": [
+        "docs/MANAGED_RUNTIME_SAFETY.md",
+        "scripts/check_managed_runtime_safety.py",
+        "budgets/forms.py",
+        "debts/forms.py",
+        "debts/services/projections.py",
+        "imports/services/batches.py",
+        "ledger/models.py",
+        "identity/services/mfa.py",
+        "tests/test_managed_runtime_safety.py",
+        "tests/test_debt_projections.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V1.4.3": [
+        "docs/MANAGED_RUNTIME_SAFETY.md",
+        "scripts/check_managed_runtime_safety.py",
+        "core/security_log_collector.py",
+        "core/logging.py",
+        "core/pentest_fixture.py",
+        "audit/checkpoints.py",
+        "identity/password_validation.py",
+        "identity/management/commands/build_breached_password_corpus.py",
+        "tests/test_managed_runtime_safety.py",
         "tests/test_release_hardening.py",
     ],
     "V3.4.2": [
