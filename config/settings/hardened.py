@@ -17,7 +17,7 @@ if _SETTINGS_MODULE not in {"config.settings.production", "config.settings.pente
     raise ImproperlyConfigured("Shared hardened settings cannot be selected directly.")
 
 MIDDLEWARE = [*MIDDLEWARE]  # noqa: F405
-MIDDLEWARE.insert(0, "core.middleware.ProxyBoundaryMiddleware")
+MIDDLEWARE.insert(1, "core.middleware.ProxyBoundaryMiddleware")
 MIDDLEWARE.insert(2, "core.middleware.HostBoundaryMiddleware")
 MIDDLEWARE.insert(3, "whitenoise.middleware.WhiteNoiseMiddleware")
 MIDDLEWARE.insert(

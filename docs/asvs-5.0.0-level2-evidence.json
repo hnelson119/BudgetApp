@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 127,
+      "implemented": 128,
       "not_applicable": 79,
-      "partial": 47
+      "partial": 46
     }
   },
   "requirements": [
@@ -892,12 +892,18 @@
       "level": 1,
       "description": "Verify that the Cross-Origin Resource Sharing (CORS) Access-Control-Allow-Origin header field is a fixed value by the application, or if the Origin HTTP request header field value is used, it is validated against an allowlist of trusted origins. When 'Access-Control-Allow-Origin: *' needs to be used, verify that the response does not include any sensitive information.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The private application deliberately grants no cross-origin reads. An outer same-origin response boundary removes every CORS permission field and Timing-Allow-Origin, sets Cross-Origin-Resource-Policy to same-origin, and encloses the hardened static-file layer; WhiteNoise's independent wildcard-origin default remains disabled.",
       "evidence": [
-        "core/middleware.py",
+        "docs/CROSS_ORIGIN_SECURITY.md",
+        "docs/SECURITY_FINDINGS.md",
+        "config/settings/base.py",
+        "config/settings/hardened.py",
         "config/settings/production.py",
-        "tests/test_logging.py"
+        "core/middleware.py",
+        "tests/test_logging.py",
+        "tests/test_production_settings.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

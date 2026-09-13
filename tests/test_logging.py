@@ -23,6 +23,7 @@ from core.middleware import (
     NonBrowserTransportBoundaryMiddleware,
     OperationalEndpointBoundaryMiddleware,
     ProxyBoundaryMiddleware,
+    SameOriginResponseBoundaryMiddleware,
 )
 
 TEST_PASSWORD = "safe-test-pass"  # pragma: allowlist secret
@@ -98,6 +99,37 @@ def test_valid_request_id_is_returned_to_client(client: Client) -> None:
     assert response.headers["X-Request-ID"] == "request-12345678"
     assert response.headers["Content-Security-Policy"].startswith("default-src 'self'")
     assert response.headers["Permissions-Policy"] == "camera=(), microphone=(), geolocation=()"
+
+
+def test_same_origin_boundary_removes_every_cors_permission() -> None:
+    cors_headers = {
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Private-Network": "true",
+        "Access-Control-Expose-Headers": "*",
+        "Access-Control-Max-Age": "86400",
+        "Timing-Allow-Origin": "*",
+    }
+    response = HttpResponse(headers=cors_headers)
+
+    result = SameOriginResponseBoundaryMiddleware(lambda _request: response)(object())
+
+    assert not set(cors_headers).intersection(result.headers)
+    assert result.headers["Cross-Origin-Resource-Policy"] == "same-origin"
+
+
+def test_untrusted_origin_receives_no_cross_origin_permission(client: Client) -> None:
+    response = client.get(
+        reverse("core:health-live"),
+        headers={"Origin": "https://attacker.invalid"},
+    )
+
+    assert response.status_code == 200
+    assert "Access-Control-Allow-Origin" not in response.headers
+    assert "Access-Control-Allow-Credentials" not in response.headers
+    assert response.headers["Cross-Origin-Resource-Policy"] == "same-origin"
 
 
 def test_untrusted_request_id_is_replaced(client: Client) -> None:

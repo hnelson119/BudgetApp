@@ -63,6 +63,16 @@ _CONTENT_SECURITY_POLICY = "; ".join(
     )
 )
 _REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
+_CROSS_ORIGIN_RESPONSE_HEADERS = (
+    "Access-Control-Allow-Credentials",
+    "Access-Control-Allow-Headers",
+    "Access-Control-Allow-Methods",
+    "Access-Control-Allow-Origin",
+    "Access-Control-Allow-Private-Network",
+    "Access-Control-Expose-Headers",
+    "Access-Control-Max-Age",
+    "Timing-Allow-Origin",
+)
 
 
 def _is_operational_path(path: str) -> bool:
@@ -71,6 +81,21 @@ def _is_operational_path(path: str) -> bool:
         segment in _RESERVED_OPERATIONAL_SEGMENTS or segment.startswith(("openapi.", "swagger."))
         for segment in segments
     )
+
+
+class SameOriginResponseBoundaryMiddleware:
+    """Keep the private application and every shipped resource same-origin only."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+        for header in _CROSS_ORIGIN_RESPONSE_HEADERS:
+            if header in response.headers:
+                del response.headers[header]
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        return response
 
 
 class ProxyBoundaryMiddleware:
