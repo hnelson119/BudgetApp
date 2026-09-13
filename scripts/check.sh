@@ -20,6 +20,7 @@ cd "$project_root"
 "$python_path" scripts/check_logging_inventory.py
 "$python_path" scripts/check_sbom.py
 "$python_path" scripts/check_client_technologies.py
+"$python_path" scripts/check_output_encoding.py
 "$python_path" scripts/check_regex_safety.py
 "$python_path" scripts/check_release_evidence.py
 "$python_path" scripts/check_device_test_evidence.py
