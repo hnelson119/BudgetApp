@@ -64,6 +64,35 @@ LEGACY_PATTERNS = (
         ),
     ),
 )
+INLINE_SCRIPT_PATTERN = re.compile(
+    r"<script\b(?![^>]*\bsrc\s*=)[^>]*>(.*?)</script\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+JAVASCRIPT_OBJECT_SAFETY_PATTERNS = (
+    (
+        "prototype-related property",
+        re.compile(r"\b(?:__proto__|constructor|prototype)\b", re.IGNORECASE),
+    ),
+    (
+        "object or reflection mutation API",
+        re.compile(
+            r"\b(?:Object\s*\.\s*(?:assign|definePropert(?:y|ies)|setPrototypeOf)"
+            r"|Reflect\s*\.\s*set)\s*\(",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "dynamic bracket property access",
+        re.compile(
+            r"\b[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*\s*(?:\?\.)?"
+            r"\[\s*[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*\s*\]"
+        ),
+    ),
+    (
+        "inherited-property iteration",
+        re.compile(r"\bfor\s*\([^)]*\bin\b", re.IGNORECASE | re.DOTALL),
+    ),
+)
 
 
 def production_client_files(project_root: Path = PROJECT_ROOT) -> list[Path]:
@@ -122,6 +151,13 @@ def validate_client_technologies(project_root: Path = PROJECT_ROOT) -> list[Path
         for description, pattern in LEGACY_PATTERNS:
             if pattern.search(content):
                 raise ValueError(f"{description} is prohibited in {relative_path}")
+        javascript_sources = (
+            (content,) if suffix == ".js" else INLINE_SCRIPT_PATTERN.findall(content)
+        )
+        for javascript in javascript_sources:
+            for description, pattern in JAVASCRIPT_OBJECT_SAFETY_PATTERNS:
+                if pattern.search(javascript):
+                    raise ValueError(f"{description} is prohibited in {relative_path}")
     return files
 
 

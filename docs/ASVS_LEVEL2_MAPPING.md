@@ -1,7 +1,7 @@
 # OWASP ASVS 5.0.0 Level 2 mapping
 
 Status: requirement-level applicability complete; release verification pending  
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 
 ## Scope and source integrity
 
@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 129 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 45 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 130 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 44 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 45
+These are the clearest implementation or operational work items exposed by the mapping. The 44
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -162,6 +162,12 @@ staging, original uploads are never redistributed, and freshly generated exports
 spreadsheet-formula prefixes.
 
 ### Cryptography, supply chain, and logging
+
+The production JavaScript object-safety boundary implements `v5.0.0-15.3.6`. Runtime-selected keys
+use `Map`, membership uses `Set`, and a fail-closed inventory rejects prototype names,
+object/reflection mutation APIs, dynamic bracket-property access, and inherited-property iteration
+from every reviewed JavaScript file and script-capable template. See
+`docs/JAVASCRIPT_OBJECT_SAFETY.md`.
 
 The machine-validated key, algorithm, and certificate inventory implements `v5.0.0-11.1.2` with
 explicit permitted/prohibited uses, protected/excluded data, rotation, retirement, provider

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-09-12",
+  "mapping_updated": "2026-09-13",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 129,
+      "implemented": 130,
       "not_applicable": 79,
-      "partial": 45
+      "partial": 44
     }
   },
   "requirements": [
@@ -4363,12 +4363,18 @@
       "level": 2,
       "description": "Verify that JavaScript code is written in a way that prevents prototype pollution, for example, by using Set() or Map() instead of object literals.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The dependency-free production JavaScript uses Map and Set for runtime-selected keys and membership. Its fail-closed client inventory rejects prototype names, object/reflection mutation APIs, dynamic bracket access, and inherited-property iteration across every reviewed JavaScript file and inline-script-capable template.",
       "evidence": [
-        "core/forms.py",
-        "households/services/access.py",
-        "tests/"
+        "docs/JAVASCRIPT_OBJECT_SAFETY.md",
+        "docs/CLIENT_TECHNOLOGY_POLICY.md",
+        "core/static/core/app.js",
+        "scripts/check_client_technologies.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_client_technologies.py",
+        "tests/test_release_hardening.py",
+        ".github/workflows/quality.yml"
       ]
     },
     {
