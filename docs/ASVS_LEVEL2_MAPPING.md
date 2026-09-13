@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 135 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 39 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 136 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 38 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 39
+These are the clearest implementation or operational work items exposed by the mapping. The 38
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -52,6 +52,12 @@ client inserts dynamic text with DOM APIs and `textContent`. A fail-closed inven
 escaping bypasses, inline scripts, HTML-parsing and code-execution sinks, custom trusted-HTML APIs,
 manual script or JSON media bodies, and custom `JsonResponse` encoders. The two fixed operational
 JSON endpoints use Django's default encoder. See `docs/OUTPUT_ENCODING_POLICY.md`.
+
+The operating-system command boundary implements `v5.0.0-1.2.5`. The production Python runtime
+does not launch child processes. A fail-closed inventory covers application and configuration code,
+migrations, management commands, and the runtime entry point, rejecting shell/process modules,
+OS exec/spawn/system calls, asynchronous process creation, dynamic module loading, and renamed or
+dynamically selected process APIs. See `docs/OS_COMMAND_SAFETY.md`.
 
 The template-selection boundary implements `v5.0.0-1.3.7`. All production renderer and loader calls
 use literal names that resolve to files in the reviewed template inventory, and all template
