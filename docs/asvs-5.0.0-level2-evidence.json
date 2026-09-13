@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 132,
+      "implemented": 133,
       "not_applicable": 79,
-      "partial": 42
+      "partial": 41
     }
   },
   "requirements": [
@@ -228,13 +228,17 @@
       "level": 2,
       "description": "Verify that the application escapes special characters in regular expressions (typically using a backslash) to prevent them from being misinterpreted as metacharacters.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "A fail-closed AST inventory requires every Python and Django regular-expression call to use a non-empty literal pattern, except for the one reviewed password-validator pattern. That construction applies re.escape independently to every configured alternative before placing the single escaped fragment in fixed anchored syntax; module aliasing, direct symbol imports, new dynamic patterns, and unescaped interpolation are rejected.",
       "evidence": [
-        "core/",
-        "imports/services/",
-        "tests/test_csv_imports.py",
-        "scripts/check.ps1"
+        "docs/REGULAR_EXPRESSION_SAFETY.md",
+        "scripts/check_regex_safety.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "identity/password_validation.py",
+        "tests/test_regex_safety.py",
+        "tests/test_password_policy.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

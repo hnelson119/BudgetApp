@@ -245,6 +245,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V1.2.1",
     "V1.2.2",
     "V1.2.4",
+    "V1.2.9",
     "V1.3.2",
     "V1.5.2",
     "V2.2.1",
@@ -376,6 +377,13 @@ IMPLEMENTED_REQUIREMENTS = {
 }
 
 IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V1.2.9": (
+        "A fail-closed AST inventory requires every Python and Django regular-expression call to "
+        "use a non-empty literal pattern, except for the one reviewed password-validator pattern. "
+        "That construction applies re.escape independently to every configured alternative before "
+        "placing the single escaped fragment in fixed anchored syntax; module aliasing, direct "
+        "symbol imports, new dynamic patterns, and unescaped interpolation are rejected."
+    ),
     "V3.4.2": (
         "The private application deliberately grants no cross-origin reads. An outer same-origin "
         "response boundary removes every CORS permission field and Timing-Allow-Origin, sets "
@@ -588,6 +596,16 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
 }
 
 IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
+    "V1.2.9": [
+        "docs/REGULAR_EXPRESSION_SAFETY.md",
+        "scripts/check_regex_safety.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "identity/password_validation.py",
+        "tests/test_regex_safety.py",
+        "tests/test_password_policy.py",
+        "tests/test_release_hardening.py",
+    ],
     "V3.4.2": [
         "docs/CROSS_ORIGIN_SECURITY.md",
         "docs/SECURITY_FINDINGS.md",
