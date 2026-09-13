@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 140,
+      "implemented": 141,
       "not_applicable": 79,
-      "partial": 34
+      "partial": 33
     }
   },
   "requirements": [
@@ -35,13 +35,23 @@
       "level": 2,
       "description": "Verify that input is decoded or unescaped into a canonical form only once, it is only decoded when encoded data in that form is expected, and that this is done before processing the input further, for example it is not performed after input validation or sanitization.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Django owns the single percent/form decoding pass before validation, and application code contains no second unquote, query, or HTML-entity decoder. A fail-closed AST inventory pins all 16 strict text, JSON, and purpose-specific Base32 operations across seven files, rejects permissive or dynamic encodings and general input decoders, and detects nested deserialization. Each documented boundary validates the canonical result before business processing, persistence, or security use.",
       "evidence": [
-        "core/",
-        "imports/services/",
+        "docs/CANONICAL_INPUT_DECODING.md",
+        "docs/DATA_CLASSIFICATION.md",
+        "scripts/check_canonical_decoding.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_canonical_decoding.py",
+        "imports/services/parsing.py",
+        "core/security_log_collector.py",
+        "identity/services/mfa.py",
+        "identity/password_validation.py",
+        "audit/management/commands/verify_audit_checkpoint.py",
         "tests/test_csv_imports.py",
-        "scripts/check.ps1"
+        "tests/test_security_log_archive.py",
+        "tests/test_password_policy.py"
       ]
     },
     {
