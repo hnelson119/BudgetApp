@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 134,
+      "implemented": 135,
       "not_applicable": 79,
-      "partial": 40
+      "partial": 39
     }
   },
   "requirements": [
@@ -375,13 +375,19 @@
       "level": 2,
       "description": "Verify that the application protects against template injection attacks by not allowing templates to be built based on untrusted input. Where there is no alternative, any untrusted input being included dynamically during template creation must be sanitized or strictly validated.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "All production render and template-loader calls select existing templates with fixed literal names, and every template extends or includes an existing literal dependency. A fail-closed source inventory rejects runtime template construction, dynamic or missing template names, mixed literal/dynamic fallback lists, dynamic inheritance or includes, and aliases of the reviewed Django selection APIs.",
       "evidence": [
-        "core/",
-        "imports/services/",
-        "tests/test_csv_imports.py",
-        "scripts/check.ps1"
+        "docs/TEMPLATE_INJECTION_POLICY.md",
+        "scripts/check_template_safety.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "core/templates/core/app_base.html",
+        "core/views.py",
+        "identity/views.py",
+        "budgets/views.py",
+        "tests/test_template_safety.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

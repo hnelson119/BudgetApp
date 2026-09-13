@@ -94,7 +94,7 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 134 implemented, 40 partial, 79
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 135 implemented, 39 partial, 79
   justified feature exclusions, and zero verified. Internal HTTP service TLS, purpose-specific
   trust, directory-listing prevention, TRACE rejection, operational-endpoint minimization, and
   non-browser plaintext rejection, and authenticated client-state cleanup are implemented; live
