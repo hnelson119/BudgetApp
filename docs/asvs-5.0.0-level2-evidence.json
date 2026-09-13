@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 128,
+      "implemented": 129,
       "not_applicable": 79,
-      "partial": 46
+      "partial": 45
     }
   },
   "requirements": [
@@ -1332,13 +1332,21 @@
       "level": 2,
       "description": "Verify that the documentation defines the permitted file types, expected file extensions, and maximum size (including unpacked size) for each upload feature. Additionally, ensure that the documentation specifies how files are made safe for end-users to download and process, such as how the application behaves when a malicious file is detected.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The documented upload inventory permits only bounded UTF-8 .csv transaction statements, defines the extension, advertised media type, raw and unpacked-size treatment, row, column, and cell limits, and records fail-closed rejection, staging, cleanup, preview, and formula-safe generated-download behavior.",
       "evidence": [
-        "SECURITY_PLAN.md",
-        "imports/services/",
+        "docs/FILE_HANDLING_POLICY.md",
+        "config/settings/base.py",
+        "imports/forms.py",
+        "imports/services/parsing.py",
+        "imports/services/batches.py",
+        "imports/templates/imports/import_preview.html",
         "spending/services/exports.py",
-        "tests/"
+        "audit/exports.py",
+        "tests/test_csv_imports.py",
+        "tests/test_csv_exports.py",
+        "tests/test_audit_ui.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

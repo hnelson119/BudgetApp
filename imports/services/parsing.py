@@ -48,8 +48,8 @@ def parse_csv_upload(upload: UploadedFile) -> ParsedCSV:
     maximum_rows = int(getattr(settings, "CSV_IMPORT_MAX_ROWS", 10_000))
     maximum_columns = int(getattr(settings, "CSV_IMPORT_MAX_COLUMNS", 50))
     maximum_cell_length = int(getattr(settings, "CSV_IMPORT_MAX_CELL_LENGTH", 1_000))
-    filename = _safe_filename(upload.name or "")
     try:
+        filename = _safe_filename(upload.name or "")
         payload = _read_bounded(upload, maximum_bytes)
     finally:
         upload.close()

@@ -9,6 +9,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import pytest
+from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
@@ -26,6 +27,7 @@ from identity.services.mfa import (
     confirm_recovery_codes_saved,
     totp_code,
 )
+from imports.forms import CSVUploadForm
 from imports.models import ImportBatch, ImportRow
 from imports.services import (
     abandon_import_batch,
@@ -119,6 +121,21 @@ def import_context(db: object) -> ImportContext:
 
 def _upload(content: bytes, *, name: str = "transactions.csv") -> SimpleUploadedFile:
     return SimpleUploadedFile(name, content, content_type="text/csv")
+
+
+def test_csv_upload_contract_matches_the_documented_release_limits() -> None:
+    field = CSVUploadForm.base_fields["csv_file"]
+
+    assert settings.CSV_IMPORT_MAX_BYTES == 5 * 1024 * 1024
+    assert settings.DATA_UPLOAD_MAX_MEMORY_SIZE == settings.CSV_IMPORT_MAX_BYTES
+    assert settings.FILE_UPLOAD_MAX_MEMORY_SIZE == settings.CSV_IMPORT_MAX_BYTES
+    assert settings.CSV_IMPORT_MAX_ROWS == 10_000
+    assert settings.CSV_IMPORT_MAX_COLUMNS == 50
+    assert settings.CSV_IMPORT_MAX_CELL_LENGTH == 1_000
+    assert field.widget.attrs["accept"] == ".csv,text/csv"
+    assert field.help_text == (
+        "UTF-8 .csv only; maximum 5 MiB and 10,000 transaction rows. Archives are not accepted."
+    )
 
 
 def _stage(
@@ -659,6 +676,21 @@ def test_csv_parser_rejects_unsafe_or_malformed_files(
 ) -> None:
     with pytest.raises(ValidationError, match=message):
         parse_csv_upload(_upload(content, name=name))
+
+
+def test_csv_parser_closes_rejected_uploads_before_any_staging() -> None:
+    wrong_extension = _upload(b"PK\x03\x04archive", name="transactions.zip")
+    invalid_content = _upload(
+        b"Date,Description,Amount\n2026-08-22,Te\x00st,-1\n",
+    )
+
+    with pytest.raises(ValidationError, match=r"\.csv extension"):
+        parse_csv_upload(wrong_extension)
+    with pytest.raises(ValidationError, match="binary"):
+        parse_csv_upload(invalid_content)
+
+    assert wrong_extension.closed is True
+    assert invalid_content.closed is True
 
 
 @override_settings(CSV_IMPORT_MAX_BYTES=30)

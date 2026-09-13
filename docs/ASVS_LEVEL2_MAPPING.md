@@ -1,7 +1,7 @@
 # OWASP ASVS 5.0.0 Level 2 mapping
 
 Status: requirement-level applicability complete; release verification pending  
-Last updated: 2026-09-09
+Last updated: 2026-09-12
 
 ## Scope and source integrity
 
@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 125 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 49 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 129 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 45 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 49
+These are the clearest implementation or operational work items exposed by the mapping. The 45
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -151,6 +151,15 @@ representative metrics, documentation, schema, debug, and actuator paths to retu
   application-managed production TCP paths now encrypt and validate peer identity without fallback,
   while dated browser-facing Tailscale certificate/trust and key-only SSH observations still require
   the real VM and approved devices.
+
+### File handling
+
+The complete upload inventory implements `v5.0.0-5.1.1`. The only accepted upload is a bounded
+UTF-8 `.csv` transaction statement; its extension, advertised media type, 5 MiB byte ceiling,
+archive exclusion, structural limits, rejection behavior, staging lifetime, and generated-download
+safety are defined in `docs/FILE_HANDLING_POLICY.md`. Invalid content is closed and rejected before
+staging, original uploads are never redistributed, and freshly generated exports neutralize
+spreadsheet-formula prefixes.
 
 ### Cryptography, supply chain, and logging
 

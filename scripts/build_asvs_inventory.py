@@ -273,6 +273,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V4.1.2",
     "V4.1.3",
     "V4.2.1",
+    "V5.1.1",
     "V5.2.1",
     "V5.2.2",
     "V5.3.1",
@@ -407,6 +408,12 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "forms and must reject six ambiguous or malformed framing forms with exactly one error "
         "response and a closed connection. Browser-facing Tailscale HTTP/2 or HTTP/3 validation "
         "remains a dated release-candidate check."
+    ),
+    "V5.1.1": (
+        "The documented upload inventory permits only bounded UTF-8 .csv transaction statements, "
+        "defines the extension, advertised media type, raw and unpacked-size treatment, row, "
+        "column, and cell limits, and records fail-closed rejection, staging, cleanup, preview, "
+        "and formula-safe generated-download behavior."
     ),
     "V6.1.2": (
         "The exact product and system identifiers plus normalized separator, leetspeak, prefix, "
@@ -621,6 +628,20 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         ".github/workflows/http-framing.yml",
         "tests/test_network_boundary.py",
         "docs/PRIVATE_INGRESS.md",
+    ],
+    "V5.1.1": [
+        "docs/FILE_HANDLING_POLICY.md",
+        "config/settings/base.py",
+        "imports/forms.py",
+        "imports/services/parsing.py",
+        "imports/services/batches.py",
+        "imports/templates/imports/import_preview.html",
+        "spending/services/exports.py",
+        "audit/exports.py",
+        "tests/test_csv_imports.py",
+        "tests/test_csv_exports.py",
+        "tests/test_audit_ui.py",
+        "tests/test_release_hardening.py",
     ],
     "V6.1.2": [
         "docs/PASSWORD_BLOCKLIST.md",
