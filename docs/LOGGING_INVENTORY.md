@@ -1,8 +1,8 @@
 # Logging inventory and maintenance
 
 Status: inventory and separate security archive implemented; release verification pending
-Inventory reviewed: 2026-09-06
-Next scheduled review: 2026-12-05
+Inventory reviewed: 2026-09-13
+Next scheduled review: 2026-12-12
 
 ## Purpose and authority
 
@@ -11,11 +11,12 @@ of the current application stack. It records events, formats, destinations, oper
 reader boundaries, retention, sensitive-data rules, integrity/availability properties, and known
 limitations. This runbook explains maintenance and release review.
 
-Together they implement the repository-deliverable portions of ASVS `v5.0.0-16.1.1` and
-`v5.0.0-16.4.3`. They do not claim a release-candidate pass. Production sends a second copy of each
-Django security record through a permission-restricted Unix datagram socket to a separate,
-networkless collector and collector-only archive volume. The application cannot mount or read that
-archive. Live retention, alert review, escalation, and failure observations remain release work.
+Together they implement the repository-deliverable portions of ASVS `v5.0.0-16.1.1`,
+`v5.0.0-16.3.2`, and `v5.0.0-16.4.3`. They do not claim a release-candidate pass. Production sends a
+second copy of each Django security record through a permission-restricted Unix datagram socket to
+a separate, networkless collector and collector-only archive volume. The application cannot mount
+or read that archive. Live retention, alert review, escalation, and failure observations remain
+release work.
 
 The release owner reviews the inventory at least every 90 days, on every release candidate, and
 whenever a producer, event, format, destination, reader, retention rule, stack layer, provider,
@@ -32,7 +33,7 @@ scope, and supersession data allowed by the relevant evidence schema.
 | Layer | Events and format | Destination and access | Retention |
 | --- | --- | --- | --- |
 | Django operational | Request completion, unhandled exceptions, management/runtime messages; redacting JSON | stdout/stderr to Docker local driver; deployment administrators | 20 MiB × 5 files per container; elapsed time varies |
-| Django security | Authentication, MFA/recovery, session, rejected import, and sensitive export outcomes; tagged redacting JSON | Docker copy plus restricted Unix datagrams to the separate archive | Docker copy rotates at 20 MiB × 5; archive minimum 90 days |
+| Django security | Authentication, authorization denial, MFA/recovery, session, rejected import, and sensitive export outcomes; tagged redacting JSON | Docker copy plus restricted Unix datagrams to the separate archive | Docker copy rotates at 20 MiB × 5; archive minimum 90 days |
 | Security archive | Independently validated/redacted security records and six fixed collector diagnostics | Networkless UID 10003 collector; collector-only volume; warning-or-higher alert queue | Persistent volume, minimum 90 days plus incident holds |
 | Protected household audit | 83 stable financial/security action IDs; canonical hash-chained rows | `budget_audit` schema plus off-VM signed checkpoints; household/recent-auth, append-only runtime, and audit-reader roles | Live application lifetime; backups retain 7 daily, 4 weekly, 12 monthly |
 | Maintenance | 35 backup, restore, Restic, and synthetic database-rotation outcomes; fixed JSON | Docker local plus systemd job lifecycle; deployment administrators | Docker capacity bound; host policy 30 days |
@@ -47,7 +48,7 @@ scope, and supersession data allowed by the relevant evidence schema.
 | Security-test output | Tool-native raw reports and sanitized evidence | Ignored/disposable paths and CI; sanitized findings in Git | Raw through triage, CI 90 days, sanitized Git history durable |
 
 The JSON inventory is authoritative for exact language. Its five event groups are generated from
-source literals and validated against the repository: 2 Django operational events, 23 Django
+source literals and validated against the repository: 2 Django operational events, 24 Django
 security events, 6 security-archive diagnostics, 83 protected audit actions, and 35 structured
 maintenance events. Adding, removing, or renaming a literal event without updating the inventory
 fails the local and CI gate.
@@ -60,6 +61,13 @@ message, and only allowlisted structured fields. Exception records include the e
 source filename/line/function frames, never exception text. The request logger records method,
 resolved route name, response status, and duration; it excludes successful health probes and never
 records raw path, query, body, headers, address, or user agent.
+
+Every explicit 403 response emits one warning-level `authorization.denied` security event. Because
+object-level authorization intentionally conceals existence with 404, the same event is emitted for
+an authenticated, resolved route with identifier arguments that returns 404. The record contains
+only method, resolved route name, status, error reference, and the bound pseudonymous context; it
+does not contain the URL, query, route arguments, object identifiers, or exception text. Expected
+permission and not-found exceptions are not also classified as unhandled application errors.
 
 The formatter redacts credential assignments, bearer material, email addresses, and long payment-
 card-like numbers. Producers must still minimize before logging: do not rely on redaction to make an

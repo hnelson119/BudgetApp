@@ -366,6 +366,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V16.2.4",
     "V16.2.5",
     "V16.3.1",
+    "V16.3.2",
     "V16.3.4",
     "V16.4.1",
     "V16.4.3",
@@ -559,6 +560,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "catalogs, formats, destinations, uses, readers, retention, sensitive-data rules, "
         "integrity limits, and explicit separate-destination gaps without claiming release "
         "verification."
+    ),
+    "V16.3.2": (
+        "Every explicit 403 response and every authenticated, resolved identifier-bearing 404 "
+        "used to conceal object scope emits one warning-level authorization.denied security event. "
+        "The record contains only method, resolved route, status, error reference, and bound "
+        "pseudonymous context; it excludes paths, queries, route arguments, object identifiers, "
+        "and exception text, and expected permission or not-found outcomes are not labeled "
+        "unhandled."
     ),
     "V16.4.3": (
         "Production Django security records are sent over a permission-restricted Unix datagram "
@@ -849,6 +858,16 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/logging-inventory.json",
         "docs/LOGGING_INVENTORY.md",
         "scripts/check_logging_inventory.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V16.3.2": [
+        "core/middleware.py",
+        "core/logging.py",
+        "config/settings/base.py",
+        "docs/LOGGING_INVENTORY.md",
+        "docs/logging-inventory.json",
+        "tests/urls.py",
+        "tests/test_logging.py",
         "tests/test_release_hardening.py",
     ],
     "V16.4.3": [

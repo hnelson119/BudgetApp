@@ -134,12 +134,12 @@ def test_logging_inventory_is_complete_and_source_derived() -> None:
     assert inventory["summary"] == {
         "layers": 14,
         "event_groups": 5,
-        "event_entries": 149,
+        "event_entries": 150,
         "known_gaps": 2,
     }
     groups = {item["id"]: item for item in inventory["event_groups"]}
     assert len(groups["django-operational-events"]["events"]) == 2
-    assert len(groups["django-security-events"]["events"]) == 23
+    assert len(groups["django-security-events"]["events"]) == 24
     assert len(groups["security-archive-events"]["events"]) == 6
     assert len(groups["protected-audit-actions"]["events"]) == 83
     assert len(groups["maintenance-events"]["events"]) == 35
@@ -153,40 +153,40 @@ def test_logging_inventory_rejects_tampering_and_stale_reviews() -> None:
     duplicate_layer = copy.deepcopy(inventory)
     duplicate_layer["layers"].append(duplicate_layer["layers"][0])
     with pytest.raises(ValueError, match="duplicate id"):
-        validate_logging_inventory(duplicate_layer, today=date(2026, 9, 6))
+        validate_logging_inventory(duplicate_layer, today=date(2026, 9, 13))
 
     missing_retention = copy.deepcopy(inventory)
     missing_retention["layers"][0]["retention"] = ""
     with pytest.raises(ValueError, match="retention must be non-empty text"):
-        validate_logging_inventory(missing_retention, today=date(2026, 9, 6))
+        validate_logging_inventory(missing_retention, today=date(2026, 9, 13))
 
     missing_evidence = copy.deepcopy(inventory)
     missing_evidence["layers"][0]["evidence"] = ["docs/does-not-exist.md"]
     with pytest.raises(ValueError, match="missing evidence"):
-        validate_logging_inventory(missing_evidence, today=date(2026, 9, 6))
+        validate_logging_inventory(missing_evidence, today=date(2026, 9, 13))
 
     unknown_group = copy.deepcopy(inventory)
     unknown_group["layers"][0]["event_groups"] = ["unknown-events"]
     with pytest.raises(ValueError, match="unknown event groups"):
-        validate_logging_inventory(unknown_group, today=date(2026, 9, 6))
+        validate_logging_inventory(unknown_group, today=date(2026, 9, 13))
 
     changed_source_event = copy.deepcopy(inventory)
     changed_source_event["event_groups"][0]["events"][0] = "http.request.changed"
     with pytest.raises(ValueError, match="does not match source literals"):
-        validate_logging_inventory(changed_source_event, today=date(2026, 9, 6))
+        validate_logging_inventory(changed_source_event, today=date(2026, 9, 13))
 
     embedded_private_key = copy.deepcopy(inventory)
     embedded_private_key["layers"][0]["destination"] = "BEGIN " + "PRIVATE" + " KEY"
     with pytest.raises(ValueError, match="private-key material"):
-        validate_logging_inventory(embedded_private_key, today=date(2026, 9, 6))
+        validate_logging_inventory(embedded_private_key, today=date(2026, 9, 13))
 
     exact_hostname = copy.deepcopy(inventory)
     exact_hostname["layers"][0]["destination"] = "budget.private-tail.ts.net"
     with pytest.raises(ValueError, match="exact private hostname"):
-        validate_logging_inventory(exact_hostname, today=date(2026, 9, 6))
+        validate_logging_inventory(exact_hostname, today=date(2026, 9, 13))
 
     with pytest.raises(ValueError, match="review is overdue"):
-        validate_logging_inventory(inventory, today=date(2026, 12, 6))
+        validate_logging_inventory(inventory, today=date(2026, 12, 13))
 
 
 def test_sbom_is_complete_and_source_derived() -> None:
@@ -251,9 +251,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 130,
+            "implemented": 131,
             "not_applicable": 79,
-            "partial": 44,
+            "partial": 43,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -338,6 +338,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V15.1.2",
         "V15.3.6",
         "V16.1.1",
+        "V16.3.2",
         "V16.4.3",
     }
 

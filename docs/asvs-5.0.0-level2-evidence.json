@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 130,
+      "implemented": 131,
       "not_applicable": 79,
-      "partial": 44
+      "partial": 43
     }
   },
   "requirements": [
@@ -4527,12 +4527,17 @@
       "level": 2,
       "description": "Verify that failed authorization attempts are logged. For L3, this must include logging all authorization decisions, including logging when sensitive data is accessed (without logging the sensitive data itself).",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Every explicit 403 response and every authenticated, resolved identifier-bearing 404 used to conceal object scope emits one warning-level authorization.denied security event. The record contains only method, resolved route, status, error reference, and bound pseudonymous context; it excludes paths, queries, route arguments, object identifiers, and exception text, and expected permission or not-found outcomes are not labeled unhandled.",
       "evidence": [
+        "core/middleware.py",
         "core/logging.py",
-        "identity/views.py",
-        "tests/test_logging.py"
+        "config/settings/base.py",
+        "docs/LOGGING_INVENTORY.md",
+        "docs/logging-inventory.json",
+        "tests/urls.py",
+        "tests/test_logging.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
