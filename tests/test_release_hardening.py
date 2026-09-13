@@ -284,9 +284,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 137,
+            "implemented": 138,
             "not_applicable": 79,
-            "partial": 37,
+            "partial": 36,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -366,6 +366,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V12.1.3",
         "V12.3.3",
         "V12.3.4",
+        "V13.1.1",
         "V13.2.1",
         "V13.2.4",
         "V13.2.5",

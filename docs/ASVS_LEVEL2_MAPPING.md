@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 137 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 37 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 138 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 36 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 37
+These are the clearest implementation or operational work items exposed by the mapping. The 36
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -129,6 +129,13 @@ deployments, whose independent wildcard-origin default also remains disabled fol
 `M10-F002` finding.
 
 ### HTTP and backend communication
+
+The complete communication inventory implements `v5.0.0-13.1.1`. Ten runtime, management, and
+maintenance flows and six host/build external dependencies record their exact purpose, destination,
+transport, protections, data, phase, and evidence. The initial release accepts no user-provided
+external destination, hardened settings disable unused SMTP, and a fail-closed scan permits runtime
+socket use only for the two fixed Unix-datagram logging endpoints. See
+`docs/COMMUNICATION_INVENTORY.md` and `docs/communication-inventory.json`.
 
 The hardened pre-redirect boundary implements `v5.0.0-4.1.2`: browser-facing pages retain their
 canonical HTTP-to-HTTPS redirect, but liveness and every reserved documentation or monitoring path

@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 137,
+      "implemented": 138,
       "not_applicable": 79,
-      "partial": 37
+      "partial": 36
     }
   },
   "requirements": [
@@ -3757,13 +3757,22 @@
       "level": 2,
       "description": "Verify that all communication needs for the application are documented. This must include external services which the application relies upon and cases where an end user might be able to provide an external location to which the application will then connect.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "A machine-readable and human-reviewed inventory documents all 10 runtime, management, and maintenance communication paths plus six external host/build dependencies. It records purpose, destination, transport, protection, data class, phase, and evidence, and explicitly records no user-supplied external destination. A fail-closed runtime scan rejects network clients beyond two Unix-datagram-only logging files, while production settings disable SMTP and retain exact database, proxy, service-network, and redirect allowlists.",
       "evidence": [
-        "SECURITY_PLAN.md",
-        "Dockerfile",
+        "docs/COMMUNICATION_INVENTORY.md",
+        "docs/communication-inventory.json",
+        "scripts/check_communication_inventory.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
         "compose.yaml",
-        "tests/test_deployment_config.py"
+        "config/settings/hardened.py",
+        "config/settings/production.py",
+        "deploy/network/nginx.conf",
+        "tests/test_communication_inventory.py",
+        "tests/test_production_settings.py",
+        "tests/test_network_boundary.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
