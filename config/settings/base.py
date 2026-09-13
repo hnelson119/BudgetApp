@@ -38,6 +38,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "core.middleware.SameOriginResponseBoundaryMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "core.middleware.RequestContextMiddleware",
     "identity.middleware.ConcurrentSessionLimitMiddleware",

@@ -65,7 +65,13 @@ def test_production_django_security_check_passes(tmp_path: Path) -> None:
                 "from django.conf import settings; database=settings.DATABASES['default']; "
                 "assert database['PASSWORD'] == ''; "
                 "assert {'options', 'sslmode', 'sslrootcert', 'sslcert', 'sslkey'} "
-                "<= set(database['OPTIONS'])"
+                "<= set(database['OPTIONS']); "
+                "assert settings.MIDDLEWARE[:5] == ["
+                "'core.middleware.SameOriginResponseBoundaryMiddleware', "
+                "'core.middleware.ProxyBoundaryMiddleware', "
+                "'core.middleware.NonBrowserTransportBoundaryMiddleware', "
+                "'core.middleware.HostBoundaryMiddleware', "
+                "'whitenoise.middleware.WhiteNoiseMiddleware']"
             ),
         ],
         cwd=Path(__file__).resolve().parents[1],
@@ -108,8 +114,8 @@ def test_production_settings_pin_exact_private_ingress_and_proxy_boundary() -> N
         production_file
     )
     assert "Production does not permit external redirect destinations." in production_file
-    assert 'MIDDLEWARE.insert(0, "core.middleware.ProxyBoundaryMiddleware")' in hardened_file
-    assert 'MIDDLEWARE.insert(1, "core.middleware.NonBrowserTransportBoundaryMiddleware")' in (
+    assert 'MIDDLEWARE.insert(1, "core.middleware.ProxyBoundaryMiddleware")' in hardened_file
+    assert 'MIDDLEWARE.insert(2, "core.middleware.NonBrowserTransportBoundaryMiddleware")' in (
         production_file
     )
     assert 'MIDDLEWARE.insert(2, "core.middleware.HostBoundaryMiddleware")' in hardened_file

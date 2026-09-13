@@ -88,6 +88,12 @@ elements, APIs, media types, executable artifacts and references, symlinks, over
 or unreviewed file types from every production template and static root. CSP independently blocks
 object execution, and the pull-request matrix exercises Chromium, Firefox, and WebKit.
 
+The same-origin response boundary implements `v5.0.0-3.4.2`: this private application grants no
+cross-origin reads, strips every CORS permission and timing-origin response field, and fixes
+`Cross-Origin-Resource-Policy` to `same-origin`. The boundary encloses WhiteNoise in hardened
+deployments, whose independent wildcard-origin default also remains disabled following the retested
+`M10-F002` finding.
+
 ### HTTP and backend communication
 
 The hardened pre-redirect boundary implements `v5.0.0-4.1.2`: browser-facing pages retain their

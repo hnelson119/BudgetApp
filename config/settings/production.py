@@ -25,7 +25,7 @@ if EXTERNAL_REDIRECT_ALLOWED_HOSTS:  # noqa: F405
     raise ImproperlyConfigured("Production does not permit external redirect destinations.")
 
 MIDDLEWARE = [*MIDDLEWARE]  # noqa: F405
-MIDDLEWARE.insert(1, "core.middleware.NonBrowserTransportBoundaryMiddleware")
+MIDDLEWARE.insert(2, "core.middleware.NonBrowserTransportBoundaryMiddleware")
 
 LOGGING["handlers"]["security_archive"] = {  # noqa: F405
     "class": "core.logging.UnixDatagramJsonHandler",

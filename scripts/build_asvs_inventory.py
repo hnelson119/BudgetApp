@@ -260,6 +260,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V3.3.3",
     "V3.3.4",
     "V3.4.1",
+    "V3.4.2",
     "V3.4.3",
     "V3.4.4",
     "V3.4.5",
@@ -371,6 +372,12 @@ IMPLEMENTED_REQUIREMENTS = {
 }
 
 IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V3.4.2": (
+        "The private application deliberately grants no cross-origin reads. An outer same-origin "
+        "response boundary removes every CORS permission field and Timing-Allow-Origin, sets "
+        "Cross-Origin-Resource-Policy to same-origin, and encloses the hardened static-file layer; "
+        "WhiteNoise's independent wildcard-origin default remains disabled."
+    ),
     "V3.7.1": (
         "The production client is limited to reviewed browser-native formats and dependency-free "
         "runtime JavaScript. A fail-closed inventory rejects legacy plug-in elements, APIs, media "
@@ -550,6 +557,17 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
 }
 
 IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
+    "V3.4.2": [
+        "docs/CROSS_ORIGIN_SECURITY.md",
+        "docs/SECURITY_FINDINGS.md",
+        "config/settings/base.py",
+        "config/settings/hardened.py",
+        "config/settings/production.py",
+        "core/middleware.py",
+        "tests/test_logging.py",
+        "tests/test_production_settings.py",
+        "tests/test_release_hardening.py",
+    ],
     "V3.7.1": [
         "docs/CLIENT_TECHNOLOGY_POLICY.md",
         "scripts/check_client_technologies.py",
