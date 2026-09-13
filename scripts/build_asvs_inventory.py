@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-09-10"
+MAPPING_UPDATED = "2026-09-12"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -266,6 +266,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V3.4.6",
     "V3.5.1",
     "V3.5.3",
+    "V3.7.1",
     "V3.7.2",
     "V4.1.1",
     "V4.1.2",
@@ -370,6 +371,13 @@ IMPLEMENTED_REQUIREMENTS = {
 }
 
 IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V3.7.1": (
+        "The production client is limited to reviewed browser-native formats and dependency-free "
+        "runtime JavaScript. A fail-closed inventory rejects legacy plug-in elements, APIs, media "
+        "types, executable artifacts, references, and unreviewed asset types; CSP independently "
+        "blocks object execution and current Chromium, Firefox, and WebKit engines exercise the "
+        "client in pull-request CI."
+    ),
     "V3.7.2": (
         "A final response boundary rejects malformed, downgraded, and unapproved external redirect "
         "locations. External redirects require an exact HTTPS authority allowlist entry, and the "
@@ -542,6 +550,20 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
 }
 
 IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
+    "V3.7.1": [
+        "docs/CLIENT_TECHNOLOGY_POLICY.md",
+        "scripts/check_client_technologies.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "core/middleware.py",
+        "core/static/core/app.js",
+        "Dockerfile.browser-tests",
+        "package-lock.json",
+        "playwright.config.mjs",
+        ".github/workflows/browser.yml",
+        "tests/test_client_technologies.py",
+        "tests/test_release_hardening.py",
+    ],
     "V3.7.2": [
         "docs/REDIRECT_SECURITY.md",
         "config/settings/base.py",

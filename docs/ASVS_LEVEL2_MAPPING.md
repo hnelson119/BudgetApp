@@ -82,6 +82,12 @@ requests browser cache, cookie, and origin-storage removal, while logout forms i
 Web Storage, Cache Storage, IndexedDB, and the authenticated DOM before a server response is
 available. The dedicated browser lifecycle test covers successful and unavailable-response paths.
 
+The supported-client policy implements `v5.0.0-3.7.1`: production uses reviewed browser-native
+formats and dependency-free runtime JavaScript. A fail-closed inventory rejects legacy plug-in
+elements, APIs, media types, executable artifacts and references, symlinks, oversized text assets,
+or unreviewed file types from every production template and static root. CSP independently blocks
+object execution, and the pull-request matrix exercises Chromium, Firefox, and WebKit.
+
 ### HTTP and backend communication
 
 The hardened pre-redirect boundary implements `v5.0.0-4.1.2`: browser-facing pages retain their

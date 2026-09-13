@@ -19,6 +19,7 @@ cd "$project_root"
 "$python_path" scripts/check_cryptographic_inventory.py
 "$python_path" scripts/check_logging_inventory.py
 "$python_path" scripts/check_sbom.py
+"$python_path" scripts/check_client_technologies.py
 "$python_path" scripts/check_release_evidence.py
 "$python_path" scripts/check_device_test_evidence.py
 "$python_path" scripts/check_adversarial_test_evidence.py
