@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 136,
+      "implemented": 137,
       "not_applicable": 79,
-      "partial": 38
+      "partial": 37
     }
   },
   "requirements": [
@@ -444,13 +444,17 @@
       "level": 2,
       "description": "Verify that format strings which might resolve in an unexpected or malicious way when used are sanitized before being processed.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Format grammars are code-owned literals. A fail-closed AST inventory rejects dynamic str.format receivers, format specifications, f-string specifications, HTML formatting grammars, datetime output grammars, runtime string templates, log message templates, and percent-format expressions. The one iterated CSV date parser is constrained to an exact literal format allowlist, and all 11 percent operators are pinned arithmetic modulo.",
       "evidence": [
-        "core/",
-        "imports/services/",
-        "tests/test_csv_imports.py",
-        "scripts/check.ps1"
+        "docs/FORMAT_STRING_SAFETY.md",
+        "scripts/check_format_string_safety.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "imports/services/batches.py",
+        "core/logging.py",
+        "tests/test_format_string_safety.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
