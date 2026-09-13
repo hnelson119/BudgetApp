@@ -60,8 +60,10 @@
         "core/logging.py",
         "core/middleware.py",
         "config/settings/base.py",
+        "scripts/check_logging_inventory.py",
         "compose.yaml",
-        "tests/test_logging.py"
+        "tests/test_logging.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
@@ -95,13 +97,15 @@
         "core/security_log_collector.py",
         "config/settings/base.py",
         "config/settings/production.py",
+        "scripts/check_logging_inventory.py",
         "identity/views.py",
         "imports/views.py",
         "spending/views.py",
         "audit/views.py",
         "compose.yaml",
         "tests/test_logging.py",
-        "tests/test_security_log_archive.py"
+        "tests/test_security_log_archive.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

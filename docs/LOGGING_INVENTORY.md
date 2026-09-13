@@ -12,11 +12,11 @@ reader boundaries, retention, sensitive-data rules, integrity/availability prope
 limitations. This runbook explains maintenance and release review.
 
 Together they implement the repository-deliverable portions of ASVS `v5.0.0-16.1.1`,
-`v5.0.0-16.3.2`, and `v5.0.0-16.4.3`. They do not claim a release-candidate pass. Production sends a
-second copy of each Django security record through a permission-restricted Unix datagram socket to
-a separate, networkless collector and collector-only archive volume. The application cannot mount
-or read that archive. Live retention, alert review, escalation, and failure observations remain
-release work.
+`v5.0.0-16.2.3`, `v5.0.0-16.3.2`, and `v5.0.0-16.4.3`. They do not claim a release-candidate pass.
+Production sends a second copy of each Django security record through a permission-restricted Unix
+datagram socket to a separate, networkless collector and collector-only archive volume. The
+application cannot mount or read that archive. Live retention, alert review, escalation, and
+failure observations remain release work.
 
 The release owner reviews the inventory at least every 90 days, on every release candidate, and
 whenever a producer, event, format, destination, reader, retention rule, stack layer, provider,
@@ -83,6 +83,14 @@ timestamps, stable event identifiers, and bounded sizes, then applies redaction 
 append-only, mode-0600, fsynced write. Warning-or-higher records also create a minimized alert row.
 Unknown, malformed, unsafe, or unapproved records are rejected with a fixed local diagnostic.
 
+The inventory validator also enforces the destination allowlist. Django may use only the documented
+console, null, and security-archive handlers and their fixed logger routes. Application logger names
+must be literal and reviewed. Additional settings mutations and file, network, mail, syslog, queue,
+dynamic, or third-party telemetry handlers fail the gate. Separate deployment checks pin Docker's
+local driver, disabled Gunicorn access logging, nginx stderr-only errors, and the collector socket
+and archive isolation. Any intended destination change therefore requires an inventory update and
+review in the same change.
+
 The protected audit stream is different from an operational log. It intentionally retains the
 minimum authorized financial before/after facts and bounded reason needed for household
 accountability, while rejecting credential/session fields. Its append occurs transactionally with
@@ -118,9 +126,10 @@ follow the documented daily/weekly/monthly retention.
 ## Review procedure
 
 1. Run `python scripts/check_logging_inventory.py`. The validator compares the event catalog to
-   Python AST literals and structured maintenance shell calls, checks all 13 production Compose
-   logging policies, validates evidence and retention fields, rejects exact private hostnames and
-   embedded credential/key material, and enforces the 90-day review date.
+   Python AST literals and structured maintenance shell calls, pins Django handlers, routes, and
+   logger names, rejects undocumented sink types or settings mutations, checks all 13 production
+   Compose logging policies, validates evidence and retention fields, rejects exact private
+   hostnames and embedded credential/key material, and enforces the 90-day review date.
 2. Search every application and deployment source for new loggers, stdout/stderr writes, audit
    actions, shell diagnostics, access logs, database logging settings, timer units, provider logs,
    browser telemetry, analytics, CI output, and report/artifact uploads. Every current stack layer

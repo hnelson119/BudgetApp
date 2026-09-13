@@ -42,7 +42,11 @@ from scripts.check_logging_inventory import (
     EXPECTED_EVENT_GROUP_IDS as EXPECTED_LOG_EVENT_GROUP_IDS,
 )
 from scripts.check_logging_inventory import EXPECTED_GAP_IDS as EXPECTED_LOG_GAP_IDS
-from scripts.check_logging_inventory import EXPECTED_LAYER_IDS
+from scripts.check_logging_inventory import (
+    EXPECTED_LAYER_IDS,
+    _validate_base_logging_config,
+    _validate_production_logging_config,
+)
 from scripts.check_logging_inventory import validate_inventory as validate_logging_inventory
 from scripts.check_release_evidence import validate_asvs_inventory
 from scripts.check_sbom import validate_sbom
@@ -189,6 +193,35 @@ def test_logging_inventory_rejects_tampering_and_stale_reviews() -> None:
         validate_logging_inventory(inventory, today=date(2026, 12, 13))
 
 
+def test_logging_inventory_rejects_undocumented_django_destinations() -> None:
+    base_source = (PROJECT_ROOT / "config/settings/base.py").read_text(encoding="utf-8")
+    production_source = (PROJECT_ROOT / "config/settings/production.py").read_text(encoding="utf-8")
+
+    _validate_base_logging_config(base_source)
+    _validate_production_logging_config(production_source)
+
+    file_sink = base_source.replace(
+        '"class": "logging.StreamHandler"',
+        '"class": "logging.FileHandler"',
+        1,
+    )
+    with pytest.raises(ValueError, match="undocumented destination"):
+        _validate_base_logging_config(file_sink)
+
+    changed_archive = production_source.replace(
+        '"socket_path": "/run/security-log/security.sock"',
+        '"socket_path": "/tmp/undocumented.sock"',
+    )
+    with pytest.raises(ValueError, match="archive destination changed"):
+        _validate_production_logging_config(changed_archive)
+
+    extra_handler = (
+        production_source + '\nLOGGING["handlers"]["undocumented"] = {"class": "custom.Handler"}\n'
+    )
+    with pytest.raises(ValueError, match="logging mutations changed"):
+        _validate_production_logging_config(extra_handler)
+
+
 def test_sbom_is_complete_and_source_derived() -> None:
     completed = subprocess.run(
         [sys.executable, "scripts/check_sbom.py"],
@@ -251,9 +284,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 131,
+            "implemented": 132,
             "not_applicable": 79,
-            "partial": 43,
+            "partial": 42,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -338,6 +371,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V15.1.2",
         "V15.3.6",
         "V16.1.1",
+        "V16.2.3",
         "V16.3.2",
         "V16.4.3",
     }
