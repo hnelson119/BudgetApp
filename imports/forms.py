@@ -20,7 +20,9 @@ class CSVUploadForm(forms.Form):
     )
     csv_file = forms.FileField(
         label="CSV file",
-        help_text="UTF-8 CSV only; maximum 5 MiB and 10,000 transaction rows.",
+        help_text=(
+            "UTF-8 .csv only; maximum 5 MiB and 10,000 transaction rows. Archives are not accepted."
+        ),
         widget=forms.ClearableFileInput(attrs={"accept": ".csv,text/csv"}),
     )
     submission_token = forms.UUIDField(widget=forms.HiddenInput)
