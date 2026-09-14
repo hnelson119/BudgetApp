@@ -41,6 +41,11 @@ target. Production explicitly selects Django 5.2.17's primary PBKDF2-HMAC-SHA256
 password-field writes; see `docs/PASSWORD_HASHING_POLICY.md`. A dependency update must update both
 inventories and their tests in the same change.
 
+The dedicated approved hash-function policy source-derives every application and maintenance hash
+selection, verifies Django's managed SHA-256 defaults, and bounds SHA-1 to the existing TOTP and
+offline breached-password compatibility formats. See `docs/HASH_FUNCTION_POLICY.md` and
+`docs/hash-function-policy.json`; a new algorithm or use must update both inventories together.
+
 ## Current key and certificate map
 
 | Material | Owner and location | Permitted purpose | Must never protect |

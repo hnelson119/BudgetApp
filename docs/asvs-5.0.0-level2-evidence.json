@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 152,
+      "implemented": 153,
       "not_applicable": 79,
-      "partial": 22
+      "partial": 21
     }
   },
   "requirements": [
@@ -3501,13 +3501,21 @@
       "level": 1,
       "description": "Verify that only approved hash functions are used for general cryptographic use cases, including digital signatures, HMAC, KDF, and random bit generation. Disallowed hash functions, such as MD5, must not be used for any cryptographic purpose.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "SHA-256 is the sole application-selected general-purpose hash and HMAC function, with SHA-512 approved for npm dependency integrity. A fail-closed scanner inventories all 35 direct hash and signing operations across 26 Python, JavaScript, and shell files, rejects dynamic or unapproved selections, and verifies pinned Django SHA-256 defaults. Six SHA-1 operations remain exact compatibility exceptions for RFC 6238 TOTP and the offline breached-password corpus; direct corpus calls require usedforsecurity=False. MD5 remains isolated to the synthetic unit-test password hasher.",
       "evidence": [
-        "config/settings/base.py",
+        "docs/HASH_FUNCTION_POLICY.md",
+        "docs/hash-function-policy.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "scripts/check_hash_function_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_hash_function_policy.py",
         "identity/services/mfa.py",
-        "audit/services.py",
-        "tests/"
+        "identity/password_validation.py",
+        "audit/checkpoints.py",
+        "requirements-prod.lock"
       ]
     },
     {

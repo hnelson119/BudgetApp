@@ -94,7 +94,7 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 152 implemented, 22 partial, 79
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 153 implemented, 21 partial, 79
   justified feature exclusions, and zero verified. Internal HTTP service TLS, purpose-specific
   trust, directory-listing prevention, TRACE rejection, operational-endpoint minimization, and
   non-browser plaintext rejection, and authenticated client-state cleanup are implemented; live
@@ -115,6 +115,10 @@ real household data.
   PBKDF2-HMAC-SHA-256 hasher at 1,000,000 iterations. A fail-closed policy pins the installed
   primitive, its settings and dependency, and all 14 current credential operations while rejecting
   direct password-field writes. The release host still needs a dated synthetic performance check.
+- The approved hash-function policy inventories 35 direct operations across 26 source files and
+  fails closed on new, dynamic, or unapproved selections. SHA-256 is the application default,
+  SHA-512 is approved for npm artifact integrity, six SHA-1 operations are bounded to TOTP and the
+  offline breached-password corpus, and MD5 remains isolated to synthetic unit tests.
 - The resource-demand inventory documents seven expensive workflow families, five explicit
   response-time boundaries, and twelve pinned implementation contracts. The application-worker
   timeout is explicit and remains shorter than the ingress upstream-read timeout. Maximum-load

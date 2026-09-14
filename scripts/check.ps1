@@ -78,6 +78,9 @@ try {
     & $pythonPath scripts\check_password_hashing_policy.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $pythonPath scripts\check_hash_function_policy.py
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     & $pythonPath scripts\check_regex_safety.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
