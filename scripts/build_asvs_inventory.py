@@ -343,6 +343,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V11.3.1",
     "V11.3.2",
     "V11.3.3",
+    "V11.4.2",
     "V11.5.1",
     "V12.1.3",
     "V12.2.1",
@@ -609,6 +610,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "test-only key, algorithm, and certificate boundaries; it defines permitted and "
         "prohibited uses, protected and excluded data, rotation, retirement, review cadence, and "
         "known absences without claiming release verification."
+    ),
+    "V11.4.2": (
+        "Production explicitly selects Django 5.2.17's PBKDF2-HMAC-SHA-256 password hasher with "
+        "1,000,000 iterations and independent salts targeting 128 bits of entropy. A fail-closed "
+        "checker verifies the installed primitive and dependency, pins the production and "
+        "test-only settings assignments, inventories all 14 credential hash/check operations "
+        "across six production files, and rejects direct password-field writes or unreviewed "
+        "hasher imports. The fast MD5 hasher is isolated to synthetic in-memory unit tests."
     ),
     "V12.1.3": (
         "PostgreSQL validates every production client certificate against a dedicated client CA "
@@ -1077,6 +1086,24 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/cryptographic-inventory.json",
         "docs/CRYPTOGRAPHIC_INVENTORY.md",
         "scripts/check_cryptographic_inventory.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V11.4.2": [
+        "docs/PASSWORD_HASHING_POLICY.md",
+        "docs/password-hashing-policy.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "config/settings/base.py",
+        "config/settings/test.py",
+        "identity/managers.py",
+        "identity/services/mfa.py",
+        "identity/services/recovery.py",
+        "identity/views.py",
+        "scripts/check_password_hashing_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_password_hashing_policy.py",
+        "tests/test_production_settings.py",
         "tests/test_release_hardening.py",
     ],
     "V12.1.3": [

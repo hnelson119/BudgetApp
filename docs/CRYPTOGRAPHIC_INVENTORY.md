@@ -36,8 +36,10 @@ The inventory distinguishes three boundaries:
 
 The test-only MD5 password hasher is intentionally inventoried as an exception. It speeds synthetic
 unit tests and is prohibited from every hardened, production-derived, browser, pentest, and release
-target. Production stays on Django 5.2.17's primary PBKDF2-HMAC-SHA256 hasher with 1,000,000
-iterations. A dependency update must update the inventory and its tests in the same change.
+target. Production explicitly selects Django 5.2.17's primary PBKDF2-HMAC-SHA256 hasher with
+1,000,000 iterations. The dedicated policy pins every credential operation and rejects direct
+password-field writes; see `docs/PASSWORD_HASHING_POLICY.md`. A dependency update must update both
+inventories and their tests in the same change.
 
 ## Current key and certificate map
 

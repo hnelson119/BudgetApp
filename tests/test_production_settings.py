@@ -66,6 +66,8 @@ def test_production_django_security_check_passes(tmp_path: Path) -> None:
                 "assert database['PASSWORD'] == ''; "
                 "assert {'options', 'sslmode', 'sslrootcert', 'sslcert', 'sslkey'} "
                 "<= set(database['OPTIONS']); "
+                "assert settings.PASSWORD_HASHERS == "
+                "['django.contrib.auth.hashers.PBKDF2PasswordHasher']; "
                 "assert settings.MIDDLEWARE[:5] == ["
                 "'core.middleware.SameOriginResponseBoundaryMiddleware', "
                 "'core.middleware.ProxyBoundaryMiddleware', "
