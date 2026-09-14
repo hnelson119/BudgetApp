@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 150,
+      "implemented": 151,
       "not_applicable": 79,
-      "partial": 24
+      "partial": 23
     }
   },
   "requirements": [
@@ -4311,12 +4311,21 @@
       "level": 2,
       "description": "Verify that the application documentation identifies functionality which is time-consuming or resource-demanding. This must include how to prevent a loss of availability due to overusing this functionality and how to avoid a situation where building a response takes longer than the consumer's timeout. Potential defenses may include asynchronous processing, using queues, and limiting parallel processes per user and per application.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The maintained resource-demand policy identifies seven expensive interactive and operator workflow families, their fixed input, result, horizon, process, and concurrency bounds, and their failure and retry behavior. Five explicit ingress and application timeouts preserve worker-before-proxy failure ordering. A fail-closed checker pins 12 source contracts and the two-worker deployment envelope. Representative load evidence and CPU or memory quotas remain separately tracked under V15.2.2.",
       "evidence": [
-        "SECURITY_PLAN.md",
-        "requirements-prod.lock",
-        "docs/ASVS_LEVEL2_MAPPING.md"
+        "docs/RESOURCE_DEMAND_POLICY.md",
+        "docs/resource-demand-policy.json",
+        "scripts/check_resource_demand_policy.py",
+        "scripts/check_input_validation_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "config/gunicorn.py",
+        "deploy/network/nginx.conf",
+        "compose.yaml",
+        "tests/test_resource_demand_policy.py",
+        "tests/test_deployment_config.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

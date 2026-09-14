@@ -371,6 +371,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V14.3.3",
     "V15.1.1",
     "V15.1.2",
+    "V15.1.3",
     "V15.2.1",
     "V15.2.3",
     "V15.3.1",
@@ -700,6 +701,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "and immutable actions, enforces the approved repository set, and is complemented by "
         "90-day image-resolved SBOM artifacts for all three release images without claiming "
         "release-candidate verification."
+    ),
+    "V15.1.3": (
+        "The maintained resource-demand policy identifies seven expensive interactive and "
+        "operator workflow families, their fixed input, result, horizon, process, and concurrency "
+        "bounds, and their failure and retry behavior. Five explicit ingress and application "
+        "timeouts preserve worker-before-proxy failure ordering. A fail-closed checker pins 12 "
+        "source contracts and the two-worker deployment envelope. Representative load evidence "
+        "and CPU or memory quotas remain separately tracked under V15.2.2."
     ),
     "V15.3.6": (
         "The dependency-free production JavaScript uses Map and Set for runtime-selected keys and "
@@ -1218,6 +1227,20 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "scripts/build_sbom.py",
         "scripts/check_sbom.py",
         ".github/workflows/quality.yml",
+        "tests/test_release_hardening.py",
+    ],
+    "V15.1.3": [
+        "docs/RESOURCE_DEMAND_POLICY.md",
+        "docs/resource-demand-policy.json",
+        "scripts/check_resource_demand_policy.py",
+        "scripts/check_input_validation_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "config/gunicorn.py",
+        "deploy/network/nginx.conf",
+        "compose.yaml",
+        "tests/test_resource_demand_policy.py",
+        "tests/test_deployment_config.py",
         "tests/test_release_hardening.py",
     ],
     "V15.3.6": [

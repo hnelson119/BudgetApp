@@ -210,6 +210,8 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert gunicorn_configuration.bind == "0.0.0.0:8443"
     assert gunicorn_configuration.cert_reqs == ssl.CERT_REQUIRED
     assert gunicorn_configuration.ca_certs == "/run/secrets/gunicorn_client_ca_certificate"
+    assert gunicorn_configuration.timeout == 30
+    assert gunicorn_configuration.graceful_timeout == 30
 
     class Context:
         minimum_version: ssl.TLSVersion | None = None

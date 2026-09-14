@@ -94,7 +94,7 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 150 implemented, 24 partial, 79
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 151 implemented, 23 partial, 79
   justified feature exclusions, and zero verified. Internal HTTP service TLS, purpose-specific
   trust, directory-listing prevention, TRACE rejection, operational-endpoint minimization, and
   non-browser plaintext rejection, and authenticated client-state cleanup are implemented; live
@@ -111,6 +111,10 @@ real household data.
   exact `web` server identity, one nginx client identity, TLS 1.2/1.3, and no plaintext production
   listener. Live certificate/Tailscale/SSH observations remain open release work;
   implementation of the inventory is not release verification.
+- The resource-demand inventory documents seven expensive workflow families, five explicit
+  response-time boundaries, and twelve pinned implementation contracts. The application-worker
+  timeout is explicit and remains shorter than the ingress upstream-read timeout. Maximum-load
+  measurements and enforced CPU or memory quotas remain release work under `v5.0.0-15.2.2`.
 - The maintained logging inventory now covers all 14 current stack layers and 150 source-derived
   operational, security, protected-audit, and maintenance event entries. It records formats,
   destinations, uses, readers, retention, redaction, integrity/availability properties, and known
