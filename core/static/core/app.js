@@ -75,15 +75,16 @@
       "id_ordinal",
       "id_month_of_year",
     ];
-    const visibleFields = {
-      weekly: ["id_weekdays"],
-      monthly_day: ["id_day_of_month"],
-      monthly_nth_weekday: ["id_weekday", "id_ordinal"],
-      monthly_last_weekday: ["id_weekday"],
-      annual: ["id_day_of_month", "id_month_of_year"],
-    };
+    const visibleFields = new Map([
+      ["weekly", new Set(["id_weekdays"])],
+      ["monthly_day", new Set(["id_day_of_month"])],
+      ["monthly_nth_weekday", new Set(["id_weekday", "id_ordinal"])],
+      ["monthly_last_weekday", new Set(["id_weekday"])],
+      ["annual", new Set(["id_day_of_month", "id_month_of_year"])],
+    ]);
+    const noVisibleFields = new Set();
     const updateScheduleFields = () => {
-      const visible = new Set(visibleFields[frequency.value] || []);
+      const visible = visibleFields.get(frequency.value) || noVisibleFields;
       conditionalFields.forEach((id) => {
         const field = document.querySelector(`#${id}`);
         const wrapper = field?.closest(".form-field");

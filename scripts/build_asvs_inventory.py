@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-09-12"
+MAPPING_UPDATED = "2026-09-13"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -358,6 +358,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V15.3.1",
     "V15.3.3",
     "V15.3.5",
+    "V15.3.6",
     "V15.3.7",
     "V16.1.1",
     "V16.2.1",
@@ -545,6 +546,12 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "and immutable actions, enforces the approved repository set, and is complemented by "
         "90-day image-resolved SBOM artifacts for all three release images without claiming "
         "release-candidate verification."
+    ),
+    "V15.3.6": (
+        "The dependency-free production JavaScript uses Map and Set for runtime-selected keys and "
+        "membership. Its fail-closed client inventory rejects prototype names, object/reflection "
+        "mutation APIs, dynamic bracket access, and inherited-property iteration across every "
+        "reviewed JavaScript file and inline-script-capable template."
     ),
     "V16.1.1": (
         "The machine-validated inventory covers every application, web, relay, database, "
@@ -826,6 +833,17 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "scripts/check_sbom.py",
         ".github/workflows/quality.yml",
         "tests/test_release_hardening.py",
+    ],
+    "V15.3.6": [
+        "docs/JAVASCRIPT_OBJECT_SAFETY.md",
+        "docs/CLIENT_TECHNOLOGY_POLICY.md",
+        "core/static/core/app.js",
+        "scripts/check_client_technologies.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_client_technologies.py",
+        "tests/test_release_hardening.py",
+        ".github/workflows/quality.yml",
     ],
     "V16.1.1": [
         "docs/logging-inventory.json",
