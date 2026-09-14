@@ -7,8 +7,8 @@ import uuid
 from collections.abc import Callable
 
 from django.conf import settings
-from django.core.exceptions import DisallowedHost
-from django.http import HttpRequest, HttpResponse
+from django.core.exceptions import DisallowedHost, PermissionDenied
+from django.http import Http404, HttpRequest, HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.http import url_has_allowed_host_and_scheme
 
@@ -22,6 +22,7 @@ from .logging import (
 
 request_logger = logging.getLogger("budget.request")
 exception_logger = logging.getLogger("budget.exception")
+security_logger = logging.getLogger("security")
 
 _VALID_REQUEST_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{7,63}$")
 _VALID_CONTEXT_ID = re.compile(r"^[0-9a-fA-F-]{32,36}$")
@@ -162,6 +163,15 @@ def _route_name(request: HttpRequest) -> str:
     return match.view_name if match and match.view_name else "unresolved"
 
 
+def _is_authorization_denial(request: HttpRequest, response: HttpResponse) -> bool:
+    if response.status_code == 403:
+        return True
+    match = getattr(request, "resolver_match", None)
+    return bool(
+        response.status_code == 404 and request.user.is_authenticated and match and match.kwargs
+    )
+
+
 class RequestContextMiddleware:
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
@@ -196,6 +206,17 @@ class ActorContextMiddleware:
         tokens = bind_actor_context(actor_id=actor_id, household_id=household_id)
         try:
             response = self.get_response(request)
+            if _is_authorization_denial(request, response):
+                security_logger.warning(
+                    "Authorization denied.",
+                    extra={
+                        "event": "authorization.denied",
+                        "method": request.method,
+                        "route": _route_name(request),
+                        "status_code": response.status_code,
+                        "error_reference": current_request_id(),
+                    },
+                )
             if not (request.path.startswith("/health/") and response.status_code < 400):
                 level = logging.ERROR if response.status_code >= 500 else logging.INFO
                 if 400 <= response.status_code < 500:
@@ -260,6 +281,8 @@ class RedirectHostBoundaryMiddleware:
 
 class ExceptionLoggingMiddleware(MiddlewareMixin):
     def process_exception(self, request: HttpRequest, exception: Exception) -> None:
+        if isinstance(exception, (Http404, PermissionDenied)):
+            return None
         exception_logger.exception(
             "Unhandled request exception.",
             exc_info=(type(exception), exception, exception.__traceback__),

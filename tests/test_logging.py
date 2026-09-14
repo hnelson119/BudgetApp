@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import sys
+import uuid
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -24,6 +25,12 @@ from core.middleware import (
     OperationalEndpointBoundaryMiddleware,
     ProxyBoundaryMiddleware,
     SameOriginResponseBoundaryMiddleware,
+)
+from identity.services.mfa import (
+    begin_enrollment,
+    confirm_enrollment,
+    confirm_recovery_codes_saved,
+    totp_code,
 )
 
 TEST_PASSWORD = "safe-test-pass"  # pragma: allowlist secret
@@ -158,6 +165,66 @@ def test_unhandled_error_hides_sensitive_details(client: Client) -> None:
     assert response.headers["X-Request-ID"].encode() in response.content
     assert b"not-real-secret" not in response.content
     assert b"Something went wrong" in response.content
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("path", "expected_status", "expected_route"),
+    (
+        ("/_test/forbidden/", 403, "unsafe-permission"),
+        (
+            f"/_test/hidden/{uuid.UUID(int=1)}/",
+            404,
+            "concealed-object-denial",
+        ),
+    ),
+)
+def test_authorization_denials_are_logged_without_sensitive_details(
+    client: Client,
+    caplog: pytest.LogCaptureFixture,
+    path: str,
+    expected_status: int,
+    expected_route: str,
+) -> None:
+    user = get_user_model().objects.create_user(email="person@example.com", password=TEST_PASSWORD)
+    enrollment = begin_enrollment(user)
+    assert confirm_enrollment(user, totp_code(enrollment.secret)) is not None
+    assert confirm_recovery_codes_saved(user) is True
+    user.refresh_from_db()
+    client.force_login(user)
+    request_id = "authorization-request-1234"
+    security_log = logging.getLogger("security")
+    caplog.set_level(logging.WARNING)
+
+    records: list[logging.LogRecord] = []
+
+    class CaptureHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    capture_handler = CaptureHandler()
+    security_log.addHandler(capture_handler)
+    try:
+        response = client.get(path, headers={"X-Request-ID": request_id})
+    finally:
+        security_log.removeHandler(capture_handler)
+
+    denial_records = [
+        record for record in records if getattr(record, "event", None) == "authorization.denied"
+    ]
+    assert response.status_code == expected_status
+    assert len(denial_records) == 1
+    assert denial_records[0].getMessage() == "Authorization denied."
+    assert denial_records[0].method == "GET"  # type: ignore[attr-defined]
+    assert denial_records[0].route == expected_route  # type: ignore[attr-defined]
+    assert denial_records[0].status_code == expected_status  # type: ignore[attr-defined]
+    assert denial_records[0].error_reference == request_id  # type: ignore[attr-defined]
+    assert not any(
+        getattr(record, "event", None) == "http.request.unhandled_exception"
+        for record in caplog.records
+    )
+    assert "not-real-secret" not in caplog.text
+    assert "private object details" not in caplog.text
 
 
 @pytest.mark.django_db

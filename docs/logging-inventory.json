@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "inventory_updated": "2026-09-06",
+  "inventory_updated": "2026-09-13",
   "review": {
     "owner": "release owner",
     "cadence_days": 90,
-    "next_review_due": "2026-12-05",
+    "next_review_due": "2026-12-12",
     "procedure": "docs/LOGGING_INVENTORY.md",
     "update_triggers": [
       "a log producer, event, format, destination, access rule, or retention rule changes",
@@ -28,7 +28,7 @@
   "summary": {
     "layers": 14,
     "event_groups": 5,
-    "event_entries": 149,
+    "event_entries": 150,
     "known_gaps": 2
   },
   "layers": [
@@ -73,6 +73,7 @@
       ],
       "events": [
         "authentication, MFA, recovery, reauthentication, logout, and session-revocation outcomes",
+        "explicit and privacy-concealed authorization denials",
         "rejected CSV lifecycle operations and integrity-blocked exports",
         "authorized financial and audit exports",
         "Django framework security warnings"
@@ -495,6 +496,7 @@
         "auth.session_revoked",
         "auth.sessions_administrator_revoked",
         "auth.sessions_revoked",
+        "authorization.denied",
         "import.abandon_rejected",
         "import.commit_rejected",
         "import.preview_rejected",
