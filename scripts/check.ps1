@@ -66,6 +66,9 @@ try {
     & $pythonPath scripts\check_input_validation_policy.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $pythonPath scripts\check_authorization_policy.py
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     & $pythonPath scripts\check_regex_safety.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "policy_id": "household-budget-authorization-v1",
+  "asvs_requirements": [
+    "v5.0.0-8.1.1",
+    "v5.0.0-8.1.2"
+  ],
+  "last_reviewed": "2026-09-13",
+  "next_review_due": "2026-12-12",
+  "default_decision": "deny",
+  "consumer_states": [
+    {
+      "id": "anonymous",
+      "permissions": "Only minimal liveness, login, and generic password-recovery initiation are available. No household record is readable or writable."
+    },
+    {
+      "id": "pending-mfa",
+      "permissions": "Only completion of the bounded MFA challenge for the password-accepted pending session is available. This state is not authenticated household membership."
+    },
+    {
+      "id": "active-household-member",
+      "permissions": "An authenticated user with an active HouseholdMembership has equal member access to the selected household. Some functions additionally require recent password-plus-MFA proof or recipient ownership."
+    },
+    {
+      "id": "trusted-administrator",
+      "permissions": "A host-authorized operator may use reviewed management commands and a separately permissioned Django administration surface. This is not a household web role and does not weaken member scoping."
+    }
+  ],
+  "route_registry": [
+    {
+      "namespace": "audit",
+      "path": "audit/urls.py",
+      "access": {
+        "member": ["detail", "history"],
+        "recent_auth": ["export"]
+      }
+    },
+    {
+      "namespace": "budgets",
+      "path": "budgets/urls.py",
+      "access": {
+        "member": [
+          "category-create",
+          "detail",
+          "fixed-create",
+          "occurrence-cancel",
+          "occurrence-edit",
+          "occurrence-move",
+          "occurrence-reconcile",
+          "reserve-allocate",
+          "variable-create",
+          "variable-delete",
+          "variable-edit"
+        ]
+      }
+    },
+    {
+      "namespace": "core",
+      "path": "core/urls.py",
+      "access": {
+        "public": ["health-live"],
+        "deployment_restricted": ["health-ready"],
+        "member": ["home"]
+      }
+    },
+    {
+      "namespace": "debts",
+      "path": "debts/urls.py",
+      "access": {
+        "member": [
+          "create",
+          "detail",
+          "edit",
+          "list",
+          "mortgage-extra-principal",
+          "mortgage-plan-create",
+          "mortgage-plan-revise",
+          "payoff-comparison",
+          "statement-correct",
+          "statement-create",
+          "status",
+          "terms-create"
+        ]
+      }
+    },
+    {
+      "namespace": "goals",
+      "path": "goals/urls.py",
+      "access": {
+        "member": [
+          "contribute",
+          "create",
+          "detail",
+          "list",
+          "occurrence-contribute",
+          "priority-allocate",
+          "reserve-allocate",
+          "revise",
+          "status"
+        ]
+      }
+    },
+    {
+      "namespace": "identity",
+      "path": "identity/urls.py",
+      "access": {
+        "public": ["login", "password-recovery"],
+        "pending_auth": ["mfa-verify"],
+        "member": [
+          "account-security",
+          "logout",
+          "mfa-enroll",
+          "mfa-enrollment-restart",
+          "mfa-recovery-confirm",
+          "reauthenticate"
+        ],
+        "recent_auth": ["logout-all", "password-change", "session-revoke"]
+      }
+    },
+    {
+      "namespace": "imports",
+      "path": "imports/urls.py",
+      "access": {
+        "member": [
+          "batch-abandon",
+          "batch-commit",
+          "batch-map",
+          "batch-preview",
+          "history",
+          "upload"
+        ]
+      }
+    },
+    {
+      "namespace": "notifications",
+      "path": "notifications/urls.py",
+      "access": {
+        "member": ["dismiss", "list", "preferences", "read", "refresh"]
+      }
+    },
+    {
+      "namespace": "spending",
+      "path": "spending/urls.py",
+      "access": {
+        "member": [
+          "account-create",
+          "card-payment-create",
+          "card-purchase-refund",
+          "expense-create",
+          "income-create",
+          "transaction-detail",
+          "transaction-list",
+          "transaction-reverse"
+        ],
+        "recent_auth": ["transaction-export"]
+      }
+    }
+  ],
+  "function_rules": [
+    {
+      "id": "public-authentication-and-liveness",
+      "permissions": "Anonymous consumers may reach only hardened liveness, login, and generic recovery. Password-accepted pending sessions may reach only MFA verification. Readiness is blocked by the hardened operational endpoint boundary.",
+      "resource_attributes": ["route purpose", "hardened deployment mode", "pending-session age and version"],
+      "evidence": ["core/urls.py", "core/middleware.py", "identity/urls.py", "identity/views.py", "tests/test_authentication.py", "tests/test_web_foundation.py"]
+    },
+    {
+      "id": "session-and-account-security",
+      "permissions": "Members may view and terminate their own sessions and change their own password. Password change, individual revocation, and all-device revocation require recent password-plus-MFA proof.",
+      "resource_attributes": ["authenticated user identity", "session owner", "recent-auth timestamp", "session version"],
+      "evidence": ["identity/views.py", "identity/services/sessions.py", "docs/SESSION_SECURITY.md", "tests/test_authentication.py"]
+    },
+    {
+      "id": "household-selection-and-categories",
+      "permissions": "A member may select only an active membership and may read or change categories only inside the selected household. Ordinary browser flows cannot create memberships or grant application roles.",
+      "resource_attributes": ["active membership", "selected household", "category household", "category archive state"],
+      "evidence": ["households/models.py", "households/services/access.py", "households/services/categories.py", "tests/test_web_foundation.py"]
+    },
+    {
+      "id": "budget-period-and-schedule-functions",
+      "permissions": "Active members have equal household access to budget, period, and schedule functions. Services reject foreign-household records and lifecycle-invalid changes such as edits to closed periods.",
+      "resource_attributes": ["household", "period status", "schedule status", "occurrence state", "category state"],
+      "evidence": ["budgets/views.py", "budgets/services/", "periods/services/", "schedules/services/", "tests/test_budget_dashboard.py", "tests/test_scheduling_periods.py"]
+    },
+    {
+      "id": "spending-and-ledger-functions",
+      "permissions": "Active members have equal household access to accounts and transactions. Entries are created only through purpose-specific balanced services; transaction export additionally requires recent authentication.",
+      "resource_attributes": ["household", "account classification", "archive state", "entry and reversal state", "recent-auth timestamp"],
+      "evidence": ["spending/views.py", "ledger/services/", "tests/test_ledger.py", "tests/test_spending_ui.py"]
+    },
+    {
+      "id": "debt-and-mortgage-functions",
+      "permissions": "Active members have equal household access to debt and mortgage functions. Debt type, account ownership, active state, immutable revision order, and mortgage plan relationships constrain each operation.",
+      "resource_attributes": ["household", "debt status and type", "linked account classification", "revision order", "mortgage-plan state"],
+      "evidence": ["debts/views.py", "debts/services/", "tests/test_debt_accounts.py", "tests/test_mortgage_plans.py"]
+    },
+    {
+      "id": "goal-and-reserve-functions",
+      "permissions": "Active members have equal household access to goals and reserve allocations. Goal type, active debt, account ownership, source/destination distinction, status, available reserve, and preview freshness constrain mutations.",
+      "resource_attributes": ["household", "goal status and type", "account and debt relationships", "reserve balance", "preview fingerprint"],
+      "evidence": ["goals/views.py", "goals/services.py", "reserves/services.py", "tests/test_goals.py"]
+    },
+    {
+      "id": "csv-import-functions",
+      "permissions": "Active members may view and operate the selected household's staged imports. A batch cannot cross households; its current state and confirmation token constrain mapping, preview, commit, and abandonment.",
+      "resource_attributes": ["household", "batch status", "target account", "confirmation token", "referenced category"],
+      "evidence": ["imports/views.py", "imports/services/batches.py", "tests/test_csv_imports.py"]
+    },
+    {
+      "id": "notification-functions",
+      "permissions": "Active members may refresh household notification evaluation and edit their own preference record. A notification is readable, dismissible, or markable only by its recipient.",
+      "resource_attributes": ["household", "recipient user", "preference user", "dismissed and resolved state"],
+      "evidence": ["notifications/views.py", "notifications/services.py", "tests/test_notifications.py"]
+    },
+    {
+      "id": "audit-functions",
+      "permissions": "Active members may read their household's protected audit history. CSV export requires recent authentication and valid chain integrity. Browser consumers cannot update or delete audit events or checkpoints.",
+      "resource_attributes": ["household", "recent-auth timestamp", "chain integrity", "append-only record type"],
+      "evidence": ["audit/views.py", "audit/services.py", "audit/checkpoints.py", "tests/test_audit.py", "tests/test_checkpoints.py"]
+    },
+    {
+      "id": "trusted-administration-functions",
+      "permissions": "Staff administration and management commands require separate host or Django administrator authority. Bootstrap, password reset, MFA reset, session revocation, key rotation, backup, restore, and integrity operations are not granted by household membership alone.",
+      "resource_attributes": ["host access", "Django staff and superuser flags", "command confirmation", "purpose-specific service identity"],
+      "evidence": ["config/urls.py", "identity/admin.py", "identity/management/commands/", "deploy/postgres/bootstrap-roles.sh", "tests/test_identity_commands.py"]
+    }
+  ],
+  "field_rules": [
+    {
+      "id": "authentication-secret-fields",
+      "read": "Passwords, TOTP secrets, recovery-code hashes, raw recovery codes after enrollment, CSRF secrets, and session payloads are never readable through household pages or exports.",
+      "write": "Only authentication services write hashes, encrypted MFA material, key versions, replay counters, and one-time recovery state.",
+      "resource_attributes": ["credential owner", "enrollment state", "key version", "one-time use state"],
+      "evidence": ["identity/models.py", "identity/services/mfa.py", "identity/services/sessions.py", "tests/test_mfa.py"]
+    },
+    {
+      "id": "identity-self-fields",
+      "read": "A member sees only their own account-security state and sessions. Operational logs use pseudonymous context rather than email or display name.",
+      "write": "The member can change only their own password through the guarded flow. Email, staff flags, MFA timestamps, last-authenticated time, and session version are service- or administrator-managed.",
+      "resource_attributes": ["same user", "recent authentication", "administrator permission"],
+      "evidence": ["identity/models.py", "identity/views.py", "identity/admin.py", "tests/test_account_security.py"]
+    },
+    {
+      "id": "household-membership-fields",
+      "read": "Active members may use the selected household profile and equal-access membership context but are not given a browser membership directory or permission-assignment screen.",
+      "write": "Household IDs, membership user/household links, active state, and join timestamps are bootstrap or administrator managed; ordinary member forms cannot assign them.",
+      "resource_attributes": ["active membership", "selected household", "administrator authority"],
+      "evidence": ["households/models.py", "households/services/access.py", "identity/management/commands/bootstrap_household.py", "tests/test_identity_commands.py"]
+    },
+    {
+      "id": "financial-input-fields",
+      "read": "Active members may read the selected household's permitted account, category, budget, schedule, debt, goal, reserve, and derived summary fields.",
+      "write": "Purpose forms expose only business-editable names, dates, amounts, classifications, statuses, notes, and choices; household foreign keys are supplied by the trusted request context.",
+      "resource_attributes": ["household", "record type", "lifecycle status", "account classification"],
+      "evidence": ["budgets/forms.py", "debts/forms.py", "goals/forms.py", "spending/forms.py", "docs/input-validation-policy.json"]
+    },
+    {
+      "id": "immutable-accounting-and-revision-fields",
+      "read": "Active members may read authorized ledger and revision history, including audit-visible before and after values.",
+      "write": "Primary keys, posting sides, entry links, balances, hashes, idempotency keys, revision sequence, creator, and timestamps are assigned only by transactional services and database constraints; corrections append rather than overwrite history.",
+      "resource_attributes": ["household", "entry type", "original and reversal relationship", "revision sequence", "append-only state"],
+      "evidence": ["ledger/models.py", "ledger/services/entries.py", "debts/models.py", "goals/models.py", "audit/services.py", "tests/test_ledger.py"]
+    },
+    {
+      "id": "import-staging-fields",
+      "read": "Active members may review the selected household's bounded staged headers, rows, mapping results, and commit state.",
+      "write": "Raw row values, checksums, fingerprints, validation outcomes, counts, confirmation tokens, and journal links are parser/service managed; forms choose only approved mappings and confirmations.",
+      "resource_attributes": ["household", "batch state", "target account", "confirmation token"],
+      "evidence": ["imports/models.py", "imports/forms.py", "imports/services/batches.py", "tests/test_csv_imports.py"]
+    },
+    {
+      "id": "recipient-notification-fields",
+      "read": "Notification title, body, action, severity, and state are readable only by the active recipient within the selected household.",
+      "write": "The recipient may update read/dismissed state and their own preference values; kind, fingerprint, content, resolution, evaluation state, and recipient are service managed.",
+      "resource_attributes": ["household", "recipient user", "notification state", "preference user"],
+      "evidence": ["notifications/models.py", "notifications/forms.py", "notifications/services.py", "tests/test_notifications.py"]
+    },
+    {
+      "id": "protected-audit-fields",
+      "read": "Active members may read their household's audit details; exporting the full field set additionally requires recent authentication and valid integrity.",
+      "write": "Sequence, actor, action, entity, reason, before/after payloads, request reference, previous hash, event hash, and checkpoint fields are append-only service outputs. No browser edit or delete exists.",
+      "resource_attributes": ["household", "recent authentication", "chain integrity", "append-only state"],
+      "evidence": ["audit/models.py", "audit/views.py", "audit/services.py", "audit/checkpoints.py", "tests/test_audit.py"]
+    },
+    {
+      "id": "system-metadata-fields",
+      "read": "Internal database identifiers, request correlation, security counters, key versions, raw hashes, role metadata, and maintenance markers are not exposed unless a purpose-specific protected view explicitly needs a safe representation.",
+      "write": "Clients cannot assign primary keys, ownership links, created/updated times, security counters, archive hashes, signatures, or maintenance results.",
+      "resource_attributes": ["field purpose", "consumer role", "safe representation", "service identity"],
+      "evidence": ["identity/models.py", "audit/models.py", "core/logging.py", "docs/DATA_CLASSIFICATION.md", "tests/test_logging.py"]
+    },
+    {
+      "id": "export-and-browser-representations",
+      "read": "Templates and CSV serializers select explicit authorized fields after household scoping. Transaction and audit exports require recent authentication; no generic model serializer or API exists.",
+      "write": "Exports are response-only. The browser may submit only CSRF-protected form fields and cannot persist server authority or hidden ownership changes.",
+      "resource_attributes": ["household", "recent authentication", "serializer allowlist", "response purpose"],
+      "evidence": ["spending/services/exports.py", "audit/exports.py", "core/middleware.py", "tests/test_csv_exports.py"]
+    }
+  ],
+  "source_assertions": [
+    {
+      "id": "equal-member-role-contract",
+      "path": "households/models.py",
+      "contains": ["Equal application access for each person in a shared household.", "is_active = models.BooleanField(default=True)"]
+    },
+    {
+      "id": "active-membership-contract",
+      "path": "households/services/access.py",
+      "contains": ["def require_household_membership", "user=user", "household=household", "is_active=True"]
+    },
+    {
+      "id": "notification-recipient-contract",
+      "path": "notifications/services.py",
+      "contains": ["Notification.objects.filter(household=household, recipient=user)", "if notification.recipient_id != actor.pk:"]
+    },
+    {
+      "id": "account-recent-auth-contract",
+      "path": "identity/views.py",
+      "contains": ["if not recent_authentication_is_valid(request):", "reverse(\"identity:password-change\")", "revoke_user_session("]
+    },
+    {
+      "id": "transaction-export-contract",
+      "path": "spending/views.py",
+      "contains": ["def transaction_export", "if not recent_authentication_is_valid(request):"]
+    },
+    {
+      "id": "audit-export-contract",
+      "path": "audit/views.py",
+      "contains": ["def export", "if not recent_authentication_is_valid(request):", "if not integrity.valid:"]
+    },
+    {
+      "id": "import-household-contract",
+      "path": "imports/views.py",
+      "contains": ["def _batch(request", "household=household", "pk=batch_id"]
+    },
+    {
+      "id": "authorization-denial-log-contract",
+      "path": "core/middleware.py",
+      "contains": ["def _is_authorization_denial", "\"event\": \"authorization.denied\"", "\"route\": _route_name(request)"]
+    }
+  ],
+  "known_gaps": [
+    {
+      "id": "release-candidate-authorization-verification",
+      "status": "pending",
+      "description": "The policy and automated boundary tests are implementation evidence; a dated release-candidate adversarial run with sanitized retained evidence is still required before verification."
+    },
+    {
+      "id": "future-role-change-review",
+      "status": "trigger",
+      "description": "Adding household roles, invitations, membership administration, an API, or external identity requires a new function, record, and field matrix before implementation."
+    }
+  ],
+  "summary": {
+    "consumer_states": 4,
+    "route_namespaces": 9,
+    "routes": 70,
+    "function_rules": 11,
+    "field_rules": 10,
+    "source_assertions": 8,
+    "known_gaps": 2
+  }
+}

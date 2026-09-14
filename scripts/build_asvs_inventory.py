@@ -330,6 +330,8 @@ IMPLEMENTED_REQUIREMENTS = {
     "V7.4.4",
     "V7.4.5",
     "V7.5.2",
+    "V8.1.1",
+    "V8.1.2",
     "V8.2.1",
     "V8.2.2",
     "V8.2.3",
@@ -576,6 +578,20 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "User lifecycle hooks synchronously delete every authenticated and pending-MFA session "
         "when an existing account is disabled or deleted. Queryset deletion is covered, and a "
         "displaced browser receives secure client-state cleanup on its next request."
+    ),
+    "V8.1.1": (
+        "The deny-by-default authorization policy defines four consumer states and eleven "
+        "function and record rule groups using active membership, selected household, recipient, "
+        "lifecycle, classification, recent-authentication, integrity, and purpose attributes. "
+        "Its fail-closed route registry classifies all 70 named routes across nine namespaces and "
+        "verifies authentication and sensitive-function guards from source."
+    ),
+    "V8.1.2": (
+        "Ten field-level rule groups define readable, client-writable, and service-managed fields "
+        "for credentials, identity, membership, finances, immutable accounting and revisions, "
+        "imports, recipient notifications, audit history, system metadata, and exports. Forms and "
+        "serializers are explicit allowlists; ownership, hashes, counters, links, revisions, and "
+        "integrity metadata remain service-controlled."
     ),
     "V11.1.2": (
         "The machine-validated inventory covers application, deployment, provider-managed, and "
@@ -1004,6 +1020,26 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "identity/middleware.py",
         "tests/test_authentication.py",
         "tests/test_release_hardening.py",
+    ],
+    "V8.1.1": [
+        "docs/AUTHORIZATION_POLICY.md",
+        "docs/authorization-policy.json",
+        "scripts/check_authorization_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_authorization_policy.py",
+        "households/services/access.py",
+        "core/middleware.py",
+    ],
+    "V8.1.2": [
+        "docs/AUTHORIZATION_POLICY.md",
+        "docs/authorization-policy.json",
+        "scripts/check_authorization_policy.py",
+        "tests/test_authorization_policy.py",
+        "identity/models.py",
+        "notifications/services.py",
+        "ledger/models.py",
+        "audit/models.py",
     ],
     "V11.1.2": [
         "docs/cryptographic-inventory.json",
