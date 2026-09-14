@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "policy_id": "household-budget-context-sanitization-v1",
+  "asvs_requirement": "v5.0.0-1.3.3",
+  "last_reviewed": "2026-09-13",
+  "next_review_due": "2026-12-12",
+  "rule": "Use the context-specific safe API, parameterization, encoding, redaction, or fixed allowlist immediately before the sink; never rely on generic input filtering to make a value safe for every context.",
+  "contexts": [
+    {
+      "id": "browser-html-and-javascript",
+      "status": "encoded",
+      "untrusted_data": ["names", "descriptions", "notes", "audit values", "validation messages"],
+      "sink": "Django HTML templates and browser DOM updates",
+      "treatment": "Django contextual auto-escaping remains enabled; JavaScript creates nodes and assigns dynamic text through textContent. Inline script, HTML parsing, code execution, and custom trusted-HTML APIs are prohibited.",
+      "evidence": ["docs/OUTPUT_ENCODING_POLICY.md", "scripts/check_output_encoding.py", "tests/test_output_encoding.py"]
+    },
+    {
+      "id": "database-sql",
+      "status": "parameterized",
+      "untrusted_data": ["identifiers", "filters", "audit payloads", "checkpoint fields"],
+      "sink": "Django ORM and 25 reviewed raw SQL calls",
+      "treatment": "Application queries use the Django ORM. The three cursor calls use fixed literal SQL; the two data-bearing calls pass values separately as driver parameters and the readiness query contains no untrusted value. The 22 schema-editor calls execute fixed module-level migration literals and receive no untrusted data.",
+      "evidence": ["audit/services.py", "audit/checkpoints.py", "core/views.py", "scripts/check_context_sanitization.py", "tests/test_context_sanitization.py"]
+    },
+    {
+      "id": "server-template-selection",
+      "status": "allowlisted",
+      "untrusted_data": ["request routes", "application state"],
+      "sink": "Django renderer and template inheritance or inclusion",
+      "treatment": "Every renderer and template dependency uses a fixed literal existing template. Runtime template source, dynamic names, and mixed dynamic fallback lists are prohibited.",
+      "evidence": ["docs/TEMPLATE_INJECTION_POLICY.md", "scripts/check_template_safety.py", "tests/test_template_safety.py"]
+    },
+    {
+      "id": "regular-expression",
+      "status": "escaped",
+      "untrusted_data": ["configured password-policy words", "validated input strings"],
+      "sink": "Python and Django regular-expression compilation and matching",
+      "treatment": "Patterns are fixed literals except for the reviewed password-policy alternation, where every configured word is independently re.escape encoded before insertion into fixed anchored syntax.",
+      "evidence": ["docs/REGULAR_EXPRESSION_SAFETY.md", "scripts/check_regex_safety.py", "tests/test_regex_safety.py"]
+    },
+    {
+      "id": "operating-system-command",
+      "status": "absent",
+      "untrusted_data": ["management-command arguments", "request values", "configuration values"],
+      "sink": "Shell and child-process execution",
+      "treatment": "The production Python runtime launches no child process and imports no process-launch API. Maintenance orchestration is fixed repository-owned shell or PowerShell outside request handling.",
+      "evidence": ["docs/OS_COMMAND_SAFETY.md", "scripts/check_os_command_safety.py", "tests/test_os_command_safety.py"]
+    },
+    {
+      "id": "format-grammar",
+      "status": "allowlisted",
+      "untrusted_data": ["financial values", "dates", "log fields", "CSV fields"],
+      "sink": "Python format strings, datetime grammars, logging templates, and percent formatting",
+      "treatment": "Format grammars are code-owned literals. The one iterated CSV date parser selects from an exact literal allowlist; dynamic format specifications and runtime string-template grammars are prohibited.",
+      "evidence": ["docs/FORMAT_STRING_SAFETY.md", "scripts/check_format_string_safety.py", "tests/test_format_string_safety.py"]
+    },
+    {
+      "id": "redirect-and-action-url",
+      "status": "allowlisted",
+      "untrusted_data": ["next parameter", "notification action path", "response Location"],
+      "sink": "HTTP redirects and internal notification links",
+      "treatment": "Redirects require a same-authority safe URL or an exact configured HTTPS authority. Notification actions accept only local absolute paths with no scheme, authority, or backslash; no second decoding occurs.",
+      "evidence": ["docs/REDIRECT_SECURITY.md", "core/middleware.py", "identity/views.py", "notifications/models.py", "tests/test_web_foundation.py"]
+    },
+    {
+      "id": "csv-spreadsheet",
+      "status": "encoded",
+      "untrusted_data": ["descriptions", "names", "notes", "audit payloads", "account and category labels"],
+      "sink": "Transaction and audit CSV cells opened by spreadsheet software",
+      "treatment": "Every dynamic text cell passes formula_safe_text immediately before csv.writer. Leading whitespace is ignored for detection and values beginning with equals, plus, minus, or at-sign receive a literal-text prefix.",
+      "evidence": ["spending/services/exports.py", "audit/exports.py", "tests/test_csv_exports.py"]
+    },
+    {
+      "id": "structured-logging",
+      "status": "redacted",
+      "untrusted_data": ["requests", "user actions", "exceptions", "security-control failures"],
+      "sink": "Operational console and isolated security archive records",
+      "treatment": "Messages and field names are code-owned. Context is bounded and pseudonymous; bodies, queries, paths, secrets, financial contents, object IDs, raw exception text, and attacker-controlled log destinations are prohibited.",
+      "evidence": ["docs/LOGGING_INVENTORY.md", "docs/logging-inventory.json", "scripts/check_logging_inventory.py", "tests/test_logging.py"]
+    },
+    {
+      "id": "filesystem-path",
+      "status": "allowlisted",
+      "untrusted_data": ["checkpoint filename", "configured secret path", "blocklist source and destination"],
+      "sink": "Local file open, replace, and verification operations",
+      "treatment": "Request users cannot supply a filesystem path. Trusted commands require configured absolute roots or normalize an explicit operator path, reject traversal and symlinks where confidentiality matters, use exclusive opens, and validate a supplied checkpoint name with Path.name equality.",
+      "evidence": ["audit/checkpoints.py", "audit/management/commands/verify_audit_checkpoint.py", "config/settings/environment.py", "identity/password_validation.py", "tests/test_checkpoints.py"]
+    },
+    {
+      "id": "email-protocol",
+      "status": "absent",
+      "untrusted_data": ["email address", "notification content", "recovery values"],
+      "sink": "SMTP, IMAP, or email header construction",
+      "treatment": "The initial release sends no email and hardened settings use Django's dummy backend. No user-controlled subject, recipient, address header, or protocol command reaches an email transport.",
+      "evidence": ["config/settings/hardened.py", "docs/COMMUNICATION_INVENTORY.md", "scripts/check_communication_inventory.py", "tests/test_communication_inventory.py"]
+    }
+  ],
+  "sql_calls": [
+    {
+      "path": "audit/checkpoints.py",
+      "operation": "cursor.execute",
+      "count": 1,
+      "parameterization": "literal SQL with separate parameter sequence"
+    },
+    {
+      "path": "audit/migrations/0002_postgresql_protected_schema.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
+      "path": "audit/migrations/0004_postgresql_protect_checkpoints.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
+      "path": "audit/services.py",
+      "operation": "cursor.execute",
+      "count": 1,
+      "parameterization": "literal SQL with separate parameter sequence"
+    },
+    {
+      "path": "budgets/migrations/0002_postgresql_protect_reconciliations.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
+      "path": "core/views.py",
+      "operation": "cursor.execute",
+      "count": 1,
+      "parameterization": "fixed SELECT 1 with no untrusted data"
+    },
+    {
+      "path": "debts/migrations/0002_postgresql_protect_history.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
+      "path": "debts/migrations/0004_postgresql_protect_mortgage_history.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
+      "path": "goals/migrations/0002_postgresql_protect_history.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
+      "path": "ledger/migrations/0002_postgresql_protect_history.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
+      "path": "periods/migrations/0002_postgresql_period_guards.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
+      "path": "reserves/migrations/0002_postgresql_protect_entries.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
+      "path": "reserves/migrations/0004_cardpaymentreserveentry.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
+      "path": "schedules/migrations/0002_postgresql_protect_revisions.py",
+      "operation": "schema_editor.execute",
+      "count": 2,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    }
+  ],
+  "required_boundary_checks": [
+    "scripts/check_authorization_policy.py",
+    "scripts/check_communication_inventory.py",
+    "scripts/check_format_string_safety.py",
+    "scripts/check_input_validation_policy.py",
+    "scripts/check_logging_inventory.py",
+    "scripts/check_os_command_safety.py",
+    "scripts/check_output_encoding.py",
+    "scripts/check_regex_safety.py",
+    "scripts/check_template_safety.py"
+  ],
+  "source_assertions": [
+    {
+      "id": "csv-formula-contract",
+      "path": "spending/services/exports.py",
+      "contains": ["_FORMULA_PREFIXES = (\"=\", \"+\", \"-\", \"@\")", "candidate = value.lstrip()", "return f\"'{value}\""]
+    },
+    {
+      "id": "redirect-contract",
+      "path": "core/middleware.py",
+      "contains": ["def _redirect_location_is_allowed", "location != location.strip() or \"\\\\\" in location", "require_https=True"]
+    },
+    {
+      "id": "notification-action-contract",
+      "path": "notifications/models.py",
+      "contains": ["def internal_action_url", "if not self.action_url or \"\\\\\" in self.action_url:", "if parsed.scheme or parsed.netloc or not parsed.path.startswith(\"/\"):"]
+    },
+    {
+      "id": "checkpoint-filename-contract",
+      "path": "audit/management/commands/verify_audit_checkpoint.py",
+      "contains": ["if Path(supplied_name).name != supplied_name:", "Provide a checkpoint filename, not a path."]
+    },
+    {
+      "id": "email-disabled-contract",
+      "path": "config/settings/hardened.py",
+      "contains": ["EMAIL_BACKEND = \"django.core.mail.backends.dummy.EmailBackend\""]
+    },
+    {
+      "id": "logging-redaction-contract",
+      "path": "core/logging.py",
+      "contains": ["def redact_text", "_SENSITIVE_ASSIGNMENT.sub(r\"\\1\\2[REDACTED]\", text)", "_EMAIL_ADDRESS.sub(\"[REDACTED_EMAIL]\", text)"]
+    }
+  ],
+  "summary": {
+    "contexts": 11,
+    "sql_calls": 25,
+    "required_boundary_checks": 9,
+    "source_assertions": 6
+  }
+}

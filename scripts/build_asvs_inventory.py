@@ -250,6 +250,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V1.2.5",
     "V1.2.9",
     "V1.3.2",
+    "V1.3.3",
     "V1.3.7",
     "V1.3.10",
     "V1.4.1",
@@ -422,6 +423,15 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "That construction applies re.escape independently to every configured alternative before "
         "placing the single escaped fragment in fixed anchored syntax; module aliasing, direct "
         "symbol imports, new dynamic patterns, and unescaped interpolation are rejected."
+    ),
+    "V1.3.3": (
+        "A maintained inventory defines the exact treatment for 11 dangerous context families. "
+        "The aggregate fail-closed checker scans all 218 production Python files, including "
+        "migrations, and pins all 25 raw SQL calls to literal text: three application cursor "
+        "calls and 22 fixed schema-editor migration calls. It requires nine specialized context "
+        "checkers in both quality gates and exact source contracts for CSV formula encoding, "
+        "redirect and notification URLs, checkpoint filenames, disabled production email, and "
+        "structured-log redaction."
     ),
     "V1.3.7": (
         "All production render and template-loader calls select existing templates with fixed "
@@ -805,6 +815,19 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "identity/password_validation.py",
         "tests/test_regex_safety.py",
         "tests/test_password_policy.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V1.3.3": [
+        "docs/CONTEXT_SANITIZATION.md",
+        "docs/context-sanitization.json",
+        "scripts/check_context_sanitization.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "spending/services/exports.py",
+        "core/middleware.py",
+        "notifications/models.py",
+        "audit/checkpoints.py",
+        "tests/test_context_sanitization.py",
         "tests/test_release_hardening.py",
     ],
     "V1.3.7": [

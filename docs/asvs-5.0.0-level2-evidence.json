@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 149,
+      "implemented": 150,
       "not_applicable": 79,
-      "partial": 25
+      "partial": 24
     }
   },
   "requirements": [
@@ -310,13 +310,20 @@
       "level": 2,
       "description": "Verify that data being passed to a potentially dangerous context is sanitized beforehand to enforce safety measures, such as only allowing characters which are safe for this context and trimming input which is too long.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "A maintained inventory defines the exact treatment for 11 dangerous context families. The aggregate fail-closed checker scans all 218 production Python files, including migrations, and pins all 25 raw SQL calls to literal text: three application cursor calls and 22 fixed schema-editor migration calls. It requires nine specialized context checkers in both quality gates and exact source contracts for CSV formula encoding, redirect and notification URLs, checkpoint filenames, disabled production email, and structured-log redaction.",
       "evidence": [
-        "core/",
-        "imports/services/",
-        "tests/test_csv_imports.py",
-        "scripts/check.ps1"
+        "docs/CONTEXT_SANITIZATION.md",
+        "docs/context-sanitization.json",
+        "scripts/check_context_sanitization.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "spending/services/exports.py",
+        "core/middleware.py",
+        "notifications/models.py",
+        "audit/checkpoints.py",
+        "tests/test_context_sanitization.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
