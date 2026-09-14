@@ -363,6 +363,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V16.1.1",
     "V16.2.1",
     "V16.2.2",
+    "V16.2.3",
     "V16.2.4",
     "V16.2.5",
     "V16.3.1",
@@ -560,6 +561,13 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "catalogs, formats, destinations, uses, readers, retention, sensitive-data rules, "
         "integrity limits, and explicit separate-destination gaps without claiming release "
         "verification."
+    ),
+    "V16.2.3": (
+        "A fail-closed source validator pins the exact Django console, null, and separate Unix "
+        "datagram archive handlers; their logger routes; and every literal application logger "
+        "name. It rejects additional settings mutations plus file, network, mail, syslog, queue, "
+        "dynamic, and third-party telemetry sinks, while the existing deployment checks pin the "
+        "documented Docker, Gunicorn, nginx, and collector destinations."
     ),
     "V16.3.2": (
         "Every explicit 403 response and every authenticated, resolved identifier-bearing 404 "
@@ -858,6 +866,18 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/logging-inventory.json",
         "docs/LOGGING_INVENTORY.md",
         "scripts/check_logging_inventory.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V16.2.3": [
+        "docs/logging-inventory.json",
+        "docs/LOGGING_INVENTORY.md",
+        "config/settings/base.py",
+        "config/settings/production.py",
+        "core/logging.py",
+        "scripts/check_logging_inventory.py",
+        "compose.yaml",
+        "Dockerfile",
+        "deploy/network/nginx.conf",
         "tests/test_release_hardening.py",
     ],
     "V16.3.2": [

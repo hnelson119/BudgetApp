@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 131,
+      "implemented": 132,
       "not_applicable": 79,
-      "partial": 43
+      "partial": 42
     }
   },
   "requirements": [
@@ -4458,11 +4458,19 @@
       "level": 2,
       "description": "Verify that the application only stores or broadcasts logs to the files and services that are documented in the log inventory.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "A fail-closed source validator pins the exact Django console, null, and separate Unix datagram archive handlers; their logger routes; and every literal application logger name. It rejects additional settings mutations plus file, network, mail, syslog, queue, dynamic, and third-party telemetry sinks, while the existing deployment checks pin the documented Docker, Gunicorn, nginx, and collector destinations.",
       "evidence": [
+        "docs/logging-inventory.json",
+        "docs/LOGGING_INVENTORY.md",
+        "config/settings/base.py",
+        "config/settings/production.py",
         "core/logging.py",
-        "tests/test_logging.py"
+        "scripts/check_logging_inventory.py",
+        "compose.yaml",
+        "Dockerfile",
+        "deploy/network/nginx.conf",
+        "tests/test_release_hardening.py"
       ]
     },
     {
