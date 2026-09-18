@@ -48,6 +48,9 @@ try {
     & $pythonPath scripts\check_os_command_safety.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $pythonPath scripts\check_format_string_safety.py
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     & $pythonPath scripts\check_regex_safety.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

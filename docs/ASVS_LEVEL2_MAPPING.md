@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 136 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 38 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 137 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 37 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 38
+These are the clearest implementation or operational work items exposed by the mapping. The 37
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -64,6 +64,12 @@ use literal names that resolve to files in the reviewed template inventory, and 
 inheritance and includes name literal existing dependencies. Runtime template construction,
 dynamic or missing names, mixed fallback lists, dynamic dependencies, and aliases of reviewed
 selection APIs fail the local and CI gates. See `docs/TEMPLATE_INJECTION_POLICY.md`.
+
+The format-string boundary implements `v5.0.0-1.3.10`. Formatting and structured-log grammars are
+code-owned literals; the CSV date parser selects only from an exact literal allowlist. Dynamic
+format receivers and specifications, dynamic f-string and datetime grammars, runtime string
+templates, unreviewed percent expressions, and renamed helpers fail closed. All 11 production
+percent operators are pinned numeric modulo operations. See `docs/FORMAT_STRING_SAFETY.md`.
 
 The regular-expression boundary implements `v5.0.0-1.2.9`. A fail-closed AST inventory requires
 literal Python and Django patterns throughout the production application. The sole runtime-built

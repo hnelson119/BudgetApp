@@ -250,6 +250,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V1.2.9",
     "V1.3.2",
     "V1.3.7",
+    "V1.3.10",
     "V1.5.2",
     "V2.2.1",
     "V2.2.2",
@@ -408,6 +409,13 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "A fail-closed source inventory rejects runtime template construction, dynamic or missing "
         "template names, mixed literal/dynamic fallback lists, dynamic inheritance or includes, "
         "and aliases of the reviewed Django selection APIs."
+    ),
+    "V1.3.10": (
+        "Format grammars are code-owned literals. A fail-closed AST inventory rejects dynamic "
+        "str.format receivers, format specifications, f-string specifications, HTML formatting "
+        "grammars, datetime output grammars, runtime string templates, log message templates, and "
+        "percent-format expressions. The one iterated CSV date parser is constrained to an exact "
+        "literal format allowlist, and all 11 percent operators are pinned arithmetic modulo."
     ),
     "V3.4.2": (
         "The private application deliberately grants no cross-origin reads. An outer same-origin "
@@ -663,6 +671,16 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "identity/views.py",
         "budgets/views.py",
         "tests/test_template_safety.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V1.3.10": [
+        "docs/FORMAT_STRING_SAFETY.md",
+        "scripts/check_format_string_safety.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "imports/services/batches.py",
+        "core/logging.py",
+        "tests/test_format_string_safety.py",
         "tests/test_release_hardening.py",
     ],
     "V3.4.2": [

@@ -23,6 +23,7 @@ cd "$project_root"
 "$python_path" scripts/check_output_encoding.py
 "$python_path" scripts/check_template_safety.py
 "$python_path" scripts/check_os_command_safety.py
+"$python_path" scripts/check_format_string_safety.py
 "$python_path" scripts/check_regex_safety.py
 "$python_path" scripts/check_release_evidence.py
 "$python_path" scripts/check_device_test_evidence.py
