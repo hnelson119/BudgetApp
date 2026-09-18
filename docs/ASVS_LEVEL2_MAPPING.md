@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 132 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 42 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 133 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 41 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,9 +40,18 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 42
+These are the clearest implementation or operational work items exposed by the mapping. The 41
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
+
+### Encoding and expression safety
+
+The regular-expression boundary implements `v5.0.0-1.2.9`. A fail-closed AST inventory requires
+literal Python and Django patterns throughout the production application. The sole runtime-built
+pattern normalizes configured product identifiers and applies `re.escape` independently to every
+alternative before inserting that one fragment into fixed anchored password-validator syntax.
+Module aliasing, direct symbol imports, other dynamic patterns, and unescaped interpolation fail the
+local and CI gates. See `docs/REGULAR_EXPRESSION_SAFETY.md`.
 
 ### Authentication and session lifecycle
 
