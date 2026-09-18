@@ -28,7 +28,8 @@ There are four policy states:
   Members have equal application access inside the selected household; the initial product has no
   owner, editor, or read-only household subroles.
 - A trusted administrator uses separately authorized host access, reviewed management commands, or
-  Django staff permissions. Administrator capability is not implied by household membership.
+  Django staff permissions. Browser administration additionally requires per-session MFA proof and
+  recent full authentication. Administrator capability is not implied by household membership.
 
 An authenticated user without exactly one resolvable active household is denied rather than given
 an arbitrary household. If multiple-household selection is expanded, the selected reference must
@@ -70,7 +71,8 @@ Credential material is the strictest case. Password hashes, encrypted TOTP secre
 hashes, session payloads, and CSRF secrets are not household-readable. Raw recovery codes are shown
 only during the bound enrollment flow and are then retained only as one-way hashes. A member may
 change their own password but cannot directly write email, staff flags, MFA state, session version,
-or last-authenticated metadata.
+or last-authenticated metadata. Even the administrator user editor treats session versions and
+authentication timestamps as service-managed, read-only fields.
 
 Financial pages may display the selected household's purpose-approved fields. Mutations expose
 only the business inputs for that action; balanced postings, revisions, corrections, derived

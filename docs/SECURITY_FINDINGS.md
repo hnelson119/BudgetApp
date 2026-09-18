@@ -527,6 +527,33 @@ directory or an encrypted assessment location outside the repository.
   cookie/cache checks. Cleanup removed every disposable container, volume, and network.
 - Exceptions or suppressions: none.
 
+## M10-F024 — Password-only administration bypassed per-session MFA
+
+- Severity: High
+- State: Remediated
+- Detected: 2026-09-14
+- Owner: release owner
+- Affected baseline: Django administration login and sensitive user editing
+- Detection: the default admin login accepted a staff password while middleware checked only
+  completed account enrollment, not whether that browser session had passed MFA. Administration
+  also lacked the application's recent-authentication guard.
+- Security impact: a compromised staff password could establish administration access without the
+  second factor; stale administrative sessions could modify sensitive account attributes. The user
+  editor also exposed internal session versions and authentication timestamps as editable fields.
+- Remediation: a custom admin site redirects login to application authentication and requires
+  explicit current-session MFA proof plus recent full authentication for every protected view.
+  Only successful MFA sign-in or password-plus-MFA reauthentication grants proof. Internal
+  authentication state is read-only in the user editor; ordinary staff/model permissions and CSRF
+  checks remain enforced.
+- Automated retest: `tests/test_admin_security.py` covers password-only GET/POST attempts, pending
+  MFA, legacy sessions, failed and successful reauthentication, stale sensitive edits, non-staff
+  denial, read-only authentication fields, and retained CSRF protection using synthetic accounts.
+- Deployment requirement: revoke every pre-upgrade authenticated and pending-MFA session before
+  reopening traffic. The command and evidence requirements are in `docs/SESSION_SECURITY.md`.
+  No live revocation or release-candidate retest is claimed; keep this finding out of the release
+  pass until those steps are recorded.
+- Exceptions or suppressions: none.
+
 ## 2026-09-02 synthetic upgrade and rollback baseline
 
 - The fixed disposable rehearsal wrote independently signed audit checkpoints and created an
