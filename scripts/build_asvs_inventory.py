@@ -248,6 +248,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V1.2.4",
     "V1.2.9",
     "V1.3.2",
+    "V1.3.7",
     "V1.5.2",
     "V2.2.1",
     "V2.2.2",
@@ -392,6 +393,13 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "That construction applies re.escape independently to every configured alternative before "
         "placing the single escaped fragment in fixed anchored syntax; module aliasing, direct "
         "symbol imports, new dynamic patterns, and unescaped interpolation are rejected."
+    ),
+    "V1.3.7": (
+        "All production render and template-loader calls select existing templates with fixed "
+        "literal names, and every template extends or includes an existing literal dependency. "
+        "A fail-closed source inventory rejects runtime template construction, dynamic or missing "
+        "template names, mixed literal/dynamic fallback lists, dynamic inheritance or includes, "
+        "and aliases of the reviewed Django selection APIs."
     ),
     "V3.4.2": (
         "The private application deliberately grants no cross-origin reads. An outer same-origin "
@@ -625,6 +633,18 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "identity/password_validation.py",
         "tests/test_regex_safety.py",
         "tests/test_password_policy.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V1.3.7": [
+        "docs/TEMPLATE_INJECTION_POLICY.md",
+        "scripts/check_template_safety.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "core/templates/core/app_base.html",
+        "core/views.py",
+        "identity/views.py",
+        "budgets/views.py",
+        "tests/test_template_safety.py",
         "tests/test_release_hardening.py",
     ],
     "V3.4.2": [
