@@ -554,6 +554,26 @@ directory or an encrypted assessment location outside the repository.
   pass until those steps are recorded.
 - Exceptions or suppressions: none.
 
+## M10-F025 — Authentication outcome flags were omitted from archived security records
+
+- Severity: Low
+- State: Remediated
+- Detected: 2026-09-18
+- Owner: release owner
+- Affected baseline: structured Django security logging for login, MFA, reauthentication, and password recovery
+- Detection: producers attached `rate_limited` and `accepted` outcome booleans, but the JSON formatter's
+  allowlist omitted them before delivery to the independent security archive.
+- Security impact: authentication failure events still reached the archive, but an operator could not
+  distinguish active throttling from an ordinary failed attempt or accepted from rejected password
+  recovery by those documented outcome fields. No credential or account identifier was exposed.
+- Remediation: the formatter now preserves only those two typed booleans, and the collector rejects
+  non-boolean substitutes. The inventory documents their minimized purpose and restricted audience.
+- Automated retest: `tests/test_logging.py` exercises a throttled login and formatter-to-collector
+  preservation; `tests/test_security_log_archive.py` rejects string, number, and null substitutes.
+- Release boundary: verify archive delivery, alert review, and retention on the selected VM with
+  synthetic accounts. The repository tests are not a live release-candidate pass.
+- Exceptions or suppressions: none.
+
 ## 2026-09-02 synthetic upgrade and rollback baseline
 
 - The fixed disposable rehearsal wrote independently signed audit checkpoints and created an

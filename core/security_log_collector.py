@@ -17,7 +17,12 @@ from pathlib import Path
 from types import FrameType
 from typing import Any
 
-from core.logging import MAX_SECURITY_LOG_DATAGRAM_BYTES, SAFE_RECORD_FIELDS, redact_text
+from core.logging import (
+    MAX_SECURITY_LOG_DATAGRAM_BYTES,
+    SAFE_BOOLEAN_RECORD_FIELDS,
+    SAFE_RECORD_FIELDS,
+    redact_text,
+)
 
 SOCKET_PATH = Path("/run/security-log/security.sock")
 ARCHIVE_DIRECTORY = Path("/var/lib/security-log")
@@ -35,7 +40,7 @@ _BASE_FIELDS = {
     "stream",
     "timestamp",
 }
-_OPTIONAL_FIELDS = {*SAFE_RECORD_FIELDS, "exception_type", "traceback"}
+_OPTIONAL_FIELDS = {*SAFE_RECORD_FIELDS, *SAFE_BOOLEAN_RECORD_FIELDS, "exception_type", "traceback"}
 _LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _EVENT_ID = re.compile(r"^[a-z][a-z0-9_]*(?:[._][a-z0-9_]+)+$")
 _stop_requested = False
@@ -128,6 +133,11 @@ def validate_record(payload: bytes) -> dict[str, Any]:
         ):
             raise CollectorFailure(f"Security-log field {field!r} has an invalid type.")
         cleaned[field] = value
+    for field in SAFE_BOOLEAN_RECORD_FIELDS:
+        if field in raw:
+            if type(raw[field]) is not bool:
+                raise CollectorFailure(f"Security-log field {field!r} has an invalid type.")
+            cleaned[field] = raw[field]
     if "exception_type" in raw:
         cleaned["exception_type"] = _clean_string(raw["exception_type"], field="exception_type")
     if "traceback" in raw:

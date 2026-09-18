@@ -37,6 +37,7 @@ SAFE_RECORD_FIELDS = (
     "check_name",
     "result",
 )
+SAFE_BOOLEAN_RECORD_FIELDS = ("accepted", "rate_limited")
 MAX_SECURITY_LOG_DATAGRAM_BYTES = 32 * 1024
 
 
@@ -153,6 +154,11 @@ class RedactingJsonFormatter(logging.Formatter):
             value = getattr(record, field, None)
             if value is not None:
                 payload[field] = redact_text(value) if isinstance(value, str) else value
+
+        for field in SAFE_BOOLEAN_RECORD_FIELDS:
+            value = getattr(record, field, None)
+            if type(value) is bool:
+                payload[field] = value
 
         if record.exc_info:
             exception_type, _, exception_traceback = record.exc_info

@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "inventory_updated": "2026-09-13",
+  "inventory_updated": "2026-09-18",
   "review": {
     "owner": "release owner",
     "cadence_days": 90,
-    "next_review_due": "2026-12-12",
+    "next_review_due": "2026-12-17",
     "procedure": "docs/LOGGING_INVENTORY.md",
     "update_triggers": [
       "a log producer, event, format, destination, access rule, or retention rule changes",
@@ -80,7 +80,7 @@
         "authorized financial and audit exports",
         "Django framework security warnings"
       ],
-      "format": "The same redacting single-line JSON format as operational logs, with stream fixed to security and event set to a stable catalog identifier.",
+      "format": "The same redacting single-line JSON format as operational logs, with stream fixed to security and event set to a stable catalog identifier. Authentication and recovery outcomes may include typed accepted and rate_limited booleans; submitted identities and throttle keys are excluded.",
       "destination": "Dedicated Python security handlers send one copy to the process stream and one redacted JSON datagram through the read-only-mounted Unix socket to the separate networkless security-log archive service.",
       "use": [
         "security triage and incident correlation",

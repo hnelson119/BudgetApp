@@ -36,11 +36,13 @@ def _security_payload(**overrides: Any) -> bytes:
 
 
 def test_collector_validates_and_redacts_security_records() -> None:
-    record = validate_record(_security_payload())
+    record = validate_record(_security_payload(accepted=False, rate_limited=True))
 
     assert record["stream"] == "security"
     assert record["event"] == "auth.login.failed"
     assert "visible-value" not in record["message"]
+    assert record["accepted"] is False
+    assert record["rate_limited"] is True
 
 
 @pytest.mark.parametrize(
@@ -52,6 +54,10 @@ def test_collector_validates_and_redacts_security_records() -> None:
         {"event": "not valid"},
         {"unapproved": "field"},
         {"duration_ms": math.inf},
+        {"accepted": "false"},
+        {"accepted": 0},
+        {"rate_limited": None},
+        {"rate_limited": 1},
     ),
 )
 def test_collector_rejects_unapproved_records(overrides: dict[str, str]) -> None:
