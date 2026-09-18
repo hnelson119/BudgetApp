@@ -4,7 +4,7 @@ import copy
 import json
 import subprocess
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -153,44 +153,46 @@ def test_logging_inventory_rejects_tampering_and_stale_reviews() -> None:
     inventory = json.loads(
         (PROJECT_ROOT / "docs/logging-inventory.json").read_text(encoding="utf-8")
     )
+    reviewed_on = date.fromisoformat(inventory["inventory_updated"])
+    overdue_on = date.fromisoformat(inventory["review"]["next_review_due"]) + timedelta(days=1)
 
     duplicate_layer = copy.deepcopy(inventory)
     duplicate_layer["layers"].append(duplicate_layer["layers"][0])
     with pytest.raises(ValueError, match="duplicate id"):
-        validate_logging_inventory(duplicate_layer, today=date(2026, 9, 13))
+        validate_logging_inventory(duplicate_layer, today=reviewed_on)
 
     missing_retention = copy.deepcopy(inventory)
     missing_retention["layers"][0]["retention"] = ""
     with pytest.raises(ValueError, match="retention must be non-empty text"):
-        validate_logging_inventory(missing_retention, today=date(2026, 9, 13))
+        validate_logging_inventory(missing_retention, today=reviewed_on)
 
     missing_evidence = copy.deepcopy(inventory)
     missing_evidence["layers"][0]["evidence"] = ["docs/does-not-exist.md"]
     with pytest.raises(ValueError, match="missing evidence"):
-        validate_logging_inventory(missing_evidence, today=date(2026, 9, 13))
+        validate_logging_inventory(missing_evidence, today=reviewed_on)
 
     unknown_group = copy.deepcopy(inventory)
     unknown_group["layers"][0]["event_groups"] = ["unknown-events"]
     with pytest.raises(ValueError, match="unknown event groups"):
-        validate_logging_inventory(unknown_group, today=date(2026, 9, 13))
+        validate_logging_inventory(unknown_group, today=reviewed_on)
 
     changed_source_event = copy.deepcopy(inventory)
     changed_source_event["event_groups"][0]["events"][0] = "http.request.changed"
     with pytest.raises(ValueError, match="does not match source literals"):
-        validate_logging_inventory(changed_source_event, today=date(2026, 9, 13))
+        validate_logging_inventory(changed_source_event, today=reviewed_on)
 
     embedded_private_key = copy.deepcopy(inventory)
     embedded_private_key["layers"][0]["destination"] = "BEGIN " + "PRIVATE" + " KEY"
     with pytest.raises(ValueError, match="private-key material"):
-        validate_logging_inventory(embedded_private_key, today=date(2026, 9, 13))
+        validate_logging_inventory(embedded_private_key, today=reviewed_on)
 
     exact_hostname = copy.deepcopy(inventory)
     exact_hostname["layers"][0]["destination"] = "budget.private-tail.ts.net"
     with pytest.raises(ValueError, match="exact private hostname"):
-        validate_logging_inventory(exact_hostname, today=date(2026, 9, 13))
+        validate_logging_inventory(exact_hostname, today=reviewed_on)
 
     with pytest.raises(ValueError, match="review is overdue"):
-        validate_logging_inventory(inventory, today=date(2026, 12, 13))
+        validate_logging_inventory(inventory, today=overdue_on)
 
 
 def test_logging_inventory_rejects_undocumented_django_destinations() -> None:
