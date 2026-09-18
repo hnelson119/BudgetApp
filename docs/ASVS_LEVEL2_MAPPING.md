@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 147 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 27 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 149 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 25 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 27
+These are the clearest implementation or operational work items exposed by the mapping. The 25
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -156,6 +156,15 @@ deployments, whose independent wildcard-origin default also remains disabled fol
 `M10-F002` finding.
 
 ### Sensitive-data classification
+
+The deny-by-default authorization policy implements `v5.0.0-8.1.1` and `v5.0.0-8.1.2`. Four
+consumer states distinguish anonymous, pending-MFA, active household member, and separately trusted
+administrator authority. Eleven function and record rule groups and ten field rule groups define
+decisions from membership, selected household, recipient, lifecycle, account classification,
+recent authentication, integrity, and purpose. A fail-closed registry classifies all 70 named
+routes across nine namespaces, verifies every member login guard and all five recent-auth checks,
+and pins recipient, household, export, and denial-logging contracts. See
+`docs/AUTHORIZATION_POLICY.md` and `docs/authorization-policy.json`.
 
 The model-anchored data inventory implements `v5.0.0-14.1.1` and `v5.0.0-14.1.2`. It assigns all
 45 stored Django models exactly once and covers 10 additional request, browser, export, secret,

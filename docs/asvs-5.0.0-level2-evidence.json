@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 147,
+      "implemented": 149,
       "not_applicable": 79,
-      "partial": 27
+      "partial": 25
     }
   },
   "requirements": [
@@ -2562,12 +2562,17 @@
       "level": 1,
       "description": "Verify that authorization documentation defines rules for restricting function-level and data-specific access based on consumer permissions and resource attributes.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The deny-by-default authorization policy defines four consumer states and eleven function and record rule groups using active membership, selected household, recipient, lifecycle, classification, recent-authentication, integrity, and purpose attributes. Its fail-closed route registry classifies all 70 named routes across nine namespaces and verifies authentication and sensitive-function guards from source.",
       "evidence": [
-        "households/services/",
-        "tests/test_web_foundation.py",
-        "tests/"
+        "docs/AUTHORIZATION_POLICY.md",
+        "docs/authorization-policy.json",
+        "scripts/check_authorization_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_authorization_policy.py",
+        "households/services/access.py",
+        "core/middleware.py"
       ]
     },
     {
@@ -2580,12 +2585,17 @@
       "level": 2,
       "description": "Verify that authorization documentation defines rules for field-level access restrictions (both read and write) based on consumer permissions and resource attributes. Note that these rules might depend on other attribute values of the relevant data object, such as state or status.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Ten field-level rule groups define readable, client-writable, and service-managed fields for credentials, identity, membership, finances, immutable accounting and revisions, imports, recipient notifications, audit history, system metadata, and exports. Forms and serializers are explicit allowlists; ownership, hashes, counters, links, revisions, and integrity metadata remain service-controlled.",
       "evidence": [
-        "households/services/",
-        "tests/test_web_foundation.py",
-        "tests/"
+        "docs/AUTHORIZATION_POLICY.md",
+        "docs/authorization-policy.json",
+        "scripts/check_authorization_policy.py",
+        "tests/test_authorization_policy.py",
+        "identity/models.py",
+        "notifications/services.py",
+        "ledger/models.py",
+        "audit/models.py"
       ]
     },
     {
