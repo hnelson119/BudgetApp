@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 138,
+      "implemented": 140,
       "not_applicable": 79,
-      "partial": 36
+      "partial": 34
     }
   },
   "requirements": [
@@ -4020,13 +4020,23 @@
       "level": 2,
       "description": "Verify that all sensitive data created and processed by the application has been identified and classified into protection levels. This includes data that is only encoded and therefore easily decoded, such as Base64 strings or the plaintext payload inside a JWT. Protection levels need to take into account any data protection and privacy regulations and standards which the application is required to comply with.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "A machine-readable classification identifies all sensitive data created or processed by the application across 45 Django models and 10 non-model data surfaces. Every model is assigned exactly once at the highest protection needed by any field, and encoded, hashed, masked, encrypted, compressed, or pseudonymous derivatives explicitly inherit their source classification. The documented deployment and privacy context has mandatory jurisdiction, integration, provider, regulated-use, and release reassessment triggers.",
       "evidence": [
-        "SECURITY_PLAN.md",
+        "docs/DATA_CLASSIFICATION.md",
+        "docs/data-classification.json",
+        "scripts/check_data_classification.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_data_classification.py",
+        "config/settings/base.py",
+        "config/settings/hardened.py",
         "core/middleware.py",
-        "core/logging.py",
-        "tests/test_logging.py"
+        "identity/middleware.py",
+        "imports/services/batches.py",
+        "docs/COMMUNICATION_INVENTORY.md",
+        "docs/LOGGING_INVENTORY.md",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md"
       ]
     },
     {
@@ -4039,13 +4049,24 @@
       "level": 2,
       "description": "Verify that all sensitive data protection levels have a documented set of protection requirements. This must include (but not be limited to) requirements related to general encryption, integrity verification, retention, how the data is to be logged, access controls around sensitive data in logs, database-level encryption, privacy and privacy-enhancing technologies to be used, and other confidentiality requirements.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Four ordered protection levels define requirements for transport and at-rest encryption, database-volume encryption, integrity, retention, logging, log access, authorization, privacy, confidentiality, encoding, disposal, backups, and client storage. Fifteen dataset records apply concrete lifecycle rules and evidence, while the checker pins the model registry and implemented cookie, TLS, no-store, browser-cleanup, import-scrubbing, export, and encrypted-backup boundaries. Dated database-volume and full control verification remains separately tracked under V14.2.4.",
       "evidence": [
-        "SECURITY_PLAN.md",
+        "docs/DATA_CLASSIFICATION.md",
+        "docs/data-classification.json",
+        "scripts/check_data_classification.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_data_classification.py",
+        "config/settings/base.py",
+        "config/settings/hardened.py",
         "core/middleware.py",
-        "core/logging.py",
-        "tests/test_logging.py"
+        "identity/middleware.py",
+        "core/static/core/app.js",
+        "imports/services/batches.py",
+        "spending/views.py",
+        "audit/views.py",
+        "docs/BACKUP_AND_RESTORE.md"
       ]
     },
     {

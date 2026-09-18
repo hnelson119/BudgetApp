@@ -1,0 +1,635 @@
+{
+  "schema_version": 1,
+  "inventory_updated": "2026-09-13",
+  "review": {
+    "owner": "release owner",
+    "cadence_days": 90,
+    "next_review_due": "2026-12-12",
+    "procedure": "docs/DATA_CLASSIFICATION.md",
+    "update_triggers": [
+      "a model, field, upload, export, log, backup, secret, or client-storage surface changes",
+      "a protection control or retention period changes",
+      "an external service, data recipient, deployment model, or integration is added",
+      "the product enters a new jurisdiction or regulated, commercial, employment, health, or minors context",
+      "every release candidate",
+      "a privacy request, security finding, or incident changes the classification or handling requirements"
+    ]
+  },
+  "regulatory_and_privacy_scope": {
+    "current_context": [
+      "private self-hosted budgeting for one invited household",
+      "no bank synchronization, payment processing, credit reporting, advertising, analytics, or sale of data",
+      "no public registration, commercial customer relationship, employer use, healthcare use, or designed use by minors",
+      "deployment and data custody remain with the household release owner except for the named infrastructure providers"
+    ],
+    "baseline_commitments": [
+      "data minimization and purpose limitation",
+      "household-scoped least-privilege access with recent authentication for the most sensitive actions",
+      "confidential transport, protected storage, bounded retention, and secure disposal according to classification",
+      "no sensitive data in URLs, telemetry, untrusted recipients, or ordinary application logs",
+      "documented export, correction, recovery, incident, and operator-led removal procedures"
+    ],
+    "formal_determination": "This engineering inventory does not claim a legal exemption or replace jurisdiction-specific advice. Before each deployment, the release owner records the deployment jurisdiction and confirms applicable privacy, breach-notification, financial-data, tax-record, provider-contract, and household obligations; the stricter documented baseline applies even when no named regulatory regime is triggered.",
+    "not_in_scope_yet": [
+      "financial-institution, payment-card processor, consumer-reporting, investment-adviser, employer, healthcare, school, or child-directed processing",
+      "multi-tenant software as a service, public registration, behavioral analytics, advertising, data brokerage, or automated financial decisions",
+      "open-banking credentials, bank API payloads, payment instruments, government identifiers, biometrics, health data, or precise location history"
+    ],
+    "reassessment_triggers": [
+      "public or commercial availability",
+      "bank, payment, credit, tax, identity-provider, analytics, telemetry, messaging, or cloud-storage integration",
+      "processing for another household, an employer, a minor, or a regulated professional service",
+      "a new deployment jurisdiction, external data recipient, data-residency change, or provider-contract change"
+    ],
+    "data_subject_process": "Authenticated members may review and correct current household records and create protected financial or audit exports. Access or removal requests that are not supported in-product are handled by the household release owner using a verified offline procedure, encrypted backup and incident-hold constraints, and an audit-preserving record of the decision; append-only audit history is never silently rewritten."
+  },
+  "summary": {
+    "protection_levels": 4,
+    "datasets": 15,
+    "classified_django_models": 45
+  },
+  "protection_levels": [
+    {
+      "id": "public",
+      "rank": 0,
+      "name": "Public",
+      "definition": "Content intentionally safe for unauthenticated distribution and containing no household, identity, authentication, financial, security-sensitive, or deployment-specific values.",
+      "encryption_in_transit": "Public application assets inherit the deployment HTTPS requirement even though confidentiality is not required; source downloads and release artifacts use authenticated HTTPS.",
+      "encryption_at_rest": "Confidentiality encryption is not required, but reviewed source and built assets remain in access-controlled source and image storage.",
+      "database_level_encryption": "Public data is not stored in the application database; if that changes, it inherits the database protections of the containing record.",
+      "integrity": "Changes require source review, quality checks, and immutable or digest-pinned release artifacts.",
+      "retention": "Retain only for the supported source and release lifecycle; remove obsolete assets through reviewed repository and image-retention processes.",
+      "logging": "Names and fixed paths may appear in operational diagnostics, but request-derived content is not made public by classification.",
+      "log_access": "Ordinary operator access is sufficient because logs must not gain sensitive values from this level transition.",
+      "access_control": "Read access may be unauthenticated only for an explicitly reviewed public route or static asset; modification remains release-owner controlled.",
+      "privacy": "No personal or household data is permitted; accessibility and ordinary non-tracking delivery remain required.",
+      "confidentiality": "No confidentiality claim applies to the published bytes, but private hostnames and deployment details remain excluded.",
+      "encoding_and_masking": "Encoding, compression, hashing, truncation, or masking does not lower classification; derived representations inherit the source level unless an approved irreversible declassification review proves otherwise.",
+      "disposal": "Remove unsupported copies from release and source distribution; no special media sanitization is required when the no-sensitive-data rule is satisfied.",
+      "backup_and_recovery": "Recovery relies on reviewed source and immutable build inputs rather than inclusion in household-data backups.",
+      "client_storage": "Immutable versioned static assets may use ordinary browser caching; authenticated or household-derived content can never enter this level."
+    },
+    {
+      "id": "internal",
+      "rank": 1,
+      "name": "Internal",
+      "definition": "Non-public operational, authorization-schema, dependency, or synthetic security information that does not contain live household or reusable credential data but could assist misuse or confuse a release if altered.",
+      "encryption_in_transit": "Use authenticated encrypted transport outside one trusted host; do not send to an unlisted service or user-controlled destination.",
+      "encryption_at_rest": "Store only in access-controlled source, image, host, or CI storage; host and provider encryption are required when the selected platform supports them.",
+      "database_level_encryption": "Internal authorization metadata stored in PostgreSQL inherits the protected database volume requirement and must be included in release verification.",
+      "integrity": "Require reviewed source, pinned dependencies, immutable artifacts, checksums or signatures where supplied, and least-privilege modification rights.",
+      "retention": "Keep only for its operational, release, or evidence purpose and the documented provider lifecycle; remove stale local test output after review.",
+      "logging": "May log bounded identifiers, versions, counts, and outcomes; never promote live sensitive values into internal logs.",
+      "log_access": "Limit non-public operational logs to the release owner and administrators or the reviewed CI project.",
+      "access_control": "Use repository, CI, host, and database-role permissions appropriate to the artifact; publication requires explicit declassification review.",
+      "privacy": "Use synthetic fixtures and coarse operational values; exclude live identity, financial, behavioral, and network-address data.",
+      "confidentiality": "Do not publish deployment topology, private hostnames, detailed findings before remediation, or reusable operational identifiers.",
+      "encoding_and_masking": "Encoded, hashed, compressed, truncated, or masked derivatives inherit the source classification and may not be treated as declassified by format alone.",
+      "disposal": "Delete expired local and provider artifacts through the documented platform process and verify sensitive source data was never embedded.",
+      "backup_and_recovery": "Recover from reviewed source, provider artifacts within retention, or the encrypted deployment backup when the item is database-resident.",
+      "client_storage": "Do not persist internal data in browser storage; transient display follows the authenticated no-store boundary when shown in the application."
+    },
+    {
+      "id": "confidential",
+      "rank": 2,
+      "name": "Confidential",
+      "definition": "Household identity, membership, security-event, notification, or pseudonymous operational data whose unauthorized disclosure could expose private behavior or help target an account.",
+      "encryption_in_transit": "Require authenticated TLS on every TCP hop and a reviewed local Unix or filesystem boundary for same-host transfer; no plaintext LAN or public hop is allowed.",
+      "encryption_at_rest": "Require access-controlled storage on an encrypted host volume, encrypted off-host backups, protected provider storage where applicable, and no unmanaged copies.",
+      "database_level_encryption": "PostgreSQL storage must reside on an administrator-verified encrypted host volume; field encryption is added when the threat model requires separation from the database role. This remains a dated release verification item.",
+      "integrity": "Use database constraints and transactions, protected audit events for security-relevant changes, validated structured logging, and signed checkpoints where the record participates in audit history.",
+      "retention": "Apply the dataset-specific minimum and maximum, incident holds, and verified deletion or anonymization when the purpose ends; avoid indefinite convenience copies.",
+      "logging": "Log only stable event names, coarse outcomes, counts, and pseudonymous identifiers. Exclude emails, names, addresses, free text, query strings, bodies, and full object values.",
+      "log_access": "Limit protected logs to the isolated collector and Linux administrators; household audit views remain household-scoped and require recent authentication for detailed access and export.",
+      "access_control": "Require authenticated household scope or a purpose-bound administrator/service identity, least-privilege database roles, MFA for members, and recent authentication for sensitive actions.",
+      "privacy": "Minimize collection and linkability, avoid IP or detailed device fingerprint retention, support review/correction, and route removal requests through the verified household process.",
+      "confidentiality": "Never place values in URLs, analytics, public artifacts, source control, ordinary logs, or an unlisted external service; screenshots and support evidence must be sanitized.",
+      "encoding_and_masking": "Base64, URL encoding, hashing, pseudonymization, partial display, truncation, and other reversible or linkable transformations inherit the source classification.",
+      "disposal": "Scrub expired working data, remove retired provider and host copies, and account for encrypted backup expiry and incident holds before claiming erasure.",
+      "backup_and_recovery": "Include authoritative records only in encrypted Restic backups with documented retention and tested restoration; keep repository credentials separate from application access.",
+      "client_storage": "Use secure HttpOnly cookies only where needed, no-store responses, no sensitive Web Storage or IndexedDB, and clear authenticated DOM and origin storage on termination."
+    },
+    {
+      "id": "restricted",
+      "rank": 3,
+      "name": "Restricted",
+      "definition": "Authentication secrets, cryptographic material, detailed financial records, raw imports, exports, backups, or audit payloads whose disclosure or alteration could enable account takeover, material privacy harm, or financial harm.",
+      "encryption_in_transit": "Require authenticated TLS with exact peer validation on every network hop; internal service traffic uses purpose-separated mutual TLS and restricted data has no external application destination.",
+      "encryption_at_rest": "Require an encrypted host volume, encrypted off-host backups, least-privilege file modes, and purpose-specific application encryption for recoverable authentication seeds or equivalent high-impact secrets.",
+      "database_level_encryption": "PostgreSQL storage must reside on an administrator-verified encrypted host volume in addition to MFA seed field encryption and encrypted backups. Dated release verification must record encryption and key-custody evidence before V14.2.4 can be verified.",
+      "integrity": "Require transactional invariants and constraints, append-only hash-chained audit history for material changes, independently signed checkpoints, authenticated encryption or keyed hashes for secrets, and restore-time integrity checks.",
+      "retention": "Use the shortest dataset-specific period: authentication artifacts expire or rotate, raw import cells are scrubbed after 24 hours by default and never beyond 720 hours, exports are response-only, and durable financial/audit records follow the household retention decision plus legal or incident holds.",
+      "logging": "Never log plaintext or encoded credentials, TOTP seeds, recovery codes, cookies, CSRF values, raw import cells, financial amounts, free-text financial details, export rows, backup contents, or cryptographic material.",
+      "log_access": "Only redacted event metadata may enter protected logs; collector access is isolated from the application and limited to Linux administrators, while detailed audit access is household-scoped and recently reauthenticated.",
+      "access_control": "Require authenticated household scope, MFA, recent authentication for exports and security actions, purpose-specific service and database identities, protected secret mounts, and separation of web, backup, restore, migration, integrity, and collector capabilities.",
+      "privacy": "Collect only product-required values, avoid third-party disclosure and tracking, provide controlled exports, preserve correction history through append-only audit, and handle deletion against active storage, backups, checkpoints, and incident holds.",
+      "confidentiality": "Never expose through URLs, logs, source control, CI artifacts, public documentation, screenshots, telemetry, client storage, or user-controlled destinations; sanitized evidence must use synthetic data.",
+      "encoding_and_masking": "Ciphertext, password hashes, keyed pseudonyms, Base64 strings, QR payloads, signed session data, partial account numbers, compressed dumps, and masked values inherit restricted classification unless a documented irreversible declassification review says otherwise.",
+      "disposal": "Use application scrubbing for staged data, cryptographic retirement for encrypted copies, secure secret-file replacement, session invalidation, provider artifact deletion, and documented media or deployment retirement; never claim deletion while retained backups remain live.",
+      "backup_and_recovery": "Use encrypted Restic snapshots with separated credentials, 7 daily/4 weekly/12 monthly retention by default, quarterly restore rehearsal, signed audit comparison, and no restore over the live database.",
+      "client_storage": "Keep only opaque secure HttpOnly session and CSRF cookies as required; sensitive responses are no-store/private, financial data stays out of browser databases and Web Storage, and termination clears origin storage and authenticated DOM."
+    }
+  ],
+  "datasets": [
+    {
+      "id": "authentication_material",
+      "name": "Authentication, MFA, recovery, throttling, and session material",
+      "level": "restricted",
+      "scope": "Stored and transient values used to establish, recover, limit, or revoke an authenticated identity.",
+      "data_elements": [
+        "password hashes and password submissions",
+        "encrypted TOTP seeds, enrollment QR payloads, and one-time codes",
+        "recovery-code hashes and submitted recovery codes",
+        "opaque session keys, signed server-side session payloads, CSRF values, and recent-authentication timestamps",
+        "keyed login-throttle pseudonyms, failure counts, and lockout times"
+      ],
+      "django_models": [
+        "identity.User",
+        "identity.LoginThrottle",
+        "identity.MfaCredential",
+        "identity.RecoveryCode",
+        "sessions.Session"
+      ],
+      "created_or_processed": "Created during bootstrap, login, MFA enrollment, recovery, reauthentication, password change, session rotation, and throttling; raw secrets are processed only for the immediate operation.",
+      "storage": "Password and recovery values are one-way hashed, TOTP seeds are authenticated-encrypted with a separate mounted key, and sessions are server-side database records with only opaque browser cookies.",
+      "transit": "Submitted only in HTTPS bodies and protected cookies over the exact private hostname; no email, SMS, analytics, or third-party authentication transport exists.",
+      "integrity": "Django hash verification, authenticated seed encryption, atomic key rotation, single-use recovery records, session versioning, and protected audit events cover security changes.",
+      "retention": "Raw submissions and displayed recovery values are not retained; sessions expire within 12 hours and on browser close or revocation; hashes and encrypted seeds remain until reset, rotation, account removal, or deployment retirement.",
+      "logging": "Credentials, submitted identifiers, codes, cookies, session keys, and seed material are prohibited; only coarse event names, outcomes, pseudonymous context, and bounded counts are allowed.",
+      "log_access": "Redacted security records go to the isolated archive; members see only household-scoped audit events, with recent password-plus-MFA confirmation for detailed access and export.",
+      "access_control": "Only the identity owner and purpose-bound identity services may use the material; emergency resets require the authenticated host administrator and revoke sessions.",
+      "privacy": "The application retains no IP address or detailed device fingerprint, recovery responses conceal account existence, and active-session references are keyed opaque values.",
+      "disposal": "Reset deletes MFA and recovery records, password changes and administrative actions revoke sessions, rotation retires prior keys, and deployment retirement removes encrypted backups according to their schedule.",
+      "evidence": [
+        "identity/models.py",
+        "identity/services/mfa.py",
+        "identity/services/sessions.py",
+        "identity/services/throttling.py",
+        "config/settings/base.py",
+        "config/settings/hardened.py",
+        "docs/SESSION_SECURITY.md",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md"
+      ]
+    },
+    {
+      "id": "authorization_schema",
+      "name": "Framework authorization and content-type schema",
+      "level": "internal",
+      "scope": "Django permission, group, and content-type records that describe authorization capabilities rather than household data.",
+      "data_elements": [
+        "permission names and codenames",
+        "group membership schema",
+        "installed application and model identifiers"
+      ],
+      "django_models": [
+        "auth.Permission",
+        "auth.Group",
+        "contenttypes.ContentType"
+      ],
+      "created_or_processed": "Created by reviewed migrations and administrator actions; not accepted through public registration.",
+      "storage": "Stored in PostgreSQL with the same encrypted-volume requirement and backup boundary as application records.",
+      "transit": "Used only inside authenticated Django and database connections protected by the private HTTPS and mutual-TLS boundaries.",
+      "integrity": "Migration review, framework constraints, administrative audit, and purpose-specific database roles prevent unreviewed mutation.",
+      "retention": "Retained while the corresponding application capability exists and removed only through reviewed migrations or deployment retirement.",
+      "logging": "Permission identifiers and coarse authorization outcomes may be logged; actor identity and household context stay pseudonymous in operational logs.",
+      "log_access": "Operational and security log access is limited to administrators and the isolated collector boundary.",
+      "access_control": "Only authenticated framework code, migrations, and authorized administrators may read or change schema records.",
+      "privacy": "Group assignment can reveal role relationships, so live assignments are not published even though schema names are internal rather than financial.",
+      "disposal": "Use reviewed migrations and database retirement; verify stale permissions are not left active after feature removal.",
+      "evidence": [
+        "config/settings/base.py",
+        "households/services/access.py",
+        "compose.yaml",
+        "docs/POSTGRES_TLS.md"
+      ]
+    },
+    {
+      "id": "household_identity_and_membership",
+      "name": "Household profile and membership data",
+      "level": "confidential",
+      "scope": "Names, email-linked membership, household preferences, currency, time zone, and active membership relationships.",
+      "data_elements": [
+        "household name, currency, and time zone",
+        "member email and display name contained in the restricted user record",
+        "membership state and join time"
+      ],
+      "django_models": [
+        "households.Household",
+        "households.HouseholdMembership"
+      ],
+      "created_or_processed": "Created through trusted bootstrap and maintained by authenticated household workflows.",
+      "storage": "Stored in PostgreSQL and encrypted backups; user identity fields remain in the higher restricted authentication dataset.",
+      "transit": "Rendered only over private HTTPS and exchanged with PostgreSQL over purpose-bound mutual TLS.",
+      "integrity": "Foreign keys, uniqueness constraints, transactional services, and protected membership audit events preserve relationships.",
+      "retention": "Retained for the active household and its audit/accounting continuity; removal is an operator-led verified process that accounts for backups and audit holds.",
+      "logging": "Names and email addresses are excluded from application logs; pseudonymous actor and household identifiers support correlation.",
+      "log_access": "Only redacted metadata enters administrator or collector logs; household audit access remains scoped and recently authenticated where required.",
+      "access_control": "Active authenticated membership gates every household object; MFA, session controls, and object-level household queries prevent cross-household access.",
+      "privacy": "Collect only identity and localization values needed to operate the private household; do not retain IP addresses or detailed fingerprints.",
+      "disposal": "Deactivate access first, revoke sessions, then use the verified owner process for active data and scheduled encrypted-backup expiry.",
+      "evidence": [
+        "identity/models.py",
+        "households/models.py",
+        "households/services/access.py",
+        "identity/services/sessions.py",
+        "tests/test_authentication.py"
+      ]
+    },
+    {
+      "id": "financial_records",
+      "name": "Household budgeting, income, spending, debt, goal, reserve, notification, and import records",
+      "level": "restricted",
+      "scope": "The complete authoritative financial planning and ledger dataset, including raw staged statement rows and derived projections.",
+      "data_elements": [
+        "account names, types, last four digits, balances, notes, receipts, categories, and journal entries",
+        "income and expense schedules, dates, amounts, adjustments, pay periods, and reconciliation state",
+        "debt balances, rates, fees, terms, statements, mortgage components, and payoff plans",
+        "goal targets, dates, contributions, funding rules, and reserve allocations",
+        "uploaded filenames, checksums, raw CSV cells, mappings, duplicate fingerprints, and validation outcomes",
+        "notification content, preferences, due dates, and read or dismissal state"
+      ],
+      "django_models": [
+        "households.Category",
+        "schedules.RecurringSource",
+        "schedules.IncomeSourceDetail",
+        "schedules.ExpenseSourceDetail",
+        "schedules.SourceRevision",
+        "schedules.Occurrence",
+        "periods.PayPeriod",
+        "periods.PayPeriodClosingRevision",
+        "ledger.FinancialAccount",
+        "ledger.JournalEntry",
+        "ledger.JournalPosting",
+        "ledger.BalanceSnapshot",
+        "budgets.VariableBudget",
+        "budgets.OccurrenceReconciliation",
+        "imports.ImportBatch",
+        "imports.ImportRow",
+        "debts.DebtAccount",
+        "debts.DebtTermsRevision",
+        "debts.DebtStatement",
+        "debts.MortgagePaymentPlan",
+        "debts.MortgagePlanRevision",
+        "debts.MortgagePaymentComponent",
+        "debts.MortgageInstallmentRule",
+        "goals.Goal",
+        "goals.GoalRevision",
+        "goals.GoalFundingPlan",
+        "goals.GoalContribution",
+        "reserves.ReserveEntry",
+        "reserves.CardPaymentReserveEntry",
+        "notifications.Notification",
+        "notifications.NotificationPreference"
+      ],
+      "created_or_processed": "Created by authenticated forms, bounded CSV staging, deterministic financial services, notification evaluation, and reviewed maintenance tasks; projections and summaries remain restricted derivatives.",
+      "storage": "Stored in PostgreSQL, encrypted Restic backups, and append-only audit before/after payloads; raw upload bytes are parsed in memory and never stored as files.",
+      "transit": "Private HTTPS to approved household browsers and purpose-bound mutual TLS to PostgreSQL; no bank, analytics, telemetry, email, or external application destination exists.",
+      "integrity": "Decimal arithmetic, database constraints, row locks, idempotency keys, immutable revisions, double-entry invariants, protected audit events, and signed checkpoints protect material changes.",
+      "retention": "Durable records follow the household accounting and legal retention decision; raw staged cells are scrubbed after 24 hours by default and never beyond 720 hours; superseded values remain in protected history rather than being silently rewritten.",
+      "logging": "Financial amounts, names, notes, raw rows, filters, queries, and notification content are prohibited; only event type, pseudonymous IDs, row counts, and coarse outcomes are allowed.",
+      "log_access": "Redacted event metadata is isolated in the security archive; full before/after history is available only through household-scoped, recently authenticated audit access.",
+      "access_control": "Every query and mutation is household-scoped; sensitive exports and audit detail require recent authentication; database identities are separated by runtime and maintenance purpose.",
+      "privacy": "No trackers or external synchronizers receive the data; partial account numbers are for household recognition and remain restricted rather than declassified.",
+      "disposal": "Abandoned raw imports are scrubbed automatically; durable record and backup removal requires the verified owner process, documented retention decision, and audit-preserving treatment.",
+      "evidence": [
+        "ledger/models.py",
+        "imports/models.py",
+        "imports/services/batches.py",
+        "debts/models.py",
+        "goals/models.py",
+        "notifications/models.py",
+        "audit/services.py",
+        "docs/FILE_HANDLING_POLICY.md"
+      ]
+    },
+    {
+      "id": "protected_audit_history",
+      "name": "Protected audit history, checkpoints, and framework administration history",
+      "level": "restricted",
+      "scope": "Security- and finance-relevant before/after history, actor relationships, hash-chain state, signatures, and administrative representations.",
+      "data_elements": [
+        "audit actions, entity identifiers, reasons, actor and household links, request identifiers, and before/after payloads",
+        "sequence numbers, event hashes, chain heads, verification times, checkpoint signatures, key identifiers, and external filenames",
+        "framework administrator action time, target representation, flag, and change description"
+      ],
+      "django_models": [
+        "admin.LogEntry",
+        "audit.AuditHead",
+        "audit.AuditEvent",
+        "audit.AuditCheckpoint"
+      ],
+      "created_or_processed": "Appended for material financial, identity, import, export, recovery, and maintenance actions; checkpoint files are created only after full chain verification.",
+      "storage": "Append-only PostgreSQL audit schema plus a separate protected checkpoint mount; encrypted backups retain database history.",
+      "transit": "Household audit pages and CSV exports use private HTTPS; integrity services reach PostgreSQL through their purpose-bound mutual-TLS identity.",
+      "integrity": "Canonical event serialization, SHA-256 chaining, database append controls, full-chain verification, and independently keyed HMAC checkpoints make unauthorized changes detectable.",
+      "retention": "Retain for the lifetime of the financial history and applicable incident, accounting, or legal holds; never silently delete or rewrite events to satisfy an ordinary edit.",
+      "logging": "Full payloads, reasons, and object representations are prohibited from operational logs; only coarse action, counts, pseudonymous context, and integrity outcome are allowed.",
+      "log_access": "Detailed application audit access is household-scoped and recently authenticated; external checkpoint and operational log access is limited to purpose-bound services and administrators.",
+      "access_control": "Runtime code appends through controlled services but cannot update or delete history; integrity readers and signing writers are separately scoped.",
+      "privacy": "Exports are explicit sensitive events; correction history is preserved while disclosure and removal requests are resolved through a documented audit-preserving owner process.",
+      "disposal": "Checkpoint and audit removal occurs only with documented deployment retirement or a controlling legal decision, including encrypted backups and incident holds.",
+      "evidence": [
+        "audit/models.py",
+        "audit/services.py",
+        "audit/checkpoints.py",
+        "audit/views.py",
+        "deploy/postgres/bootstrap-roles.sh",
+        "docs/BACKUP_AND_RESTORE.md"
+      ]
+    },
+    {
+      "id": "request_and_response_memory",
+      "name": "Transient request, form, upload, template, and response values",
+      "level": "restricted",
+      "scope": "Sensitive values processed in application or proxy memory without becoming a distinct persistent record.",
+      "data_elements": [
+        "form submissions, passwords, one-time codes, search text, filters, and CSRF values",
+        "raw bounded CSV upload bytes and parsed cells",
+        "rendered financial, identity, notification, and audit values",
+        "temporary QR and recovery-code enrollment output"
+      ],
+      "django_models": [],
+      "created_or_processed": "Exists only while nginx, Gunicorn, Django, template rendering, streaming export, or the approved browser handles one request.",
+      "storage": "No request-body cache or upload file is retained by the product; bounded uploads remain in memory and selected values become classified database records only after validation.",
+      "transit": "HTTPS and internal mutual TLS only, with sensitive inputs in message bodies or protected headers rather than URLs.",
+      "integrity": "Request framing controls, CSRF, validation, canonical parsing, transactional writes, contextual output encoding, and CSP protect interpretation.",
+      "retention": "Discard after request completion except for explicitly validated classified records, protected audit metadata, and streamed downloads controlled by the recipient.",
+      "logging": "Bodies, query text, sensitive headers, exception messages, raw paths, and rendered values are prohibited from logs.",
+      "log_access": "Only redacted event metadata and code-location diagnostics may reach administrator or collector logs.",
+      "access_control": "Authentication, household scope, MFA, recent authentication, CSRF, and purpose-specific endpoints gate processing.",
+      "privacy": "Data is minimized to the requested operation and never copied to analytics, remote error reporting, or telemetry.",
+      "disposal": "Release request references promptly; do not retain debug captures, screenshots, or proxy dumps unless sanitized evidence procedures apply.",
+      "evidence": [
+        "core/middleware.py",
+        "core/logging.py",
+        "imports/forms.py",
+        "imports/services/batches.py",
+        "docs/OUTPUT_ENCODING_POLICY.md"
+      ]
+    },
+    {
+      "id": "browser_session_surface",
+      "name": "Approved-browser cookies, DOM, storage, and cache surface",
+      "level": "restricted",
+      "scope": "Opaque authentication cookies and transient authenticated content on an approved household device.",
+      "data_elements": [
+        "opaque session and CSRF cookies",
+        "rendered authenticated DOM and form state",
+        "non-sensitive theme preference",
+        "browser cache, history, screenshots, and downloaded artifacts under user control"
+      ],
+      "django_models": [],
+      "created_or_processed": "Created during private authenticated browsing and removed or expired at session termination; only the light or dark theme value is intentionally persisted in Web Storage.",
+      "storage": "Secure host-only Strict HttpOnly cookies carry opaque values; authenticated responses are no-store/private and financial data is not written to Web Storage, IndexedDB, or Cache Storage.",
+      "transit": "Exact private Tailscale HTTPS hostname only, with same-origin CSP, CSRF, referrer, opener, framing, and cross-origin response controls.",
+      "integrity": "Signed server-side session state, cookie attributes, CSP, contextual output encoding, and same-origin controls protect the surface.",
+      "retention": "Cookies expire at browser close or within 12 hours and are invalidated on revocation; authenticated DOM and origin storage are cleared on termination paths.",
+      "logging": "Browser diagnostics are opt-in and temporary; cookies, DOM contents, storage values, and screenshots never enter ordinary logs or evidence.",
+      "log_access": "Only the approved device user controls local diagnostics; sanitized test evidence follows release-owner access rules.",
+      "access_control": "Device approval, Tailscale identity, application authentication, MFA, session timeout, and recent authentication protect access.",
+      "privacy": "No analytics, advertising, fingerprinting, service worker, or sensitive persistent browser database exists.",
+      "disposal": "Logout and revoked-session behavior clears origin storage and authenticated DOM; the user must protect or delete screenshots and downloads outside product control.",
+      "evidence": [
+        "config/settings/hardened.py",
+        "identity/middleware.py",
+        "core/middleware.py",
+        "core/static/core/app.js",
+        "browser-tests/session-lifecycle.spec.mjs",
+        "docs/SESSION_SECURITY.md"
+      ]
+    },
+    {
+      "id": "financial_and_audit_exports",
+      "name": "Generated financial and audit CSV downloads",
+      "level": "restricted",
+      "scope": "Fresh response-only CSV representations of household transactions or protected audit history.",
+      "data_elements": [
+        "transaction dates, descriptions, categories, accounts, amounts, notes, and provenance",
+        "audit timestamps, actions, actor display, entity identifiers, reasons, and before/after values",
+        "generated timestamped filenames"
+      ],
+      "django_models": [],
+      "created_or_processed": "Generated only after recent authentication, household scope, full audit-integrity verification where applicable, and a recorded export event.",
+      "storage": "Streamed directly to the approved browser with no server-side export file or object-store copy.",
+      "transit": "Private HTTPS with attachment disposition, no-store/private, and no-cache response headers.",
+      "integrity": "CSV quoting, deterministic fields, spreadsheet-formula neutralization, household filters, and audit-chain verification protect generation.",
+      "retention": "The server retains no export copy; recipient-managed files remain restricted and must follow the household retention and deletion decision.",
+      "logging": "Rows, values, search text, and filenames are prohibited; only authorization outcome, export identifier, scope, and row count are recorded.",
+      "log_access": "Redacted security metadata is isolated from application users; the export itself is available only to the recently authenticated household member.",
+      "access_control": "Authenticated household membership and recent password-plus-MFA confirmation are mandatory; integrity failure blocks audit export.",
+      "privacy": "The UI warns that downloaded files leave application controls; no third party receives a copy.",
+      "disposal": "The recipient is responsible for encrypted storage and deletion of downloads; test outputs use synthetic data and are removed after validation.",
+      "evidence": [
+        "spending/views.py",
+        "spending/services/exports.py",
+        "audit/views.py",
+        "audit/exports.py",
+        "tests/test_csv_exports.py",
+        "tests/test_audit_ui.py"
+      ]
+    },
+    {
+      "id": "deployment_secret_material",
+      "name": "Deployment secrets, private keys, certificates, and service credentials",
+      "level": "restricted",
+      "scope": "Reusable material that authenticates services, encrypts data, signs checkpoints, or controls private host access.",
+      "data_elements": [
+        "Django signing and MFA encryption keys",
+        "Restic repository password and audit checkpoint signing key",
+        "PostgreSQL, Gunicorn, nginx, SSH, and Tailscale private identity material",
+        "database role credentials used only during isolated bootstrap or test boundaries"
+      ],
+      "django_models": [],
+      "created_or_processed": "Generated by an operating-system CSPRNG or reviewed provider, mounted only into exact consumers, and rotated through staged purpose-specific procedures.",
+      "storage": "Root-owned secret files, provider-controlled protected state, and separately protected recovery copies; never environment values in production or repository content.",
+      "transit": "Private keys and reusable secrets are not transmitted through application requests; certificates and protocol proofs use their designed authenticated channels.",
+      "integrity": "File ownership and modes, certificate chains, exact consumers, key identifiers, staged rotation, negative tests, and inventory review prevent substitution or reuse.",
+      "retention": "Retain only active and explicitly staged material; retire and destroy superseded keys after rotation evidence, except protected recovery material required to restore encrypted backups.",
+      "logging": "Names, versions, fingerprints where approved, and outcomes only; actual or encoded material is categorically prohibited.",
+      "log_access": "Operational rotation records are administrator-only and redacted; no secret value enters application or collector logs.",
+      "access_control": "Root-owned files and read-only mounts expose each secret only to its purpose-bound service; the web container lacks backup, signing, bootstrap, and host-control secrets.",
+      "privacy": "Separation limits the blast radius of a service compromise and prevents one key from linking unrelated protected datasets.",
+      "disposal": "Securely replace files, recreate consumers, invalidate prior sessions or credentials, verify retired material fails, and remove transient generation artifacts.",
+      "evidence": [
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "config/settings/environment.py",
+        "compose.yaml",
+        "docs/INCIDENT_RESPONSE.md"
+      ]
+    },
+    {
+      "id": "encrypted_backups",
+      "name": "Encrypted backup repository, restore streams, and recovery copies",
+      "level": "restricted",
+      "scope": "Encrypted snapshots and transient restore streams containing the full identity, financial, session, and audit database.",
+      "data_elements": [
+        "PostgreSQL logical dump inside authenticated encrypted Restic packs",
+        "repository metadata, encrypted keys, snapshots, and integrity indexes",
+        "transient restore stream and restored verification database",
+        "non-sensitive last-success timestamp and release marker"
+      ],
+      "django_models": [],
+      "created_or_processed": "Created daily by the purpose-bound backup service and processed only by isolated backup, key-rotation, notification, and restore-verification roles.",
+      "storage": "Existing off-VM mount with Restic authenticated encryption; repository password and database client identity remain separately mounted.",
+      "transit": "Database dump and restore use mutually authenticated PostgreSQL connections and local mounted storage; the application has no remote backup transport.",
+      "integrity": "Restic authentication and repository checks, digest-pinned images, restore rehearsal, migration checks, audit-chain verification, and signed external checkpoints protect recovery.",
+      "retention": "Seven daily, four weekly, and twelve monthly snapshots by default, with incident holds overriding normal expiry and quarterly restoration evidence required.",
+      "logging": "Only fixed event names, release identifiers, timestamps, snapshot metadata, counts, and outcomes; dump content, repository secrets, and financial data are prohibited.",
+      "log_access": "Repository access is limited to purpose-bound maintenance identities and administrators; the web and notification services cannot read backup contents.",
+      "access_control": "Separate database certificates, read-only consumer mounts, networkless key rotation, pre-existing host paths, and no Docker socket in containers enforce least privilege.",
+      "privacy": "Backups inherit every source record's highest classification; encryption does not declassify them, and removal claims account for retained snapshots.",
+      "disposal": "Apply reviewed Restic forget/prune retention, retire repository keys through staged rotation, destroy obsolete recovery copies, and remove disposable restore databases after exact-target verification.",
+      "evidence": [
+        "compose.yaml",
+        "deploy/backup/backup.sh",
+        "deploy/backup/restore-verify.sh",
+        "docs/BACKUP_AND_RESTORE.md",
+        "tests/test_restore_rehearsal.py"
+      ]
+    },
+    {
+      "id": "security_and_operational_logs",
+      "name": "Application, security, service, host, provider, and CI logs",
+      "level": "confidential",
+      "scope": "Redacted diagnostic and security-event metadata across all 14 inventoried stack layers.",
+      "data_elements": [
+        "timestamps, event names, levels, releases, methods, route names, counts, and outcomes",
+        "pseudonymous request, actor, household, import, export, and entity identifiers",
+        "code locations without exception text and fixed service lifecycle messages",
+        "provider connection and CI job metadata subject to the documented limitations"
+      ],
+      "django_models": [],
+      "created_or_processed": "Created by reviewed application log calls, the isolated collector, infrastructure services, systemd, Tailscale, security tests, and CI.",
+      "storage": "Bounded Docker local storage, collector-only archive volume, host journal, provider systems, and reviewed CI artifacts according to the logging inventory.",
+      "transit": "Local process streams, permission-restricted Unix datagrams, host-local journal capture, and provider-authenticated HTTPS; no application log shipper has external egress.",
+      "integrity": "Structured JSON encoding, allowlisted fields, central redaction, collector revalidation, append-only writes, fixed event catalogs, and audit correlation limit injection and tampering.",
+      "retention": "Docker stores at most about 100 MiB per container, the isolated security archive has a 90-day minimum, CI uses reviewed provider retention, and incident holds supersede deletion.",
+      "logging": "This dataset is itself the only approved log representation; raw credentials, identities, request data, financial values, free text, and exception messages remain prohibited.",
+      "log_access": "Collector and host records are Linux-administrator-only, CI records are repository-role controlled, and Tailscale provider access is limited to approved administrators.",
+      "access_control": "The application can write but cannot read or alter the isolated archive; provider and host access follows individually authenticated administrator roles.",
+      "privacy": "Pseudonymization, exclusion of IP addresses and detailed fingerprints, no optional flow logging by default, and explicit evidence sanitization minimize linkability.",
+      "disposal": "Use documented rotation and provider deletion, verify oldest retained timestamps, and preserve only sanitized decision evidence after the operational need ends.",
+      "evidence": [
+        "docs/LOGGING_INVENTORY.md",
+        "docs/logging-inventory.json",
+        "scripts/check_logging_inventory.py",
+        "core/logging.py",
+        "core/security_log_collector.py"
+      ]
+    },
+    {
+      "id": "release_security_evidence",
+      "name": "Source, CI, scan, test, and release evidence",
+      "level": "internal",
+      "scope": "Reviewed code, generated inventories, synthetic test output, scan findings, and sanitized release decisions.",
+      "data_elements": [
+        "source code, migrations, configuration templates, dependency locks, and generated manifests",
+        "synthetic fixtures, test outcomes, coverage, SBOM, vulnerability, browser, restore, and network-boundary results",
+        "sanitized findings, release identifiers, verification dates, and reviewer decisions"
+      ],
+      "django_models": [],
+      "created_or_processed": "Created in trusted development and GitHub Actions from reviewed source and synthetic data; live household data is prohibited.",
+      "storage": "Access-controlled repository, developer workspace, immutable workflow artifacts, and sanitized committed evidence.",
+      "transit": "Authenticated HTTPS and Git/SSH to the reviewed repository; no release workflow receives production data or secrets beyond platform-scoped ephemeral credentials.",
+      "integrity": "Pull-request review, immutable action pins, dependency hashes, image digests, deterministic generators, checksums, and required checks protect decisions.",
+      "retention": "Provider artifacts follow the documented 90-day target; durable sanitized evidence remains with the supported release history; local unsanitized output is deleted after review.",
+      "logging": "Synthetic values and bounded tool output only; secrets, private hostnames, live addresses, and household data are prohibited and secret-scanned.",
+      "log_access": "Repository and CI permissions limit non-public findings to maintainers until remediation and approved disclosure.",
+      "access_control": "Trusted contributors and reviewed automation only; release evidence changes require source review and validator agreement.",
+      "privacy": "Use synthetic fixtures, redact screenshots and logs, and never upload real household exports, databases, cookies, or identifiers.",
+      "disposal": "Remove temporary contexts, containers, volumes, artifacts, and local captures after evidence is summarized and retention expires.",
+      "evidence": [
+        ".github/workflows/quality.yml",
+        "docs/RELEASE_HARDENING.md",
+        "docs/release-evidence.json",
+        "scripts/secret_scan.py",
+        "scripts/check_release_evidence.py"
+      ]
+    },
+    {
+      "id": "breached_password_reference",
+      "name": "Offline breached-password reference corpus",
+      "level": "internal",
+      "scope": "A reviewed hash-only subset of publicly breached password SHA-1 identifiers used solely for local blocklist membership.",
+      "data_elements": [
+        "uppercase fixed-length SHA-1 password hashes without counts or plaintext",
+        "corpus version, source label, build date, entry count, and checksum"
+      ],
+      "django_models": [],
+      "created_or_processed": "Built by a trusted maintainer from the official downloaded corpus outside application runtime and packaged as a bounded immutable artifact.",
+      "storage": "Read-only application package data and reviewed source artifact; transient source downloads remain outside the repository and are deleted after validation.",
+      "transit": "The production application never contacts the source service; maintainers use authenticated HTTPS through the official downloader outside runtime.",
+      "integrity": "Strict parser, exact ordering and uniqueness, metadata schema, minimum size and freshness, bounded bytes, checksum, and fail-closed hardened startup.",
+      "retention": "Replace within 180 days and delete the transient full source immediately after the packaged subset and checksum are verified.",
+      "logging": "Only corpus version, entry count, build date, checksum outcome, and validation error category; candidate passwords and hashes are prohibited.",
+      "log_access": "Build output is maintainer-only until the reviewed hash artifact is committed; application validation emits no corpus entries.",
+      "access_control": "Trusted maintainer build path and read-only runtime package access; no end-user import, selection, or destination exists.",
+      "privacy": "No application password, account identity, occurrence count, or plaintext is included; hash format does not make password guesses safe to disclose as user data.",
+      "disposal": "Delete downloaded source and temporary chunks after atomic output; replace stale packaged corpus through reviewed source control.",
+      "evidence": [
+        "docs/PASSWORD_BLOCKLIST.md",
+        "identity/data/breached-passwords-v1.txt",
+        "identity/management/commands/build_breached_password_corpus.py",
+        "identity/password_validation.py"
+      ]
+    },
+    {
+      "id": "operational_markers_and_health",
+      "name": "Release, readiness, backup-freshness, and service-health metadata",
+      "level": "internal",
+      "scope": "Coarse non-secret values needed to run and observe the private deployment without exposing application records.",
+      "data_elements": [
+        "release identifier, environment label, timestamps, counts, exit state, and health outcome",
+        "backup last-success marker without repository content",
+        "minimal liveness response and internal readiness state",
+        "container, timer, certificate-expiry, and storage-capacity status"
+      ],
+      "django_models": [],
+      "created_or_processed": "Created by release automation, maintenance services, probes, and host supervision.",
+      "storage": "Environment configuration, mode-0600 marker, bounded logs, host journal, and sanitized release evidence.",
+      "transit": "Health responses are limited to the exact private boundary; host and CI status uses authenticated administrative channels.",
+      "integrity": "Exact allowlists, fixed formats, atomic marker replacement, purpose-bound writers, and release-evidence validation protect state.",
+      "retention": "Keep current operational state and bounded history needed for release, alert, capacity, and incident decisions; delete stale diagnostic captures.",
+      "logging": "Coarse values are allowed, but paths, hostnames, addresses, credentials, and record content remain prohibited.",
+      "log_access": "Host and CI roles limit non-public status; household users receive only minimal in-application notification state.",
+      "access_control": "Purpose-bound service identities and authenticated administrators write or inspect operational state; public monitoring endpoints are absent.",
+      "privacy": "Health and freshness features deliberately avoid member identity, activity details, and financial content.",
+      "disposal": "Rotate bounded logs and obsolete markers, sanitize retained release decisions, and remove deployment metadata at host retirement.",
+      "evidence": [
+        "compose.yaml",
+        "core/views.py",
+        "core/middleware.py",
+        "docs/COMMUNICATION_INVENTORY.md",
+        "docs/BACKUP_AND_RESTORE.md"
+      ]
+    },
+    {
+      "id": "public_static_assets",
+      "name": "Intentionally public static presentation assets",
+      "level": "public",
+      "scope": "Reviewed CSS and JavaScript necessary to render the login and authenticated interfaces, without embedded household or deployment values.",
+      "data_elements": [
+        "versioned CSS presentation rules",
+        "dependency-free JavaScript for theme, storage cleanup, and fixed form behavior"
+      ],
+      "django_models": [],
+      "created_or_processed": "Authored and reviewed in source, compressed into the immutable application image, and served by WhiteNoise.",
+      "storage": "Repository and immutable release image only; no runtime user content is written into static files.",
+      "transit": "Served over the same exact private HTTPS origin, with same-origin cross-origin resource policy and CSP.",
+      "integrity": "Source review, native-client inventory, output-safety scan, static manifest hashing, immutable image, and browser tests protect changes.",
+      "retention": "Retain with supported releases and remove obsolete image and source versions through release lifecycle management.",
+      "logging": "Fixed asset paths and response status may be logged; query strings, referrers, identities, and response bytes remain excluded.",
+      "log_access": "Ordinary administrator operational access applies because the assets themselves contain no sensitive data.",
+      "access_control": "Assets may be read without application authentication but are reachable only through the private ingress; modification requires reviewed source and release access.",
+      "privacy": "No tracker, analytics identifier, fingerprinting logic, personal data, or external asset request is permitted.",
+      "disposal": "Remove unsupported release images and source versions according to repository and host retention.",
+      "evidence": [
+        "core/static/core/app.css",
+        "core/static/core/app.js",
+        "docs/CLIENT_TECHNOLOGY_POLICY.md",
+        "scripts/check_client_technologies.py"
+      ]
+    }
+  ]
+}
