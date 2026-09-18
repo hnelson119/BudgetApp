@@ -72,6 +72,9 @@ try {
     & $pythonPath scripts\check_context_sanitization.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $pythonPath scripts\check_resource_demand_policy.py
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     & $pythonPath scripts\check_regex_safety.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

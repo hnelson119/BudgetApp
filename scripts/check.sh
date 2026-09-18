@@ -31,6 +31,7 @@ cd "$project_root"
 "$python_path" scripts/check_input_validation_policy.py
 "$python_path" scripts/check_authorization_policy.py
 "$python_path" scripts/check_context_sanitization.py
+"$python_path" scripts/check_resource_demand_policy.py
 "$python_path" scripts/check_regex_safety.py
 "$python_path" scripts/check_release_evidence.py
 "$python_path" scripts/check_device_test_evidence.py

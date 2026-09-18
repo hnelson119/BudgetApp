@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "policy_id": "household-budget-resource-demand-v1",
+  "asvs_requirement": "v5.0.0-15.1.3",
+  "last_reviewed": "2026-09-13",
+  "next_review_due": "2026-12-12",
+  "availability_objective": "Interactive work returns its first response within the explicit 30-second application-worker budget; streaming work yields bounded chunks; operator maintenance never runs through an HTTP request.",
+  "operations": [
+    {
+      "id": "csv-import-processing",
+      "execution_context": "synchronous-http",
+      "demand": "Parse at most 5 MiB and 10,000 rows, preview bounded data, then commit staged ledger entries transactionally.",
+      "bounds": ["5 MiB upload and request-memory ceiling", "10,000 rows", "50 columns", "1,000 characters per cell", "100 preview rows", "24-hour staging retention"],
+      "response_strategy": "Use 64 KiB reads, reject immediately after a limit is crossed, and require release timing at the configured maximum; lower the limit or queue commits that approach 20 seconds.",
+      "failure_and_retry": "Close the upload in all paths, reject without retaining the file, and rely on submission tokens, row locks, and an atomic commit for safe retries.",
+      "evidence": ["config/settings/base.py", "imports/services/parsing.py", "imports/services/batches.py", "imports/views.py", "tests/test_csv_imports.py"]
+    },
+    {
+      "id": "debt-and-schedule-projections",
+      "execution_context": "synchronous-http",
+      "demand": "Calculate payoff strategies and generate recurrence or pay-period occurrences.",
+      "bounds": ["100 debts", "1,200 projection months", "10,000 recurrence results", "25-year recurrence preview", "5-year persisted synchronization"],
+      "response_strategy": "Reject horizons beyond fixed service limits and require timing and peak-memory evidence before increasing any limit.",
+      "failure_and_retry": "Validation errors return without persistence; generation writes run transactionally and lock the household boundary.",
+      "evidence": ["debts/services/projections.py", "debts/forms.py", "schedules/recurrence.py", "schedules/services/sync.py", "periods/services/generation.py", "tests/test_debt_projections.py", "tests/test_scheduling_periods.py"]
+    },
+    {
+      "id": "bounded-history-and-preview-pages",
+      "execution_context": "synchronous-http",
+      "demand": "Render transaction, audit, import, and notification collections.",
+      "bounds": ["50 transaction rows per page", "50 audit events per page", "100 import history or preview rows", "200 notifications"],
+      "response_strategy": "Query only a fixed page or result slice; every new collection view must define a fixed result bound.",
+      "failure_and_retry": "Invalid page selectors resolve through Django's safe paginator behavior and ordinary GET requests are retryable.",
+      "evidence": ["spending/views.py", "audit/views.py", "imports/views.py", "notifications/views.py", "tests/test_spending_ui.py", "tests/test_audit_ui.py", "tests/test_csv_imports.py", "tests/test_notifications.py"]
+    },
+    {
+      "id": "streaming-csv-exports",
+      "execution_context": "streaming-http",
+      "demand": "Read and encode filtered transaction or protected audit histories.",
+      "bounds": ["200-row database iterator chunks", "one encoded CSV row yielded at a time", "two synchronous web workers"],
+      "response_strategy": "Use StreamingHttpResponse and iterators so response construction and memory do not grow with the complete export; users narrow filters if a download is interrupted.",
+      "failure_and_retry": "An interrupted stream produces an incomplete download and no retained server artifact; the authorized user can retry a narrower export.",
+      "evidence": ["spending/views.py", "spending/services/exports.py", "audit/views.py", "audit/exports.py", "tests/test_csv_exports.py"]
+    },
+    {
+      "id": "authentication-and-password-checks",
+      "execution_context": "synchronous-http",
+      "demand": "Perform password hashing, local blocklist lookup, MFA checks, and login-throttle updates.",
+      "bounds": ["bounded packaged password corpus", "five failures per 15-minute throttle window", "fixed MFA token and clock-drift windows", "five concurrent authenticated sessions per user"],
+      "response_strategy": "Use local bounded data and fixed-cost checks; perform no password-derived network request and throttle repeated failures by identifier and network pseudonyms.",
+      "failure_and_retry": "Return generic authentication failures and a non-enumerating 429 boundary while retaining no candidate password or digest in logs.",
+      "evidence": ["identity/password_validation.py", "identity/services/throttling.py", "config/settings/base.py", "docs/PASSWORD_BLOCKLIST.md", "tests/test_password_policy.py", "tests/test_authentication.py"]
+    },
+    {
+      "id": "notification-cleanup-and-security-logging",
+      "execution_context": "scheduled-maintenance",
+      "demand": "Refresh household notifications, scrub stale staged imports, and archive security events.",
+      "bounds": ["200 notifications returned to a browser", "24-hour stale-import retention", "32 KiB security-log datagrams", "32 collector PIDs"],
+      "response_strategy": "Use dedicated one-shot commands for routine generation and cleanup and a network-isolated collector for archival logging.",
+      "failure_and_retry": "Expose command failure through exit status and operational alerts; logging delivery failure emits a bounded redacted fallback without blocking the request.",
+      "evidence": ["notifications/management/commands/generate_notifications.py", "imports/management/commands/cleanup_stale_imports.py", "core/logging.py", "core/security_log_collector.py", "compose.yaml", "tests/test_security_log_archive.py"]
+    },
+    {
+      "id": "backup-restore-migration-rotation-and-audit",
+      "execution_context": "operator-maintenance",
+      "demand": "Run database migration, encrypted backup or restore, key rotation, audit checkpoint, and recovery rehearsals.",
+      "bounds": ["separate one-shot Compose profiles", "bounded process trees and temporary filesystems", "one operator-scheduled maintenance operation at a time"],
+      "response_strategy": "Keep resource-intensive administration outside HTTP workers and serialize competing jobs on the private host.",
+      "failure_and_retry": "Stop on nonzero exit, preserve protected evidence or backup state, and retry only after resolving capacity or job-overlap conditions.",
+      "evidence": ["compose.yaml", "docs/BACKUP_AND_RESTORE.md", "docs/UPGRADE_AND_ROLLBACK.md", "docs/CRYPTOGRAPHIC_INVENTORY.md", "docs/adr/0003-protected-audit-stream.md"]
+    }
+  ],
+  "response_timeouts": [
+    {"id": "request-header-idle", "seconds": 15, "purpose": "Reject slow or stalled request headers.", "evidence": "deploy/network/nginx.conf"},
+    {"id": "request-body-idle", "seconds": 15, "purpose": "Reject slow or stalled request bodies.", "evidence": "deploy/network/nginx.conf"},
+    {"id": "application-worker-silence", "seconds": 30, "purpose": "Terminate and replace a silent synchronous application worker.", "evidence": "config/gunicorn.py"},
+    {"id": "upstream-read-idle", "seconds": 65, "purpose": "Allow application timeout and worker replacement before ingress abandons the upstream.", "evidence": "deploy/network/nginx.conf"},
+    {"id": "client-send-idle", "seconds": 30, "purpose": "Stop a response whose client is no longer consuming data.", "evidence": "deploy/network/nginx.conf"}
+  ],
+  "deployment_limits": {
+    "web_workers": 2,
+    "web_pids": 128,
+    "ingress_worker_connections": 256,
+    "ingress_pids": 64,
+    "security_log_pids": 32
+  },
+  "required_checks": [
+    "scripts/check_input_validation_policy.py",
+    "tests/test_authentication.py",
+    "tests/test_csv_exports.py",
+    "tests/test_csv_imports.py",
+    "tests/test_debt_projections.py",
+    "tests/test_deployment_config.py",
+    "tests/test_network_boundary.py",
+    "tests/test_security_log_archive.py"
+  ],
+  "source_assertions": [
+    {"id": "gunicorn-timeout-contract", "path": "config/gunicorn.py", "contains": ["timeout = 30", "graceful_timeout = 30"]},
+    {"id": "ingress-timeout-contract", "path": "deploy/network/nginx.conf", "contains": ["client_header_timeout 15s;", "client_body_timeout 15s;", "proxy_read_timeout 65s;", "send_timeout 30s;", "client_max_body_size 6m;"]},
+    {"id": "csv-upload-contract", "path": "config/settings/base.py", "contains": ["CSV_IMPORT_MAX_BYTES = 5 * 1024 * 1024", "CSV_IMPORT_MAX_ROWS = 10_000", "CSV_IMPORT_MAX_COLUMNS = 50", "CSV_IMPORT_MAX_CELL_LENGTH = 1_000"]},
+    {"id": "csv-parser-contract", "path": "imports/services/parsing.py", "contains": ["upload.chunks(chunk_size=64 * 1024)", "if len(payload) > maximum_bytes:", "if len(rows) > maximum_rows:"]},
+    {"id": "debt-projection-contract", "path": "debts/services/projections.py", "contains": ["_MAX_DEBTS = 100", "_MAX_MONTHS = 1_200", "if len(debts) > _MAX_DEBTS:"]},
+    {"id": "recurrence-contract", "path": "schedules/recurrence.py", "contains": ["_MAX_WINDOW_DAYS = 366 * 25", "_MAX_OCCURRENCES = 10_000"]},
+    {"id": "schedule-sync-contract", "path": "schedules/services/sync.py", "contains": ["_MAX_SYNC_DAYS = 366 * 5", "if (window_end - window_start).days > _MAX_SYNC_DAYS:"]},
+    {"id": "transaction-page-contract", "path": "spending/views.py", "contains": ["paginator = Paginator(entries, 50)", "entries.iterator(chunk_size=200)", "StreamingHttpResponse("]},
+    {"id": "audit-page-contract", "path": "audit/views.py", "contains": ["paginator = Paginator(events, 50)", "events.iterator(chunk_size=200)", "StreamingHttpResponse("]},
+    {"id": "import-page-contract", "path": "imports/views.py", "contains": [")[:100]", "\"rows_truncated\":"]},
+    {"id": "notification-page-contract", "path": "notifications/views.py", "contains": [")[:200]"]},
+    {"id": "security-log-size-contract", "path": "core/logging.py", "contains": ["MAX_SECURITY_LOG_DATAGRAM_BYTES = 32 * 1024", "len(payload) > MAX_SECURITY_LOG_DATAGRAM_BYTES"]}
+  ],
+  "residual_risks": [
+    "Maximum-size CSV commit and worst-case projection timing still need representative release-host measurements.",
+    "A long-running streamed export can occupy one of the two synchronous web workers.",
+    "Production Compose does not yet enforce CPU or memory quotas for every service."
+  ],
+  "summary": {
+    "operations": 7,
+    "interactive_operations": 5,
+    "response_timeouts": 5,
+    "source_assertions": 12,
+    "required_checks": 8,
+    "residual_risks": 3
+  }
+}

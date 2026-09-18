@@ -11,6 +11,8 @@ certfile = "/run/secrets/gunicorn_server_certificate"
 keyfile = "/run/secrets/gunicorn_server_private_key"
 ca_certs = "/run/secrets/gunicorn_client_ca_certificate"
 cert_reqs = ssl.CERT_REQUIRED
+timeout = 30
+graceful_timeout = 30
 
 
 def ssl_context(
