@@ -241,6 +241,7 @@ EXCLUDED_REQUIREMENTS: dict[str, str] = {
 NOT_STARTED: dict[str, str] = {}
 
 IMPLEMENTED_REQUIREMENTS = {
+    "V1.1.1",
     "V1.1.2",
     "V1.2.1",
     "V1.2.2",
@@ -384,6 +385,14 @@ IMPLEMENTED_REQUIREMENTS = {
 }
 
 IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V1.1.1": (
+        "Django owns the single percent/form decoding pass before validation, and application code "
+        "contains no second unquote, query, or HTML-entity decoder. A fail-closed AST inventory "
+        "pins all 16 strict text, JSON, and purpose-specific Base32 operations across seven files, "
+        "rejects permissive or dynamic encodings and general input decoders, and detects nested "
+        "deserialization. Each documented boundary validates the canonical result before business "
+        "processing, persistence, or security use."
+    ),
     "V1.2.3": (
         "Django templates retain automatic contextual HTML escaping, and production JavaScript "
         "uses DOM construction and textContent instead of parsing dynamic HTML. A fail-closed "
@@ -658,6 +667,22 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
 }
 
 IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
+    "V1.1.1": [
+        "docs/CANONICAL_INPUT_DECODING.md",
+        "docs/DATA_CLASSIFICATION.md",
+        "scripts/check_canonical_decoding.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_canonical_decoding.py",
+        "imports/services/parsing.py",
+        "core/security_log_collector.py",
+        "identity/services/mfa.py",
+        "identity/password_validation.py",
+        "audit/management/commands/verify_audit_checkpoint.py",
+        "tests/test_csv_imports.py",
+        "tests/test_security_log_archive.py",
+        "tests/test_password_policy.py",
+    ],
     "V1.2.3": [
         "docs/OUTPUT_ENCODING_POLICY.md",
         "scripts/check_output_encoding.py",
