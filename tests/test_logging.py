@@ -26,6 +26,7 @@ from core.middleware import (
     ProxyBoundaryMiddleware,
     SameOriginResponseBoundaryMiddleware,
 )
+from core.security_log_collector import validate_record
 from identity.services.mfa import (
     begin_enrollment,
     confirm_enrollment,
@@ -71,6 +72,44 @@ def test_json_formatter_omits_untrusted_exception_message() -> None:
     )
     assert "private merchant" not in serialized
     assert "$123.45" not in serialized
+
+
+def test_security_outcome_booleans_survive_formatting_and_collection() -> None:
+    record = logging.LogRecord("security", logging.WARNING, __file__, 1, "Safe outcome.", (), None)
+    record.event = "auth.password_recovery_submitted"  # type: ignore[attr-defined]
+    record.accepted = False  # type: ignore[attr-defined]
+    record.rate_limited = True  # type: ignore[attr-defined]
+    RequestContextFilter().filter(record)
+    SecurityStreamFilter().filter(record)
+
+    payload = json.loads(RedactingJsonFormatter().format(record))
+    archived = validate_record(json.dumps(payload).encode("utf-8"))
+
+    assert payload["accepted"] is False
+    assert payload["rate_limited"] is True
+    assert archived["accepted"] is False
+    assert archived["rate_limited"] is True
+
+
+@pytest.mark.django_db
+def test_throttled_login_security_record_retains_rate_limit_outcome(
+    client: Client, caplog: pytest.LogCaptureFixture
+) -> None:
+    with (
+        override_settings(LOGIN_RATE_LIMIT_FAILURES=1),
+        caplog.at_level(logging.WARNING, logger="security"),
+    ):
+        response = client.post(
+            reverse("identity:login"),
+            {"username": "unknown@example.com", "password": TEST_PASSWORD},
+        )
+
+    failures = [
+        record for record in caplog.records if getattr(record, "event", None) == "auth.login_failed"
+    ]
+    assert response.status_code == 429
+    assert len(failures) == 1
+    assert json.loads(RedactingJsonFormatter().format(failures[0]))["rate_limited"] is True
 
 
 def test_context_filter_adds_pseudonymous_ids_and_resets_them() -> None:

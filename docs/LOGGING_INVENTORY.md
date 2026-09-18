@@ -1,8 +1,8 @@
 # Logging inventory and maintenance
 
 Status: inventory and separate security archive implemented; release verification pending
-Inventory reviewed: 2026-09-13
-Next scheduled review: 2026-12-12
+Inventory reviewed: 2026-09-18
+Next scheduled review: 2026-12-17
 
 ## Purpose and authority
 
@@ -68,6 +68,11 @@ an authenticated, resolved route with identifier arguments that returns 404. The
 only method, resolved route name, status, error reference, and the bound pseudonymous context; it
 does not contain the URL, query, route arguments, object identifiers, or exception text. Expected
 permission and not-found exceptions are not also classified as unhandled application errors.
+
+Authentication and recovery outcome records preserve only two additional typed booleans:
+`accepted` and `rate_limited`. These distinguish accepted recovery from rejected submissions and
+ordinary failures from active throttling without recording a submitted identity, credential, or
+throttle key. The collector rejects non-boolean values for either field.
 
 The formatter redacts credential assignments, bearer material, email addresses, and long payment-
 card-like numbers. Producers must still minimize before logging: do not rely on redaction to make an
