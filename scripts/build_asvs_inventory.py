@@ -246,6 +246,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V1.2.2",
     "V1.2.3",
     "V1.2.4",
+    "V1.2.5",
     "V1.2.9",
     "V1.3.2",
     "V1.3.7",
@@ -386,6 +387,13 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "and code-execution sinks, custom trusted-HTML APIs, manual script or JSON media bodies, "
         "and custom JsonResponse encoders. The two fixed operational JSON endpoints use Django's "
         "default JsonResponse encoder, while CSP permits scripts only from the same origin."
+    ),
+    "V1.2.5": (
+        "The production Python runtime has a zero-child-process boundary: application, settings, "
+        "migration, management-command, and entry-point code imports and invokes no shell or "
+        "process-launch API. A fail-closed AST inventory rejects subprocess and equivalent "
+        "modules, OS exec/spawn/system APIs, asyncio process creation, dynamic module loading, "
+        "and dynamic lookup of OS or asyncio APIs, including renamed imports."
     ),
     "V1.2.9": (
         "A fail-closed AST inventory requires every Python and Django regular-expression call to "
@@ -623,6 +631,16 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "core/middleware.py",
         "tests/test_output_encoding.py",
         "tests/test_logging.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V1.2.5": [
+        "docs/OS_COMMAND_SAFETY.md",
+        "scripts/check_os_command_safety.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "compose.yaml",
+        "Dockerfile",
+        "tests/test_os_command_safety.py",
         "tests/test_release_hardening.py",
     ],
     "V1.2.9": [

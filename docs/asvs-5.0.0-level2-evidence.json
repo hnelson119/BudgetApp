@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 135,
+      "implemented": 136,
       "not_applicable": 79,
-      "partial": 39
+      "partial": 38
     }
   },
   "requirements": [
@@ -155,13 +155,17 @@
       "level": 1,
       "description": "Verify that the application protects against OS command injection and that operating system calls use parameterized OS queries or use contextual command line output encoding.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The production Python runtime has a zero-child-process boundary: application, settings, migration, management-command, and entry-point code imports and invokes no shell or process-launch API. A fail-closed AST inventory rejects subprocess and equivalent modules, OS exec/spawn/system APIs, asyncio process creation, dynamic module loading, and dynamic lookup of OS or asyncio APIs, including renamed imports.",
       "evidence": [
-        "core/",
-        "imports/services/",
-        "tests/test_csv_imports.py",
-        "scripts/check.ps1"
+        "docs/OS_COMMAND_SAFETY.md",
+        "scripts/check_os_command_safety.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "compose.yaml",
+        "Dockerfile",
+        "tests/test_os_command_safety.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
