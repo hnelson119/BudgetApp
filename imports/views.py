@@ -92,6 +92,11 @@ def import_upload(request: HttpRequest) -> HttpResponse:
         else:
             messages.success(request, "CSV validated and staged. No transactions exist yet.")
             return redirect(_batch_destination(batch), batch_id=batch.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "CSV upload rejected.",
+            extra={"event": "import.upload_rejected"},
+        )
     return render(
         request,
         "imports/import_upload.html",
@@ -135,6 +140,11 @@ def import_map(request: HttpRequest, batch_id: str) -> HttpResponse:
         else:
             messages.success(request, "Preview refreshed. Review every result before confirming.")
             return redirect("imports:batch-preview", batch_id=batch.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "CSV preview rejected.",
+            extra={"event": "import.preview_rejected", "import_id": str(batch.pk)},
+        )
     return render(
         request,
         "imports/import_mapping.html",
@@ -175,6 +185,10 @@ def import_commit(request: HttpRequest, batch_id: str) -> HttpResponse:
     batch = _batch(request, batch_id)
     form = CSVCommitForm(request.POST)
     if not form.is_valid():
+        security_logger.warning(
+            "CSV commit rejected.",
+            extra={"event": "import.commit_rejected", "import_id": str(batch.pk)},
+        )
         messages.error(request, "Confirm the reviewed import before committing it.")
         return redirect("imports:batch-preview", batch_id=batch.pk)
     try:
@@ -204,6 +218,10 @@ def import_abandon(request: HttpRequest, batch_id: str) -> HttpResponse:
     batch = _batch(request, batch_id)
     form = CSVAbandonForm(request.POST)
     if not form.is_valid():
+        security_logger.warning(
+            "CSV abandonment rejected.",
+            extra={"event": "import.abandon_rejected", "import_id": str(batch.pk)},
+        )
         messages.error(request, "Confirm that you want to discard the staged import.")
         return redirect(_batch_destination(batch), batch_id=batch.pk)
     try:

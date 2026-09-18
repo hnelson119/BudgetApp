@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -18,6 +20,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from audit.models import AuditEvent
+from core.logging import RedactingJsonFormatter
 from households.models import Category, Household, HouseholdMembership
 from households.services.categories import create_category
 from identity.models import User
@@ -865,6 +868,60 @@ def test_csv_ui_history_mapping_errors_replays_and_abandonment(
     )
     assert b"raw row data was removed" in abandoned.content
     assert client.get(reverse("imports:batch-map", args=(other.pk,))).status_code == 404
+
+
+@pytest.mark.django_db
+def test_invalid_csv_forms_emit_minimized_security_events(
+    client: Client,
+    import_context: ImportContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _mfa_ready(import_context.user)
+    client.force_login(import_context.user)
+    batch = _stage(
+        import_context,
+        b"Date,Description,Amount\n08/22/2026,Synthetic,-2.00\n",
+    )
+    marker = "PRIVATE_ROW_CANARY"
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        upload = client.post(reverse("imports:upload"), {"untrusted": marker})
+        mapping = client.post(reverse("imports:batch-map", args=(batch.pk,)), {"untrusted": marker})
+        commit = client.post(
+            reverse("imports:batch-commit", args=(batch.pk,)), {"untrusted": marker}
+        )
+        abandon = client.post(
+            reverse("imports:batch-abandon", args=(batch.pk,)), {"untrusted": marker}
+        )
+
+    assert [upload.status_code, mapping.status_code, commit.status_code, abandon.status_code] == [
+        200,
+        200,
+        302,
+        302,
+    ]
+    records = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", "")
+        in {
+            "import.upload_rejected",
+            "import.preview_rejected",
+            "import.commit_rejected",
+            "import.abandon_rejected",
+        }
+    ]
+    assert [record.event for record in records] == [  # type: ignore[attr-defined]
+        "import.upload_rejected",
+        "import.preview_rejected",
+        "import.commit_rejected",
+        "import.abandon_rejected",
+    ]
+    assert all(record.levelno == logging.WARNING for record in records)
+    assert all(record.import_id == str(batch.pk) for record in records[1:])  # type: ignore[attr-defined]
+    payloads = [json.loads(RedactingJsonFormatter().format(record)) for record in records]
+    assert all(marker not in json.dumps(payload) for payload in payloads)
+    assert all("untrusted" not in payload for payload in payloads)
 
 
 @pytest.mark.django_db

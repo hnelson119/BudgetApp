@@ -76,7 +76,7 @@
       "events": [
         "authentication, MFA, recovery, reauthentication, logout, and session-revocation outcomes",
         "explicit and privacy-concealed authorization denials",
-        "rejected CSV lifecycle operations and integrity-blocked exports",
+        "rejected CSV form submissions and service-level lifecycle operations, plus integrity-blocked exports",
         "authorized financial and audit exports",
         "Django framework security warnings"
       ],
