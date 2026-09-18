@@ -256,6 +256,9 @@ IMPLEMENTED_REQUIREMENTS = {
     "V1.4.2",
     "V1.4.3",
     "V1.5.2",
+    "V2.1.1",
+    "V2.1.2",
+    "V2.1.3",
     "V2.2.1",
     "V2.2.2",
     "V2.2.3",
@@ -452,6 +455,26 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "Unix socket, and named temporary file to use a context manager, and rejects new unsafe "
         "allocation interfaces. Each raw descriptor site has explicit failure and finally cleanup "
         "or transfers ownership to a context-managed file."
+    ),
+    "V2.1.1": (
+        "The maintained input-validation policy inventories all 49 form classes across eight "
+        "production form modules and defines ten structure-rule families for authentication, "
+        "MFA, financial values, text, calendar recurrence, identifiers, scoped references, CSV, "
+        "enumerated controls, and local action targets. A fail-closed checker detects form, "
+        "evidence, policy, review-date, and source-contract drift."
+    ),
+    "V2.1.2": (
+        "Ten documented contextual rule groups define household ownership, recurrence, goal, "
+        "debt, mortgage, balanced-ledger, reversal and reconciliation, CSV staging, MFA session, "
+        "and audit-chain consistency. The policy requires authoritative checks in transactional "
+        "services and database constraints rather than relying on browser or scalar validation."
+    ),
+    "V2.1.3": (
+        "Eleven business-limit groups document exact money and rate shapes, upload resources, "
+        "recurrence and projection horizons, authentication and MFA time windows, blocklist "
+        "bounds, notification windows, and pagination. Thirteen source assertions pin the current "
+        "values and fail the normal gates on drift; exhaustive business-rule enforcement remains "
+        "separately partial under V2.3.2."
     ),
     "V3.4.2": (
         "The private application deliberately grants no cross-origin reads. An outer same-origin "
@@ -706,6 +729,35 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "tests/test_csv_imports.py",
         "tests/test_security_log_archive.py",
         "tests/test_password_policy.py",
+    ],
+    "V2.1.1": [
+        "docs/INPUT_VALIDATION_POLICY.md",
+        "docs/input-validation-policy.json",
+        "scripts/check_input_validation_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_input_validation_policy.py",
+        "identity/forms.py",
+        "imports/forms.py",
+    ],
+    "V2.1.2": [
+        "docs/INPUT_VALIDATION_POLICY.md",
+        "docs/input-validation-policy.json",
+        "scripts/check_input_validation_policy.py",
+        "tests/test_input_validation_policy.py",
+        "households/services/access.py",
+        "ledger/services/entries.py",
+        "schedules/recurrence.py",
+    ],
+    "V2.1.3": [
+        "docs/INPUT_VALIDATION_POLICY.md",
+        "docs/input-validation-policy.json",
+        "scripts/check_input_validation_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_input_validation_policy.py",
+        "config/settings/base.py",
+        "debts/services/projections.py",
     ],
     "V1.2.3": [
         "docs/OUTPUT_ENCODING_POLICY.md",

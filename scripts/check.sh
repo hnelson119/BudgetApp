@@ -28,6 +28,7 @@ cd "$project_root"
 "$python_path" scripts/check_data_classification.py
 "$python_path" scripts/check_canonical_decoding.py
 "$python_path" scripts/check_managed_runtime_safety.py
+"$python_path" scripts/check_input_validation_policy.py
 "$python_path" scripts/check_regex_safety.py
 "$python_path" scripts/check_release_evidence.py
 "$python_path" scripts/check_device_test_evidence.py

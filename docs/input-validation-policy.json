@@ -1,0 +1,395 @@
+{
+  "schema_version": 1,
+  "policy_id": "household-budget-input-validation-v1",
+  "asvs_requirements": [
+    "v5.0.0-2.1.1",
+    "v5.0.0-2.1.2",
+    "v5.0.0-2.1.3"
+  ],
+  "last_reviewed": "2026-09-13",
+  "next_review_due": "2026-12-12",
+  "validation_order": [
+    "Decode each transport representation exactly once into its canonical value.",
+    "Apply server-side type, syntax, length, range, precision, and allowed-value validation.",
+    "Resolve references through active-household or other purpose-scoped querysets.",
+    "Validate cross-field, object-state, accounting, recurrence, and lifecycle consistency.",
+    "Apply resource and business limits before expensive work or durable state changes.",
+    "Repeat security-critical invariants in transactional services and database constraints."
+  ],
+  "form_registry": [
+    {
+      "module": "audit.forms",
+      "path": "audit/forms.py",
+      "classes": ["AuditFilterForm"]
+    },
+    {
+      "module": "budgets.forms",
+      "path": "budgets/forms.py",
+      "classes": [
+        "CategoryForm",
+        "FixedExpenseScheduleForm",
+        "HouseholdForm",
+        "OccurrenceCancelForm",
+        "OccurrenceMoveForm",
+        "OccurrenceOverrideForm",
+        "ReconciliationForm",
+        "ReserveAllocationForm",
+        "VariableBudgetForm"
+      ]
+    },
+    {
+      "module": "debts.forms",
+      "path": "debts/forms.py",
+      "classes": [
+        "DebtAccountCreateForm",
+        "DebtIdentityFields",
+        "DebtMetadataForm",
+        "DebtStatementCorrectionForm",
+        "DebtStatementForm",
+        "DebtStatusConfirmationForm",
+        "DebtTermsForm",
+        "ExtraPrincipalForm",
+        "HouseholdForm",
+        "MortgagePlanForm",
+        "PayoffScenarioForm"
+      ]
+    },
+    {
+      "module": "goals.forms",
+      "path": "goals/forms.py",
+      "classes": [
+        "GoalContributionForm",
+        "GoalForm",
+        "GoalStatusForm",
+        "PriorityAllocationForm",
+        "ReserveAllocationForm"
+      ]
+    },
+    {
+      "module": "identity.forms",
+      "path": "identity/forms.py",
+      "classes": [
+        "ForgottenPasswordRecoveryForm",
+        "MfaVerificationForm",
+        "ReauthenticationForm",
+        "RecoveryCodesConfirmationForm",
+        "SecureAuthenticationForm",
+        "SecurePasswordChangeForm",
+        "SessionRevocationForm",
+        "TotpEnrollmentForm"
+      ]
+    },
+    {
+      "module": "imports.forms",
+      "path": "imports/forms.py",
+      "classes": [
+        "CSVAbandonForm",
+        "CSVCommitForm",
+        "CSVMappingForm",
+        "CSVUploadForm"
+      ]
+    },
+    {
+      "module": "notifications.forms",
+      "path": "notifications/forms.py",
+      "classes": ["NotificationHistoryFilterForm", "NotificationPreferenceForm"]
+    },
+    {
+      "module": "spending.forms",
+      "path": "spending/forms.py",
+      "classes": [
+        "CardPaymentForm",
+        "CardPurchaseRefundForm",
+        "ExpenseForm",
+        "FinancialAccountForm",
+        "HouseholdForm",
+        "IncomeForm",
+        "ManualEntryForm",
+        "ReversalForm",
+        "TransactionFilterForm"
+      ]
+    }
+  ],
+  "structure_rules": [
+    {
+      "id": "authentication-input",
+      "data_items": ["email", "current password", "new password", "password confirmation"],
+      "validation": "Django EmailField and password forms normalize the email boundary, preserve password whitespace, require matching confirmation, and run every new password through the configured validators.",
+      "evidence": ["identity/forms.py", "identity/models.py", "identity/password_validation.py", "tests/test_authentication.py", "tests/test_password_policy.py"]
+    },
+    {
+      "id": "mfa-input",
+      "data_items": ["TOTP code", "recovery code", "session revocation reference"],
+      "validation": "Enrollment accepts exactly six ASCII digits; verification accepts only the bounded authenticator or recovery-code grammar; session references are exactly 64 lowercase hexadecimal characters.",
+      "evidence": ["identity/forms.py", "identity/services/mfa.py", "tests/test_mfa.py"]
+    },
+    {
+      "id": "financial-amounts",
+      "data_items": ["money amount", "balance", "payment", "allocation", "APR"],
+      "validation": "Financial inputs use finite Decimal values. Money uses at most 18 digits and two fractional digits; rates use at most 7 digits and four fractional digits. Each purpose declares whether zero and negative values are allowed.",
+      "evidence": ["scripts/check_managed_runtime_safety.py", "budgets/forms.py", "debts/forms.py", "goals/forms.py", "spending/forms.py", "tests/"]
+    },
+    {
+      "id": "bounded-text",
+      "data_items": ["name", "description", "note", "reason", "receipt reference", "search query"],
+      "validation": "Names and search terms are purpose-bounded to 80-200 characters, receipt references to 255, and notes or audit reasons to 500. Domain services strip and recheck security-relevant text.",
+      "evidence": ["audit/forms.py", "budgets/forms.py", "debts/forms.py", "goals/forms.py", "spending/forms.py", "tests/"]
+    },
+    {
+      "id": "calendar-recurrence",
+      "data_items": ["date", "time", "weekday", "month day", "month", "ordinal", "interval", "frequency"],
+      "validation": "Django produces typed dates and times. Recurrence values use fixed enums and calendar ranges; frequency-specific fields are accepted only in valid combinations.",
+      "evidence": ["budgets/forms.py", "schedules/recurrence.py", "tests/test_scheduling_periods.py"]
+    },
+    {
+      "id": "opaque-identifiers",
+      "data_items": ["UUID", "submission token", "confirmation token", "active household reference"],
+      "validation": "Opaque identifiers are parsed as UUIDs or exact purpose-specific token grammars before lookup; malformed values do not reach object operations.",
+      "evidence": ["households/services/access.py", "imports/forms.py", "spending/forms.py", "tests/"]
+    },
+    {
+      "id": "scoped-object-references",
+      "data_items": ["household", "account", "category", "debt", "pay period", "journal entry"],
+      "validation": "ModelChoiceField querysets are restricted to the active household and allowed lifecycle state before the submitted primary key is resolved.",
+      "evidence": ["budgets/forms.py", "debts/forms.py", "goals/forms.py", "imports/forms.py", "spending/forms.py", "tests/"]
+    },
+    {
+      "id": "csv-upload-content",
+      "data_items": ["CSV filename", "media type", "UTF-8 content", "header", "cell", "transaction row"],
+      "validation": "Only a bounded .csv upload advertised as text/csv is accepted; the parser requires strict UTF-8, a nonempty unique header, bounded cells and columns, and structurally valid rows.",
+      "evidence": ["docs/FILE_HANDLING_POLICY.md", "imports/forms.py", "imports/services/parsing.py", "tests/test_csv_imports.py"]
+    },
+    {
+      "id": "enumerated-controls",
+      "data_items": ["status", "type", "strategy", "scope", "sign convention", "confirmation"],
+      "validation": "State, type, strategy, scope, and sign inputs use fixed ChoiceField enums; destructive or append-only actions require a BooleanField confirmation.",
+      "evidence": ["budgets/forms.py", "debts/forms.py", "goals/forms.py", "imports/forms.py", "spending/forms.py", "tests/"]
+    },
+    {
+      "id": "local-action-targets",
+      "data_items": ["redirect target", "action URL", "route name"],
+      "validation": "Application-generated action targets are local path-only values with no scheme, authority, backslash, control character, or second decoding pass; route selection remains code-owned.",
+      "evidence": ["notifications/models.py", "core/middleware.py", "docs/CANONICAL_INPUT_DECODING.md", "tests/test_web_foundation.py"]
+    }
+  ],
+  "context_rules": [
+    {
+      "id": "household-object-scope",
+      "data_items": ["authenticated user", "active household", "referenced domain object"],
+      "validation": "Membership must be active and every referenced account, category, debt, period, schedule, import, goal, and ledger record must belong to the same active household.",
+      "evidence": ["households/services/access.py", "core/middleware.py", "tests/test_web_foundation.py"]
+    },
+    {
+      "id": "schedule-field-combinations",
+      "data_items": ["frequency", "weekdays", "day of month", "weekday", "ordinal", "month", "date range"],
+      "validation": "Required recurrence components depend on frequency, unrelated components must be absent, weekdays are unique, and end dates cannot precede start dates.",
+      "evidence": ["budgets/forms.py", "schedules/recurrence.py", "tests/test_scheduling_periods.py"]
+    },
+    {
+      "id": "goal-account-debt-consistency",
+      "data_items": ["goal type", "source account", "destination account", "linked debt", "effective date", "target date"],
+      "validation": "Debt-payoff goals require a linked active debt and no destination; other goals require a destination and no debt; source and destination differ; target date does not precede effective date.",
+      "evidence": ["goals/forms.py", "goals/services.py", "tests/test_goals.py"]
+    },
+    {
+      "id": "debt-terms-and-statement-consistency",
+      "data_items": ["debt type", "ledger account", "terms revision", "statement", "correction", "status"],
+      "validation": "Debt accounts link only eligible liabilities; terms and statement dates follow immutable lifecycle order; corrections match the original debt and date; only a zero-balance debt may be paid off.",
+      "evidence": ["debts/forms.py", "debts/services/accounts.py", "tests/test_debt_accounts.py"]
+    },
+    {
+      "id": "mortgage-component-consistency",
+      "data_items": ["monthly obligation", "principal and interest", "escrow", "PMI", "fees", "extra principal", "installments"],
+      "validation": "Only active mortgage debts use a plan; exactly two distinct installment days are required and component and installment totals must reconcile to the declared obligation.",
+      "evidence": ["debts/forms.py", "debts/services/mortgages.py", "tests/test_mortgage_plans.py"]
+    },
+    {
+      "id": "ledger-balanced-entry-semantics",
+      "data_items": ["journal entry", "posting", "account classification", "category", "idempotency key"],
+      "validation": "Every entry has at least two positive finite postings whose debits equal credits; account classifications and category purpose match the transaction; idempotency keys prevent duplicate entry creation.",
+      "evidence": ["ledger/services/entries.py", "ledger/models.py", "tests/test_ledger.py"]
+    },
+    {
+      "id": "reversal-refund-and-reconciliation-state",
+      "data_items": ["original entry", "reversal", "refund", "scheduled occurrence", "reconciled amount"],
+      "validation": "Reversals remain linked and cannot reverse a reversal or repeat an existing reversal; refunds cannot exceed the remaining purchase amount; reconciliations require compatible unreversed entries and open periods.",
+      "evidence": ["spending/forms.py", "ledger/services/entries.py", "budgets/services/reconciliation.py", "tests/"]
+    },
+    {
+      "id": "csv-mapping-and-commit-state",
+      "data_items": ["staged batch", "header mapping", "target account", "preview", "commit token"],
+      "validation": "Required mapped columns are distinct, the category column cannot overlap them, referenced accounts and categories remain scoped, and only the current reviewed staging state and token may commit once.",
+      "evidence": ["imports/forms.py", "imports/services/batches.py", "tests/test_csv_imports.py"]
+    },
+    {
+      "id": "mfa-credential-and-session-state",
+      "data_items": ["user", "encrypted credential", "key version", "TOTP step", "recovery code", "pending session"],
+      "validation": "Verification binds to the selected user and current credential version, accepts only the configured time window or one unused recovery code, and requires an unexpired pending session version.",
+      "evidence": ["identity/services/mfa.py", "identity/services/sessions.py", "tests/test_mfa.py", "tests/test_authentication.py"]
+    },
+    {
+      "id": "audit-range-and-chain-context",
+      "data_items": ["date range", "household event", "previous hash", "event hash", "signed checkpoint"],
+      "validation": "Audit end dates cannot precede start dates; events remain household-scoped and append-only; verification binds ordered hashes and checkpoints to the same household chain.",
+      "evidence": ["audit/forms.py", "audit/services.py", "audit/checkpoints.py", "tests/test_audit.py", "tests/test_checkpoints.py"]
+    }
+  ],
+  "business_limits": [
+    {
+      "id": "csv-import-resource-limits",
+      "data_items": ["upload", "row", "column", "cell", "staged batch"],
+      "validation": "At most 5 MiB, 10,000 transaction rows, 50 columns, and 1,000 characters per cell; staging retention defaults to 24 hours and is separately configuration-bounded.",
+      "evidence": ["config/settings/base.py", "imports/services/parsing.py", "imports/services/batches.py", "tests/test_csv_imports.py"]
+    },
+    {
+      "id": "money-precision-and-sign-limits",
+      "data_items": ["money amount", "balance", "posting"],
+      "validation": "Money is finite Decimal(18,2). Purpose-specific forms and services require positive, nonnegative, or signed values as appropriate; database fields retain the same precision boundary.",
+      "evidence": ["scripts/check_managed_runtime_safety.py", "ledger/services/entries.py", "budgets/services/", "debts/services/", "tests/"]
+    },
+    {
+      "id": "percentage-rate-limits",
+      "data_items": ["APR", "interest rate"],
+      "validation": "Rates are finite Decimal(7,4) values from 0 through 999.9999 percent.",
+      "evidence": ["debts/forms.py", "debts/services/accounts.py", "debts/services/projections.py", "tests/test_debt_accounts.py"]
+    },
+    {
+      "id": "schedule-recurrence-limits",
+      "data_items": ["interval", "preview window", "generation window", "occurrence count"],
+      "validation": "Intervals are 1-366; previews are at most 25 years and 10,000 results; period and occurrence synchronization windows are at most five years.",
+      "evidence": ["schedules/recurrence.py", "schedules/services/sync.py", "periods/services/generation.py", "tests/test_scheduling_periods.py"]
+    },
+    {
+      "id": "debt-projection-limits",
+      "data_items": ["debt count", "projection horizon", "scenario years"],
+      "validation": "A projection accepts at most 100 unique debts and 1,200 months; the interactive scenario horizon is 1-100 years.",
+      "evidence": ["debts/forms.py", "debts/services/projections.py", "tests/test_debt_projections.py"]
+    },
+    {
+      "id": "authenticated-session-limits",
+      "data_items": ["authenticated session", "pending MFA session", "recent authentication"],
+      "validation": "Sessions expire after 1 hour idle or 12 hours absolute, at most five current sessions survive, pending MFA lasts 5 minutes, and recent-auth elevation lasts 10 minutes.",
+      "evidence": ["config/settings/base.py", "identity/services/sessions.py", "docs/SESSION_SECURITY.md", "tests/test_authentication.py"]
+    },
+    {
+      "id": "login-throttle-limits",
+      "data_items": ["failed login", "throttle window", "temporary block"],
+      "validation": "Five failures within 15 minutes produce a 15-minute account-and-origin-aware temporary block with generic responses.",
+      "evidence": ["config/settings/base.py", "identity/services/throttling.py", "tests/test_authentication.py"]
+    },
+    {
+      "id": "mfa-code-limits",
+      "data_items": ["TOTP period", "TOTP drift", "recovery-code set"],
+      "validation": "TOTP uses a 30-second period with one step of clock drift in either direction; enrollment creates exactly 10 single-use recovery codes.",
+      "evidence": ["config/settings/base.py", "identity/services/mfa.py", "tests/test_mfa.py"]
+    },
+    {
+      "id": "password-blocklist-limits",
+      "data_items": ["breached-password corpus", "candidate password"],
+      "validation": "Hardened startup requires at least 10,000 entries, a corpus age no greater than 180 days, and a file no larger than 25 MiB before local candidate checking.",
+      "evidence": ["config/settings/base.py", "identity/password_validation.py", "docs/PASSWORD_BLOCKLIST.md", "tests/test_password_policy.py"]
+    },
+    {
+      "id": "notification-window-limits",
+      "data_items": ["upcoming-due window", "missing-income grace window"],
+      "validation": "Notification look-ahead and grace windows are whole days from 0 through 30, enforced by model type and database constraints.",
+      "evidence": ["notifications/forms.py", "notifications/models.py", "tests/test_notifications.py"]
+    },
+    {
+      "id": "result-page-limits",
+      "data_items": ["transaction history", "audit history"],
+      "validation": "Transaction and audit history queries return at most 50 records per rendered page.",
+      "evidence": ["spending/views.py", "audit/views.py", "tests/test_spending_ui.py", "tests/test_audit.py"]
+    }
+  ],
+  "source_assertions": [
+    {
+      "id": "amount-field-contract",
+      "path": "scripts/check_managed_runtime_safety.py",
+      "contains": ["ALLOWED_DECIMAL_SPECS = {(7, 4), (18, 2)}", "if len(decimal_fields) != 38"]
+    },
+    {
+      "id": "household-membership-contract",
+      "path": "households/services/access.py",
+      "contains": ["def require_household_membership", "HouseholdMembership.objects.filter(", "is_active=True"]
+    },
+    {
+      "id": "ledger-balance-contract",
+      "path": "ledger/services/entries.py",
+      "contains": ["if len(postings) < 2:", "if debit_total != credit_total:", "Every financial account must belong to the active household."]
+    },
+    {
+      "id": "recurrence-contract",
+      "path": "schedules/recurrence.py",
+      "contains": ["_MAX_WINDOW_DAYS = 366 * 25", "_MAX_OCCURRENCES = 10_000", "if self.interval < 1 or self.interval > 366:"]
+    },
+    {
+      "id": "csv-resource-contract",
+      "path": "config/settings/base.py",
+      "contains": ["CSV_IMPORT_MAX_BYTES = 5 * 1024 * 1024", "CSV_IMPORT_MAX_ROWS = 10_000", "CSV_IMPORT_MAX_COLUMNS = 50", "CSV_IMPORT_MAX_CELL_LENGTH = 1_000"]
+    },
+    {
+      "id": "session-contract",
+      "path": "config/settings/base.py",
+      "contains": ["SESSION_IDLE_TIMEOUT_SECONDS = 60 * 60", "SESSION_ABSOLUTE_TIMEOUT_SECONDS = 60 * 60 * 12", "MAX_CONCURRENT_SESSIONS = 5", "RECENT_AUTH_TIMEOUT_SECONDS = 10 * 60"]
+    },
+    {
+      "id": "login-throttle-contract",
+      "path": "config/settings/base.py",
+      "contains": ["LOGIN_RATE_LIMIT_FAILURES = 5", "LOGIN_RATE_LIMIT_WINDOW_SECONDS = 15 * 60", "LOGIN_RATE_LIMIT_BLOCK_SECONDS = 15 * 60"]
+    },
+    {
+      "id": "mfa-contract",
+      "path": "config/settings/base.py",
+      "contains": ["MFA_PENDING_TIMEOUT_SECONDS = 5 * 60", "MFA_TOTP_PERIOD_SECONDS = 30", "MFA_TOTP_CLOCK_DRIFT_STEPS = 1", "MFA_RECOVERY_CODE_COUNT = 10"]
+    },
+    {
+      "id": "password-blocklist-contract",
+      "path": "config/settings/base.py",
+      "contains": ["BREACHED_PASSWORD_CORPUS_MINIMUM_ENTRIES = 10_000", "BREACHED_PASSWORD_CORPUS_MAXIMUM_AGE_DAYS = 180", "BREACHED_PASSWORD_CORPUS_MAXIMUM_BYTES = 25 * 1024 * 1024"]
+    },
+    {
+      "id": "notification-window-contract",
+      "path": "notifications/models.py",
+      "contains": ["upcoming_due_days__lte=30", "missing_income_grace_days__lte=30"]
+    },
+    {
+      "id": "audit-page-contract",
+      "path": "audit/views.py",
+      "contains": ["paginator = Paginator(events, 50)"]
+    },
+    {
+      "id": "transaction-page-contract",
+      "path": "spending/views.py",
+      "contains": ["paginator = Paginator(entries, 50)"]
+    },
+    {
+      "id": "debt-projection-contract",
+      "path": "debts/services/projections.py",
+      "contains": ["_MAX_DEBTS = 100", "_MAX_MONTHS = 1_200"]
+    }
+  ],
+  "known_gaps": [
+    {
+      "id": "complete-business-rule-enforcement-review",
+      "asvs_requirement": "v5.0.0-2.3.2",
+      "status": "partial",
+      "description": "The rule catalog documents implemented boundaries but does not yet prove an exhaustive, independent review that every business rule is enforced at every applicable trust boundary."
+    },
+    {
+      "id": "release-candidate-validation-verification",
+      "asvs_requirement": "v5.0.0-2.1.1 through v5.0.0-2.1.3",
+      "status": "pending",
+      "description": "A dated release-candidate adversarial run and retained sanitized evidence are still required before any validation-policy requirement is marked verified."
+    }
+  ],
+  "summary": {
+    "form_modules": 8,
+    "form_classes": 49,
+    "structure_rules": 10,
+    "context_rules": 10,
+    "business_limits": 11,
+    "source_assertions": 13,
+    "known_gaps": 2
+  }
+}

@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 144,
+      "implemented": 147,
       "not_applicable": 79,
-      "partial": 30
+      "partial": 27
     }
   },
   "requirements": [
@@ -612,13 +612,17 @@
       "level": 1,
       "description": "Verify that the application's documentation defines input validation rules for how to check the validity of data items against an expected structure. This could be common data formats such as credit card numbers, email addresses, telephone numbers, or it could be an internal data format.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The maintained input-validation policy inventories all 49 form classes across eight production form modules and defines ten structure-rule families for authentication, MFA, financial values, text, calendar recurrence, identifiers, scoped references, CSV, enumerated controls, and local action targets. A fail-closed checker detects form, evidence, policy, review-date, and source-contract drift.",
       "evidence": [
-        "CALCULATION_RULES.md",
-        "budgets/services/",
-        "ledger/services/",
-        "tests/"
+        "docs/INPUT_VALIDATION_POLICY.md",
+        "docs/input-validation-policy.json",
+        "scripts/check_input_validation_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_input_validation_policy.py",
+        "identity/forms.py",
+        "imports/forms.py"
       ]
     },
     {
@@ -631,13 +635,16 @@
       "level": 2,
       "description": "Verify that the application's documentation defines how to validate the logical and contextual consistency of combined data items, such as checking that suburb and ZIP code match.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Ten documented contextual rule groups define household ownership, recurrence, goal, debt, mortgage, balanced-ledger, reversal and reconciliation, CSV staging, MFA session, and audit-chain consistency. The policy requires authoritative checks in transactional services and database constraints rather than relying on browser or scalar validation.",
       "evidence": [
-        "CALCULATION_RULES.md",
-        "budgets/services/",
-        "ledger/services/",
-        "tests/"
+        "docs/INPUT_VALIDATION_POLICY.md",
+        "docs/input-validation-policy.json",
+        "scripts/check_input_validation_policy.py",
+        "tests/test_input_validation_policy.py",
+        "households/services/access.py",
+        "ledger/services/entries.py",
+        "schedules/recurrence.py"
       ]
     },
     {
@@ -650,13 +657,17 @@
       "level": 2,
       "description": "Verify that expectations for business logic limits and validations are documented, including both per-user and globally across the application.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Eleven business-limit groups document exact money and rate shapes, upload resources, recurrence and projection horizons, authentication and MFA time windows, blocklist bounds, notification windows, and pagination. Thirteen source assertions pin the current values and fail the normal gates on drift; exhaustive business-rule enforcement remains separately partial under V2.3.2.",
       "evidence": [
-        "CALCULATION_RULES.md",
-        "budgets/services/",
-        "ledger/services/",
-        "tests/"
+        "docs/INPUT_VALIDATION_POLICY.md",
+        "docs/input-validation-policy.json",
+        "scripts/check_input_validation_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_input_validation_policy.py",
+        "config/settings/base.py",
+        "debts/services/projections.py"
       ]
     },
     {
