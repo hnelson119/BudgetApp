@@ -338,6 +338,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V12.2.1",
     "V12.3.3",
     "V12.3.4",
+    "V13.1.1",
     "V13.2.1",
     "V13.2.2",
     "V13.2.3",
@@ -538,6 +539,15 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "PostgreSQL and the nginx-to-Gunicorn hop use separate purpose-bound offline server and "
         "client CAs. Each TLS client trusts only its intended internal server CA and exact DNS "
         "name; each server trusts only its intended client CA."
+    ),
+    "V13.1.1": (
+        "A machine-readable and human-reviewed inventory documents all 10 runtime, management, "
+        "and maintenance communication paths plus six external host/build dependencies. It "
+        "records purpose, destination, transport, protection, data class, phase, and evidence, "
+        "and explicitly records no user-supplied external destination. A fail-closed runtime scan "
+        "rejects network clients beyond two Unix-datagram-only logging files, while production "
+        "settings disable SMTP and retain exact database, proxy, service-network, and redirect "
+        "allowlists."
     ),
     "V13.2.1": (
         "Every production database client uses a unique purpose-bound certificate identity mapped "
@@ -877,6 +887,21 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/PRIVATE_INGRESS.md",
         "docs/POSTGRES_TLS.md",
         "docs/cryptographic-inventory.json",
+    ],
+    "V13.1.1": [
+        "docs/COMMUNICATION_INVENTORY.md",
+        "docs/communication-inventory.json",
+        "scripts/check_communication_inventory.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "compose.yaml",
+        "config/settings/hardened.py",
+        "config/settings/production.py",
+        "deploy/network/nginx.conf",
+        "tests/test_communication_inventory.py",
+        "tests/test_production_settings.py",
+        "tests/test_network_boundary.py",
+        "tests/test_release_hardening.py",
     ],
     "V13.2.1": [
         "scripts/generate-postgres-tls.py",

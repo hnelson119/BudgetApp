@@ -1,0 +1,237 @@
+{
+  "schema_version": 1,
+  "last_reviewed": "2026-09-13",
+  "user_supplied_external_destinations": [],
+  "flows": [
+    {
+      "id": "private_browser_access",
+      "phase": "runtime",
+      "source": "approved household browser",
+      "destination": "the deployment's one exact Tailscale HTTPS hostname on TCP 443",
+      "transport": "HTTPS over the private tailnet",
+      "protection": "individual Tailscale identity and device approval, TLS, application authentication, MFA, and CSRF protection",
+      "data": "rendered household-budget pages, form submissions, session cookies, and same-origin static assets",
+      "user_supplied_destination": false,
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "deploy/network/tailnet-policy.example.hujson",
+        "config/settings/production.py"
+      ]
+    },
+    {
+      "id": "administrator_ssh",
+      "phase": "management",
+      "source": "approved owner-administrator device",
+      "destination": "the dedicated VM on tailnet TCP 22",
+      "transport": "SSH over the private tailnet",
+      "protection": "individual administrator identity, approved device, SSH keys, and deny-by-default host firewall",
+      "data": "bounded deployment and maintenance commands; no application credential caching",
+      "user_supplied_destination": false,
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "deploy/network/tailnet-policy.example.hujson"
+      ]
+    },
+    {
+      "id": "tailscale_loopback_relay",
+      "phase": "runtime",
+      "source": "Tailscale Serve on the VM host",
+      "destination": "127.0.0.1:8000",
+      "transport": "HTTP over IPv4 loopback only",
+      "protection": "exact loopback publish, no LAN bind, overwritten proxy scheme header, and host firewall",
+      "data": "private browser HTTP requests after Tailscale TLS termination",
+      "user_supplied_destination": false,
+      "evidence": [
+        "compose.yaml",
+        "docs/PRIVATE_INGRESS.md",
+        "deploy/network/run-production-boundary.py"
+      ]
+    },
+    {
+      "id": "ingress_to_web",
+      "phase": "runtime",
+      "source": "ingress container",
+      "destination": "web:8443 on the internal frontend network",
+      "transport": "HTTPS with mutual TLS",
+      "protection": "fixed proxy destination, dedicated server and client authorities, exact web identity, and TLS 1.2 or 1.3",
+      "data": "canonical HTTP/1.1 application requests and responses",
+      "user_supplied_destination": false,
+      "evidence": [
+        "compose.yaml",
+        "deploy/network/nginx.conf",
+        "config/gunicorn.py",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    },
+    {
+      "id": "services_to_postgresql",
+      "phase": "runtime-and-maintenance",
+      "source": "the nine purpose-bound database client services",
+      "destination": "db:5432 on the internal backend network",
+      "transport": "PostgreSQL protocol with mutual TLS",
+      "protection": "verify-full hostname validation, TLS 1.2 or 1.3, distinct client certificates, certificate-to-role mapping, and no password fallback",
+      "data": "application records, migrations, backups, audit checks, notifications, cleanup, recovery, and key-rotation state",
+      "user_supplied_destination": false,
+      "evidence": [
+        "compose.yaml",
+        "deploy/postgres/pg_hba.conf",
+        "docs/POSTGRES_TLS.md",
+        "deploy/network/run-production-boundary.py"
+      ]
+    },
+    {
+      "id": "web_to_security_log",
+      "phase": "runtime",
+      "source": "web process",
+      "destination": "/run/security-log/security.sock",
+      "transport": "local Unix datagram socket",
+      "protection": "read-only socket-volume mount, bounded datagrams, structured allowlist, and central redaction",
+      "data": "redacted security event records and pseudonymous request context",
+      "user_supplied_destination": false,
+      "evidence": [
+        "compose.yaml",
+        "config/settings/production.py",
+        "core/logging.py",
+        "docs/LOGGING_INVENTORY.md"
+      ]
+    },
+    {
+      "id": "security_log_archive",
+      "phase": "runtime",
+      "source": "networkless security-log collector",
+      "destination": "collector-only security_log_archive volume",
+      "transport": "local filesystem write",
+      "protection": "network_mode none, non-root identity, restrictive directory and file modes, validation, and redaction",
+      "data": "validated redacted security records and warning-or-higher alert stream",
+      "user_supplied_destination": false,
+      "evidence": [
+        "compose.yaml",
+        "core/security_log_collector.py",
+        "docs/LOGGING_INVENTORY.md"
+      ]
+    },
+    {
+      "id": "backup_repository_mount",
+      "phase": "maintenance",
+      "source": "backup, restore, notification, and networkless Restic key-rotation services",
+      "destination": "pre-existing operator-mounted /repository filesystem",
+      "transport": "bind-mounted filesystem, not an application network destination",
+      "protection": "encrypted Restic repository, purpose-separated mounts, explicit read-only consumers, and create_host_path false",
+      "data": "encrypted PostgreSQL backups, repository metadata, and a non-sensitive freshness marker",
+      "user_supplied_destination": false,
+      "evidence": [
+        "compose.yaml",
+        "deploy/backup/backup.sh",
+        "docs/BACKUP_AND_RESTORE.md"
+      ]
+    },
+    {
+      "id": "checkpoint_repository_mount",
+      "phase": "maintenance",
+      "source": "integrity service",
+      "destination": "pre-existing operator-mounted /checkpoints filesystem",
+      "transport": "bind-mounted filesystem, not an application network destination",
+      "protection": "purpose-bound signing key, canonical HMAC document, restrictive file mode, and create_host_path false",
+      "data": "signed audit-chain heads and bounded verification metadata",
+      "user_supplied_destination": false,
+      "evidence": [
+        "compose.yaml",
+        "audit/checkpoints.py",
+        "docs/BACKUP_AND_RESTORE.md"
+      ]
+    },
+    {
+      "id": "host_docker_control",
+      "phase": "management",
+      "source": "root-owned systemd units or an authenticated administrator shell",
+      "destination": "host Docker engine through its local Unix socket",
+      "transport": "host-local process and Unix-socket control",
+      "protection": "root-owned units, explicit Compose project, fixed service catalog, and no Docker socket in any container",
+      "data": "service lifecycle commands and bounded status output",
+      "user_supplied_destination": false,
+      "evidence": [
+        "compose.yaml",
+        "deploy/systemd/household-budget-backup.service",
+        "docs/PRIVATE_INGRESS.md"
+      ]
+    }
+  ],
+  "external_services": [
+    {
+      "id": "tailscale_private_network",
+      "phase": "runtime-host",
+      "destination": "operator-approved Tailscale coordination and relay infrastructure",
+      "purpose": "private device identity, encrypted overlay connectivity, MagicDNS, and Serve TLS",
+      "runtime_access": "VM host daemon and approved devices only; application containers have no direct access",
+      "user_supplied": false,
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "deploy/network/tailnet-policy.example.hujson"
+      ]
+    },
+    {
+      "id": "github_source_and_ci",
+      "phase": "development-and-release",
+      "destination": "reviewed GitHub repository and GitHub Actions",
+      "purpose": "source review, pull-request checks, pinned ASVS source, and release evidence",
+      "runtime_access": "none from production application containers",
+      "user_supplied": false,
+      "evidence": [
+        ".github/workflows/quality.yml",
+        "docs/RELEASE_HARDENING.md"
+      ]
+    },
+    {
+      "id": "python_package_registry",
+      "phase": "image-build",
+      "destination": "PyPI over HTTPS",
+      "purpose": "install hash-pinned Python packages from requirements-prod.lock",
+      "runtime_access": "none after the immutable image is built",
+      "user_supplied": false,
+      "evidence": [
+        "Dockerfile",
+        "requirements-prod.lock",
+        "docs/SBOM.md"
+      ]
+    },
+    {
+      "id": "javascript_package_registry",
+      "phase": "test-image-build",
+      "destination": "npm registry over HTTPS",
+      "purpose": "install lockfile-pinned Playwright test dependencies",
+      "runtime_access": "none from the production application image",
+      "user_supplied": false,
+      "evidence": [
+        "Dockerfile.browser-tests",
+        "package-lock.json",
+        "docs/SBOM.md"
+      ]
+    },
+    {
+      "id": "container_image_registries",
+      "phase": "image-build-and-release-scan",
+      "destination": "registries named by digest-pinned Dockerfile and Compose image references",
+      "purpose": "retrieve base, database, browser-test, and security-scanner images",
+      "runtime_access": "host Docker engine only during image retrieval; no application egress",
+      "user_supplied": false,
+      "evidence": [
+        "compose.yaml",
+        "Dockerfile",
+        "Dockerfile.browser-tests",
+        "docs/SBOM.md"
+      ]
+    },
+    {
+      "id": "breached_password_corpus_source",
+      "phase": "trusted-maintainer-update",
+      "destination": "HIBP Pwned Passwords corpus obtained with the official downloader",
+      "purpose": "refresh the reviewed offline hash-only password blocklist",
+      "runtime_access": "none; transient source stays outside the application and only the reviewed hash corpus is packaged",
+      "user_supplied": false,
+      "evidence": [
+        "docs/PASSWORD_BLOCKLIST.md",
+        "identity/management/commands/build_breached_password_corpus.py"
+      ]
+    }
+  ]
+}

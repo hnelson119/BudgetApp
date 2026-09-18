@@ -102,6 +102,7 @@ def test_production_static_assets_do_not_allow_arbitrary_cross_origin_reads() ->
     )
 
     assert "WHITENOISE_ALLOW_ALL_ORIGINS = False" in settings_file
+    assert 'EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"' in settings_file
 
 
 def test_production_settings_pin_exact_private_ingress_and_proxy_boundary() -> None:
