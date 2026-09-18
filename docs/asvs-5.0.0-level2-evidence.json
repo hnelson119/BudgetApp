@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 141,
+      "implemented": 144,
       "not_applicable": 79,
-      "partial": 33
+      "partial": 30
     }
   },
   "requirements": [
@@ -497,13 +497,19 @@
       "level": 2,
       "description": "Verify that the application uses memory-safe string, safer memory copy and pointer arithmetic to detect or prevent stack, buffer, or heap overflows.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Application-owned Python and JavaScript use managed strings, bytes, objects, and buffers without pointer arithmetic or manual allocation. A fail-closed scan rejects application native source, unsafe memory and FFI modules, unreviewed buffer views, native-size struct formats, and JavaScript raw-memory or WebAssembly APIs. The sole memoryview and two explicit big-endian TOTP conversions are pinned and bounds-checked.",
       "evidence": [
-        "core/",
-        "imports/services/",
-        "tests/test_csv_imports.py",
-        "scripts/check.ps1"
+        "docs/MANAGED_RUNTIME_SAFETY.md",
+        "scripts/check_managed_runtime_safety.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "core/security_log_collector.py",
+        "identity/services/mfa.py",
+        "core/static/core/app.js",
+        "docs/SBOM.md",
+        "tests/test_managed_runtime_safety.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
@@ -516,13 +522,20 @@
       "level": 2,
       "description": "Verify that sign, range, and input validation techniques are used to prevent integer overflows.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Python integer arithmetic cannot wrap, financial code cannot convert through binary float, and fixed-width TOTP operations are explicitly bounded. The model registry pins 38 DecimalFields to reviewed money or rate shapes and 37 non-automatic IntegerFields to bounded big or positive types; forms, services, models, and database constraints enforce finiteness, scale, sign, rate, amount, calendar, upload, and projection limits.",
       "evidence": [
-        "core/",
-        "imports/services/",
-        "tests/test_csv_imports.py",
-        "scripts/check.ps1"
+        "docs/MANAGED_RUNTIME_SAFETY.md",
+        "scripts/check_managed_runtime_safety.py",
+        "budgets/forms.py",
+        "debts/forms.py",
+        "debts/services/projections.py",
+        "imports/services/batches.py",
+        "ledger/models.py",
+        "identity/services/mfa.py",
+        "tests/test_managed_runtime_safety.py",
+        "tests/test_debt_projections.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
@@ -535,13 +548,19 @@
       "level": 2,
       "description": "Verify that dynamically allocated memory and resources are released, and that references or pointers to freed memory are removed or set to null to prevent dangling pointers and use-after-free vulnerabilities.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Managed runtimes reclaim application allocations without dangling pointers. The checker pins all low-level descriptor operations to six reviewed files, requires every fdopen, Unix socket, and named temporary file to use a context manager, and rejects new unsafe allocation interfaces. Each raw descriptor site has explicit failure and finally cleanup or transfers ownership to a context-managed file.",
       "evidence": [
-        "core/",
-        "imports/services/",
-        "tests/test_csv_imports.py",
-        "scripts/check.ps1"
+        "docs/MANAGED_RUNTIME_SAFETY.md",
+        "scripts/check_managed_runtime_safety.py",
+        "core/security_log_collector.py",
+        "core/logging.py",
+        "core/pentest_fixture.py",
+        "audit/checkpoints.py",
+        "identity/password_validation.py",
+        "identity/management/commands/build_breached_password_corpus.py",
+        "tests/test_managed_runtime_safety.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

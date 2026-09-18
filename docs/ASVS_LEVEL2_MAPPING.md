@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 141 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 33 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 144 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 30 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 33
+These are the clearest implementation or operational work items exposed by the mapping. The 30
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -53,6 +53,14 @@ purpose-specific Base32 operations across seven files; rejects permissive, dynam
 input decoders; and detects nested deserialization. Each documented input validates its canonical
 result before persistence, business processing, or security use. See
 `docs/CANONICAL_INPUT_DECODING.md`.
+
+The managed-runtime boundary implements `v5.0.0-1.4.1`, `v5.0.0-1.4.2`, and
+`v5.0.0-1.4.3`. Application Python and JavaScript use managed memory with no native source, FFI,
+pointer, or raw client-memory APIs. Python integers cannot wrap, financial values use bounded
+`Decimal` fields and reject binary-float conversion, and the two fixed-width TOTP conversions have
+literal big-endian sizes. The checker pins the sole managed buffer, 38 decimal and 37 integer
+fields, six low-level descriptor files, and every context-managed socket and temporary file. See
+`docs/MANAGED_RUNTIME_SAFETY.md`.
 
 The JavaScript and JSON output-encoding boundary implements `v5.0.0-1.2.3`. Django templates keep
 contextual auto-escaping enabled, CSP permits only same-origin external scripts, and the production
