@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 151 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 23 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 152 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 22 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 23
+These are the clearest implementation or operational work items exposed by the mapping. The 22
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -270,6 +270,14 @@ The machine-validated key, algorithm, and certificate inventory implements `v5.0
 explicit permitted/prohibited uses, protected/excluded data, rotation, retirement, provider
 boundaries, test-only exceptions, review cadence, and known absences. See
 `docs/CRYPTOGRAPHIC_INVENTORY.md`; release-candidate verification remains pending.
+
+The password-storage boundary implements `v5.0.0-11.4.2`. Production explicitly selects Django
+5.2.17's salted PBKDF2-HMAC-SHA-256 hasher with 1,000,000 iterations and a 128-bit salt-entropy
+target. Its fail-closed checker verifies the installed primitive and dependency, pins production
+and test settings, inventories all 14 credential hash/check operations across six production files,
+and rejects direct password-field writes or unreviewed hasher imports. The fast MD5 hasher remains
+confined to synthetic unit tests. See `docs/PASSWORD_HASHING_POLICY.md` and
+`docs/password-hashing-policy.json`; release-host performance verification remains pending.
 
 The deterministic CycloneDX source/build inventory implements `v5.0.0-15.1.2` for all 83 current
 third-party production, development, build, test, and CI inputs. Its validator derives exact

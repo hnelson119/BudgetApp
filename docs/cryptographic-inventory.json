@@ -804,7 +804,11 @@
         "pyproject.toml",
         "config/settings/base.py",
         "identity/services/mfa.py",
-        "identity/services/recovery.py"
+        "identity/services/recovery.py",
+        "docs/PASSWORD_HASHING_POLICY.md",
+        "docs/password-hashing-policy.json",
+        "scripts/check_password_hashing_policy.py",
+        "tests/test_password_hashing_policy.py"
       ]
     },
     {

@@ -94,6 +94,10 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "identity.password_validation.OfflineBreachedPasswordValidator"},
 ]
 
+# Pin the reviewed production password-storage primitive and work factor. The fast MD5 override is
+# confined to config.settings.test and must never flow into a hardened or release-derived target.
+PASSWORD_HASHERS = ["django.contrib.auth.hashers.PBKDF2PasswordHasher"]
+
 PASSWORD_CONTEXT_IDENTIFIERS = (
     "BudgetApp",
     "Household Budget",

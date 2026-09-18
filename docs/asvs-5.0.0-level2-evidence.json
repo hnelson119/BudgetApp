@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 151,
+      "implemented": 152,
       "not_applicable": 79,
-      "partial": 23
+      "partial": 22
     }
   },
   "requirements": [
@@ -3520,13 +3520,25 @@
       "level": 2,
       "description": "Verify that passwords are stored using an approved, computationally intensive, key derivation function (also known as a \"password hashing function\"), with parameter settings configured based on current guidance. The settings should balance security and performance to make brute-force attacks sufficiently challenging for the required level of security.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Production explicitly selects Django 5.2.17's PBKDF2-HMAC-SHA-256 password hasher with 1,000,000 iterations and independent salts targeting 128 bits of entropy. A fail-closed checker verifies the installed primitive and dependency, pins the production and test-only settings assignments, inventories all 14 credential hash/check operations across six production files, and rejects direct password-field writes or unreviewed hasher imports. The fast MD5 hasher is isolated to synthetic in-memory unit tests.",
       "evidence": [
+        "docs/PASSWORD_HASHING_POLICY.md",
+        "docs/password-hashing-policy.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
         "config/settings/base.py",
+        "config/settings/test.py",
+        "identity/managers.py",
         "identity/services/mfa.py",
-        "audit/services.py",
-        "tests/"
+        "identity/services/recovery.py",
+        "identity/views.py",
+        "scripts/check_password_hashing_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_password_hashing_policy.py",
+        "tests/test_production_settings.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

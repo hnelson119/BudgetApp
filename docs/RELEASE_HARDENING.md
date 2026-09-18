@@ -94,7 +94,7 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 151 implemented, 23 partial, 79
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 152 implemented, 22 partial, 79
   justified feature exclusions, and zero verified. Internal HTTP service TLS, purpose-specific
   trust, directory-listing prevention, TRACE rejection, operational-endpoint minimization, and
   non-browser plaintext rejection, and authenticated client-state cleanup are implemented; live
@@ -111,6 +111,10 @@ real household data.
   exact `web` server identity, one nginx client identity, TLS 1.2/1.3, and no plaintext production
   listener. Live certificate/Tailscale/SSH observations remain open release work;
   implementation of the inventory is not release verification.
+- Production password storage now explicitly selects Django 5.2.17's salted
+  PBKDF2-HMAC-SHA-256 hasher at 1,000,000 iterations. A fail-closed policy pins the installed
+  primitive, its settings and dependency, and all 14 current credential operations while rejecting
+  direct password-field writes. The release host still needs a dated synthetic performance check.
 - The resource-demand inventory documents seven expensive workflow families, five explicit
   response-time boundaries, and twelve pinned implementation contracts. The application-worker
   timeout is explicit and remains shorter than the ingress upstream-read timeout. Maximum-load
