@@ -244,6 +244,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V1.1.2",
     "V1.2.1",
     "V1.2.2",
+    "V1.2.3",
     "V1.2.4",
     "V1.2.9",
     "V1.3.2",
@@ -377,6 +378,14 @@ IMPLEMENTED_REQUIREMENTS = {
 }
 
 IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V1.2.3": (
+        "Django templates retain automatic contextual HTML escaping, and production JavaScript "
+        "uses DOM construction and textContent instead of parsing dynamic HTML. A fail-closed "
+        "inventory rejects disabled or bypassed template escaping, inline scripts, HTML-parsing "
+        "and code-execution sinks, custom trusted-HTML APIs, manual script or JSON media bodies, "
+        "and custom JsonResponse encoders. The two fixed operational JSON endpoints use Django's "
+        "default JsonResponse encoder, while CSP permits scripts only from the same origin."
+    ),
     "V1.2.9": (
         "A fail-closed AST inventory requires every Python and Django regular-expression call to "
         "use a non-empty literal pattern, except for the one reviewed password-validator pattern. "
@@ -596,6 +605,18 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
 }
 
 IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
+    "V1.2.3": [
+        "docs/OUTPUT_ENCODING_POLICY.md",
+        "scripts/check_output_encoding.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "core/views.py",
+        "core/static/core/app.js",
+        "core/middleware.py",
+        "tests/test_output_encoding.py",
+        "tests/test_logging.py",
+        "tests/test_release_hardening.py",
+    ],
     "V1.2.9": [
         "docs/REGULAR_EXPRESSION_SAFETY.md",
         "scripts/check_regex_safety.py",

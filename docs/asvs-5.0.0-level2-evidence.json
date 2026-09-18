@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 133,
+      "implemented": 134,
       "not_applicable": 79,
-      "partial": 41
+      "partial": 40
     }
   },
   "requirements": [
@@ -111,13 +111,19 @@
       "level": 1,
       "description": "Verify that output encoding or escaping is used when dynamically building JavaScript content (including JSON), to avoid changing the message or document structure (to avoid JavaScript and JSON injection).",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Django templates retain automatic contextual HTML escaping, and production JavaScript uses DOM construction and textContent instead of parsing dynamic HTML. A fail-closed inventory rejects disabled or bypassed template escaping, inline scripts, HTML-parsing and code-execution sinks, custom trusted-HTML APIs, manual script or JSON media bodies, and custom JsonResponse encoders. The two fixed operational JSON endpoints use Django's default JsonResponse encoder, while CSP permits scripts only from the same origin.",
       "evidence": [
-        "core/",
-        "imports/services/",
-        "tests/test_csv_imports.py",
-        "scripts/check.ps1"
+        "docs/OUTPUT_ENCODING_POLICY.md",
+        "scripts/check_output_encoding.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "core/views.py",
+        "core/static/core/app.js",
+        "core/middleware.py",
+        "tests/test_output_encoding.py",
+        "tests/test_logging.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

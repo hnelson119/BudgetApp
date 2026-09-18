@@ -39,6 +39,9 @@ try {
     & $pythonPath scripts\check_client_technologies.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $pythonPath scripts\check_output_encoding.py
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     & $pythonPath scripts\check_regex_safety.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

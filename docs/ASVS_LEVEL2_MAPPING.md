@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 133 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 41 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 134 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 40 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,11 +40,18 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 41
+These are the clearest implementation or operational work items exposed by the mapping. The 40
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
 ### Encoding and expression safety
+
+The JavaScript and JSON output-encoding boundary implements `v5.0.0-1.2.3`. Django templates keep
+contextual auto-escaping enabled, CSP permits only same-origin external scripts, and the production
+client inserts dynamic text with DOM APIs and `textContent`. A fail-closed inventory rejects
+escaping bypasses, inline scripts, HTML-parsing and code-execution sinks, custom trusted-HTML APIs,
+manual script or JSON media bodies, and custom `JsonResponse` encoders. The two fixed operational
+JSON endpoints use Django's default encoder. See `docs/OUTPUT_ENCODING_POLICY.md`.
 
 The regular-expression boundary implements `v5.0.0-1.2.9`. A fail-closed AST inventory requires
 literal Python and Django patterns throughout the production application. The sole runtime-built
