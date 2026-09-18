@@ -1,7 +1,7 @@
 # Release hardening and evidence
 
 Status: Milestone 10 baseline in progress  
-Last updated: 2026-09-06
+Last updated: 2026-09-17
 
 ## Purpose
 
@@ -141,6 +141,11 @@ real household data.
   strict startup validation, no-network boundary, provenance, and reviewed update/rollback process
   are documented in `docs/PASSWORD_BLOCKLIST.md`. This is implementation evidence, not a dated
   release-candidate verification.
+- Django administration now requires application MFA proof and recent full authentication rather
+  than accepting password-only login or account enrollment state. Internal authentication state is
+  read-only in the user editor. `M10-F024` records the regression tests; deployment must revoke all
+  old sessions before reopening traffic, as described in `docs/SESSION_SECURITY.md`. The admin fix
+  does not itself perform a production revocation or close the broader release-verification gap.
 - A guarded trusted-console operation now revokes either one arbitrary account's sessions or every
   account's sessions without requiring a credential reset. It requires explicit confirmation and a
   reason, rotates server-side session versions, removes stored authenticated and pending-MFA

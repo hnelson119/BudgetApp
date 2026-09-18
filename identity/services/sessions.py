@@ -22,6 +22,7 @@ SESSION_STARTED_AT = "security_started_at"
 SESSION_LAST_SEEN_AT = "security_last_seen_at"
 SESSION_USER_VERSION = "security_user_version"
 SESSION_AUTH_VERIFIED_AT = "security_auth_verified_at"
+SESSION_MFA_VERIFIED = "security_mfa_verified"
 SESSION_PENDING_MFA_USER = "security_pending_mfa_user"
 SESSION_PENDING_MFA_STARTED_AT = "security_pending_mfa_started_at"
 SESSION_PENDING_MFA_VERSION = "security_pending_mfa_version"
@@ -63,6 +64,7 @@ def establish_session_security(request: HttpRequest, user: User) -> None:
     request.session[SESSION_LAST_SEEN_AT] = now
     request.session[SESSION_USER_VERSION] = user.session_version
     request.session[SESSION_AUTH_VERIFIED_AT] = now
+    request.session.pop(SESSION_MFA_VERIFIED, None)
     request.session.set_expiry(0)
     setattr(request, SESSION_ESTABLISHED_ATTRIBUTE, True)
 
@@ -87,6 +89,7 @@ def clear_pending_mfa(request: HttpRequest) -> None:
 def mark_recent_authentication(request: HttpRequest) -> None:
     request.session.cycle_key()
     request.session[SESSION_AUTH_VERIFIED_AT] = int(time.time())
+    request.session[SESSION_MFA_VERIFIED] = True
 
 
 def recent_authentication_is_valid(request: HttpRequest) -> bool:

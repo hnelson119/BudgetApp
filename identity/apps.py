@@ -1,4 +1,9 @@
 from django.apps import AppConfig
+from django.contrib.admin.apps import AdminConfig
+
+
+class SecureAdminConfig(AdminConfig):
+    default_site = "identity.admin_site.SecureAdminSite"
 
 
 class IdentityConfig(AppConfig):

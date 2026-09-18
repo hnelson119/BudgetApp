@@ -48,6 +48,7 @@ from identity.services.mfa import (
 )
 from identity.services.recovery import recover_forgotten_password
 from identity.services.sessions import (
+    SESSION_MFA_VERIFIED,
     SESSION_RECOVERY_CONFIRMATION,
     active_sessions_for_user,
     clear_pending_mfa,
@@ -155,6 +156,7 @@ def _complete_login(request: HttpRequest, user: User, *, method: str) -> None:
     login(request, user)
     clear_pending_mfa(request)
     establish_session_security(request, user)
+    request.session[SESSION_MFA_VERIFIED] = True
     _set_active_household(request, user)
     user.last_authenticated_at = timezone.now()
     user.save(update_fields=("last_authenticated_at",))

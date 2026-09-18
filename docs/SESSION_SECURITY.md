@@ -1,7 +1,7 @@
 # Session security policy
 
 Status: implemented; release-candidate verification pending  
-Last reviewed: 2026-09-10
+Last reviewed: 2026-09-17
 
 ## Scope and assurance target
 
@@ -40,6 +40,33 @@ the replacement login succeeds, and the security stream records the automatic re
 evicted browser is redirected to full login and receives the client-state cleanup response on its
 next request. Users can review and individually revoke the remaining sessions from Account
 security, or revoke all of them after recent reauthentication.
+
+## Administration and upgrade boundary
+
+Django administration uses the application's password-plus-MFA login, never Django's default
+password-only form. Every protected admin view requires an active staff account, completed MFA
+enrollment, explicit MFA proof in the current server-side session, and authentication within the
+10-minute freshness window. Enrollment state alone is not session proof. Missing proof or stale
+authentication redirects staff to the full password-plus-TOTP/recovery-code reauthentication flow;
+non-staff users are denied. Internal session versions and authentication timestamps are read-only
+in the user editor. Admin CSRF protection and no-store response policy remain enabled.
+
+Staff browser accounts must have an active household membership for the application authentication
+flows. Initial enrollment and session-security reinitialization do not manufacture MFA proof;
+administration requires reauthentication when that proof is absent.
+
+When deploying the fix for `M10-F024`, revoke all pre-upgrade authenticated and pending-MFA sessions
+from the trusted maintenance environment before restoring user traffic:
+
+```text
+python manage.py revoke_user_sessions --all-users --reason "M10-F024 session boundary upgrade" --confirm revoke-all-sessions
+```
+
+Use the release's configured production settings and maintenance identity. The admin gate rejects
+legacy sessions without proof, but ordinary application session handling does not distinguish all
+historical password-only sessions. The revocation step is therefore required, not optional. Retain
+sanitized release evidence that old cookies fail and fresh password-plus-MFA sign-in succeeds.
+Repository regression tests are not evidence that this production operation has been executed.
 
 ## Standards decision
 

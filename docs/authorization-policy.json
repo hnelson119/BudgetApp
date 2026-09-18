@@ -219,9 +219,9 @@
     },
     {
       "id": "trusted-administration-functions",
-      "permissions": "Staff administration and management commands require separate host or Django administrator authority. Bootstrap, password reset, MFA reset, session revocation, key rotation, backup, restore, and integrity operations are not granted by household membership alone.",
-      "resource_attributes": ["host access", "Django staff and superuser flags", "command confirmation", "purpose-specific service identity"],
-      "evidence": ["config/urls.py", "identity/admin.py", "identity/management/commands/", "deploy/postgres/bootstrap-roles.sh", "tests/test_identity_commands.py"]
+      "permissions": "Staff administration and management commands require separate host or Django administrator authority. Browser administration additionally requires current-session MFA proof, completed enrollment, and recent full authentication. Bootstrap, password reset, MFA reset, session revocation, key rotation, backup, restore, and integrity operations are not granted by household membership alone.",
+      "resource_attributes": ["host access", "Django staff and superuser flags", "current-session MFA proof", "recent-auth timestamp", "command confirmation", "purpose-specific service identity"],
+      "evidence": ["config/urls.py", "identity/admin.py", "identity/admin_site.py", "identity/management/commands/", "deploy/postgres/bootstrap-roles.sh", "tests/test_identity_commands.py", "tests/test_admin_security.py"]
     }
   ],
   "field_rules": [
@@ -235,7 +235,7 @@
     {
       "id": "identity-self-fields",
       "read": "A member sees only their own account-security state and sessions. Operational logs use pseudonymous context rather than email or display name.",
-      "write": "The member can change only their own password through the guarded flow. Email, staff flags, MFA timestamps, last-authenticated time, and session version are service- or administrator-managed.",
+      "write": "The member can change only their own password through the guarded flow. Email and staff flags require administrator authority; MFA timestamps, last-authenticated time, and session version are service-managed and read-only in administration.",
       "resource_attributes": ["same user", "recent authentication", "administrator permission"],
       "evidence": ["identity/models.py", "identity/views.py", "identity/admin.py", "tests/test_account_security.py"]
     },
