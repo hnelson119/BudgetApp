@@ -1,0 +1,305 @@
+{
+  "schema_version": 1,
+  "policy_id": "household-budget-hashes-v1",
+  "asvs_requirement": "v5.0.0-11.4.1",
+  "last_reviewed": "2026-09-13",
+  "next_review_due": "2026-12-12",
+  "approved_hash_functions": [
+    {
+      "id": "sha256",
+      "name": "SHA-256",
+      "digest_bits": 256,
+      "status": "approved",
+      "permitted_uses": [
+        "general unkeyed content integrity and deterministic identifiers",
+        "HMAC and PBKDF2 pseudorandom functions",
+        "digital-certificate and application-signature profiles",
+        "fixed-length derivation from already-random MFA key material"
+      ],
+      "prohibited_uses": [
+        "unkeyed password storage",
+        "authenticity without a secret key or signature",
+        "derivation from human-memorable secrets"
+      ],
+      "evidence": [
+        "docs/cryptographic-inventory.json",
+        "scripts/check_hash_function_policy.py"
+      ]
+    },
+    {
+      "id": "sha512",
+      "name": "SHA-512",
+      "digest_bits": 512,
+      "status": "approved",
+      "permitted_uses": [
+        "package-lock integrity metadata validated by npm and the SBOM builder"
+      ],
+      "prohibited_uses": [
+        "application password storage",
+        "new application uses without policy review"
+      ],
+      "evidence": [
+        "package-lock.json",
+        "scripts/build_sbom.py"
+      ]
+    }
+  ],
+  "managed_profiles": [
+    {
+      "id": "django-framework",
+      "owner": "Pinned Django 5.2.17 framework primitives",
+      "status": "approved",
+      "hash_functions": [
+        "HMAC-SHA-256 for signing and tokens",
+        "PBKDF2-HMAC-SHA-256 for production password hashes"
+      ],
+      "restrictions": [
+        "runtime defaults are checked against the pinned dependency",
+        "application salted HMAC calls must explicitly select SHA-256"
+      ],
+      "evidence": [
+        "requirements-prod.lock",
+        "config/settings/base.py",
+        "budgets/views.py",
+        "identity/services/sessions.py",
+        "docs/password-hashing-policy.json"
+      ]
+    },
+    {
+      "id": "fernet-v1",
+      "owner": "Pinned cryptography 50.0.0 Fernet implementation",
+      "status": "approved",
+      "hash_functions": [
+        "HMAC-SHA-256"
+      ],
+      "restrictions": [
+        "used only for authenticated TOTP-seed encryption with purpose-bound key material"
+      ],
+      "evidence": [
+        "requirements-prod.lock",
+        "identity/services/mfa.py",
+        "docs/cryptographic-inventory.json"
+      ]
+    },
+    {
+      "id": "npm-lock-integrity",
+      "owner": "Pinned npm lockfile and SBOM tooling",
+      "status": "approved",
+      "hash_functions": [
+        "SHA-512"
+      ],
+      "restrictions": [
+        "used only for dependency artifact integrity"
+      ],
+      "evidence": [
+        "package-lock.json",
+        "scripts/build_sbom.py",
+        "docs/sbom.cdx.json"
+      ]
+    },
+    {
+      "id": "operating-system-randomness",
+      "owner": "Python secrets or OpenSSL operating-system CSPRNG",
+      "status": "approved",
+      "hash_functions": [
+        "no application-selected hash-based random generator"
+      ],
+      "restrictions": [
+        "security values must come from the operating-system CSPRNG",
+        "general-purpose pseudorandom generators are prohibited for security material"
+      ],
+      "evidence": [
+        "identity/services/mfa.py",
+        "identity/services/sessions.py",
+        "deploy/pentest/generate-secrets.py",
+        "docs/cryptographic-inventory.json"
+      ]
+    },
+    {
+      "id": "restic-repository",
+      "owner": "Pinned Restic 0.19.1 repository format",
+      "status": "approved",
+      "hash_functions": [
+        "SHA-256 for repository object identity and integrity",
+        "scrypt for repository-password key derivation"
+      ],
+      "restrictions": [
+        "application code cannot override repository algorithms or parameters"
+      ],
+      "evidence": [
+        "deploy/backup/Dockerfile",
+        "docs/cryptographic-inventory.json"
+      ]
+    },
+    {
+      "id": "tailscale-wireguard",
+      "owner": "Provider-managed Tailscale and WireGuard implementation",
+      "status": "provider_managed",
+      "hash_functions": [
+        "BLAKE2s-256 and its protocol-defined keyed derivation"
+      ],
+      "restrictions": [
+        "application code cannot select or override the provider protocol algorithms",
+        "release evidence records the live provider boundary without private material"
+      ],
+      "evidence": [
+        "docs/PRIVATE_INGRESS.md",
+        "docs/cryptographic-inventory.json"
+      ]
+    }
+  ],
+  "compatibility_exceptions": [
+    {
+      "id": "rfc6238-totp-sha1",
+      "algorithm": "SHA-1",
+      "status": "compatibility_only",
+      "protocol_or_format": "RFC 6238 TOTP interoperability with household authenticator applications",
+      "restrictions": [
+        "HMAC only with independent 160-bit random per-user seeds",
+        "six digits, 30-second steps, one-step drift, and replay prevention",
+        "not permitted for signatures, password storage, content integrity, or new protocols"
+      ],
+      "operations": [
+        {
+          "path": "browser-tests/support.mjs",
+          "operations": {"node.createHmac:sha1": 1},
+          "purpose": "Browser-harness generation of the same RFC 6238 compatibility code",
+          "status": "compatibility_only"
+        },
+        {
+          "path": "deploy/pentest/authenticate-sessions.py",
+          "operations": {"hmac.new:sha1": 1},
+          "purpose": "Release-session rehearsal of the RFC 6238 login factor",
+          "status": "compatibility_only"
+        },
+        {
+          "path": "deploy/pentest/run-session-security.py",
+          "operations": {"hmac.new:sha1": 1},
+          "purpose": "Session-security rehearsal of the RFC 6238 login factor",
+          "status": "compatibility_only"
+        },
+        {
+          "path": "identity/services/mfa.py",
+          "operations": {"hmac.new:sha1": 1},
+          "purpose": "Application RFC 6238 TOTP generation and verification",
+          "status": "compatibility_only"
+        }
+      ],
+      "evidence": [
+        "identity/services/mfa.py",
+        "tests/test_mfa.py",
+        "browser-tests/support.mjs"
+      ]
+    },
+    {
+      "id": "offline-password-blocklist-sha1",
+      "algorithm": "SHA-1",
+      "status": "compatibility_only",
+      "protocol_or_format": "Full-digest compatibility with the local HIBP-style breached-password corpus",
+      "restrictions": [
+        "full uppercase 160-bit digest used only as an offline exact-membership key",
+        "usedforsecurity=False is mandatory at each direct hashlib call",
+        "not permitted for password storage, collision resistance, signatures, integrity, or authentication"
+      ],
+      "operations": [
+        {
+          "path": "identity/management/commands/build_breached_password_corpus.py",
+          "operations": {"hashlib.sha1": 1},
+          "purpose": "Offline conversion of reviewed plaintext source entries to the compatibility format",
+          "status": "compatibility_only"
+        },
+        {
+          "path": "identity/password_validation.py",
+          "operations": {"hashlib.sha1": 1},
+          "purpose": "Exact local membership lookup against the reviewed compatibility corpus",
+          "status": "compatibility_only"
+        }
+      ],
+      "evidence": [
+        "identity/password_validation.py",
+        "identity/management/commands/build_breached_password_corpus.py",
+        "docs/PASSWORD_BLOCKLIST.md",
+        "tests/test_password_policy.py"
+      ]
+    }
+  ],
+  "test_only_exception": {
+    "id": "django-md5-password-hasher",
+    "algorithm": "MD5",
+    "settings": "config.settings.test",
+    "purpose": "Fast synthetic in-memory unit-test credentials only",
+    "prohibited_targets": [
+      "hardened",
+      "production",
+      "pentest",
+      "browser",
+      "migration",
+      "backup",
+      "restore",
+      "release candidate"
+    ],
+    "evidence": [
+      "config/settings/test.py",
+      "tests/test_hash_function_policy.py",
+      "tests/test_production_settings.py"
+    ]
+  },
+  "python_operation_inventory": [
+    {"path": "audit/checkpoints.py", "operations": {"hmac.new:sha256": 1}, "purpose": "Authenticate signed audit checkpoints", "status": "approved"},
+    {"path": "audit/services.py", "operations": {"hashlib.sha256": 1}, "purpose": "Chain canonical audit-event integrity digests", "status": "approved"},
+    {"path": "budgets/views.py", "operations": {"django.signing.dumps:sha256": 1, "django.signing.loads:sha256": 1}, "purpose": "Sign and verify variable-budget optimistic-concurrency state", "status": "approved"},
+    {"path": "debts/services/mortgages.py", "operations": {"hashlib.sha256": 1}, "purpose": "Fingerprint deterministic mortgage inputs", "status": "approved"},
+    {"path": "deploy/pentest/authenticate-sessions.py", "operations": {"hmac.new:sha1": 1}, "purpose": "Exercise RFC 6238 TOTP authentication", "status": "compatibility_only"},
+    {"path": "deploy/pentest/run-csv-security.py", "operations": {"hashlib.sha256": 1}, "purpose": "Verify streamed export content integrity", "status": "approved"},
+    {"path": "deploy/pentest/run-session-security.py", "operations": {"hmac.new:sha1": 1}, "purpose": "Exercise RFC 6238 TOTP session security", "status": "compatibility_only"},
+    {"path": "goals/services.py", "operations": {"hashlib.sha256": 2}, "purpose": "Generate deterministic goal and idempotency fingerprints", "status": "approved"},
+    {"path": "identity/management/commands/build_breached_password_corpus.py", "operations": {"hashlib.sha1": 1, "hashlib.sha256": 2}, "purpose": "Build SHA-1-compatible entries while protecting source and payload integrity with SHA-256", "status": "mixed_reviewed"},
+    {"path": "identity/password_validation.py", "operations": {"hashlib.sha1": 1, "hashlib.sha256": 1}, "purpose": "Perform compatibility membership lookup and verify corpus integrity", "status": "mixed_reviewed"},
+    {"path": "identity/services/mfa.py", "operations": {"hashlib.sha256": 1, "hmac.new:sha1": 1}, "purpose": "Derive the Fernet key and implement RFC 6238 TOTP", "status": "mixed_reviewed"},
+    {"path": "identity/services/sessions.py", "operations": {"django.salted_hmac:sha256": 1}, "purpose": "Create purpose-separated opaque active-session references", "status": "approved"},
+    {"path": "identity/services/throttling.py", "operations": {"hmac.new:sha256": 1}, "purpose": "Pseudonymize login-throttling identities", "status": "approved"},
+    {"path": "imports/services/batches.py", "operations": {"hashlib.sha256": 1}, "purpose": "Fingerprint canonical import rows", "status": "approved"},
+    {"path": "imports/services/parsing.py", "operations": {"hashlib.sha256": 1}, "purpose": "Record imported upload content integrity", "status": "approved"},
+    {"path": "notifications/services.py", "operations": {"hashlib.sha256": 1}, "purpose": "Derive deterministic notification identities", "status": "approved"},
+    {"path": "periods/services/boundaries.py", "operations": {"hashlib.sha256": 1}, "purpose": "Fingerprint period-boundary inputs", "status": "approved"},
+    {"path": "periods/services/generation.py", "operations": {"hashlib.sha256": 1}, "purpose": "Fingerprint generated-period inputs", "status": "approved"},
+    {"path": "schedules/services/sources.py", "operations": {"hashlib.sha256": 1}, "purpose": "Fingerprint schedule-source inputs", "status": "approved"},
+    {"path": "scripts/build_asvs_inventory.py", "operations": {"hashlib.sha256": 2}, "purpose": "Verify the pinned ASVS source and generated catalog", "status": "approved"},
+    {"path": "scripts/build_sbom.py", "operations": {"hashlib.sha256": 1}, "purpose": "Fingerprint the generated software inventory", "status": "approved"},
+    {"path": "scripts/check_release_evidence.py", "operations": {"hashlib.sha256": 1}, "purpose": "Verify the pinned ASVS evidence catalog", "status": "approved"},
+    {"path": "scripts/generate-postgres-tls.py", "operations": {"openssl:sha256": 3}, "purpose": "Select SHA-256 for generated CA and leaf certificate signatures", "status": "approved"},
+    {"path": "scripts/secret_scan.py", "operations": {"hashlib.sha256": 1}, "purpose": "Allow only exact reviewed hash-only source artifacts", "status": "approved"}
+  ],
+  "non_python_operation_inventory": [
+    {"path": "browser-tests/support.mjs", "operations": {"node.createHmac:sha1": 1}, "purpose": "Generate RFC 6238 browser-test TOTP values", "status": "compatibility_only"},
+    {"path": "deploy/backup/backup.sh", "operations": {"sha256sum:sha256": 1}, "purpose": "Fingerprint the migration schema included in backup metadata", "status": "approved"}
+  ],
+  "source_assertions": [
+    {"id": "backup-integrity", "path": "deploy/backup/backup.sh", "contains": ["sha256sum"]},
+    {"id": "certificate-signatures", "path": "scripts/generate-postgres-tls.py", "contains": ["\"-sha256\""]},
+    {"id": "cryptographic-inventory", "path": "docs/cryptographic-inventory.json", "contains": ["\"id\": \"sha256\"", "\"security_status\": \"approved\"", "\"id\": \"totp-hmac-sha1\"", "\"id\": \"password-blocklist-sha1\""]},
+    {"id": "dependency-lock", "path": "requirements-prod.lock", "contains": ["Django==5.2.17", "cryptography==50.0.0"]},
+    {"id": "image-source-integrity", "path": "deploy/backup/Dockerfile", "contains": ["ADD --checksum=sha256:${RESTIC_SHA256}"]},
+    {"id": "npm-integrity", "path": "scripts/build_sbom.py", "contains": ["integrity.startswith(\"sha512-\")"]},
+    {"id": "password-hashing", "path": "docs/password-hashing-policy.json", "contains": ["\"algorithm\": \"pbkdf2_sha256\"", "\"pseudorandom_function\": \"HMAC-SHA-256\""]},
+    {"id": "test-only-md5", "path": "config/settings/test.py", "contains": ["PASSWORD_HASHERS = [\"django.contrib.auth.hashers.MD5PasswordHasher\"]"]},
+    {"id": "totp-compatibility", "path": "identity/services/mfa.py", "contains": ["hashlib.sha1"]}
+  ],
+  "upgrade_requirements": [
+    "review and approve every new hash function or use case before source adoption",
+    "update the cryptographic inventory, this policy, tests, and both quality gates together",
+    "retain SHA-1 only while the exact compatibility protocol or corpus format requires it",
+    "treat a dependency change that alters a managed hash default as a security-policy change",
+    "capture release evidence for provider-managed profiles without recording secret material"
+  ],
+  "summary": {
+    "approved_hash_functions": 2,
+    "managed_profiles": 6,
+    "operation_files": 26,
+    "operations": 35,
+    "compatibility_exceptions": 2,
+    "compatibility_operations": 6,
+    "test_only_exceptions": 1,
+    "source_assertions": 9
+  }
+}

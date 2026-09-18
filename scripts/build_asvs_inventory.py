@@ -343,6 +343,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V11.3.1",
     "V11.3.2",
     "V11.3.3",
+    "V11.4.1",
     "V11.4.2",
     "V11.5.1",
     "V12.1.3",
@@ -610,6 +611,15 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "test-only key, algorithm, and certificate boundaries; it defines permitted and "
         "prohibited uses, protected and excluded data, rotation, retirement, review cadence, and "
         "known absences without claiming release verification."
+    ),
+    "V11.4.1": (
+        "SHA-256 is the sole application-selected general-purpose hash and HMAC function, with "
+        "SHA-512 approved for npm dependency integrity. A fail-closed scanner inventories all 35 "
+        "direct hash and signing operations across 26 Python, JavaScript, and shell files, rejects "
+        "dynamic or unapproved selections, and verifies pinned Django SHA-256 defaults. Six "
+        "SHA-1 operations remain exact compatibility exceptions for RFC 6238 TOTP and the offline "
+        "breached-password corpus; direct corpus calls require usedforsecurity=False. MD5 remains "
+        "isolated to the synthetic unit-test password hasher."
     ),
     "V11.4.2": (
         "Production explicitly selects Django 5.2.17's PBKDF2-HMAC-SHA-256 password hasher with "
@@ -1087,6 +1097,20 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/CRYPTOGRAPHIC_INVENTORY.md",
         "scripts/check_cryptographic_inventory.py",
         "tests/test_release_hardening.py",
+    ],
+    "V11.4.1": [
+        "docs/HASH_FUNCTION_POLICY.md",
+        "docs/hash-function-policy.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "scripts/check_hash_function_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_hash_function_policy.py",
+        "identity/services/mfa.py",
+        "identity/password_validation.py",
+        "audit/checkpoints.py",
+        "requirements-prod.lock",
     ],
     "V11.4.2": [
         "docs/PASSWORD_HASHING_POLICY.md",
