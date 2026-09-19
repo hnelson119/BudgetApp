@@ -74,6 +74,13 @@ Authentication and recovery outcome records preserve only two additional typed b
 ordinary failures from active throttling without recording a submitted identity, credential, or
 throttle key. The collector rejects non-boolean values for either field.
 
+Every invalid submitted CSV upload, mapping, commit, or abandonment form now emits the same
+warning-level rejection event as its corresponding service-level validation failure. The event
+contains only its fixed identifier and, for an existing staged batch, its import reference;
+submitted form values, filenames, CSV cells, and validation messages are never logged. Each
+rejected request emits one event, including when the browser response is a normal form page or
+redirect rather than an HTTP error.
+
 The formatter redacts credential assignments, bearer material, email addresses, and long payment-
 card-like numbers. Producers must still minimize before logging: do not rely on redaction to make an
 unsafe message acceptable. Passwords, TOTP seeds/codes, recovery codes, sessions/cookies, CSRF
