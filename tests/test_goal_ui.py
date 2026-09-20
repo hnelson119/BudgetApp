@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.test import Client
 from django.urls import reverse
 
 from audit.models import AuditEvent
+from core.logging import RedactingJsonFormatter
 from goals.models import Goal, GoalContribution, GoalRevision
 from goals.services import GoalSpec, create_goal, preview_goal
 from households.models import Household, HouseholdMembership
@@ -341,6 +346,7 @@ def test_goal_detail_and_forms_are_scoped_to_active_household(
 def test_manual_goal_contribution_rejects_a_retried_submission_token(
     client: Client,
     goal_ui_context: GoalUiContext,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     goal = _service_goal(goal_ui_context, effective_from=date(2026, 8, 20))
     _mfa_ready(goal_ui_context.user)
@@ -355,7 +361,12 @@ def test_manual_goal_contribution_rejects_a_retried_submission_token(
     }
 
     accepted = client.post(url, payload)
-    retried = client.post(url, payload)
+    with caplog.at_level(logging.WARNING, logger="security"):
+        retried = client.post(
+            url,
+            payload,
+            headers={"X-Request-ID": "goal-contribution-replay"},
+        )
 
     assert accepted.status_code == 302
     assert retried.status_code == 200
@@ -366,6 +377,204 @@ def test_manual_goal_contribution_rejects_a_retried_submission_token(
         == 1
     )
     assert AuditEvent.objects.filter(action="goal.contribution_recorded").count() == 1
+    rejected = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "goal.contribution_rejected"
+    ]
+    assert len(rejected) == 1
+    assert rejected[0].error_reference == "goal-contribution-replay"  # type: ignore[attr-defined]
+
+
+@pytest.mark.django_db
+def test_invalid_goal_forms_emit_minimized_security_events(
+    client: Client,
+    goal_ui_context: GoalUiContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    goal = _service_goal(goal_ui_context, effective_from=date(2026, 8, 20))
+    _mfa_ready(goal_ui_context.user)
+    client.force_login(goal_ui_context.user)
+    canary = "PRIVATE_GOAL_REJECTION_CANARY"
+    requests = (
+        (reverse("goals:create"), {"name": canary, "reason": canary}, "goal-reject-create"),
+        (
+            reverse("goals:revise", args=(goal.pk,)),
+            {"name": canary, "reason": canary},
+            "goal-reject-revision",
+        ),
+        (
+            reverse("goals:status", args=(goal.pk, GoalRevision.Status.PAUSED)),
+            {"name": canary, "reason": canary},
+            "goal-reject-status",
+        ),
+        (
+            reverse("goals:contribute", args=(goal.pk,)),
+            {"name": canary, "reason": canary},
+            "goal-reject-contribution",
+        ),
+        (
+            reverse(
+                "goals:reserve-allocate",
+                args=(goal.pk, goal_ui_context.periods[0].pk),
+            ),
+            {"name": canary, "reason": canary},
+            "goal-reject-reserve",
+        ),
+        (
+            reverse("goals:priority-allocate", args=(goal_ui_context.periods[0].pk,)),
+            {"amount": "invalid", "reason": canary},
+            "goal-reject-priority",
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        responses = [
+            client.post(
+                url,
+                data,
+                headers={"X-Request-ID": request_id},
+            )
+            for url, data, request_id in requests
+        ]
+
+    assert [response.status_code for response in responses] == [200] * 6
+    expected_events = [
+        "goal.create_rejected",
+        "goal.revision_rejected",
+        "goal.status_rejected",
+        "goal.contribution_rejected",
+        "goal.reserve_allocation_rejected",
+        "goal.priority_allocation_rejected",
+    ]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert [record.error_reference for record in records] == [  # type: ignore[attr-defined]
+        request_id for _url, _data, request_id in requests
+    ]
+    assert all(record.levelno == logging.WARNING for record in records)
+    payloads = [json.loads(RedactingJsonFormatter().format(record)) for record in records]
+    assert all(canary not in json.dumps(payload) for payload in payloads)
+    assert all(
+        not {
+            "amount",
+            "name",
+            "notes",
+            "reason",
+            "goal_id",
+            "period_id",
+            "status",
+        }.intersection(payload)
+        for payload in payloads
+    )
+
+
+@pytest.mark.django_db
+def test_service_level_goal_rejections_emit_minimized_security_events(
+    client: Client,
+    goal_ui_context: GoalUiContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    goal = _service_goal(goal_ui_context, effective_from=date(2026, 8, 20))
+    _mfa_ready(goal_ui_context.user)
+    client.force_login(goal_ui_context.user)
+    canary = "PRIVATE_GOAL_SERVICE_REJECTION_CANARY"
+    create_payload = _payload(goal_ui_context)
+    create_payload["action"] = "preview"
+    workflows = (
+        (
+            "goals.views.preview_goal",
+            reverse("goals:create"),
+            create_payload,
+            "goal.create_rejected",
+            "goal-service-create",
+        ),
+        (
+            "goals.views.preview_goal",
+            reverse("goals:revise", args=(goal.pk,)),
+            {
+                "effective_from": "2026-08-23",
+                "name": "Synthetic revision",
+                "goal_type": GoalRevision.GoalType.SAVINGS,
+                "target_amount": "2500.00",
+                "target_date": "2027-08-20",
+                "contribution_per_period": "125.00",
+                "priority": "2",
+                "status": GoalRevision.Status.ACTIVE,
+                "source_account": str(goal_ui_context.checking.pk),
+                "destination_account": str(goal_ui_context.savings.pk),
+                "linked_debt": "",
+                "notes": "Synthetic notes",
+                "reason": "Synthetic revision",
+                "action": "preview",
+            },
+            "goal.revision_rejected",
+            "goal-service-revision",
+        ),
+        (
+            "goals.views.preview_goal",
+            reverse("goals:status", args=(goal.pk, GoalRevision.Status.PAUSED)),
+            {
+                "effective_from": "2026-08-23",
+                "status": GoalRevision.Status.PAUSED,
+                "reason": "Synthetic status change",
+            },
+            "goal.status_rejected",
+            "goal-service-status",
+        ),
+        (
+            "goals.views.record_goal_contribution",
+            reverse("goals:contribute", args=(goal.pk,)),
+            {
+                "submission_token": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                "pay_period": str(goal_ui_context.periods[0].pk),
+                "amount": "25.00",
+                "effective_date": "2026-08-23",
+                "reason": "Synthetic contribution",
+            },
+            "goal.contribution_rejected",
+            "goal-service-contribution",
+        ),
+        (
+            "goals.views.preview_reserve_allocation",
+            reverse(
+                "goals:reserve-allocate",
+                args=(goal.pk, goal_ui_context.periods[0].pk),
+            ),
+            {"amount": "25.00", "reason": "Synthetic reserve", "action": "preview"},
+            "goal.reserve_allocation_rejected",
+            "goal-service-reserve",
+        ),
+        (
+            "goals.views.preview_priority_allocation",
+            reverse("goals:priority-allocate", args=(goal_ui_context.periods[0].pk,)),
+            {"amount": "25.00", "reason": "Synthetic priority", "action": "preview"},
+            "goal.priority_allocation_rejected",
+            "goal-service-priority",
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        for target, url, data, _event, request_id in workflows:
+            with patch(target, side_effect=ValidationError(canary)):
+                response = client.post(
+                    url,
+                    data,
+                    headers={"X-Request-ID": request_id},
+                )
+            assert response.status_code == 200
+
+    expected_events = [event for _target, _url, _data, event, _request_id in workflows]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert [record.error_reference for record in records] == [  # type: ignore[attr-defined]
+        request_id for _target, _url, _data, _event, request_id in workflows
+    ]
+    assert all(canary not in RedactingJsonFormatter().format(record) for record in records)
 
 
 @pytest.mark.django_db
