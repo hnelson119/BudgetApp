@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
@@ -81,6 +82,7 @@ _STRATEGY_LABELS = {
     "avalanche": "Avalanche",
     "custom": "Custom priority",
 }
+security_logger = logging.getLogger("security")
 
 
 def _actor(request: HttpRequest) -> User:
@@ -180,10 +182,27 @@ def debt_create(request: HttpRequest) -> HttpResponse:
                 request_id=_request_id(request),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Debt account submission rejected.",
+                extra={
+                    "event": "debt.create_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, "Debt account and initial terms added.")
             return redirect("debts:detail", debt_id=debt.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Debt account submission rejected.",
+            extra={
+                "event": "debt.create_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "debts/debt_form.html",
@@ -457,10 +476,27 @@ def debt_edit(request: HttpRequest, debt_id: str) -> HttpResponse:
                 reason=form.cleaned_data["reason"],
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Debt account edit rejected.",
+                extra={
+                    "event": "debt.edit_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, "Debt account details updated with protected audit history.")
             return redirect("debts:detail", debt_id=updated.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Debt account edit rejected.",
+            extra={
+                "event": "debt.edit_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "debts/debt_form.html",
@@ -510,10 +546,27 @@ def debt_terms_create(request: HttpRequest, debt_id: str) -> HttpResponse:
                 reason=form.cleaned_data["reason"],
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Debt terms submission rejected.",
+                extra={
+                    "event": "debt.terms_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, f"Debt terms revision {revision.revision_number} added.")
             return redirect("debts:detail", debt_id=debt.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Debt terms submission rejected.",
+            extra={
+                "event": "debt.terms_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "debts/debt_form.html",
@@ -563,10 +616,27 @@ def debt_statement_create(request: HttpRequest, debt_id: str) -> HttpResponse:
                 request_id=_request_id(request),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Debt statement submission rejected.",
+                extra={
+                    "event": "debt.statement_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, "Lender statement reconciled and protected.")
             return redirect("debts:detail", debt_id=debt.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Debt statement submission rejected.",
+            extra={
+                "event": "debt.statement_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "debts/debt_form.html",
@@ -631,10 +701,27 @@ def debt_statement_correct(
                 request_id=_request_id(request),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Debt statement correction rejected.",
+                extra={
+                    "event": "debt.statement_correction_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, "Statement correction appended; the original was preserved.")
             return redirect("debts:detail", debt_id=debt.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Debt statement correction rejected.",
+            extra={
+                "event": "debt.statement_correction_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "debts/debt_form.html",
@@ -676,10 +763,27 @@ def debt_status(request: HttpRequest, debt_id: str, action: str) -> HttpResponse
                 reason=form.cleaned_data["reason"],
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Debt status change rejected.",
+                extra={
+                    "event": "debt.status_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, f"Debt status changed to {updated.get_status_display()}.")
             return redirect("debts:detail", debt_id=updated.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Debt status change rejected.",
+            extra={
+                "event": "debt.status_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "debts/debt_status.html",
