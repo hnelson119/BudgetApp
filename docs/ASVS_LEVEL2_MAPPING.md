@@ -1,7 +1,7 @@
 # OWASP ASVS 5.0.0 Level 2 mapping
 
 Status: requirement-level applicability complete; release verification pending  
-Last updated: 2026-09-13
+Last updated: 2026-09-20
 
 ## Scope and source integrity
 
@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 153 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 21 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 154 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 20 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 21
+These are the clearest implementation or operational work items exposed by the mapping. The 20
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -318,9 +318,11 @@ cadence. See
 live host/provider verification remain pending. Invalid CSV lifecycle forms and rejected expense,
 income, card-payment, card-refund, transaction-reversal, goal-management, budget-configuration,
 occurrence-management, reserve-allocation, fixed-expense schedule, general debt-management,
-mortgage-management, financial-account setup, and notification-preference submissions now produce
-minimized warning events, but `v5.0.0-16.3.3` remains partial pending the complete documented
-bypass-event review and release-candidate observation.
+mortgage-management, financial-account setup, and notification-preference submissions produce
+minimized warning events. Together with authorization-denial events and authentication/recovery
+events that retain only explicit anti-automation outcomes, this implements the documented
+`v5.0.0-16.3.3` repository boundary. Dated release-candidate archive observation remains pending
+before verification.
 
 ## Applicability policy
 

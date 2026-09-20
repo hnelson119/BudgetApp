@@ -117,6 +117,18 @@ Rejected financial-account setup and notification-preference submissions use the
 warning contract. Account names, kinds, last-four values, notes, notification selections and
 thresholds, validation messages, and submitted values are excluded.
 
+### Security-control bypass coverage
+
+The 2026-09-20 source review covers all handled security-control bypass families in the current
+application: authorization denials; authentication, MFA, recovery, and reauthentication failures
+with explicit anti-automation outcomes; CSV lifecycle rejection; and every form-backed financial,
+goal, budget, debt, mortgage, account-setup, and notification-preference mutation. Automated tests
+exercise invalid forms and service-level business-rule failures and confirm fixed event identity,
+request correlation, warning severity, and exclusion of submitted values and validation text.
+Source-derived inventory validation rejects undocumented literal event drift. This implements the
+repository evidence boundary for ASVS `v5.0.0-16.3.3`; it does not replace dated release-candidate
+archive-delivery, retention, alert-review, and escalation observation.
+
 The formatter redacts credential assignments, bearer material, email addresses, and long payment-
 card-like numbers. Producers must still minimize before logging: do not rely on redaction to make an
 unsafe message acceptable. Passwords, TOTP seeds/codes, recovery codes, sessions/cookies, CSRF

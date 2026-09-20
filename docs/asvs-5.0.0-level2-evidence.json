@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-09-13",
+  "mapping_updated": "2026-09-20",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 153,
+      "implemented": 154,
       "not_applicable": 79,
-      "partial": 21
+      "partial": 20
     }
   },
   "requirements": [
@@ -4698,12 +4698,30 @@
       "level": 2,
       "description": "Verify that the application logs the security events that are defined in the documentation and also logs attempts to bypass the security controls, such as input validation, business logic, and anti-automation.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The documented security-event contract covers authorization denials, authentication and recovery failures with explicit anti-automation outcomes, and every handled invalid-form or service-level rejection across import, financial, goal, budget, debt, mortgage, and notification-preference mutations. Source-derived inventory validation and automated canary tests require fixed minimized events without submitted values or validation text; dated release-candidate archive observation remains pending before verification.",
       "evidence": [
-        "core/logging.py",
+        "docs/LOGGING_INVENTORY.md",
+        "docs/logging-inventory.json",
+        "scripts/check_logging_inventory.py",
+        "core/middleware.py",
         "identity/views.py",
-        "tests/test_logging.py"
+        "imports/views.py",
+        "spending/views.py",
+        "goals/views.py",
+        "budgets/views.py",
+        "debts/views.py",
+        "notifications/views.py",
+        "tests/test_logging.py",
+        "tests/test_password_recovery.py",
+        "tests/test_csv_imports.py",
+        "tests/test_spending_ui.py",
+        "tests/test_goal_ui.py",
+        "tests/test_budget_dashboard.py",
+        "tests/test_debt_ui.py",
+        "tests/test_mortgage_ui.py",
+        "tests/test_notifications.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

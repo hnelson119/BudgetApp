@@ -286,9 +286,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 153,
+            "implemented": 154,
             "not_applicable": 79,
-            "partial": 21,
+            "partial": 20,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -333,6 +333,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-15.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-15.3.6"]["status"] == "implemented"
     assert requirements["v5.0.0-16.1.1"]["status"] == "implemented"
+    assert requirements["v5.0.0-16.3.3"]["status"] == "implemented"
     assert {item["id"] for item in evidence["security_tests"]} == set(range(1, 25))
     assert {item["id"] for item in evidence["release_gates"]} == set(range(1, 13))
     assert not any(
@@ -403,10 +404,11 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V16.1.1",
         "V16.2.3",
         "V16.3.2",
+        "V16.3.3",
         "V16.4.3",
     }
 
-    assert MAPPING_UPDATED == "2026-09-13"
+    assert MAPPING_UPDATED == "2026-09-20"
     assert not NOT_STARTED
     assert completed_m10 <= IMPLEMENTED_REQUIREMENTS
     assert set(IMPLEMENTED_ASSESSMENT_OVERRIDES) == completed_m10
