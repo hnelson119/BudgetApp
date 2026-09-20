@@ -618,6 +618,28 @@ directory or an encrypted assessment location outside the repository.
   and live archive delivery, retention, alert-review, and escalation checks are performed.
 - Exceptions or suppressions: none.
 
+## M10-F028 — Rejected budget-configuration mutations lacked security-stream events
+
+- Severity: Low
+- State: Remediated
+- Detected: 2026-09-19
+- Owner: release owner
+- Affected baseline: variable-budget creation, editing, deletion, and category-creation views
+- Detection: invalid configuration forms, stale-version conflicts, and service-level rejections
+  returned safe responses but did not create distinct security-archive events.
+- Security impact: budget invariants and optimistic concurrency remained enforced, but repeated
+  attempts to bypass those controls were harder to identify during security review.
+- Remediation: each rejected workflow now emits exactly one fixed warning event with only the HTTP
+  method, request error reference, and pseudonymous bound context. Planned amounts, category names,
+  notes, reasons, object references, version tokens, form errors, validation messages, and submitted
+  values are excluded.
+- Automated retest: `tests/test_budget_dashboard.py` covers all four invalid-form and service-level
+  rejection boundaries, fixed event order, request correlation, canary exclusion, confirmation
+  rejection, and safe stale-version handling.
+- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
+  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Exceptions or suppressions: none.
+
 ## 2026-09-02 synthetic upgrade and rollback baseline
 
 - The fixed disposable rehearsal wrote independently signed audit checkpoints and created an
