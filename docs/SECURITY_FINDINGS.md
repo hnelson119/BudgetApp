@@ -574,6 +574,27 @@ directory or an encrypted assessment location outside the repository.
   synthetic accounts. The repository tests are not a live release-candidate pass.
 - Exceptions or suppressions: none.
 
+## M10-F026 — Rejected financial mutations lacked security-stream events
+
+- Severity: Low
+- State: Remediated
+- Detected: 2026-09-19
+- Owner: release owner
+- Affected baseline: expense, income, card-payment, card-refund, and transaction-reversal views
+- Detection: invalid financial forms and service-level business-rule rejections returned safe
+  responses and operational request records, but did not create distinct security-archive events.
+- Security impact: financial invariants remained enforced and no unauthorized write was observed,
+  but repeated attempts to bypass those controls were harder to distinguish during security review.
+- Remediation: each rejected workflow now emits exactly one fixed warning event with only the HTTP
+  method, request error reference, and pseudonymous bound context. Amounts, descriptions, notes,
+  reasons, object references, form errors, and submitted values are excluded.
+- Automated retest: `tests/test_spending_ui.py` covers all five invalid-form boundaries, confirms
+  fixed event ordering and levels, verifies request correlation and canary exclusion, and separately
+  exercises service-level idempotency and business-rule rejections across all five workflows.
+- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
+  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Exceptions or suppressions: none.
+
 ## 2026-09-02 synthetic upgrade and rollback baseline
 
 - The fixed disposable rehearsal wrote independently signed audit checkpoints and created an

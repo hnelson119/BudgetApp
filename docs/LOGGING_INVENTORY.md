@@ -48,7 +48,7 @@ scope, and supersession data allowed by the relevant evidence schema.
 | Security-test output | Tool-native raw reports and sanitized evidence | Ignored/disposable paths and CI; sanitized findings in Git | Raw through triage, CI 90 days, sanitized Git history durable |
 
 The JSON inventory is authoritative for exact language. Its five event groups are generated from
-source literals and validated against the repository: 2 Django operational events, 24 Django
+source literals and validated against the repository: 2 Django operational events, 29 Django
 security events, 6 security-archive diagnostics, 83 protected audit actions, and 35 structured
 maintenance events. Adding, removing, or renaming a literal event without updating the inventory
 fails the local and CI gate.
@@ -80,6 +80,11 @@ contains only its fixed identifier and, for an existing staged batch, its import
 submitted form values, filenames, CSV cells, and validation messages are never logged. Each
 rejected request emits one event, including when the browser response is a normal form page or
 redirect rather than an HTTP error.
+
+Rejected expense, income, card-payment, card-refund, and transaction-reversal submissions follow
+the same rule. Invalid forms and service-level business-rule failures emit exactly one fixed
+warning event with the HTTP method and request error reference. Financial amounts, descriptions,
+notes, reasons, account or entry references, form errors, and submitted values are excluded.
 
 The formatter redacts credential assignments, bearer material, email addresses, and long payment-
 card-like numbers. Producers must still minimize before logging: do not rely on redaction to make an

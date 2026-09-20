@@ -311,11 +311,14 @@ event with only the method, resolved route, status, error reference, and pseudon
 Production sends redacted security JSON through a permission-restricted Unix socket to a distinct
 networkless collector; Django cannot mount or read its archive volume. The collector validates and
 redacts again, writes restrictive append-only records, creates minimized warning-or-higher alerts,
-and exposes safe delivery and validation failures. The validator derives 150 stable event entries,
+and exposes safe delivery and validation failures. The validator derives 155 stable event entries,
 verifies every Compose logging and collector isolation policy, and enforces evidence and review
 cadence. See
 `docs/LOGGING_INVENTORY.md`; release-candidate delivery, retention, alert review, escalation, and
-live host/provider verification remain pending.
+live host/provider verification remain pending. Invalid CSV lifecycle forms and rejected expense,
+income, card-payment, card-refund, and transaction-reversal submissions now produce minimized
+warning events, but `v5.0.0-16.3.3` remains partial pending the complete documented bypass-event
+review and release-candidate observation.
 
 ## Applicability policy
 

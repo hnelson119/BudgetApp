@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from typing import cast
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -14,6 +17,7 @@ from django.test import Client
 from django.urls import reverse
 
 from audit.models import AuditEvent
+from core.logging import RedactingJsonFormatter
 from households.models import Category, Household, HouseholdMembership
 from households.services.categories import create_category
 from identity.models import User
@@ -143,6 +147,7 @@ def test_spending_mutations_require_csrf_and_allowed_methods(
 def test_manual_expense_is_household_scoped_audited_and_idempotent(
     client: Client,
     spending_context: SpendingContext,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     _mfa_ready(spending_context.user)
     client.force_login(spending_context.user)
@@ -175,10 +180,224 @@ def test_manual_expense_is_household_scoped_audited_and_idempotent(
         entity_id=str(entry.pk),
     ).exists()
 
-    replay = client.post(reverse("spending:expense-create"), payload)
+    with caplog.at_level(logging.WARNING, logger="security"):
+        replay = client.post(
+            reverse("spending:expense-create"),
+            payload,
+            headers={"X-Request-ID": "expense-replay-request"},
+        )
     assert replay.status_code == 200
     assert b"already been used" in replay.content
     assert JournalEntry.objects.filter(description="Weekly groceries").count() == 1
+    rejected = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "spending.expense_rejected"
+    ]
+    assert len(rejected) == 1
+    assert rejected[0].error_reference == "expense-replay-request"  # type: ignore[attr-defined]
+
+
+@pytest.mark.django_db
+def test_invalid_financial_forms_emit_minimized_security_events(
+    client: Client,
+    spending_context: SpendingContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    card = create_financial_account(
+        household=spending_context.household,
+        actor=spending_context.user,
+        name="Event Test Card",
+        account_type=FinancialAccount.AccountType.CREDIT_CARD,
+        classification=FinancialAccount.Classification.LIABILITY,
+        request_id="event-test-card",
+    )
+    reversible = record_expense(
+        household=spending_context.household,
+        actor=spending_context.user,
+        account=spending_context.checking,
+        category=spending_context.category,
+        amount=Decimal("12.00"),
+        effective_at=datetime(2026, 8, 22, 12, tzinfo=ZoneInfo("America/New_York")),
+        description="Reversible event fixture",
+        request_id="reversible-event-fixture",
+    )
+    refundable = record_spending_expense(
+        household=spending_context.household,
+        actor=spending_context.user,
+        account=card,
+        category=spending_context.category,
+        amount=Decimal("15.00"),
+        effective_at=datetime(2026, 8, 22, 13, tzinfo=ZoneInfo("America/New_York")),
+        description="Refundable event fixture",
+        request_id="refundable-event-fixture",
+    )
+    _mfa_ready(spending_context.user)
+    client.force_login(spending_context.user)
+    canary = "PRIVATE_FINANCIAL_CANARY"
+    requests = (
+        (reverse("spending:expense-create"), "financial-reject-expense"),
+        (reverse("spending:income-create"), "financial-reject-income"),
+        (reverse("spending:card-payment-create", args=(card.pk,)), "financial-reject-payment"),
+        (
+            reverse("spending:transaction-reverse", args=(reversible.pk,)),
+            "financial-reject-reversal",
+        ),
+        (
+            reverse("spending:card-purchase-refund", args=(refundable.pk,)),
+            "financial-reject-refund",
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        responses = [
+            client.post(
+                url,
+                {"description": canary, "reason": canary},
+                headers={"X-Request-ID": request_id},
+            )
+            for url, request_id in requests
+        ]
+
+    assert [response.status_code for response in responses] == [200, 200, 200, 200, 200]
+    expected_events = [
+        "spending.expense_rejected",
+        "spending.income_rejected",
+        "spending.card_payment_rejected",
+        "spending.transaction_reversal_rejected",
+        "spending.card_refund_rejected",
+    ]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert [record.error_reference for record in records] == [  # type: ignore[attr-defined]
+        request_id for _url, request_id in requests
+    ]
+    assert all(record.levelno == logging.WARNING for record in records)
+    payloads = [json.loads(RedactingJsonFormatter().format(record)) for record in records]
+    assert all(canary not in json.dumps(payload) for payload in payloads)
+    assert all(
+        not {"amount", "description", "note", "reason", "entry_id"}.intersection(payload)
+        for payload in payloads
+    )
+
+
+@pytest.mark.django_db
+def test_service_level_financial_rejections_emit_minimized_security_events(
+    client: Client,
+    spending_context: SpendingContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    card = create_financial_account(
+        household=spending_context.household,
+        actor=spending_context.user,
+        name="Service Event Card",
+        account_type=FinancialAccount.AccountType.CREDIT_CARD,
+        classification=FinancialAccount.Classification.LIABILITY,
+        request_id="service-event-card",
+    )
+    reversible = record_expense(
+        household=spending_context.household,
+        actor=spending_context.user,
+        account=spending_context.checking,
+        category=spending_context.category,
+        amount=Decimal("12.00"),
+        effective_at=datetime(2026, 8, 22, 12, tzinfo=ZoneInfo("America/New_York")),
+        description="Service reversal fixture",
+        request_id="service-reversal-fixture",
+    )
+    refundable = record_spending_expense(
+        household=spending_context.household,
+        actor=spending_context.user,
+        account=card,
+        category=spending_context.category,
+        amount=Decimal("15.00"),
+        effective_at=datetime(2026, 8, 22, 13, tzinfo=ZoneInfo("America/New_York")),
+        description="Service refund fixture",
+        request_id="service-refund-fixture",
+    )
+    _mfa_ready(spending_context.user)
+    client.force_login(spending_context.user)
+    canary = "PRIVATE_SERVICE_REJECTION_CANARY"
+    workflows = (
+        (
+            "spending.views.record_income",
+            reverse("spending:income-create"),
+            {
+                "description": "Synthetic income",
+                "amount": "20.00",
+                "destination": str(spending_context.checking.pk),
+                "effective_date": "2026-08-23",
+                "effective_time": "09:00",
+                "note": "",
+                "submission_token": str(uuid.uuid4()),
+            },
+            "spending.income_rejected",
+            "service-reject-income",
+        ),
+        (
+            "spending.views.record_card_payment",
+            reverse("spending:card-payment-create", args=(card.pk,)),
+            {
+                "description": "Synthetic payment",
+                "amount": "20.00",
+                "source": str(spending_context.checking.pk),
+                "effective_date": "2026-08-23",
+                "effective_time": "09:00",
+                "note": "",
+                "submission_token": str(uuid.uuid4()),
+            },
+            "spending.card_payment_rejected",
+            "service-reject-payment",
+        ),
+        (
+            "spending.views.reverse_spending_entry",
+            reverse("spending:transaction-reverse", args=(reversible.pk,)),
+            {
+                "effective_date": "2026-08-23",
+                "effective_time": "09:00",
+                "reason": "Synthetic reversal",
+                "confirm": "on",
+            },
+            "spending.transaction_reversal_rejected",
+            "service-reject-reversal",
+        ),
+        (
+            "spending.views.record_card_purchase_refund",
+            reverse("spending:card-purchase-refund", args=(refundable.pk,)),
+            {
+                "amount": "5.00",
+                "effective_date": "2026-08-23",
+                "effective_time": "09:00",
+                "reason": "Synthetic refund",
+                "confirm": "on",
+                "submission_token": str(uuid.uuid4()),
+            },
+            "spending.card_refund_rejected",
+            "service-reject-refund",
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        for target, url, data, _event, request_id in workflows:
+            with patch(target, side_effect=ValidationError(canary)):
+                response = client.post(
+                    url,
+                    data,
+                    headers={"X-Request-ID": request_id},
+                )
+            assert response.status_code == 200
+
+    expected_events = [event for _target, _url, _data, event, _request_id in workflows]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert [record.error_reference for record in records] == [  # type: ignore[attr-defined]
+        request_id for _target, _url, _data, _event, request_id in workflows
+    ]
+    assert all(canary not in RedactingJsonFormatter().format(record) for record in records)
 
 
 @pytest.mark.django_db
