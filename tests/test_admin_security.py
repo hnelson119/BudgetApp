@@ -149,6 +149,30 @@ def test_stale_admin_session_cannot_change_a_password(
     assert redirected.request["PATH_INFO"] == reverse("identity:reauthenticate")
 
 
+def test_stale_admin_session_cannot_change_sensitive_account_attributes(
+    administrator: tuple[User, tuple[str, ...]],
+) -> None:
+    user, codes = administrator
+    client = Client()
+    _login(client, user, codes[0])
+    session = client.session
+    session[SESSION_AUTH_VERIFIED_AT] = int(time.time()) - settings.RECENT_AUTH_TIMEOUT_SECONDS
+    session.save()
+    original_email = user.email
+
+    response = client.post(
+        reverse("admin:identity_user_change", args=(user.pk,)),
+        {"email": "changed-administrator@example.com", "is_active": "on"},
+    )
+
+    assert response.status_code == 302
+    assert response.url.startswith(reverse("admin:login"))
+    user.refresh_from_db()
+    assert user.email == original_email
+    redirected = client.get(response.url, follow=True)
+    assert redirected.request["PATH_INFO"] == reverse("identity:reauthenticate")
+
+
 def test_non_staff_member_cannot_enter_or_loop_through_admin_login(
     administrator: tuple[User, tuple[str, ...]],
 ) -> None:

@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 154,
+      "implemented": 155,
       "not_applicable": 79,
-      "partial": 20
+      "partial": 19
     }
   },
   "requirements": [
@@ -2494,12 +2494,21 @@
       "level": 2,
       "description": "Verify that the application requires full re-authentication before allowing modifications to sensitive account attributes which may affect authentication such as email address, phone number, MFA configuration, or other information used in account recovery.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Sensitive authentication and recovery attributes have no ordinary profile-editing route. Password changes, email and account-authority changes, MFA or recovery changes, and password recovery each require the documented current password, fresh password-plus-MFA proof, trusted-console authority with session revocation, or a confirmed recovery factor before mutation. The application does not use phone numbers for authentication or recovery; release-candidate verification remains pending.",
       "evidence": [
-        "identity/services/sessions.py",
+        "docs/SESSION_SECURITY.md",
+        "identity/admin_site.py",
+        "identity/admin.py",
         "identity/views.py",
-        "tests/test_authentication.py"
+        "identity/services/sessions.py",
+        "identity/services/mfa.py",
+        "identity/management/commands/reset_user_mfa.py",
+        "tests/test_admin_security.py",
+        "tests/test_account_security.py",
+        "tests/test_mfa.py",
+        "tests/test_password_recovery.py",
+        "tests/test_identity_commands.py"
       ]
     },
     {

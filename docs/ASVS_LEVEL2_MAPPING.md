@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 154 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 20 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 155 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 19 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 20
+These are the clearest implementation or operational work items exposed by the mapping. The 19
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -140,6 +140,14 @@ Account lifecycle termination now implements `v5.0.0-7.4.2`. Disabling or deleti
 synchronously removes its authenticated and pending-MFA session records, including queryset
 deletion. A displaced browser is redirected to full login and receives secure client-state cleanup
 on its next request.
+
+Sensitive-account reauthentication now implements `v5.0.0-7.5.1`. Password, email, account
+authority, MFA, and recovery mutations are confined to boundaries that require the current
+password, fresh password-plus-MFA proof, a confirmed recovery factor, or trusted-console authority
+that revokes existing sessions. Confirmed MFA enrollment cannot be restarted from the browser, and
+the product does not use phone numbers for authentication or recovery. The exact inventory and
+proof requirements are in `docs/SESSION_SECURITY.md`; release-candidate verification remains
+pending.
 
 Redirect handling now implements `v5.0.0-3.7.2`. A response boundary permits same-authority
 redirects and only exact, explicitly allowlisted HTTPS external authorities. The private production
