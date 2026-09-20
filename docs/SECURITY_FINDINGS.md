@@ -703,6 +703,28 @@ directory or an encrypted assessment location outside the repository.
   and live archive delivery, retention, alert-review, and escalation checks are performed.
 - Exceptions or suppressions: none.
 
+## M10-F032 — Rejected mortgage mutations lacked security-stream events
+
+- Severity: Low
+- State: Remediated
+- Detected: 2026-09-20
+- Owner: release owner
+- Affected baseline: mortgage plan create/revise and one-off extra-principal views
+- Detection: invalid forms and service-level rejections returned safe responses but did not create
+  distinct security-archive events.
+- Security impact: mortgage schedule and occurrence invariants remained enforced and no
+  unauthorized write was observed, but repeated attempts to bypass those controls were harder to
+  identify.
+- Remediation: each rejected workflow now emits exactly one fixed warning event with only the HTTP
+  method and request error reference. Payment components, installment amounts and dates, adjustment
+  policies, reasons, debt or occurrence references, preview fingerprints, validation messages, and
+  submitted values are excluded.
+- Automated retest: `tests/test_mortgage_ui.py` covers all three invalid-form and service-level
+  rejection boundaries, fixed event order, request correlation, and canary exclusion.
+- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
+  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Exceptions or suppressions: none.
+
 ## 2026-09-02 synthetic upgrade and rollback baseline
 
 - The fixed disposable rehearsal wrote independently signed audit checkpoints and created an

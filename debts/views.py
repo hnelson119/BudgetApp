@@ -331,7 +331,24 @@ def mortgage_plan_create(request: HttpRequest, debt_id: str) -> HttpResponse:
                 return redirect("debts:detail", debt_id=debt.pk)
             form.fields["preview_fingerprint"].initial = preview.fingerprint
         except ValidationError as error:
+            security_logger.warning(
+                "Mortgage plan submission rejected.",
+                extra={
+                    "event": "mortgage.plan_create_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Mortgage plan submission rejected.",
+            extra={
+                "event": "mortgage.plan_create_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "debts/mortgage_plan_form.html",
@@ -383,7 +400,24 @@ def mortgage_plan_revise(request: HttpRequest, debt_id: str) -> HttpResponse:
                 return redirect("debts:detail", debt_id=debt.pk)
             form.fields["preview_fingerprint"].initial = preview.fingerprint
         except ValidationError as error:
+            security_logger.warning(
+                "Mortgage plan revision rejected.",
+                extra={
+                    "event": "mortgage.plan_revision_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Mortgage plan revision rejected.",
+            extra={
+                "event": "mortgage.plan_revision_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "debts/mortgage_plan_form.html",
@@ -427,6 +461,14 @@ def mortgage_extra_principal(request: HttpRequest, occurrence_id: str) -> HttpRe
                 reason=form.cleaned_data["reason"],
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Mortgage extra-principal submission rejected.",
+                extra={
+                    "event": "mortgage.extra_principal_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(
@@ -434,6 +476,15 @@ def mortgage_extra_principal(request: HttpRequest, occurrence_id: str) -> HttpRe
                 "One-off extra principal updated; future installments are unchanged.",
             )
             return redirect("budgets:detail", period_id=occurrence.pay_period_id)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Mortgage extra-principal submission rejected.",
+            extra={
+                "event": "mortgage.extra_principal_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "debts/mortgage_extra_principal.html",
