@@ -595,6 +595,29 @@ directory or an encrypted assessment location outside the repository.
   and live archive delivery, retention, alert-review, and escalation checks are performed.
 - Exceptions or suppressions: none.
 
+## M10-F027 — Rejected goal mutations lacked security-stream events
+
+- Severity: Low
+- State: Remediated
+- Detected: 2026-09-19
+- Owner: release owner
+- Affected baseline: goal creation, revision, status, contribution, reserve-allocation, and
+  priority-allocation views
+- Detection: invalid goal forms and service-level business-rule rejections returned safe responses
+  and operational request records, but did not create distinct security-archive events.
+- Security impact: goal and reserve invariants remained enforced and no unauthorized write was
+  observed, but repeated attempts to bypass those controls were harder to identify during review.
+- Remediation: each rejected workflow now emits exactly one fixed warning event with only the HTTP
+  method, request error reference, and pseudonymous bound context. Goal names, amounts, dates,
+  statuses, notes, reasons, account, goal, or period references, preview fingerprints, form errors,
+  validation messages, and submitted values are excluded.
+- Automated retest: `tests/test_goal_ui.py` covers all six invalid-form and service-level rejection
+  boundaries, verifies fixed ordering and warning levels, request correlation, canary exclusion,
+  and exactly one event for an idempotency replay.
+- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
+  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Exceptions or suppressions: none.
+
 ## 2026-09-02 synthetic upgrade and rollback baseline
 
 - The fixed disposable rehearsal wrote independently signed audit checkpoints and created an

@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "inventory_updated": "2026-09-18",
+  "inventory_updated": "2026-09-19",
   "review": {
     "owner": "release owner",
     "cadence_days": 90,
-    "next_review_due": "2026-12-17",
+    "next_review_due": "2026-12-18",
     "procedure": "docs/LOGGING_INVENTORY.md",
     "update_triggers": [
       "a log producer, event, format, destination, access rule, or retention rule changes",
@@ -28,7 +28,7 @@
   "summary": {
     "layers": 14,
     "event_groups": 5,
-    "event_entries": 155,
+    "event_entries": 161,
     "known_gaps": 2
   },
   "layers": [
@@ -501,6 +501,12 @@
         "auth.sessions_administrator_revoked",
         "auth.sessions_revoked",
         "authorization.denied",
+        "goal.contribution_rejected",
+        "goal.create_rejected",
+        "goal.priority_allocation_rejected",
+        "goal.reserve_allocation_rejected",
+        "goal.revision_rejected",
+        "goal.status_rejected",
         "import.abandon_rejected",
         "import.commit_rejected",
         "import.preview_rejected",

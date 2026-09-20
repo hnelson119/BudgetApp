@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
@@ -41,6 +42,8 @@ from identity.models import User
 from periods.models import PayPeriod
 from reserves.services import reserve_balance
 from schedules.models import Occurrence
+
+security_logger = logging.getLogger("security")
 
 
 def _actor(request: HttpRequest) -> User:
@@ -180,7 +183,24 @@ def goal_create(request: HttpRequest) -> HttpResponse:
                 )
                 return redirect("goals:detail", goal_id=goal.pk)
         except ValidationError as error:
+            security_logger.warning(
+                "Goal submission rejected.",
+                extra={
+                    "event": "goal.create_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Goal submission rejected.",
+            extra={
+                "event": "goal.create_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "goals/goal_form.html",
@@ -281,7 +301,24 @@ def goal_revise(request: HttpRequest, goal_id: str) -> HttpResponse:
                 )
                 return redirect("goals:detail", goal_id=goal.pk)
         except ValidationError as error:
+            security_logger.warning(
+                "Goal revision rejected.",
+                extra={
+                    "event": "goal.revision_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Goal revision rejected.",
+            extra={
+                "event": "goal.revision_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "goals/goal_form.html",
@@ -336,6 +373,14 @@ def goal_status(request: HttpRequest, goal_id: str, status: str) -> HttpResponse
                 reason=form.cleaned_data["reason"],
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Goal status change rejected.",
+                extra={
+                    "event": "goal.status_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(
@@ -343,6 +388,15 @@ def goal_status(request: HttpRequest, goal_id: str, status: str) -> HttpResponse
                 f"Goal status changed to {GoalRevision.Status(status).label}.",
             )
             return redirect("goals:detail", goal_id=goal.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Goal status change rejected.",
+            extra={
+                "event": "goal.status_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "goals/goal_status.html",
@@ -412,10 +466,27 @@ def goal_contribute(
                 occurrence=occurrence,
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Goal contribution rejected.",
+                extra={
+                    "event": "goal.contribution_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, "Goal contribution recorded as an account movement.")
             return redirect("goals:detail", goal_id=goal.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Goal contribution rejected.",
+            extra={
+                "event": "goal.contribution_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "goals/contribution_form.html",
@@ -464,7 +535,24 @@ def goal_reserve_allocate(
                 )
                 return redirect("goals:detail", goal_id=goal.pk)
         except ValidationError as error:
+            security_logger.warning(
+                "Goal reserve allocation rejected.",
+                extra={
+                    "event": "goal.reserve_allocation_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Goal reserve allocation rejected.",
+            extra={
+                "event": "goal.reserve_allocation_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "goals/reserve_allocation_form.html",
@@ -506,7 +594,24 @@ def priority_allocate(request: HttpRequest, period_id: str) -> HttpResponse:
                 messages.success(request, "Reserve allocated in protected goal-priority order.")
                 return redirect("goals:list")
         except ValidationError as error:
+            security_logger.warning(
+                "Goal priority allocation rejected.",
+                extra={
+                    "event": "goal.priority_allocation_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Goal priority allocation rejected.",
+            extra={
+                "event": "goal.priority_allocation_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "goals/priority_allocation_form.html",
