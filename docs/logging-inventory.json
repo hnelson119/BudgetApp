@@ -28,7 +28,7 @@
   "summary": {
     "layers": 14,
     "event_groups": 5,
-    "event_entries": 180,
+    "event_entries": 182,
     "known_gaps": 2
   },
   "layers": [
@@ -530,6 +530,8 @@
         "mortgage.extra_principal_rejected",
         "mortgage.plan_create_rejected",
         "mortgage.plan_revision_rejected",
+        "notification.preferences_rejected",
+        "spending.account_create_rejected",
         "spending.card_payment_rejected",
         "spending.card_refund_rejected",
         "spending.expense_rejected",

@@ -540,10 +540,27 @@ def account_create(request: HttpRequest) -> HttpResponse:
                 request_id=_request_id(request),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Financial account submission rejected.",
+                extra={
+                    "event": "spending.account_create_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, "Financial account added.")
             return redirect("spending:transaction-list")
+    elif request.method == "POST":
+        security_logger.warning(
+            "Financial account submission rejected.",
+            extra={
+                "event": "spending.account_create_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "spending/transaction_form.html",
