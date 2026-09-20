@@ -48,7 +48,7 @@ scope, and supersession data allowed by the relevant evidence schema.
 | Security-test output | Tool-native raw reports and sanitized evidence | Ignored/disposable paths and CI; sanitized findings in Git | Raw through triage, CI 90 days, sanitized Git history durable |
 
 The JSON inventory is authoritative for exact language. Its five event groups are generated from
-source literals and validated against the repository: 2 Django operational events, 54 Django
+source literals and validated against the repository: 2 Django operational events, 56 Django
 security events, 6 security-archive diagnostics, 83 protected audit actions, and 35 structured
 maintenance events. Adding, removing, or renaming a literal event without updating the inventory
 fails the local and CI gate.
@@ -112,6 +112,10 @@ Rejected mortgage-plan creation and revision and one-off extra-principal submiss
 fixed warning events. Payment components, installment amounts and dates, adjustment policies,
 reasons, debt or occurrence references, preview fingerprints, validation messages, and submitted
 values are excluded.
+
+Rejected financial-account setup and notification-preference submissions use the same fixed
+warning contract. Account names, kinds, last-four values, notes, notification selections and
+thresholds, validation messages, and submitted values are excluded.
 
 The formatter redacts credential assignments, bearer material, email addresses, and long payment-
 card-like numbers. Producers must still minimize before logging: do not rely on redaction to make an

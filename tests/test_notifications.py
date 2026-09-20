@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
+import logging
 import os
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -19,6 +22,7 @@ from django.utils import timezone
 
 from audit.models import AuditEvent
 from audit.services import append_event
+from core.logging import RedactingJsonFormatter
 from goals.models import GoalRevision
 from goals.services import GoalSpec, create_goal, preview_goal
 from households.models import Household, HouseholdMembership
@@ -601,6 +605,65 @@ def test_notification_ui_is_scoped_csrf_protected_and_updates_preferences(
     assert preference.upcoming_due_days == 5
     assert preference.missing_income_grace_days == 2
     assert AuditEvent.objects.filter(action="notification.preferences_updated").exists()
+
+
+@pytest.mark.django_db
+def test_notification_preference_rejections_emit_minimized_security_events(
+    client: Client,
+    notification_context: NotificationContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    client.force_login(notification_context.user)
+    url = reverse("notifications:preferences")
+    canary = "PRIVATE_NOTIFICATION_PREFERENCE_REJECTION_CANARY"
+    valid_payload = {
+        "due_alerts": "on",
+        "upcoming_due_days": "5",
+        "missing_income_alerts": "on",
+        "missing_income_grace_days": "2",
+        "deficit_alerts": "on",
+        "goal_alerts": "on",
+        "backup_alerts": "on",
+        "login_alerts": "on",
+        "integrity_alerts": "on",
+    }
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        invalid_response = client.post(
+            url,
+            {"upcoming_due_days": "31", "missing_income_grace_days": "31"},
+            headers={"X-Request-ID": "notification-preferences-form"},
+        )
+        with patch("notifications.views.update_preferences", side_effect=ValidationError(canary)):
+            service_response = client.post(
+                url,
+                valid_payload,
+                headers={"X-Request-ID": "notification-preferences-service"},
+            )
+
+    assert [invalid_response.status_code, service_response.status_code] == [200, 200]
+    records = [
+        record
+        for record in caplog.records
+        if getattr(record, "event", None) == "notification.preferences_rejected"
+    ]
+    assert len(records) == 2
+    assert [record.error_reference for record in records] == [  # type: ignore[attr-defined]
+        "notification-preferences-form",
+        "notification-preferences-service",
+    ]
+    payloads = [json.loads(RedactingJsonFormatter().format(record)) for record in records]
+    assert all(canary not in json.dumps(payload) for payload in payloads)
+    assert all(
+        not {
+            "backup_alerts",
+            "due_alerts",
+            "goal_alerts",
+            "missing_income_grace_days",
+            "upcoming_due_days",
+        }.intersection(payload)
+        for payload in payloads
+    )
 
 
 @pytest.mark.django_db

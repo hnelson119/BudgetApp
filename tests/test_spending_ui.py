@@ -238,6 +238,7 @@ def test_invalid_financial_forms_emit_minimized_security_events(
     requests = (
         (reverse("spending:expense-create"), "financial-reject-expense"),
         (reverse("spending:income-create"), "financial-reject-income"),
+        (reverse("spending:account-create"), "financial-reject-account"),
         (reverse("spending:card-payment-create", args=(card.pk,)), "financial-reject-payment"),
         (
             reverse("spending:transaction-reverse", args=(reversible.pk,)),
@@ -253,16 +254,22 @@ def test_invalid_financial_forms_emit_minimized_security_events(
         responses = [
             client.post(
                 url,
-                {"description": canary, "reason": canary},
+                {
+                    "description": canary,
+                    "name": canary,
+                    "notes": canary,
+                    "reason": canary,
+                },
                 headers={"X-Request-ID": request_id},
             )
             for url, request_id in requests
         ]
 
-    assert [response.status_code for response in responses] == [200, 200, 200, 200, 200]
+    assert [response.status_code for response in responses] == [200] * 6
     expected_events = [
         "spending.expense_rejected",
         "spending.income_rejected",
+        "spending.account_create_rejected",
         "spending.card_payment_rejected",
         "spending.transaction_reversal_rejected",
         "spending.card_refund_rejected",
@@ -278,7 +285,16 @@ def test_invalid_financial_forms_emit_minimized_security_events(
     payloads = [json.loads(RedactingJsonFormatter().format(record)) for record in records]
     assert all(canary not in json.dumps(payload) for payload in payloads)
     assert all(
-        not {"amount", "description", "note", "reason", "entry_id"}.intersection(payload)
+        not {
+            "amount",
+            "description",
+            "entry_id",
+            "last_four",
+            "name",
+            "note",
+            "notes",
+            "reason",
+        }.intersection(payload)
         for payload in payloads
     )
 
@@ -335,6 +351,18 @@ def test_service_level_financial_rejections_emit_minimized_security_events(
             },
             "spending.income_rejected",
             "service-reject-income",
+        ),
+        (
+            "spending.views.create_financial_account",
+            reverse("spending:account-create"),
+            {
+                "name": "Synthetic account",
+                "kind": FinancialAccountForm.Kind.SAVINGS,
+                "last_four": "1234",
+                "notes": "Synthetic notes",
+            },
+            "spending.account_create_rejected",
+            "service-reject-account",
         ),
         (
             "spending.views.record_card_payment",

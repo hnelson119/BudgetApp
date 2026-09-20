@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -19,6 +21,8 @@ from notifications.services import (
     refresh_household_notifications,
     update_preferences,
 )
+
+security_logger = logging.getLogger("security")
 
 
 def _actor(request: HttpRequest) -> User:
@@ -115,10 +119,27 @@ def preferences(request: HttpRequest) -> HttpResponse:
                 request_id=current_request_id(),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Notification preference submission rejected.",
+                extra={
+                    "event": "notification.preferences_rejected",
+                    "method": request.method,
+                    "error_reference": current_request_id(),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, "Notification preferences updated.")
             return redirect("notifications:list")
+    elif request.method == "POST":
+        security_logger.warning(
+            "Notification preference submission rejected.",
+            extra={
+                "event": "notification.preferences_rejected",
+                "method": request.method,
+                "error_reference": current_request_id(),
+            },
+        )
     return render(
         request,
         "notifications/preferences.html",
