@@ -55,6 +55,24 @@ Staff browser accounts must have an active household membership for the applicat
 flows. Initial enrollment and session-security reinitialization do not manufacture MFA proof;
 administration requires reauthentication when that proof is absent.
 
+## Sensitive account changes
+
+Account attributes that can affect authentication or recovery have no ordinary profile-editing
+route. Their supported mutation paths require the following proof before a change is accepted:
+
+| Attribute | Supported mutation boundary |
+| --- | --- |
+| Password | Self-service change requires a current password and authentication within the 10-minute password-plus-MFA freshness window. Public recovery requires a confirmed TOTP or unused recovery code, does not authenticate the requester, revokes prior sessions, and requires a fresh full login. |
+| Email address and account permissions or active state | Only staff can change these values through `SecureAdminSite`; every admin request requires an active staff account, completed MFA, explicit current-session MFA proof, and authentication within the 10-minute freshness window. |
+| MFA credential and recovery codes | Browser users cannot replace or restart a confirmed enrollment. Enrollment restart is available only while MFA remains unconfirmed. A trusted-console emergency reset clears the credential and revokes every session so the user must authenticate and enroll again. |
+| Phone number | The application does not collect or use a phone number for authentication or recovery. |
+
+The admin user editor also keeps session versions and authentication timestamps read-only. Tests
+exercise stale-session denial before password and email mutations, denial of confirmed-enrollment
+restart, full password-plus-factor reauthentication, recovery-factor password reset, and
+trusted-console reset session revocation. These repository controls do not claim that the pending
+release-candidate exercises have run.
+
 When deploying the fix for `M10-F024`, revoke all pre-upgrade authenticated and pending-MFA sessions
 from the trusted maintenance environment before restoring user traffic:
 

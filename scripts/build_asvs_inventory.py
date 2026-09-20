@@ -330,6 +330,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V7.4.3",
     "V7.4.4",
     "V7.4.5",
+    "V7.5.1",
     "V7.5.2",
     "V8.1.1",
     "V8.1.2",
@@ -570,6 +571,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "server-side version rotation, stored-session deletion, redacted security logging, and "
         "protected household audit events. Dated release-candidate replay verification remains "
         "pending."
+    ),
+    "V7.5.1": (
+        "Sensitive authentication and recovery attributes have no ordinary profile-editing route. "
+        "Password changes, email and account-authority changes, MFA or recovery changes, and "
+        "password recovery each require the documented current password, fresh password-plus-MFA "
+        "proof, trusted-console authority with session revocation, or a confirmed recovery factor "
+        "before mutation. The application does not use phone numbers for authentication or "
+        "recovery; release-candidate verification remains pending."
     ),
     "V7.5.2": (
         "Users can review their current-version server-side sessions and, after recent "
@@ -1048,6 +1057,20 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/INCIDENT_RESPONSE.md",
         "docs/ADVERSARIAL_TESTING.md#sess-03",
         "docs/SECURITY_FINDINGS.md#M10-F023",
+    ],
+    "V7.5.1": [
+        "docs/SESSION_SECURITY.md",
+        "identity/admin_site.py",
+        "identity/admin.py",
+        "identity/views.py",
+        "identity/services/sessions.py",
+        "identity/services/mfa.py",
+        "identity/management/commands/reset_user_mfa.py",
+        "tests/test_admin_security.py",
+        "tests/test_account_security.py",
+        "tests/test_mfa.py",
+        "tests/test_password_recovery.py",
+        "tests/test_identity_commands.py",
     ],
     "V7.5.2": [
         "identity/services/sessions.py",
