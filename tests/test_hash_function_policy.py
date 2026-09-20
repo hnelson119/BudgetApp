@@ -7,6 +7,7 @@ import sys
 from collections import Counter
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -24,7 +25,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = PROJECT_ROOT / "docs/hash-function-policy.json"
 
 
-def _load_policy() -> dict[str, object]:
+def _load_policy() -> dict[str, Any]:
     return json.loads(POLICY_PATH.read_text(encoding="utf-8"))
 
 
@@ -52,6 +53,18 @@ def test_hash_operation_inventory_is_source_derived() -> None:
     assert discover_non_python_hash_operations() == EXPECTED_NON_PYTHON_OPERATIONS
     assert sum(sum(items.values()) for items in EXPECTED_PYTHON_OPERATIONS.values()) == 33
     assert sum(sum(items.values()) for items in EXPECTED_NON_PYTHON_OPERATIONS.values()) == 2
+
+
+def test_data_authentication_and_integrity_hashes_have_collision_resistant_profiles() -> None:
+    policy = _load_policy()
+    approved = policy["approved_hash_functions"]
+
+    assert {item["id"] for item in approved} == {"sha256", "sha512"}
+    assert all(item["digest_bits"] >= 256 for item in approved)
+    for exception in policy["compatibility_exceptions"]:
+        restrictions = " ".join(exception["restrictions"])
+        assert "signatures" in restrictions
+        assert "integrity" in restrictions
 
 
 def test_hash_function_policy_rejects_tampering_and_stale_reviews() -> None:
