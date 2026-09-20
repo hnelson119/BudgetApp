@@ -654,10 +654,27 @@ def reserve_allocate(request: HttpRequest, period_id: str) -> HttpResponse:
                 request_id=_request_id(request),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Reserve allocation rejected.",
+                extra={
+                    "event": "budget.reserve_allocation_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             _add_domain_error(form, error)
         else:
             messages.success(request, "Reserve allocation recorded as protected history.")
             return redirect(reverse("core:home") + f"?period={period.pk}")
+    elif request.method == "POST":
+        security_logger.warning(
+            "Reserve allocation rejected.",
+            extra={
+                "event": "budget.reserve_allocation_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "budgets/form.html",
@@ -718,7 +735,24 @@ def fixed_expense_create(request: HttpRequest, period_id: str) -> HttpResponse:
                 return redirect(_budget_url(period))
             form.fields["preview_fingerprint"].initial = preview.fingerprint
         except ValidationError as error:
+            security_logger.warning(
+                "Fixed-expense schedule submission rejected.",
+                extra={
+                    "event": "budget.fixed_expense_schedule_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             _add_domain_error(form, error)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Fixed-expense schedule submission rejected.",
+            extra={
+                "event": "budget.fixed_expense_schedule_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "budgets/fixed_expense_form.html",

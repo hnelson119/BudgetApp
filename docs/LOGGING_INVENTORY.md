@@ -48,7 +48,7 @@ scope, and supersession data allowed by the relevant evidence schema.
 | Security-test output | Tool-native raw reports and sanitized evidence | Ignored/disposable paths and CI; sanitized findings in Git | Raw through triage, CI 90 days, sanitized Git history durable |
 
 The JSON inventory is authoritative for exact language. Its five event groups are generated from
-source literals and validated against the repository: 2 Django operational events, 43 Django
+source literals and validated against the repository: 2 Django operational events, 45 Django
 security events, 6 security-archive diagnostics, 83 protected audit actions, and 35 structured
 maintenance events. Adding, removing, or renaming a literal event without updating the inventory
 fails the local and CI gate.
@@ -98,6 +98,10 @@ references, version tokens, form errors, validation messages, and submitted valu
 Rejected occurrence edits, moves, cancellations, and reconciliations also emit fixed warning
 events. Planned and actual amounts, reasons, scopes, occurrence, period, and journal-entry
 references, form errors, validation messages, and submitted values are excluded.
+
+Rejected household-reserve allocations and fixed-expense schedule submissions complete the budget
+view coverage. Amounts, allocation labels, schedule names and rules, categories, notes, reasons,
+period references, preview fingerprints, validation messages, and submitted values are excluded.
 
 The formatter redacts credential assignments, bearer material, email addresses, and long payment-
 card-like numbers. Producers must still minimize before logging: do not rely on redaction to make an

@@ -138,12 +138,12 @@ def test_logging_inventory_is_complete_and_source_derived() -> None:
     assert inventory["summary"] == {
         "layers": 14,
         "event_groups": 5,
-        "event_entries": 169,
+        "event_entries": 171,
         "known_gaps": 2,
     }
     groups = {item["id"]: item for item in inventory["event_groups"]}
     assert len(groups["django-operational-events"]["events"]) == 2
-    assert len(groups["django-security-events"]["events"]) == 43
+    assert len(groups["django-security-events"]["events"]) == 45
     assert len(groups["security-archive-events"]["events"]) == 6
     assert len(groups["protected-audit-actions"]["events"]) == 83
     assert len(groups["maintenance-events"]["events"]) == 35

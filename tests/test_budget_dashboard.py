@@ -709,6 +709,121 @@ def test_service_level_occurrence_rejections_emit_minimized_security_events(
 
 
 @pytest.mark.django_db
+def test_invalid_reserve_and_schedule_forms_emit_minimized_security_events(
+    client,
+    budget_context: BudgetContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:  # type: ignore[no-untyped-def]
+    _mfa_ready(budget_context.user)
+    client.force_login(budget_context.user)
+    canary = "PRIVATE_RESERVE_SCHEDULE_REJECTION_CANARY"
+    requests = (
+        (
+            reverse("budgets:reserve-allocate", args=(budget_context.period.pk,)),
+            "budget-reserve-reject",
+        ),
+        (
+            reverse("budgets:fixed-create", args=(budget_context.period.pk,)),
+            "budget-schedule-reject",
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        responses = [
+            client.post(
+                url,
+                {"reason": canary, "notes": canary},
+                headers={"X-Request-ID": request_id},
+            )
+            for url, request_id in requests
+        ]
+
+    assert [response.status_code for response in responses] == [200, 200]
+    expected_events = [
+        "budget.reserve_allocation_rejected",
+        "budget.fixed_expense_schedule_rejected",
+    ]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert [record.error_reference for record in records] == [  # type: ignore[attr-defined]
+        request_id for _url, request_id in requests
+    ]
+    payloads = [json.loads(RedactingJsonFormatter().format(record)) for record in records]
+    assert all(canary not in json.dumps(payload) for payload in payloads)
+    assert all(
+        not {
+            "amount",
+            "name",
+            "notes",
+            "reason",
+            "category_id",
+            "period_id",
+            "preview_fingerprint",
+        }.intersection(payload)
+        for payload in payloads
+    )
+
+
+@pytest.mark.django_db
+def test_service_level_reserve_and_schedule_rejections_emit_minimized_events(
+    client,
+    budget_context: BudgetContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:  # type: ignore[no-untyped-def]
+    _mfa_ready(budget_context.user)
+    client.force_login(budget_context.user)
+    canary = "PRIVATE_RESERVE_SCHEDULE_SERVICE_CANARY"
+    schedule_payload = {
+        "name": "Synthetic schedule",
+        "category": str(budget_context.category.pk),
+        "expected_amount": "85.00",
+        "frequency": Frequency.ONCE.value,
+        "interval": "1",
+        "start_date": "2026-08-22",
+        "end_date": "",
+        "day_of_month": "",
+        "weekday": "",
+        "ordinal": "",
+        "month_of_year": "",
+        "adjustment_policy": BusinessDayAdjustment.PREVIOUS.value,
+        "is_required": "on",
+        "notes": "Synthetic schedule",
+        "action": "preview",
+    }
+    workflows = (
+        (
+            "budgets.views.allocate_reserve",
+            reverse("budgets:reserve-allocate", args=(budget_context.period.pk,)),
+            {"amount": "25.00", "allocation_label": "Synthetic", "reason": "Synthetic"},
+            "budget.reserve_allocation_rejected",
+            "budget-reserve-service-reject",
+        ),
+        (
+            "budgets.views.preview_revision",
+            reverse("budgets:fixed-create", args=(budget_context.period.pk,)),
+            schedule_payload,
+            "budget.fixed_expense_schedule_rejected",
+            "budget-schedule-service-reject",
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        for target, url, data, _event, request_id in workflows:
+            with patch(target, side_effect=ValidationError(canary)):
+                response = client.post(url, data, headers={"X-Request-ID": request_id})
+            assert response.status_code == 200
+
+    expected_events = [event for _target, _url, _data, event, _request_id in workflows]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert all(canary not in RedactingJsonFormatter().format(record) for record in records)
+
+
+@pytest.mark.django_db
 def test_reconciliation_links_actual_entry_and_is_append_only(
     budget_context: BudgetContext,
 ) -> None:
