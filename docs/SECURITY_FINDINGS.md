@@ -591,8 +591,9 @@ directory or an encrypted assessment location outside the repository.
 - Automated retest: `tests/test_spending_ui.py` covers all five invalid-form boundaries, confirms
   fixed event ordering and levels, verifies request correlation and canary exclusion, and separately
   exercises service-level idempotency and business-rule rejections across all five workflows.
-- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
-  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Release boundary: ASVS `v5.0.0-16.3.3` repository coverage is implemented as of 2026-09-20;
+  dated live archive delivery, retention, alert-review, and escalation checks remain required before
+  verification.
 - Exceptions or suppressions: none.
 
 ## M10-F027 — Rejected goal mutations lacked security-stream events
@@ -614,8 +615,9 @@ directory or an encrypted assessment location outside the repository.
 - Automated retest: `tests/test_goal_ui.py` covers all six invalid-form and service-level rejection
   boundaries, verifies fixed ordering and warning levels, request correlation, canary exclusion,
   and exactly one event for an idempotency replay.
-- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
-  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Release boundary: ASVS `v5.0.0-16.3.3` repository coverage is implemented as of 2026-09-20;
+  dated live archive delivery, retention, alert-review, and escalation checks remain required before
+  verification.
 - Exceptions or suppressions: none.
 
 ## M10-F028 — Rejected budget-configuration mutations lacked security-stream events
@@ -636,8 +638,9 @@ directory or an encrypted assessment location outside the repository.
 - Automated retest: `tests/test_budget_dashboard.py` covers all four invalid-form and service-level
   rejection boundaries, fixed event order, request correlation, canary exclusion, confirmation
   rejection, and safe stale-version handling.
-- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
-  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Release boundary: ASVS `v5.0.0-16.3.3` repository coverage is implemented as of 2026-09-20;
+  dated live archive delivery, retention, alert-review, and escalation checks remain required before
+  verification.
 - Exceptions or suppressions: none.
 
 ## M10-F029 — Rejected occurrence mutations lacked security-stream events
@@ -657,8 +660,9 @@ directory or an encrypted assessment location outside the repository.
   messages, and submitted values are excluded.
 - Automated retest: `tests/test_budget_dashboard.py` covers all four invalid-form and service-level
   rejection boundaries, fixed event order, request correlation, and canary exclusion.
-- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
-  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Release boundary: ASVS `v5.0.0-16.3.3` repository coverage is implemented as of 2026-09-20;
+  dated live archive delivery, retention, alert-review, and escalation checks remain required before
+  verification.
 - Exceptions or suppressions: none.
 
 ## M10-F030 — Rejected reserve and fixed-schedule mutations lacked security-stream events
@@ -678,8 +682,9 @@ directory or an encrypted assessment location outside the repository.
   form errors, validation messages, and submitted values are excluded.
 - Automated retest: `tests/test_budget_dashboard.py` covers both invalid-form and service-level
   rejection boundaries, fixed event order, request correlation, and canary exclusion.
-- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
-  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Release boundary: ASVS `v5.0.0-16.3.3` repository coverage is implemented as of 2026-09-20;
+  dated live archive delivery, retention, alert-review, and escalation checks remain required before
+  verification.
 - Exceptions or suppressions: none.
 
 ## M10-F031 — Rejected general debt mutations lacked security-stream events
@@ -699,8 +704,9 @@ directory or an encrypted assessment location outside the repository.
   values are excluded.
 - Automated retest: `tests/test_debt_ui.py` covers all six invalid-form and service-level rejection
   boundaries, fixed event order, request correlation, and canary exclusion.
-- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
-  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Release boundary: ASVS `v5.0.0-16.3.3` repository coverage is implemented as of 2026-09-20;
+  dated live archive delivery, retention, alert-review, and escalation checks remain required before
+  verification.
 - Exceptions or suppressions: none.
 
 ## M10-F032 — Rejected mortgage mutations lacked security-stream events
@@ -721,8 +727,9 @@ directory or an encrypted assessment location outside the repository.
   submitted values are excluded.
 - Automated retest: `tests/test_mortgage_ui.py` covers all three invalid-form and service-level
   rejection boundaries, fixed event order, request correlation, and canary exclusion.
-- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
-  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Release boundary: ASVS `v5.0.0-16.3.3` repository coverage is implemented as of 2026-09-20;
+  dated live archive delivery, retention, alert-review, and escalation checks remain required before
+  verification.
 - Exceptions or suppressions: none.
 
 ## M10-F033 — Rejected account setup and notification preferences lacked security-stream events
@@ -741,8 +748,9 @@ directory or an encrypted assessment location outside the repository.
   selections and thresholds, validation messages, and submitted values are excluded.
 - Automated retest: `tests/test_spending_ui.py` and `tests/test_notifications.py` cover invalid-form
   and service-level rejection boundaries, request correlation, and canary exclusion.
-- Release boundary: ASVS `v5.0.0-16.3.3` remains partial until the complete documented event review
-  and live archive delivery, retention, alert-review, and escalation checks are performed.
+- Release boundary: ASVS `v5.0.0-16.3.3` repository coverage is implemented as of 2026-09-20;
+  dated live archive delivery, retention, alert-review, and escalation checks remain required before
+  verification.
 - Exceptions or suppressions: none.
 
 ## 2026-09-02 synthetic upgrade and rollback baseline

@@ -1,7 +1,7 @@
 # Release hardening and evidence
 
 Status: Milestone 10 baseline in progress  
-Last updated: 2026-09-17
+Last updated: 2026-09-20
 
 ## Purpose
 
@@ -94,7 +94,7 @@ real household data.
 
 ## Current baseline gaps
 
-- The complete ASVS mapping resolves 253 Level 1/2 requirements: 153 implemented, 21 partial, 79
+- The complete ASVS mapping resolves 253 Level 1/2 requirements: 154 implemented, 20 partial, 79
   justified feature exclusions, and zero verified. Internal HTTP service TLS, purpose-specific
   trust, directory-listing prevention, TRACE rejection, operational-endpoint minimization, and
   non-browser plaintext rejection, and authenticated client-state cleanup are implemented; live

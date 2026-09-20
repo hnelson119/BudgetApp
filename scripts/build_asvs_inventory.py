@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-09-13"
+MAPPING_UPDATED = "2026-09-20"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -389,6 +389,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V16.2.5",
     "V16.3.1",
     "V16.3.2",
+    "V16.3.3",
     "V16.3.4",
     "V16.4.1",
     "V16.4.3",
@@ -756,6 +757,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "pseudonymous context; it excludes paths, queries, route arguments, object identifiers, "
         "and exception text, and expected permission or not-found outcomes are not labeled "
         "unhandled."
+    ),
+    "V16.3.3": (
+        "The documented security-event contract covers authorization denials, authentication and "
+        "recovery failures with explicit anti-automation outcomes, and every handled invalid-form "
+        "or service-level rejection across import, financial, goal, budget, debt, mortgage, and "
+        "notification-preference mutations. Source-derived inventory validation and automated "
+        "canary tests require fixed minimized events without submitted values or validation text; "
+        "dated release-candidate archive observation remains pending before verification."
     ),
     "V16.4.3": (
         "Production Django security records are sent over a permission-restricted Unix datagram "
@@ -1331,6 +1340,29 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/logging-inventory.json",
         "tests/urls.py",
         "tests/test_logging.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V16.3.3": [
+        "docs/LOGGING_INVENTORY.md",
+        "docs/logging-inventory.json",
+        "scripts/check_logging_inventory.py",
+        "core/middleware.py",
+        "identity/views.py",
+        "imports/views.py",
+        "spending/views.py",
+        "goals/views.py",
+        "budgets/views.py",
+        "debts/views.py",
+        "notifications/views.py",
+        "tests/test_logging.py",
+        "tests/test_password_recovery.py",
+        "tests/test_csv_imports.py",
+        "tests/test_spending_ui.py",
+        "tests/test_goal_ui.py",
+        "tests/test_budget_dashboard.py",
+        "tests/test_debt_ui.py",
+        "tests/test_mortgage_ui.py",
+        "tests/test_notifications.py",
         "tests/test_release_hardening.py",
     ],
     "V16.4.3": [
