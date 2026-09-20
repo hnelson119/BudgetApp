@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -23,6 +26,7 @@ from budgets.services.reconciliation import _positive_money
 from budgets.services.variable_budgets import _money as _budget_money
 from budgets.templatetags.budget_tags import money as display_money
 from budgets.templatetags.budget_tags import occurrence_status
+from core.logging import RedactingJsonFormatter
 from households.models import Category, Household, HouseholdMembership
 from households.services.categories import create_category
 from identity.models import User
@@ -404,6 +408,145 @@ def test_variable_budget_create_snapshot_upserts_once_and_rejects_a_replay(
     assert b"changed after the form was opened" in replayed.content
     assert budget.planned_amount == Decimal("125.00")
     assert AuditEvent.objects.filter(action="budget.variable_updated").count() == 1
+
+
+@pytest.mark.django_db
+def test_invalid_budget_configuration_forms_emit_minimized_security_events(
+    client,
+    budget_context: BudgetContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:  # type: ignore[no-untyped-def]
+    budget = set_variable_budget(
+        pay_period=budget_context.period,
+        category=budget_context.category,
+        planned_amount=Decimal("100.00"),
+        actor=budget_context.user,
+        request_id="budget-rejection-fixture",
+    )
+    _mfa_ready(budget_context.user)
+    client.force_login(budget_context.user)
+    canary = "PRIVATE_BUDGET_REJECTION_CANARY"
+    requests = (
+        (
+            reverse("budgets:variable-create", args=(budget_context.period.pk,)),
+            {"notes": canary},
+            "budget-reject-create",
+        ),
+        (
+            reverse("budgets:variable-edit", args=(budget.pk,)),
+            {"notes": canary},
+            "budget-reject-edit",
+        ),
+        (
+            reverse("budgets:variable-delete", args=(budget.pk,)),
+            {"reason": canary},
+            "budget-reject-delete",
+        ),
+        (
+            reverse("budgets:category-create", args=(budget_context.period.pk,)),
+            {"name": canary},
+            "budget-reject-category",
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        responses = [
+            client.post(url, data, headers={"X-Request-ID": request_id})
+            for url, data, request_id in requests
+        ]
+
+    assert [response.status_code for response in responses] == [200] * 4
+    expected_events = [
+        "budget.variable_create_rejected",
+        "budget.variable_edit_rejected",
+        "budget.variable_delete_rejected",
+        "budget.category_create_rejected",
+    ]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert [record.error_reference for record in records] == [  # type: ignore[attr-defined]
+        request_id for _url, _data, request_id in requests
+    ]
+    payloads = [json.loads(RedactingJsonFormatter().format(record)) for record in records]
+    assert all(canary not in json.dumps(payload) for payload in payloads)
+    assert all(
+        not {"amount", "name", "notes", "reason", "budget_id", "category_id"}.intersection(payload)
+        for payload in payloads
+    )
+
+
+@pytest.mark.django_db
+def test_service_level_budget_configuration_rejections_emit_minimized_events(
+    client,
+    budget_context: BudgetContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:  # type: ignore[no-untyped-def]
+    budget = set_variable_budget(
+        pay_period=budget_context.period,
+        category=budget_context.category,
+        planned_amount=Decimal("100.00"),
+        actor=budget_context.user,
+        request_id="budget-service-rejection-fixture",
+    )
+    _mfa_ready(budget_context.user)
+    client.force_login(budget_context.user)
+    create_url = reverse("budgets:variable-create", args=(budget_context.period.pk,))
+    snapshot = client.get(create_url).context["form"]["expected_version"].value()
+    canary = "PRIVATE_BUDGET_SERVICE_REJECTION_CANARY"
+    workflows = (
+        (
+            "budgets.views.set_variable_budget",
+            create_url,
+            {
+                "category": str(budget_context.category.pk),
+                "planned_amount": "125.00",
+                "notes": "Synthetic create",
+                "expected_version": snapshot,
+            },
+            "budget.variable_create_rejected",
+            "budget-service-create",
+        ),
+        (
+            "budgets.views.set_variable_budget",
+            reverse("budgets:variable-edit", args=(budget.pk,)),
+            {
+                "planned_amount": "125.00",
+                "notes": "Synthetic edit",
+                "expected_version": budget.updated_at.isoformat(),
+            },
+            "budget.variable_edit_rejected",
+            "budget-service-edit",
+        ),
+        (
+            "budgets.views.delete_variable_budget",
+            reverse("budgets:variable-delete", args=(budget.pk,)),
+            {"reason": "Synthetic delete", "confirm": "on"},
+            "budget.variable_delete_rejected",
+            "budget-service-delete",
+        ),
+        (
+            "budgets.views.create_category",
+            reverse("budgets:category-create", args=(budget_context.period.pk,)),
+            {"name": "Synthetic category", "color": "#49D6A6", "sort_order": "20"},
+            "budget.category_create_rejected",
+            "budget-service-category",
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        for target, url, data, _event, request_id in workflows:
+            with patch(target, side_effect=ValidationError(canary)):
+                response = client.post(url, data, headers={"X-Request-ID": request_id})
+            assert response.status_code == 200
+
+    expected_events = [event for _target, _url, _data, event, _request_id in workflows]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert all(canary not in RedactingJsonFormatter().format(record) for record in records)
 
 
 @pytest.mark.django_db

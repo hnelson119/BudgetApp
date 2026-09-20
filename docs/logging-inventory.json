@@ -28,7 +28,7 @@
   "summary": {
     "layers": 14,
     "event_groups": 5,
-    "event_entries": 161,
+    "event_entries": 165,
     "known_gaps": 2
   },
   "layers": [
@@ -501,6 +501,10 @@
         "auth.sessions_administrator_revoked",
         "auth.sessions_revoked",
         "authorization.denied",
+        "budget.category_create_rejected",
+        "budget.variable_create_rejected",
+        "budget.variable_delete_rejected",
+        "budget.variable_edit_rejected",
         "goal.contribution_rejected",
         "goal.create_rejected",
         "goal.priority_allocation_rejected",

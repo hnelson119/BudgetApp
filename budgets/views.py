@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
 from typing import Any
 from uuid import UUID
@@ -47,6 +48,7 @@ from schedules.services import (
 )
 
 _VARIABLE_BUDGET_VERSION_SALT = "budgets.variable-create-versions.v1"
+security_logger = logging.getLogger("security")
 
 
 def _request_id(request: HttpRequest) -> str:
@@ -192,10 +194,27 @@ def variable_budget_create(request: HttpRequest, period_id: str) -> HttpResponse
                 expected_version=expected_version,
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Variable budget submission rejected.",
+                extra={
+                    "event": "budget.variable_create_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             _add_domain_error(form, error)
         else:
             messages.success(request, "Category budget saved.")
             return redirect(_budget_url(period))
+    elif request.method == "POST":
+        security_logger.warning(
+            "Variable budget submission rejected.",
+            extra={
+                "event": "budget.variable_create_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "budgets/form.html",
@@ -240,10 +259,27 @@ def variable_budget_edit(request: HttpRequest, budget_id: str) -> HttpResponse:
                 expected_version=form.cleaned_data["expected_version"],
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Variable budget edit rejected.",
+                extra={
+                    "event": "budget.variable_edit_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             _add_domain_error(form, error)
         else:
             messages.success(request, "Category budget updated for this paycheck period.")
             return redirect(_budget_url(budget.pay_period))
+    elif request.method == "POST":
+        security_logger.warning(
+            "Variable budget edit rejected.",
+            extra={
+                "event": "budget.variable_edit_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "budgets/form.html",
@@ -271,6 +307,14 @@ def variable_budget_delete(request: HttpRequest, budget_id: str) -> HttpResponse
         reason = request.POST.get("reason", "")[:500]
         confirmed = request.POST.get("confirm") == "on"
         if not confirmed:
+            security_logger.warning(
+                "Variable budget deletion rejected.",
+                extra={
+                    "event": "budget.variable_delete_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             error = "Confirm that you want to remove this period-specific budget."
         else:
             try:
@@ -281,6 +325,14 @@ def variable_budget_delete(request: HttpRequest, budget_id: str) -> HttpResponse
                     reason=reason,
                 )
             except ValidationError as exception:
+                security_logger.warning(
+                    "Variable budget deletion rejected.",
+                    extra={
+                        "event": "budget.variable_delete_rejected",
+                        "method": request.method,
+                        "error_reference": _request_id(request),
+                    },
+                )
                 error = "; ".join(exception.messages)
             else:
                 messages.success(request, "Category budget removed. The audit record was retained.")
@@ -314,10 +366,27 @@ def category_create(request: HttpRequest, period_id: str) -> HttpResponse:
                 request_id=_request_id(request),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Category submission rejected.",
+                extra={
+                    "event": "budget.category_create_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             _add_domain_error(form, error)
         else:
             messages.success(request, "Spending category created.")
             return redirect(reverse("budgets:variable-create", args=(period.pk,)))
+    elif request.method == "POST":
+        security_logger.warning(
+            "Category submission rejected.",
+            extra={
+                "event": "budget.category_create_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "budgets/form.html",
