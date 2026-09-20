@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 155,
+      "implemented": 156,
       "not_applicable": 79,
-      "partial": 19
+      "partial": 18
     }
   },
   "requirements": [
@@ -3568,13 +3568,22 @@
       "level": 2,
       "description": "Verify that hash functions used in digital signatures, as part of data authentication or data integrity are collision resistant and have appropriate bit-lengths. If collision resistance is required, the output length must be at least 256 bits. If only resistance to second pre-image attacks is required, the output length must be at least 128 bits.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Every inventoried digital-signature, data-authentication, and data-integrity hash use selects SHA-256 or SHA-512 with at least 256 output bits. The fail-closed hash policy rejects dynamic and unapproved selections, verifies managed Django SHA-256 defaults, and confines six SHA-1 operations to RFC 6238 TOTP and offline password-corpus formats that explicitly prohibit signatures, collision resistance, and data integrity. Release-candidate verification of provider-managed profiles remains pending.",
       "evidence": [
-        "config/settings/base.py",
-        "identity/services/mfa.py",
+        "docs/HASH_FUNCTION_POLICY.md",
+        "docs/hash-function-policy.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "scripts/check_hash_function_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_hash_function_policy.py",
+        "tests/test_release_hardening.py",
+        "audit/checkpoints.py",
         "audit/services.py",
-        "tests/"
+        "identity/services/throttling.py",
+        "requirements-prod.lock"
       ]
     },
     {

@@ -7,8 +7,9 @@ Next scheduled review: 2026-12-12
 ## Boundary
 
 `docs/hash-function-policy.json` is the authoritative source inventory for ASVS
-`v5.0.0-11.4.1`. The application approves SHA-256 for general-purpose hashing, HMAC, framework
-signing, certificate signatures, and fixed-length derivation from already-random key material.
+`v5.0.0-11.4.1` and the authentication and integrity uses covered by `v5.0.0-11.4.3`. The
+application approves SHA-256 for general-purpose hashing, HMAC, framework signing, certificate
+signatures, and fixed-length derivation from already-random key material.
 SHA-512 is approved for npm dependency-integrity metadata. Both functions provide at least 256 bits
 of output; neither is approved as an unkeyed password hash or as proof of authenticity without a
 secret key or signature.
@@ -46,6 +47,13 @@ These exceptions do not authorize SHA-1 for password storage, signatures, conten
 collision resistance, key derivation, random generation, or a new protocol. Removing the TOTP or
 corpus compatibility dependency requires removing the matching exception and operation inventory in
 the same change.
+
+Every inventoried digital-signature, data-authentication, and data-integrity use outside those
+non-data-integrity compatibility formats selects SHA-256 or SHA-512 and retains the complete digest
+where collision resistance is required. Both approved functions have outputs of at least 256 bits.
+The checker rejects a new or dynamic algorithm selection, and the policy validator pins the digest
+length and prohibited-use rules that keep the compatibility exceptions out of signatures and data
+integrity. Release-candidate verification of provider-managed profiles remains pending.
 
 MD5 is prohibited for every cryptographic purpose. The sole occurrence is Django's fast
 `MD5PasswordHasher` in `config.settings.test`, isolated to synthetic in-memory unit tests and

@@ -346,6 +346,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V11.3.3",
     "V11.4.1",
     "V11.4.2",
+    "V11.4.3",
     "V11.5.1",
     "V12.1.3",
     "V12.2.1",
@@ -638,6 +639,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "test-only settings assignments, inventories all 14 credential hash/check operations "
         "across six production files, and rejects direct password-field writes or unreviewed "
         "hasher imports. The fast MD5 hasher is isolated to synthetic in-memory unit tests."
+    ),
+    "V11.4.3": (
+        "Every inventoried digital-signature, data-authentication, and data-integrity hash use "
+        "selects SHA-256 or SHA-512 with at least 256 output bits. The fail-closed hash policy "
+        "rejects dynamic and unapproved selections, verifies managed Django SHA-256 defaults, "
+        "and confines six SHA-1 operations to RFC 6238 TOTP and offline password-corpus formats "
+        "that explicitly prohibit signatures, collision resistance, and data integrity. "
+        "Release-candidate verification of provider-managed profiles remains pending."
     ),
     "V12.1.3": (
         "PostgreSQL validates every production client certificate against a dedicated client CA "
@@ -1161,6 +1170,21 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "tests/test_password_hashing_policy.py",
         "tests/test_production_settings.py",
         "tests/test_release_hardening.py",
+    ],
+    "V11.4.3": [
+        "docs/HASH_FUNCTION_POLICY.md",
+        "docs/hash-function-policy.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "scripts/check_hash_function_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_hash_function_policy.py",
+        "tests/test_release_hardening.py",
+        "audit/checkpoints.py",
+        "audit/services.py",
+        "identity/services/throttling.py",
+        "requirements-prod.lock",
     ],
     "V12.1.3": [
         "scripts/generate-postgres-tls.py",
