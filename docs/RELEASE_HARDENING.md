@@ -123,7 +123,7 @@ real household data.
   response-time boundaries, and twelve pinned implementation contracts. The application-worker
   timeout is explicit and remains shorter than the ingress upstream-read timeout. Maximum-load
   measurements and enforced CPU or memory quotas remain release work under `v5.0.0-15.2.2`.
-- The maintained logging inventory now covers all 14 current stack layers and 177 source-derived
+- The maintained logging inventory now covers all 14 current stack layers and 180 source-derived
   operational, security, protected-audit, and maintenance event entries. It records formats,
   destinations, uses, readers, retention, redaction, integrity/availability properties, and known
   limitations; its validator also enforces bounded Docker logging, the networkless collector and
@@ -131,9 +131,9 @@ real household data.
   validates/redacts records, writes to its collector-only archive, creates minimized alerts, and
   emits safe delivery/rejection diagnostics. Rejected CSV, core financial mutation, goal,
   budget-configuration, occurrence-management, reserve-allocation, fixed-expense schedule, and
-  general debt-management submissions now emit minimized fixed events without submitted financial
-  or form values. Live delivery, retention, alert review, escalation, and host/provider observations
-  remain pending; implementation is not release verification.
+  general debt-management, and mortgage-management submissions now emit minimized fixed events
+  without submitted financial or form values. Live delivery, retention, alert review, escalation,
+  and host/provider observations remain pending; implementation is not release verification.
 - The maintained CycloneDX inventory now derives 83 third-party components from exact locks,
   digest-pinned images, checksummed source, Go pins, and immutable workflow actions, and restricts
   them to six approved repository services. CI additionally retains image-resolved SBOMs for all

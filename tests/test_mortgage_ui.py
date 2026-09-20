@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import json
+import logging
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.test import Client
 from django.urls import reverse
 
 from audit.models import AuditEvent
+from core.logging import RedactingJsonFormatter
 from debts.models import DebtAccount, DebtTermsRevision, MortgagePaymentPlan
 from debts.services import DebtTermsSpec, create_debt_account
 from households.models import Household, HouseholdMembership
@@ -210,6 +215,160 @@ def test_extra_principal_ui_is_confirmed_scoped_and_one_way(
 
     client.force_login(outsider)
     assert client.get(url).status_code == 404
+
+
+@pytest.mark.django_db
+def test_invalid_mortgage_forms_emit_minimized_security_events(
+    client: Client,
+    mortgage_ui_context: tuple[Household, User, User, DebtAccount],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _, user, _, debt = mortgage_ui_context
+    _mfa_ready(user)
+    client.force_login(user)
+    canary = "PRIVATE_MORTGAGE_REJECTION_CANARY"
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        create_response = client.post(
+            reverse("debts:mortgage-plan-create", args=(debt.pk,)),
+            {"reason": canary},
+            headers={"X-Request-ID": "mortgage-reject-create"},
+        )
+        plan = _create_plan_through_ui(client, debt)
+        revise_response = client.post(
+            reverse("debts:mortgage-plan-revise", args=(debt.pk,)),
+            {"reason": canary},
+            headers={"X-Request-ID": "mortgage-reject-revise"},
+        )
+        occurrence = (
+            plan.revisions.get()
+            .installment_rules.get(installment_order=2)
+            .source.occurrences.get(expected_date=date(2026, 9, 18))
+        )
+        extra_response = client.post(
+            reverse("debts:mortgage-extra-principal", args=(occurrence.pk,)),
+            {"extra_principal": canary, "reason": canary},
+            headers={"X-Request-ID": "mortgage-reject-extra"},
+        )
+
+    assert [
+        create_response.status_code,
+        revise_response.status_code,
+        extra_response.status_code,
+    ] == [
+        200,
+        200,
+        200,
+    ]
+    expected_events = [
+        "mortgage.plan_create_rejected",
+        "mortgage.plan_revision_rejected",
+        "mortgage.extra_principal_rejected",
+    ]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert [record.error_reference for record in records] == [  # type: ignore[attr-defined]
+        "mortgage-reject-create",
+        "mortgage-reject-revise",
+        "mortgage-reject-extra",
+    ]
+    payloads = [json.loads(RedactingJsonFormatter().format(record)) for record in records]
+    assert all(canary not in json.dumps(payload) for payload in payloads)
+    assert all(
+        not {
+            "amount",
+            "debt_id",
+            "occurrence_id",
+            "preview_fingerprint",
+            "reason",
+        }.intersection(payload)
+        for payload in payloads
+    )
+
+
+@pytest.mark.django_db
+def test_service_level_mortgage_rejections_emit_minimized_security_events(
+    client: Client,
+    mortgage_ui_context: tuple[Household, User, User, DebtAccount],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _, user, _, debt = mortgage_ui_context
+    _mfa_ready(user)
+    client.force_login(user)
+    canary = "PRIVATE_MORTGAGE_SERVICE_REJECTION_CANARY"
+    create_url = reverse("debts:mortgage-plan-create", args=(debt.pk,))
+    create_payload = _payload()
+    create_preview = client.post(create_url, {**create_payload, "action": "preview"})
+    create_fingerprint = create_preview.context["preview"].fingerprint
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        with patch("debts.views.create_mortgage_plan", side_effect=ValidationError(canary)):
+            create_response = client.post(
+                create_url,
+                {
+                    **create_payload,
+                    "action": "confirm",
+                    "preview_fingerprint": create_fingerprint,
+                },
+                headers={"X-Request-ID": "mortgage-service-create"},
+            )
+
+        plan = _create_plan_through_ui(client, debt)
+        revise_url = reverse("debts:mortgage-plan-revise", args=(debt.pk,))
+        revise_payload = {**_payload(effective_from="2026-10-01"), "reason": "Servicer update"}
+        revise_preview = client.post(revise_url, {**revise_payload, "action": "preview"})
+        revise_fingerprint = revise_preview.context["preview"].fingerprint
+        with patch("debts.views.revise_mortgage_plan", side_effect=ValidationError(canary)):
+            revise_response = client.post(
+                revise_url,
+                {
+                    **revise_payload,
+                    "action": "confirm",
+                    "preview_fingerprint": revise_fingerprint,
+                },
+                headers={"X-Request-ID": "mortgage-service-revise"},
+            )
+
+        occurrence = (
+            plan.revisions.get()
+            .installment_rules.get(installment_order=2)
+            .source.occurrences.get(expected_date=date(2026, 9, 18))
+        )
+        with patch(
+            "debts.views.set_one_off_extra_principal",
+            side_effect=ValidationError(canary),
+        ):
+            extra_response = client.post(
+                reverse("debts:mortgage-extra-principal", args=(occurrence.pk,)),
+                {
+                    "extra_principal": "100.00",
+                    "reason": "Use excess",
+                    "confirm": "on",
+                },
+                headers={"X-Request-ID": "mortgage-service-extra"},
+            )
+
+    assert [
+        create_response.status_code,
+        revise_response.status_code,
+        extra_response.status_code,
+    ] == [
+        200,
+        200,
+        200,
+    ]
+    expected_events = [
+        "mortgage.plan_create_rejected",
+        "mortgage.plan_revision_rejected",
+        "mortgage.extra_principal_rejected",
+    ]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert all(canary not in RedactingJsonFormatter().format(record) for record in records)
 
 
 @pytest.mark.django_db
