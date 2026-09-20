@@ -28,7 +28,7 @@
   "summary": {
     "layers": 14,
     "event_groups": 5,
-    "event_entries": 150,
+    "event_entries": 155,
     "known_gaps": 2
   },
   "layers": [
@@ -505,7 +505,12 @@
         "import.commit_rejected",
         "import.preview_rejected",
         "import.upload_rejected",
+        "spending.card_payment_rejected",
+        "spending.card_refund_rejected",
+        "spending.expense_rejected",
         "spending.export_integrity_blocked",
+        "spending.income_rejected",
+        "spending.transaction_reversal_rejected",
         "spending.transactions_exported"
       ]
     },

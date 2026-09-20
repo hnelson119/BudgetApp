@@ -426,10 +426,27 @@ def expense_create(request: HttpRequest) -> HttpResponse:
                 request_id=_request_id(request),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Expense submission rejected.",
+                extra={
+                    "event": "spending.expense_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, "Expense recorded in the protected ledger.")
             return redirect("spending:transaction-detail", entry_id=entry.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Expense submission rejected.",
+            extra={
+                "event": "spending.expense_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "spending/transaction_form.html",
@@ -466,10 +483,27 @@ def income_create(request: HttpRequest) -> HttpResponse:
                 request_id=_request_id(request),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Income submission rejected.",
+                extra={
+                    "event": "spending.income_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(request, "Income recorded in the protected ledger.")
             return redirect("spending:transaction-detail", entry_id=entry.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Income submission rejected.",
+            extra={
+                "event": "spending.income_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "spending/transaction_form.html",
@@ -560,6 +594,14 @@ def card_payment_create(request: HttpRequest, account_id: str) -> HttpResponse:
                 request_id=_request_id(request),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Card payment submission rejected.",
+                extra={
+                    "event": "spending.card_payment_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(
@@ -570,6 +612,15 @@ def card_payment_create(request: HttpRequest, account_id: str) -> HttpResponse:
                 "spending:transaction-detail",
                 entry_id=result.journal_entry.pk,
             )
+    elif request.method == "POST":
+        security_logger.warning(
+            "Card payment submission rejected.",
+            extra={
+                "event": "spending.card_payment_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "spending/transaction_form.html",
@@ -661,6 +712,14 @@ def transaction_reverse(request: HttpRequest, entry_id: str) -> HttpResponse:
                 reason=form.cleaned_data["reason"],
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Transaction reversal rejected.",
+                extra={
+                    "event": "spending.transaction_reversal_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(
@@ -668,6 +727,15 @@ def transaction_reverse(request: HttpRequest, entry_id: str) -> HttpResponse:
                 "Full refund/reversal recorded; the original remains visible.",
             )
             return redirect("spending:transaction-detail", entry_id=reversal.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Transaction reversal rejected.",
+            extra={
+                "event": "spending.transaction_reversal_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "spending/transaction_reverse.html",
@@ -712,6 +780,14 @@ def card_purchase_refund(request: HttpRequest, entry_id: str) -> HttpResponse:
                 idempotency_key=form.idempotency_key(),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Card refund submission rejected.",
+                extra={
+                    "event": "spending.card_refund_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             form.add_error(None, error)
         else:
             messages.success(
@@ -719,6 +795,15 @@ def card_purchase_refund(request: HttpRequest, entry_id: str) -> HttpResponse:
                 "Card refund recorded; spending, liability, and payment reserve were corrected.",
             )
             return redirect("spending:transaction-detail", entry_id=result.journal_entry.pk)
+    elif request.method == "POST":
+        security_logger.warning(
+            "Card refund submission rejected.",
+            extra={
+                "event": "spending.card_refund_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "spending/transaction_refund.html",
