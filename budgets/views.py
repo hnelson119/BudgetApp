@@ -430,12 +430,29 @@ def occurrence_edit(request: HttpRequest, occurrence_id: str) -> HttpResponse:
                 expected_date=form.cleaned_data["expected_date"],
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Occurrence edit rejected.",
+                extra={
+                    "event": "budget.occurrence_edit_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             _add_domain_error(form, error)
         else:
             messages.success(
                 request, "This paycheck-period item was updated; its schedule is unchanged."
             )
             return redirect(_budget_url(occurrence.pay_period))
+    elif request.method == "POST":
+        security_logger.warning(
+            "Occurrence edit rejected.",
+            extra={
+                "event": "budget.occurrence_edit_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "budgets/occurrence_form.html",
@@ -470,10 +487,27 @@ def occurrence_move_view(request: HttpRequest, occurrence_id: str) -> HttpRespon
                 reason=form.cleaned_data["reason"],
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Occurrence move rejected.",
+                extra={
+                    "event": "budget.occurrence_move_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             _add_domain_error(form, error)
         else:
             messages.success(request, "The item was moved once; future occurrences are unchanged.")
             return redirect(_budget_url(old_period))
+    elif request.method == "POST":
+        security_logger.warning(
+            "Occurrence move rejected.",
+            extra={
+                "event": "budget.occurrence_move_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "budgets/occurrence_form.html",
@@ -512,10 +546,27 @@ def occurrence_cancel_view(request: HttpRequest, occurrence_id: str) -> HttpResp
                 )
                 message = "Only this occurrence was cancelled."
         except ValidationError as error:
+            security_logger.warning(
+                "Occurrence cancellation rejected.",
+                extra={
+                    "event": "budget.occurrence_cancel_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             _add_domain_error(form, error)
         else:
             messages.success(request, message)
             return redirect(_budget_url(occurrence.pay_period))
+    elif request.method == "POST":
+        security_logger.warning(
+            "Occurrence cancellation rejected.",
+            extra={
+                "event": "budget.occurrence_cancel_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "budgets/occurrence_form.html",
@@ -551,10 +602,27 @@ def occurrence_reconcile(request: HttpRequest, occurrence_id: str) -> HttpRespon
                 request_id=_request_id(request),
             )
         except ValidationError as error:
+            security_logger.warning(
+                "Occurrence reconciliation rejected.",
+                extra={
+                    "event": "budget.occurrence_reconcile_rejected",
+                    "method": request.method,
+                    "error_reference": _request_id(request),
+                },
+            )
             _add_domain_error(form, error)
         else:
             messages.success(request, "Actual transaction linked to the planned item.")
             return redirect(_budget_url(occurrence.pay_period))
+    elif request.method == "POST":
+        security_logger.warning(
+            "Occurrence reconciliation rejected.",
+            extra={
+                "event": "budget.occurrence_reconcile_rejected",
+                "method": request.method,
+                "error_reference": _request_id(request),
+            },
+        )
     return render(
         request,
         "budgets/occurrence_form.html",

@@ -550,6 +550,165 @@ def test_service_level_budget_configuration_rejections_emit_minimized_events(
 
 
 @pytest.mark.django_db
+def test_invalid_occurrence_forms_emit_minimized_security_events(
+    client,
+    budget_context: BudgetContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:  # type: ignore[no-untyped-def]
+    occurrence = _source_occurrence(
+        budget_context,
+        kind=RecurringSource.Kind.FIXED_EXPENSE,
+        name="Occurrence rejection fixture",
+        amount="25.00",
+        category=budget_context.category,
+    )
+    _mfa_ready(budget_context.user)
+    client.force_login(budget_context.user)
+    canary = "PRIVATE_OCCURRENCE_REJECTION_CANARY"
+    requests = (
+        (
+            reverse("budgets:occurrence-edit", args=(occurrence.pk,)),
+            "budget-occurrence-reject-edit",
+        ),
+        (
+            reverse("budgets:occurrence-move", args=(occurrence.pk,)),
+            "budget-occurrence-reject-move",
+        ),
+        (
+            reverse("budgets:occurrence-cancel", args=(occurrence.pk,)),
+            "budget-occurrence-reject-cancel",
+        ),
+        (
+            reverse("budgets:occurrence-reconcile", args=(occurrence.pk,)),
+            "budget-occurrence-reject-reconcile",
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        responses = [
+            client.post(
+                url,
+                {"reason": canary},
+                headers={"X-Request-ID": request_id},
+            )
+            for url, request_id in requests
+        ]
+
+    assert [response.status_code for response in responses] == [200] * 4
+    expected_events = [
+        "budget.occurrence_edit_rejected",
+        "budget.occurrence_move_rejected",
+        "budget.occurrence_cancel_rejected",
+        "budget.occurrence_reconcile_rejected",
+    ]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert [record.error_reference for record in records] == [  # type: ignore[attr-defined]
+        request_id for _url, request_id in requests
+    ]
+    payloads = [json.loads(RedactingJsonFormatter().format(record)) for record in records]
+    assert all(canary not in json.dumps(payload) for payload in payloads)
+    assert all(
+        not {
+            "amount",
+            "reason",
+            "occurrence_id",
+            "period_id",
+            "entry_id",
+            "scope",
+        }.intersection(payload)
+        for payload in payloads
+    )
+
+
+@pytest.mark.django_db
+def test_service_level_occurrence_rejections_emit_minimized_security_events(
+    client,
+    budget_context: BudgetContext,
+    caplog: pytest.LogCaptureFixture,
+) -> None:  # type: ignore[no-untyped-def]
+    occurrence = _source_occurrence(
+        budget_context,
+        kind=RecurringSource.Kind.FIXED_EXPENSE,
+        name="Occurrence service rejection fixture",
+        amount="25.00",
+        category=budget_context.category,
+    )
+    target_period = PayPeriod.objects.create(
+        household=budget_context.household,
+        start_date=date(2026, 8, 27),
+        next_start_date=date(2026, 9, 3),
+        status=PayPeriod.Status.OPEN,
+        created_by=budget_context.user,
+    )
+    entry = record_expense(
+        household=budget_context.household,
+        actor=budget_context.user,
+        account=budget_context.checking,
+        category=budget_context.category,
+        amount=Decimal("25.00"),
+        effective_at=datetime(2026, 8, 22, 12, tzinfo=ZoneInfo("America/New_York")),
+        description="Synthetic reconciliation entry",
+        request_id="occurrence-service-entry",
+    )
+    _mfa_ready(budget_context.user)
+    client.force_login(budget_context.user)
+    canary = "PRIVATE_OCCURRENCE_SERVICE_REJECTION_CANARY"
+    workflows = (
+        (
+            "budgets.views.override_occurrence",
+            reverse("budgets:occurrence-edit", args=(occurrence.pk,)),
+            {
+                "planned_amount": "30.00",
+                "expected_date": "2026-08-22",
+                "reason": "Synthetic edit",
+            },
+            "budget.occurrence_edit_rejected",
+            "budget-occurrence-service-edit",
+        ),
+        (
+            "budgets.views.move_occurrence",
+            reverse("budgets:occurrence-move", args=(occurrence.pk,)),
+            {"target_period": str(target_period.pk), "reason": "Synthetic move"},
+            "budget.occurrence_move_rejected",
+            "budget-occurrence-service-move",
+        ),
+        (
+            "budgets.views.cancel_occurrence",
+            reverse("budgets:occurrence-cancel", args=(occurrence.pk,)),
+            {"scope": "one", "reason": "Synthetic cancellation", "confirm": "on"},
+            "budget.occurrence_cancel_rejected",
+            "budget-occurrence-service-cancel",
+        ),
+        (
+            "budgets.views.reconcile_occurrence",
+            reverse("budgets:occurrence-reconcile", args=(occurrence.pk,)),
+            {"journal_entry": str(entry.pk), "amount": "25.00"},
+            "budget.occurrence_reconcile_rejected",
+            "budget-occurrence-service-reconcile",
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="security"):
+        for target, url, data, _event, request_id in workflows:
+            with patch(target, side_effect=ValidationError(canary)):
+                response = client.post(url, data, headers={"X-Request-ID": request_id})
+            assert response.status_code == 200
+
+    expected_events = [event for _target, _url, _data, event, _request_id in workflows]
+    records = [
+        record for record in caplog.records if getattr(record, "event", None) in expected_events
+    ]
+    assert [record.event for record in records] == expected_events  # type: ignore[attr-defined]
+    assert [record.error_reference for record in records] == [  # type: ignore[attr-defined]
+        request_id for _target, _url, _data, _event, request_id in workflows
+    ]
+    assert all(canary not in RedactingJsonFormatter().format(record) for record in records)
+
+
+@pytest.mark.django_db
 def test_reconciliation_links_actual_entry_and_is_append_only(
     budget_context: BudgetContext,
 ) -> None:
