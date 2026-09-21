@@ -12,7 +12,8 @@ reader boundaries, retention, sensitive-data rules, integrity/availability prope
 limitations. This runbook explains maintenance and release review.
 
 Together they implement the repository-deliverable portions of ASVS `v5.0.0-16.1.1`,
-`v5.0.0-16.2.3`, `v5.0.0-16.3.2`, and `v5.0.0-16.4.3`. They do not claim a release-candidate pass.
+`v5.0.0-16.2.3`, `v5.0.0-16.3.2`, `v5.0.0-16.4.2`, and `v5.0.0-16.4.3`. They do not claim a
+release-candidate pass.
 Production sends a second copy of each Django security record through a permission-restricted Unix
 datagram socket to a separate, networkless collector and collector-only archive volume. The
 application cannot mount or read that archive. Live retention, alert review, escalation, and
@@ -142,6 +143,21 @@ or exception. The collector accepts only the security stream, approved logger an
 timestamps, stable event identifiers, and bounded sizes, then applies redaction again before an
 append-only, mode-0600, fsynced write. Warning-or-higher records also create a minimized alert row.
 Unknown, malformed, unsafe, or unapproved records are rejected with a fixed local diagnostic.
+
+### Archive access and modification boundary
+
+Only the dedicated UID 10003 collector mounts `security_log_archive`; the web application receives
+only the socket volume and therefore cannot read, replace, truncate, or delete archived records.
+The collector runs networkless with a read-only root filesystem, all capabilities dropped, and
+`no-new-privileges`. It requires an owned, real mode-0700 archive directory and opens only owned
+regular files with append, close-on-exec, and no-follow semantics. Each archive file is forced to
+mode 0600 and every newline-delimited write is completed and fsynced. Regression tests prove that
+successive records are preserved rather than overwritten and assert the Linux file modes.
+
+These controls protect the archive from the application identity and other unprivileged container
+identities; they do not claim immutability against an authorized root or Docker administrator. The
+release process must still inspect the effective UID, mounts, ownership, modes, and retained
+history on the selected host before marking the requirement verified.
 
 The inventory validator also enforces the destination allowlist. Django may use only the documented
 console, null, and security-archive handlers and their fixed logger routes. Application logger names

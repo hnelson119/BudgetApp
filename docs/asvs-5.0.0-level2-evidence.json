@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 156,
+      "implemented": 157,
       "not_applicable": 79,
-      "partial": 18
+      "partial": 17
     }
   },
   "requirements": [
@@ -4788,12 +4788,19 @@
       "level": 2,
       "description": "Verify that logs are protected from unauthorized access and cannot be modified.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Only the networkless UID 10003 collector mounts the security archive; Django has only the socket volume and cannot read or modify archived records. The collector requires an owned real mode-0700 directory, opens owned regular files with append and no-follow semantics, forces mode 0600, and fsyncs complete newline-delimited records. Dated host ownership, mode, and retention observation remains pending before verification.",
       "evidence": [
-        "core/logging.py",
-        "audit/services.py",
-        "docs/ASVS_LEVEL2_MAPPING.md"
+        "core/security_log_collector.py",
+        "config/settings/production.py",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "docs/logging-inventory.json",
+        "docs/LOGGING_INVENTORY.md",
+        "scripts/check_logging_inventory.py",
+        "tests/test_security_log_archive.py",
+        "tests/test_network_boundary.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {
