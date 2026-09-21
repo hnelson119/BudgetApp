@@ -146,8 +146,10 @@ separate `django_mfa_encryption_key` secret; recovery codes are displayed once a
 password hashes are retained. The sign-in screen's recovery flow accepts a current authenticator
 code or one unused recovery code and never bypasses the next MFA challenge. If an authenticator and
 all recovery codes are lost, a VM
-administrator can run the interactive `reset_user_mfa <email> --reason "..."` command. That reset
-revokes every session, invalidates the old seed and codes, and creates a protected audit event.
+administrator can run the interactive
+`reset_user_mfa <email> --reason "..." --identity-proof-confirmed` command only after completing
+the same-assurance identity check in `docs/INCIDENT_RESPONSE.md`. That reset revokes every session,
+invalidates the old seed and codes, and creates a protected audit event.
 
 ### Local Docker verification on Windows
 

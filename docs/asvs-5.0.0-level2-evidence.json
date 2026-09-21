@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 157,
+      "implemented": 158,
       "not_applicable": 79,
-      "partial": 17
+      "partial": 16
     }
   },
   "requirements": [
@@ -1985,12 +1985,18 @@
       "level": 2,
       "description": "Verify that if a multi-factor authentication factor is lost, evidence of identity proofing is performed at the same level as during enrollment.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Lost-factor recovery is available only through the trusted console after a different household member directly confirms the affected person in person or from an already approved Tailscale device, matching the direct assurance used for initial provisioning. The command requires an explicit identity-proofing attestation, otherwise changes nothing; a successful reset removes the seed and recovery codes, revokes every session, and requires fresh enrollment. Release-candidate rehearsal remains pending.",
       "evidence": [
+        "docs/INCIDENT_RESPONSE.md",
+        "README.md",
+        "identity/management/commands/bootstrap_household.py",
         "identity/management/commands/reset_user_mfa.py",
+        "identity/services/mfa.py",
         "identity/services/sessions.py",
-        "tests/test_identity_commands.py"
+        "deploy/pentest/run-credential-rehearsal.py",
+        "tests/test_identity_commands.py",
+        "tests/test_pentest_harness.py"
       ]
     },
     {

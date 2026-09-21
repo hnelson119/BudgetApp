@@ -18,12 +18,22 @@ class Command(BaseCommand):
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("email")
         parser.add_argument("--reason", required=True)
+        parser.add_argument(
+            "--identity-proof-confirmed",
+            action="store_true",
+            help="Attest that the documented same-assurance identity proofing was completed.",
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         email = str(options["email"]).strip().casefold()
         reason = str(options["reason"]).strip()
         if not reason or len(reason) > 500:
             raise CommandError("A reason of 1 to 500 characters is required.")
+        if options["identity_proof_confirmed"] is not True:
+            raise CommandError(
+                "Complete the documented identity-proofing procedure and pass "
+                "--identity-proof-confirmed; nothing was changed."
+            )
         user = User.objects.filter(email__iexact=email, is_active=True).first()
         if user is None:
             raise CommandError("No active account matched that email address.")
