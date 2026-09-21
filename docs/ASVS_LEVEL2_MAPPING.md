@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 157 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 17 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 158 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 16 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 17
+These are the clearest implementation or operational work items exposed by the mapping. The 16
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -119,6 +119,14 @@ The product-specific prohibited-word documentation and enforcement (`v5.0.0-6.1.
 `v5.0.0-6.2.11`) and maintained offline breached-password check (`v5.0.0-6.2.12`) are implemented.
 Their local, privacy-preserving trust boundary and update procedure are in
 `docs/PASSWORD_BLOCKLIST.md`; release-candidate verification remains pending.
+
+Lost-factor identity proofing now implements `v5.0.0-6.4.4`. Initial enrollment follows direct
+trusted-console provisioning for the two known household members. Emergency MFA reset requires a
+different member to directly confirm the affected person in person or from an already approved
+Tailscale device, plus an explicit console attestation; weaker email, phone, security-question, and
+profile-fact fallbacks are prohibited. Without the attestation the command changes nothing. A
+successful reset removes the seed and recovery codes, revokes all sessions, and requires fresh
+enrollment. See `docs/INCIDENT_RESPONSE.md`; release-candidate rehearsal remains pending.
 
 The dedicated trusted-console session-revocation operation (`v5.0.0-7.4.5`) can terminate one
 arbitrary account or every account independently of credential reset. It requires explicit scope

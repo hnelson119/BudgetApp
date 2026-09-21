@@ -312,6 +312,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V6.3.3",
     "V6.4.2",
     "V6.4.3",
+    "V6.4.4",
     "V6.5.1",
     "V6.5.2",
     "V6.5.3",
@@ -566,6 +567,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "Public password recovery requires a confirmed TOTP or unused single-use recovery code, "
         "returns a generic rate-limited result, never authenticates the requester, revokes every "
         "prior session, and requires fresh MFA after the replacement password."
+    ),
+    "V6.4.4": (
+        "Lost-factor recovery is available only through the trusted console after a different "
+        "household member directly confirms the affected person in person or from an already "
+        "approved Tailscale device, matching the direct assurance used for initial provisioning. "
+        "The command requires an explicit identity-proofing attestation, otherwise changes "
+        "nothing; a successful reset removes the seed and recovery codes, revokes every session, "
+        "and requires fresh enrollment. Release-candidate rehearsal remains pending."
     ),
     "V7.4.5": (
         "A guarded trusted-console operation terminates one arbitrary account's sessions or every "
@@ -1063,6 +1072,17 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "identity/views.py",
         "deploy/pentest/run-session-security.py",
         "tests/test_password_recovery.py",
+    ],
+    "V6.4.4": [
+        "docs/INCIDENT_RESPONSE.md",
+        "README.md",
+        "identity/management/commands/bootstrap_household.py",
+        "identity/management/commands/reset_user_mfa.py",
+        "identity/services/mfa.py",
+        "identity/services/sessions.py",
+        "deploy/pentest/run-credential-rehearsal.py",
+        "tests/test_identity_commands.py",
+        "tests/test_pentest_harness.py",
     ],
     "V7.4.5": [
         "identity/services/sessions.py",

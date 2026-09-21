@@ -56,6 +56,18 @@ other reusable credential in the reason.
 
 ## 2. Lost-device and account-recovery procedure
 
+The enrollment assurance baseline is the private household's trusted-console provisioning plus
+direct proof of the individual member: each of the two accounts is created only after the operator
+confirms that member in person, then the member signs in through their individually approved
+Tailscale device and enrolls their own authenticator. A lost-factor reset requires the same direct
+identity assurance before any command runs. A different household member must confirm the affected
+person either in person or during a live interaction from that member's already approved Tailscale
+device. Email possession, a phone number, security questions, submitted profile facts, or control
+of the lost device are not acceptable substitutes. The operator must pass
+`--identity-proof-confirmed` only after completing that check; the command otherwise fails without
+changing the seed, recovery codes, or sessions. Record only the proofing method and date in the
+restricted incident record, never the proofing content or credentials.
+
 1. In the Tailscale administration console, expire or remove the exact lost device. If the device
    held an administrator identity, also revoke its SSH key and review Tailscale/identity-provider
    sessions. Do not revoke the other household member's device as a shortcut.
@@ -76,7 +88,8 @@ other reusable credential in the reason.
    ```bash
    docker compose exec -it web \
      python manage.py reset_user_mfa person@example.com \
-     --reason "Lost authenticator incident YYYY-MM-DD"
+     --reason "Lost authenticator incident YYYY-MM-DD" \
+     --identity-proof-confirmed
    ```
 
 4. From an already trusted second device, prove an old browser session redirects to login. Prove

@@ -125,6 +125,7 @@ def test_emergency_mfa_reset_revokes_sessions_codes_and_seed() -> None:
             "reset_user_mfa",
             user.email,
             reason="Authenticator was permanently lost",
+            identity_proof_confirmed=True,
             stdout=output,
         )
 
@@ -137,6 +138,33 @@ def test_emergency_mfa_reset_revokes_sessions_codes_and_seed() -> None:
     assert event.reason == "Authenticator was permanently lost"
     assert event.actor is None
     assert "sessions are revoked" in output.getvalue()
+
+
+@pytest.mark.django_db
+def test_emergency_mfa_reset_requires_identity_proofing_attestation() -> None:
+    household = Household.objects.create(name="Proofing Household")
+    user = User.objects.create_user(email="proofing@example.com", password=FIRST_PASSWORD)
+    HouseholdMembership.objects.create(household=household, user=user)
+    enrollment = begin_enrollment(user)
+    confirmed = confirm_enrollment(user, totp_code(enrollment.secret))
+    assert confirmed is not None
+    assert confirm_recovery_codes_saved(user) is True
+    user.refresh_from_db()
+    previous_version = user.session_version
+
+    with pytest.raises(CommandError, match="identity-proofing procedure"):
+        call_command(
+            "reset_user_mfa",
+            user.email,
+            reason="Authenticator was permanently lost",
+        )
+
+    user.refresh_from_db()
+    assert user.session_version == previous_version
+    assert user.mfa_enrolled_at is not None
+    assert MfaCredential.objects.filter(user=user).exists()
+    assert RecoveryCode.objects.filter(user=user).count() == 10
+    assert not AuditEvent.objects.filter(action="auth.mfa_emergency_reset").exists()
 
 
 @pytest.mark.django_db
