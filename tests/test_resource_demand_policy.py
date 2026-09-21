@@ -14,6 +14,7 @@ from scripts.check_resource_demand_policy import (
     EXPECTED_TIMEOUTS,
     POLICY_PATH,
     PROJECT_ROOT,
+    _validate_deployment_limits,
     validate_resource_demand_policy,
     validate_source_contract,
 )
@@ -86,3 +87,17 @@ def test_resource_demand_policy_rejects_source_limit_drift() -> None:
 
     with pytest.raises(ValueError, match="source contract changed"):
         validate_source_contract("csv-upload-contract", changed)
+
+
+def test_resource_demand_policy_rejects_runtime_quota_drift(tmp_path) -> None:
+    compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    nginx = (PROJECT_ROOT / "deploy/network/nginx.conf").read_text(encoding="utf-8")
+    (tmp_path / "deploy/network").mkdir(parents=True)
+    (tmp_path / "deploy/network/nginx.conf").write_text(nginx, encoding="utf-8")
+    (tmp_path / "compose.yaml").write_text(
+        compose.replace("    mem_limit: 1g\n", "    mem_limit: 128m\n"),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="runtime resource-demand deployment limits changed"):
+        _validate_deployment_limits(_policy(), tmp_path)

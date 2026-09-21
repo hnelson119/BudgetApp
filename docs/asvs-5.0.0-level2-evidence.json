@@ -4360,7 +4360,7 @@
       "description": "Verify that the application documentation identifies functionality which is time-consuming or resource-demanding. This must include how to prevent a loss of availability due to overusing this functionality and how to avoid a situation where building a response takes longer than the consumer's timeout. Potential defenses may include asynchronous processing, using queues, and limiting parallel processes per user and per application.",
       "applicability": "applicable",
       "status": "implemented",
-      "assessment": "The maintained resource-demand policy identifies seven expensive interactive and operator workflow families, their fixed input, result, horizon, process, and concurrency bounds, and their failure and retry behavior. Five explicit ingress and application timeouts preserve worker-before-proxy failure ordering. A fail-closed checker pins 12 source contracts and the two-worker deployment envelope. Representative load evidence and CPU or memory quotas remain separately tracked under V15.2.2.",
+      "assessment": "The maintained resource-demand policy identifies seven expensive interactive and operator workflow families, their fixed input, result, horizon, process, and concurrency bounds, and their failure and retry behavior. Five explicit ingress and application timeouts preserve worker-before-proxy failure ordering. A fail-closed checker pins 12 source contracts and the two-worker deployment envelope. Four long-running services have pinned CPU and memory ceilings; representative load evidence and one-shot maintenance ceilings remain separately tracked under V15.2.2.",
       "evidence": [
         "docs/RESOURCE_DEMAND_POLICY.md",
         "docs/resource-demand-policy.json",

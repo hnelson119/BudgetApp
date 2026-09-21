@@ -33,10 +33,13 @@ must not overlap it with restore, upgrade, or heavy interactive use.
 
 Production exposes two synchronous Gunicorn workers behind one Nginx worker with 256 connection
 slots. The web process is limited to 128 PIDs, ingress to 64, and the isolated security-log service
-to 32. Request buffering and the 6 MiB ingress body ceiling reject oversized bodies before Django's
-5 MiB application limit is exceeded. These limits contain process and request amplification, but
-the Compose file does not yet set CPU or memory quotas; the release host must apply and validate
-those limits before `v5.0.0-15.2.2` can be considered complete.
+to 32. Compose caps the four long-running services at 2 CPUs/2 GiB for PostgreSQL, 1 CPU/1 GiB
+for web, 0.5 CPU/256 MiB for ingress, and 0.5 CPU/256 MiB for the log collector. Request buffering
+and the 6 MiB ingress body ceiling reject oversized bodies before Django's 5 MiB application limit
+is exceeded. These ceilings are conservative starting bounds, not measured capacity claims; the
+release-host rehearsal must confirm actual CPU throttling, peak memory, restart behavior, and
+response latency. One-shot maintenance services still need measured CPU and memory ceilings before
+`v5.0.0-15.2.2` can be considered complete.
 
 ## Failure, retry, and response rules
 
@@ -60,8 +63,9 @@ normal quality gates.
 
 For every release candidate, exercise maximum-size CSV parsing and commit, the 100-debt/1,200-month
 projection boundary, large filtered exports, notification refresh, and simultaneous ordinary page
-loads on representative VM resources. Record wall time, peak memory, database duration, response
-status, and whether either web worker restarted. Keep `v5.0.0-15.2.2` partial until this evidence
-exists and CPU/memory quotas are enforced. If a synchronous operation approaches 20 seconds under
-that load, reduce its limit or move it to a bounded per-user and application-wide queue before
-release.
+loads on representative VM resources. Record wall time, peak memory, CPU throttling, database
+duration, response status, and whether either web worker restarted or any container was OOM-killed.
+Measure backup, restore, key rotation, migration, and checkpoint jobs before setting their ceilings.
+Keep `v5.0.0-15.2.2` partial until this evidence exists and all production service quotas are
+enforced. If a synchronous operation approaches 20 seconds under that load, reduce its limit or
+move it to a bounded per-user and application-wide queue before release.

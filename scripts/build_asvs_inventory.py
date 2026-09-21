@@ -774,8 +774,9 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "operator workflow families, their fixed input, result, horizon, process, and concurrency "
         "bounds, and their failure and retry behavior. Five explicit ingress and application "
         "timeouts preserve worker-before-proxy failure ordering. A fail-closed checker pins 12 "
-        "source contracts and the two-worker deployment envelope. Representative load evidence "
-        "and CPU or memory quotas remain separately tracked under V15.2.2."
+        "source contracts and the two-worker deployment envelope. Four long-running services "
+        "have pinned CPU and memory ceilings; representative load evidence and one-shot "
+        "maintenance ceilings remain separately tracked under V15.2.2."
     ),
     "V15.3.6": (
         "The dependency-free production JavaScript uses Map and Set for runtime-selected keys and "
