@@ -1,8 +1,9 @@
+import logging
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth.decorators import login_required
-from django.db import connection
+from django.db import DatabaseError, connection
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -11,6 +12,8 @@ from budgets.services.summary import build_period_summary
 from goals.services import goal_progress_rows
 from households.services.access import get_active_household
 from periods.models import PayPeriod
+
+availability_logger = logging.getLogger("budget.request")
 
 
 @login_required
@@ -76,7 +79,17 @@ def live(request: HttpRequest) -> JsonResponse:
 
 
 def ready(request: HttpRequest) -> JsonResponse:
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except DatabaseError:
+        availability_logger.warning("Database readiness check failed.")
+        response = JsonResponse(
+            {"status": "unavailable", "database": "unavailable"},
+            status=503,
+        )
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Retry-After"] = "5"
+        return response
     return JsonResponse({"status": "ready", "database": "ok"})

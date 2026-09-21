@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 159,
+      "implemented": 160,
       "not_applicable": 79,
-      "partial": 15
+      "partial": 14
     }
   },
   "requirements": [
@@ -4862,12 +4862,19 @@
       "level": 2,
       "description": "Verify that the application continues to operate securely when external resource access fails, for example, by using patterns such as circuit breakers or graceful degradation.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The communication inventory defines fail-closed behavior for all ten runtime and management flows. A database outage yields a sanitized no-store readiness 503 while liveness remains independent, request failures retain the generic error boundary, and transactions roll back without a plaintext or password fallback. Security-log delivery has a 250 ms bound and a fixed redacted stderr fallback; other ingress, backup, checkpoint, and host-control failures close or fail nonzero without weakening trust.",
       "evidence": [
+        "docs/COMMUNICATION_INVENTORY.md",
+        "docs/communication-inventory.json",
+        "scripts/check_communication_inventory.py",
+        "core/views.py",
         "core/errors.py",
-        "core/middleware.py",
-        "tests/test_logging.py"
+        "core/logging.py",
+        "tests/test_communication_inventory.py",
+        "tests/test_web_foundation.py",
+        "tests/test_security_log_archive.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

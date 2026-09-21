@@ -52,6 +52,7 @@ FLOW_FIELDS = {
     "data",
     "destination",
     "evidence",
+    "failure_behavior",
     "id",
     "phase",
     "protection",
@@ -170,7 +171,7 @@ def validate_inventory_document(project_root: Path, document: Any) -> tuple[int,
         "external_services",
     }:
         _fail("communication inventory top-level fields differ from the schema")
-    if document["schema_version"] != 1 or document["last_reviewed"] != "2026-09-13":
+    if document["schema_version"] != 1 or document["last_reviewed"] != "2026-09-20":
         _fail("communication inventory version or review date is invalid")
     if document["user_supplied_external_destinations"] != []:
         _fail("the current release must not accept user-supplied external destinations")
@@ -286,6 +287,8 @@ def _validate_deployment_boundaries(project_root: Path) -> None:
     nginx = (project_root / "deploy/network/nginx.conf").read_text(encoding="utf-8")
     hardened = (project_root / "config/settings/hardened.py").read_text(encoding="utf-8")
     production = (project_root / "config/settings/production.py").read_text(encoding="utf-8")
+    views = (project_root / "core/views.py").read_text(encoding="utf-8")
+    runtime_logging = (project_root / "core/logging.py").read_text(encoding="utf-8")
     required_compose_fragments = {
         "DATABASE_HOST: db",
         'DATABASE_PORT: "5432"',
@@ -300,6 +303,23 @@ def _validate_deployment_boundaries(project_root: Path) -> None:
         _fail("hardened settings do not disable the unused SMTP backend")
     if "if EXTERNAL_REDIRECT_ALLOWED_HOSTS:" not in production:
         _fail("production does not reject external redirect destinations")
+    readiness_fragments = {
+        "except DatabaseError:",
+        '"database": "unavailable"',
+        "status=503",
+        'response.headers["Cache-Control"] = "no-store"',
+        'response.headers["Retry-After"] = "5"',
+    }
+    if any(fragment not in views for fragment in readiness_fragments):
+        _fail("database failure no longer produces the inventoried safe readiness response")
+    archive_failure_fragments = {
+        "transport.settimeout(0.25)",
+        "except (OSError, UnicodeError, ValueError):",
+        '"message": "Security-log delivery failed."',
+        '"event": "security.archive.delivery_failed"',
+    }
+    if any(fragment not in runtime_logging for fragment in archive_failure_fragments):
+        _fail("security-log failure handling differs from the communication inventory")
     networks = _literal_assignment(
         project_root / "deploy/network/run-production-boundary.py",
         "_EXPECTED_SERVICE_NETWORKS",

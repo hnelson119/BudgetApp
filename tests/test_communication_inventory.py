@@ -68,6 +68,7 @@ def test_communication_inventory_runs_in_both_quality_gates() -> None:
             user_supplied_external_destinations=["https://user.invalid"]
         ),
         lambda document: document["flows"][0].update(evidence=[]),
+        lambda document: document["flows"][0].update(failure_behavior=""),
     ),
 )
 def test_communication_inventory_rejects_catalog_and_destination_tampering(
