@@ -130,6 +130,7 @@ def validate_listeners(status: str) -> int:
 def validate_https(hostname: str) -> int:
     context = ssl.create_default_context()
     context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.maximum_version = ssl.TLSVersion.TLSv1_3
     connection = http.client.HTTPSConnection(hostname, 443, context=context, timeout=10)
     try:
         connection.request("GET", "/health/live/", headers={"Accept": "application/json"})
@@ -144,8 +145,8 @@ def validate_https(hostname: str) -> int:
             raise VerificationFailure(
                 "The deployed HTTPS response lost the production HSTS policy."
             )
-        if tls_version not in {"TLSv1.2", "TLSv1.3"}:
-            raise VerificationFailure("The deployed connection negotiated an obsolete TLS version.")
+        if tls_version != "TLSv1.3":
+            raise VerificationFailure("The deployed HTTPS boundary did not prefer TLS 1.3.")
     finally:
         connection.close()
     return 4
