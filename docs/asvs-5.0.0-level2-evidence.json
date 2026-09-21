@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 158,
+      "implemented": 159,
       "not_applicable": 79,
-      "partial": 16
+      "partial": 15
     }
   },
   "requirements": [
@@ -3363,14 +3363,14 @@
       "level": 2,
       "description": "Verify that there is a documented policy for management of cryptographic keys and a cryptographic key lifecycle that follows a key management standard such as NIST SP 800-57. This should include ensuring that keys are not overshared (for example, with more than two entities for shared secrets and more than one entity for private keys).",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The machine-validated key-management policy follows NIST SP 800-57 Part 1 Revision 5 across generation, protected distribution, activation, rotation, suspension or revocation, retirement, and destruction. It limits each shared secret to two trust entities and each private key to one active trust entity, treats offline recovery as sealed and inactive, and pins compromise, replacement, retired-access, retention, and destruction rules for every inventoried key class.",
       "evidence": [
-        "SECURITY_PLAN.md",
-        "identity/services/mfa.py",
-        "audit/checkpoints.py",
-        "tests/test_mfa.py",
-        "tests/test_checkpoints.py"
+        "docs/cryptographic-inventory.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/INCIDENT_RESPONSE.md",
+        "scripts/check_cryptographic_inventory.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

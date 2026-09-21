@@ -77,6 +77,11 @@ def test_cryptographic_inventory_is_complete_and_current() -> None:
     assert algorithms["totp-hmac-sha1"]["security_status"] == "compatibility_only"
     assert algorithms["password-blocklist-sha1"]["security_status"] == "compatibility_only"
     assert algorithms["test-md5-password-hasher"]["security_status"] == "test_only"
+    policy = inventory["key_management_policy"]
+    assert policy["standard"] == "NIST SP 800-57 Part 1 Revision 5"
+    assert policy["shared_secret_max_trust_entities"] == 2
+    assert policy["private_key_max_active_trust_entities"] == 1
+    assert policy["offline_recovery_is_inactive"] is True
 
 
 def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
@@ -113,6 +118,21 @@ def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
     unknown_algorithm["cryptographic_keys"][0]["algorithms"] = ["unknown-profile"]
     with pytest.raises(ValueError, match="unknown algorithms"):
         validate_cryptographic_inventory(unknown_algorithm, today=date(2026, 9, 6))
+
+    overshared_secret = copy.deepcopy(inventory)
+    overshared_secret["key_management_policy"]["shared_secret_max_trust_entities"] = 3
+    with pytest.raises(ValueError, match="key-sharing limits"):
+        validate_cryptographic_inventory(overshared_secret, today=date(2026, 9, 6))
+
+    incomplete_lifecycle = copy.deepcopy(inventory)
+    incomplete_lifecycle["key_management_policy"]["lifecycle_phases"].remove("destruction")
+    with pytest.raises(ValueError, match="lifecycle is incomplete"):
+        validate_cryptographic_inventory(incomplete_lifecycle, today=date(2026, 9, 6))
+
+    missing_compromise_control = copy.deepcopy(inventory)
+    missing_compromise_control["key_management_policy"]["required_controls"].pop()
+    with pytest.raises(ValueError, match="controls are incomplete"):
+        validate_cryptographic_inventory(missing_compromise_control, today=date(2026, 9, 6))
 
     with pytest.raises(ValueError, match="review is overdue"):
         validate_cryptographic_inventory(inventory, today=date(2026, 12, 6))
@@ -286,9 +306,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 158,
+            "implemented": 159,
             "not_applicable": 79,
-            "partial": 16,
+            "partial": 15,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -327,6 +347,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-7.5.1"]["status"] == "implemented"
     assert requirements["v5.0.0-8.1.1"]["status"] == "implemented"
     assert requirements["v5.0.0-8.1.2"]["status"] == "implemented"
+    assert requirements["v5.0.0-11.1.1"]["status"] == "implemented"
     assert requirements["v5.0.0-11.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-11.4.1"]["status"] == "implemented"
     assert requirements["v5.0.0-11.4.3"]["status"] == "implemented"
@@ -388,6 +409,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V7.5.2",
         "V8.1.1",
         "V8.1.2",
+        "V11.1.1",
         "V11.1.2",
         "V11.4.1",
         "V11.4.2",
