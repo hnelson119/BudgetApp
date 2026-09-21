@@ -1,7 +1,7 @@
 # Application communication inventory
 
 Status: implemented; release verification pending
-Last reviewed: 2026-09-13
+Last reviewed: 2026-09-20
 
 The authoritative structured catalog is `docs/communication-inventory.json`. It records each
 communication's phase, source, fixed destination, transport, protection, data class, user-control
@@ -22,6 +22,30 @@ complete and synchronized with the deployment allowlists.
 | Backup repository | Pre-existing `/repository` bind mount | Encrypted Restic backups, restores, key rotation, and non-sensitive freshness checks without a remote application destination. |
 | Audit checkpoints | Pre-existing `/checkpoints` bind mount | Signed audit-chain heads written by the purpose-bound integrity service. |
 | Host Docker control | Local host Unix socket | Root-owned systemd units and authenticated administrator commands manage the fixed Compose project; containers never receive the socket. |
+
+## Secure failure behavior
+
+The structured inventory records a mandatory failure behavior for every runtime and management
+flow. The production application has no general outbound network client. Its only runtime resource
+connections are the fixed PostgreSQL mutual-TLS path and the local security-log datagram socket.
+
+- A PostgreSQL outage produces a sanitized, non-cacheable readiness `503` with a bounded retry hint;
+  liveness remains database-independent. Application requests retain the generic error boundary,
+  database transactions roll back, and neither plaintext nor password authentication is enabled as
+  an availability fallback.
+- Security-log delivery has a 250 ms socket timeout. Socket, size, or encoding failure emits only a
+  fixed redacted fallback record to stderr, so an unavailable collector cannot leak the original
+  record or block a request indefinitely. Collector validation, archive-write, fsync, or healthcheck
+  failures remain visible and cannot grant Django access to the archive.
+- Browser, SSH, loopback-relay, and nginx-to-Gunicorn failures close the affected path. They never
+  enable public/LAN exposure, password SSH, a different upstream, plaintext transport, or a forged
+  trusted-scheme signal.
+- Backup, restore, key-rotation, checkpoint, and Docker-control failures return nonzero and preserve
+  the last verified state. No unverified backup, unsigned checkpoint, broadened privilege, or
+  self-repairing container is accepted as success.
+
+These controls implement the repeatable repository boundary for ASVS `v5.0.0-16.5.2`. Dated
+release-candidate outage observation remains required before marking the control verified.
 
 Frontend and backend Docker networks are internal. The only host publish is the ingress relay's
 exact IPv4 loopback port. The relay's only proxy destination is `https://web:8443`; Django's only

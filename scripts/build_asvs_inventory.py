@@ -399,6 +399,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V16.4.2",
     "V16.4.3",
     "V16.5.1",
+    "V16.5.2",
     "V16.5.3",
 }
 
@@ -817,6 +818,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "owned real mode-0700 directory, opens owned regular files with append and no-follow "
         "semantics, forces mode 0600, and fsyncs complete newline-delimited records. Dated host "
         "ownership, mode, and retention observation remains pending before verification."
+    ),
+    "V16.5.2": (
+        "The communication inventory defines fail-closed behavior for all ten runtime and "
+        "management flows. A database outage yields a sanitized no-store readiness 503 while "
+        "liveness remains independent, request failures retain the generic error boundary, and "
+        "transactions roll back without a plaintext or password fallback. Security-log delivery "
+        "has a 250 ms bound and a fixed redacted stderr fallback; other ingress, backup, "
+        "checkpoint, and host-control failures close or fail nonzero without weakening trust."
     ),
 }
 
@@ -1478,6 +1487,18 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "scripts/check_logging_inventory.py",
         "tests/test_security_log_archive.py",
         "tests/test_network_boundary.py",
+        "tests/test_release_hardening.py",
+    ],
+    "V16.5.2": [
+        "docs/COMMUNICATION_INVENTORY.md",
+        "docs/communication-inventory.json",
+        "scripts/check_communication_inventory.py",
+        "core/views.py",
+        "core/errors.py",
+        "core/logging.py",
+        "tests/test_communication_inventory.py",
+        "tests/test_web_foundation.py",
+        "tests/test_security_log_archive.py",
         "tests/test_release_hardening.py",
     ],
 }

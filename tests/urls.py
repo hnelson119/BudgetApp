@@ -1,4 +1,5 @@
 from django.core.exceptions import PermissionDenied
+from django.db import OperationalError
 from django.http import Http404, HttpRequest, HttpResponse
 from django.urls import include, path
 
@@ -7,6 +8,10 @@ from core import errors
 
 def unsafe_error(request: HttpRequest) -> HttpResponse:
     raise RuntimeError("password=not-real-secret")  # pragma: allowlist secret
+
+
+def unavailable_database(request: HttpRequest) -> HttpResponse:
+    raise OperationalError("password=not-real-database-secret")  # pragma: allowlist secret
 
 
 def unsafe_permission_error(request: HttpRequest) -> HttpResponse:
@@ -25,6 +30,7 @@ handler500 = errors.server_error
 
 urlpatterns = [
     path("_test/error/", unsafe_error, name="unsafe-error"),
+    path("_test/database-unavailable/", unavailable_database, name="unavailable-database"),
     path("_test/forbidden/", unsafe_permission_error, name="unsafe-permission"),
     path(
         "_test/hidden/<uuid:object_id>/",

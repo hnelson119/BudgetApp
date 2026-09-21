@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 159 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 15 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 160 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 14 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -349,6 +349,14 @@ minimized warning events. Together with authorization-denial events and authenti
 events that retain only explicit anti-automation outcomes, this implements the documented
 `v5.0.0-16.3.3` repository boundary. Dated release-candidate archive observation remains pending
 before verification.
+
+The external-resource failure boundary implements `v5.0.0-16.5.2` for all ten inventoried runtime
+and management flows. PostgreSQL loss yields a sanitized no-store readiness `503` while liveness
+remains independent, ordinary request errors retain the generic boundary, and transactions roll
+back without an insecure transport or authentication fallback. Security-log delivery has a 250 ms
+bound and fixed redacted stderr fallback. Other ingress, backup, checkpoint, and host-control
+failures close or fail nonzero without weakening trust. See `docs/COMMUNICATION_INVENTORY.md`;
+dated release-candidate outage observation remains pending before verification.
 
 ## Applicability policy
 
