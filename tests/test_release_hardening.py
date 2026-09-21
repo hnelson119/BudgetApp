@@ -82,6 +82,8 @@ def test_cryptographic_inventory_is_complete_and_current() -> None:
     assert policy["shared_secret_max_trust_entities"] == 2
     assert policy["private_key_max_active_trust_entities"] == 1
     assert policy["offline_recovery_is_inactive"] is True
+    password_kdf_policy = inventory["password_derived_key_policy"]
+    assert password_kdf_policy["approved_profiles"] == ["restic-scrypt"]
 
 
 def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
@@ -133,6 +135,16 @@ def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
     missing_compromise_control["key_management_policy"]["required_controls"].pop()
     with pytest.raises(ValueError, match="controls are incomplete"):
         validate_cryptographic_inventory(missing_compromise_control, today=date(2026, 9, 6))
+
+    unapproved_password_kdf = copy.deepcopy(inventory)
+    unapproved_password_kdf["password_derived_key_policy"]["approved_profiles"] = ["pbkdf2"]
+    with pytest.raises(ValueError, match="profiles differ"):
+        validate_cryptographic_inventory(unapproved_password_kdf, today=date(2026, 9, 6))
+
+    missing_password_kdf_control = copy.deepcopy(inventory)
+    missing_password_kdf_control["password_derived_key_policy"]["required_controls"].pop()
+    with pytest.raises(ValueError, match="key controls are incomplete"):
+        validate_cryptographic_inventory(missing_password_kdf_control, today=date(2026, 9, 6))
 
     with pytest.raises(ValueError, match="review is overdue"):
         validate_cryptographic_inventory(inventory, today=date(2026, 12, 6))
@@ -306,9 +318,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 160,
+            "implemented": 161,
             "not_applicable": 79,
-            "partial": 14,
+            "partial": 13,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -351,6 +363,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-11.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-11.4.1"]["status"] == "implemented"
     assert requirements["v5.0.0-11.4.3"]["status"] == "implemented"
+    assert requirements["v5.0.0-11.4.4"]["status"] == "implemented"
     assert requirements["v5.0.0-13.2.4"]["status"] == "implemented"
     assert requirements["v5.0.0-13.2.1"]["status"] == "implemented"
     assert requirements["v5.0.0-13.2.5"]["status"] == "implemented"
@@ -415,6 +428,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V11.4.1",
         "V11.4.2",
         "V11.4.3",
+        "V11.4.4",
         "V12.1.3",
         "V12.3.3",
         "V12.3.4",

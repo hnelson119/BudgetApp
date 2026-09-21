@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 160 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 14 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 161 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 13 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -300,6 +300,13 @@ breached-password corpus; MD5 remains test-only. See `docs/HASH_FUNCTION_POLICY.
 data-authentication, and data-integrity use selects SHA-256 or SHA-512 with at least 256 output
 bits. The six SHA-1 operations are confined to TOTP and offline corpus compatibility and are
 explicitly prohibited from signatures, collision resistance, and data integrity.
+
+The password-to-key boundary implements `v5.0.0-11.4.4`. Restic 0.19.1's approved scrypt profile
+is the sole production path from a password to secret key material; each authenticated repository
+key file stores a unique random salt and explicit `N`, `r`, and `p` work parameters that application
+code cannot override. Unlocking remains isolated to bounded maintenance jobs, and guarded rotation
+requires replacement access, repository integrity, retired-credential rejection, and acceptable
+release-host performance before promotion. Dated performance evidence remains pending verification.
 
 The password-storage boundary implements `v5.0.0-11.4.2`. Production explicitly selects Django
 5.2.17's salted PBKDF2-HMAC-SHA-256 hasher with 1,000,000 iterations and a 128-bit salt-entropy

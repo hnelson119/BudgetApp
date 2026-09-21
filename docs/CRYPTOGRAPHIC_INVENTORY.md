@@ -74,6 +74,23 @@ affected consumers before replacement and prove retired access fails before reop
 Destroy retired material after its stated retention purpose ends; only keys explicitly needed for
 historical verification or disaster recovery may remain sealed.
 
+## Password-to-key derivation policy
+
+The pinned Restic repository unlock is the only production path that derives secret key material
+from a password. Restic 0.19.1 uses its approved scrypt profile with a unique random salt and stores
+the `N`, `r`, and `p` work parameters in each authenticated repository key file. Application code
+cannot select or weaken those parameters. Django account passwords produce one-way authentication
+verifiers rather than encryption keys, and the MFA Fernet input is independently random rather
+than human-memorable.
+
+Password-derived repository unlock runs only in bounded backup, restore, integrity, and key-rotation
+jobs, never in an interactive application request. Rotation must use Restic's provider operation to
+rewrap the repository master keys; replacing only the password file is invalid. The release
+rehearsal must record sanitized scrypt parameters and elapsed unlock/restore results, then require the
+replacement credential, repository integrity, retired-credential rejection, and acceptable host
+performance before promotion. This repeatable policy and pinned implementation implement ASVS
+`v5.0.0-11.4.4`; dated release-host performance evidence remains pending before verification.
+
 ## Current key and certificate map
 
 | Material | Owner and location | Permitted purpose | Must never protect |
