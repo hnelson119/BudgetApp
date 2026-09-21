@@ -394,6 +394,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V16.3.3",
     "V16.3.4",
     "V16.4.1",
+    "V16.4.2",
     "V16.4.3",
     "V16.5.1",
     "V16.5.3",
@@ -791,6 +792,13 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "validates and redacts records, persists them with restrictive modes, creates a "
         "warning-or-higher alert stream, and emits fixed safe transport or validation failures. "
         "Release-candidate retention, review, and escalation observations remain pending."
+    ),
+    "V16.4.2": (
+        "Only the networkless UID 10003 collector mounts the security archive; Django has only "
+        "the socket volume and cannot read or modify archived records. The collector requires an "
+        "owned real mode-0700 directory, opens owned regular files with append and no-follow "
+        "semantics, forces mode 0600, and fsyncs complete newline-delimited records. Dated host "
+        "ownership, mode, and retention observation remains pending before verification."
     ),
 }
 
@@ -1423,6 +1431,18 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "scripts/check_logging_inventory.py",
         "tests/test_security_log_archive.py",
         "tests/test_network_boundary.py",
+    ],
+    "V16.4.2": [
+        "core/security_log_collector.py",
+        "config/settings/production.py",
+        "compose.yaml",
+        "deploy/network/run-production-boundary.py",
+        "docs/logging-inventory.json",
+        "docs/LOGGING_INVENTORY.md",
+        "scripts/check_logging_inventory.py",
+        "tests/test_security_log_archive.py",
+        "tests/test_network_boundary.py",
+        "tests/test_release_hardening.py",
     ],
 }
 

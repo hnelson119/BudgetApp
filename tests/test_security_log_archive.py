@@ -1,6 +1,8 @@
 import json
 import logging
 import math
+import os
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -69,21 +71,33 @@ def test_collector_archives_events_and_warning_alerts(tmp_path: Path) -> None:
     record = validate_record(_security_payload())
 
     assert archive_record(record, tmp_path) is True
+    assert archive_record(record, tmp_path) is True
 
-    archived = json.loads((tmp_path / EVENT_FILE).read_text(encoding="utf-8"))
-    alert = json.loads((tmp_path / ALERT_FILE).read_text(encoding="utf-8"))
-    assert archived["event"] == "auth.login.failed"
-    assert alert == {
-        "timestamp": record["timestamp"],
-        "level": "WARNING",
-        "event": "auth.login.failed",
-        "request_id": "request-12345678",
-        "release": "candidate",
-    }
+    event_path = tmp_path / EVENT_FILE
+    alert_path = tmp_path / ALERT_FILE
+    archived = [json.loads(line) for line in event_path.read_text(encoding="utf-8").splitlines()]
+    alerts = [json.loads(line) for line in alert_path.read_text(encoding="utf-8").splitlines()]
+    assert [item["event"] for item in archived] == ["auth.login.failed"] * 2
+    assert (
+        alerts
+        == [
+            {
+                "timestamp": record["timestamp"],
+                "level": "WARNING",
+                "event": "auth.login.failed",
+                "request_id": "request-12345678",
+                "release": "candidate",
+            }
+        ]
+        * 2
+    )
+    if os.name != "nt":
+        assert stat.S_IMODE(event_path.stat().st_mode) == 0o600
+        assert stat.S_IMODE(alert_path.stat().st_mode) == 0o600
     assert review_alerts(tmp_path) == {
-        "alert_count": 1,
-        "by_level": {"WARNING": 1},
-        "by_event": {"auth.login.failed": 1},
+        "alert_count": 2,
+        "by_level": {"WARNING": 2},
+        "by_event": {"auth.login.failed": 2},
     }
 
 
