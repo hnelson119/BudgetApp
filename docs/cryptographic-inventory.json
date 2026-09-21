@@ -14,6 +14,33 @@
       "a security finding or incident affects cryptographic material"
     ]
   },
+  "key_management_policy": {
+    "standard": "NIST SP 800-57 Part 1 Revision 5",
+    "owner": "release owner",
+    "trust_entity_definition": "One independently authorized runtime, provider, person, or device permitted to perform cryptographic operations with secret or private key material. Purpose-specific processes inside one hardened application boundary are one trust entity; public keys and certificates are not secret holders, and sealed recovery custody or file provisioning alone does not authorize cryptographic use.",
+    "shared_secret_max_trust_entities": 2,
+    "private_key_max_active_trust_entities": 1,
+    "offline_recovery_is_inactive": true,
+    "lifecycle_phases": [
+      "generation",
+      "protected distribution",
+      "activation",
+      "rotation",
+      "suspension or revocation",
+      "retirement",
+      "destruction"
+    ],
+    "required_controls": [
+      "Generate independent purpose-specific material with an approved CSPRNG or approved managed provider.",
+      "Distribute material only through protected files, provider state, or direct enrollment; never through source control, logs, command lines, or ordinary environment values.",
+      "Activate material only after its identifier, purpose, consumers, storage, algorithm, and recovery boundary are recorded in this inventory.",
+      "Do not authorize more than two trust entities to use one shared secret or more than one active trust entity to use one private key.",
+      "Keep recovery and retired verification copies sealed and inactive; mounting or unsealing one is a separately authorized maintenance event.",
+      "Rotate on the documented schedule, ownership or consumer change, suspected exposure, algorithm or parameter deprecation, or provider incident.",
+      "Revoke or suspend affected consumers before replacement when exposure is suspected, and prove retired access fails before service resumes.",
+      "Destroy retired material when its documented retention purpose ends; retain only keys explicitly required for historical verification or disaster recovery."
+    ]
+  },
   "scope": {
     "included": [
       "application-owned cryptography",

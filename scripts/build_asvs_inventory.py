@@ -340,6 +340,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V8.2.3",
     "V8.3.1",
     "V8.4.1",
+    "V11.1.1",
     "V11.1.2",
     "V11.2.1",
     "V11.3.1",
@@ -626,6 +627,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "imports, recipient notifications, audit history, system metadata, and exports. Forms and "
         "serializers are explicit allowlists; ownership, hashes, counters, links, revisions, and "
         "integrity metadata remain service-controlled."
+    ),
+    "V11.1.1": (
+        "The machine-validated key-management policy follows NIST SP 800-57 Part 1 Revision 5 "
+        "across generation, protected distribution, activation, rotation, suspension or "
+        "revocation, retirement, and destruction. It limits each shared secret to two trust "
+        "entities and each private key to one active trust entity, treats offline recovery as "
+        "sealed and inactive, and pins compromise, replacement, retired-access, retention, and "
+        "destruction rules for every inventoried key class."
     ),
     "V11.1.2": (
         "The machine-validated inventory covers application, deployment, provider-managed, and "
@@ -1160,6 +1169,13 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "notifications/services.py",
         "ledger/models.py",
         "audit/models.py",
+    ],
+    "V11.1.1": [
+        "docs/cryptographic-inventory.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/INCIDENT_RESPONSE.md",
+        "scripts/check_cryptographic_inventory.py",
+        "tests/test_release_hardening.py",
     ],
     "V11.1.2": [
         "docs/cryptographic-inventory.json",

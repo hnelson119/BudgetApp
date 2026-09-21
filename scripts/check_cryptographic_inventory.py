@@ -73,6 +73,56 @@ EXPECTED_UPDATE_TRIGGERS = {
     "every release candidate",
     "a security finding or incident affects cryptographic material",
 }
+EXPECTED_LIFECYCLE_PHASES = [
+    "generation",
+    "protected distribution",
+    "activation",
+    "rotation",
+    "suspension or revocation",
+    "retirement",
+    "destruction",
+]
+EXPECTED_TRUST_ENTITY_DEFINITION = (
+    "One independently authorized runtime, provider, person, or device permitted to perform "
+    "cryptographic operations with secret or private key material. Purpose-specific processes "
+    "inside one hardened application boundary are one trust entity; public keys and certificates "
+    "are not secret holders, and sealed recovery custody or file provisioning alone does not "
+    "authorize cryptographic use."
+)
+EXPECTED_KEY_MANAGEMENT_CONTROLS = {
+    (
+        "Generate independent purpose-specific material with an approved CSPRNG or approved "
+        "managed provider."
+    ),
+    (
+        "Distribute material only through protected files, provider state, or direct enrollment; "
+        "never through source control, logs, command lines, or ordinary environment values."
+    ),
+    (
+        "Activate material only after its identifier, purpose, consumers, storage, algorithm, "
+        "and recovery boundary are recorded in this inventory."
+    ),
+    (
+        "Do not authorize more than two trust entities to use one shared secret or more than one "
+        "active trust entity to use one private key."
+    ),
+    (
+        "Keep recovery and retired verification copies sealed and inactive; mounting or "
+        "unsealing one is a separately authorized maintenance event."
+    ),
+    (
+        "Rotate on the documented schedule, ownership or consumer change, suspected exposure, "
+        "algorithm or parameter deprecation, or provider incident."
+    ),
+    (
+        "Revoke or suspend affected consumers before replacement when exposure is suspected, "
+        "and prove retired access fails before service resumes."
+    ),
+    (
+        "Destroy retired material when its documented retention purpose ends; retain only keys "
+        "explicitly required for historical verification or disaster recovery."
+    ),
+}
 KEY_FIELDS = {
     "algorithms",
     "boundary",
@@ -354,6 +404,7 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         "certificates",
         "cryptographic_keys",
         "inventory_updated",
+        "key_management_policy",
         "known_absences",
         "review",
         "schema_version",
@@ -394,6 +445,42 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         _fail("cryptographic inventory update date is in the future")
     if current_date > due:
         _fail("cryptographic inventory review is overdue")
+
+    policy = data["key_management_policy"]
+    if not isinstance(policy, dict) or set(policy) != {
+        "lifecycle_phases",
+        "offline_recovery_is_inactive",
+        "owner",
+        "private_key_max_active_trust_entities",
+        "required_controls",
+        "shared_secret_max_trust_entities",
+        "standard",
+        "trust_entity_definition",
+    }:
+        _fail("cryptographic key-management policy is incomplete")
+    if (
+        policy["standard"] != "NIST SP 800-57 Part 1 Revision 5"
+        or policy["owner"] != "release owner"
+    ):
+        _fail("cryptographic key-management authority or standard changed unexpectedly")
+    if policy["trust_entity_definition"] != EXPECTED_TRUST_ENTITY_DEFINITION:
+        _fail("cryptographic trust-entity boundary changed unexpectedly")
+    if (
+        policy["shared_secret_max_trust_entities"] != 2
+        or policy["private_key_max_active_trust_entities"] != 1
+        or policy["offline_recovery_is_inactive"] is not True
+    ):
+        _fail("cryptographic key-sharing limits have been weakened")
+    lifecycle_phases = _validate_string_list(
+        policy["lifecycle_phases"], field="key_management_policy.lifecycle_phases"
+    )
+    if lifecycle_phases != EXPECTED_LIFECYCLE_PHASES:
+        _fail("cryptographic key lifecycle is incomplete or out of order")
+    controls = _validate_string_list(
+        policy["required_controls"], field="key_management_policy.required_controls"
+    )
+    if set(controls) != EXPECTED_KEY_MANAGEMENT_CONTROLS:
+        _fail("cryptographic key-management controls are incomplete")
 
     scope = data["scope"]
     if not isinstance(scope, dict) or set(scope) != {"excluded", "included"}:

@@ -9,8 +9,8 @@ Next scheduled review: 2026-12-05
 `docs/cryptographic-inventory.json` is the canonical machine-readable inventory for cryptographic
 keys, algorithms, certificates, and intentionally absent cryptographic material. This runbook
 explains how to maintain it without committing sensitive values. Together they implement the
-repository-deliverable portion of ASVS `v5.0.0-11.1.2`; they do not claim that the future release
-candidate or private Linux VM has been verified.
+repository-deliverable portions of ASVS `v5.0.0-11.1.1` and `v5.0.0-11.1.2`; they do not claim that
+the future release candidate or private Linux VM has been verified.
 
 The release owner reviews the inventory at least every 90 days and for every release candidate.
 Review it immediately when application or infrastructure cryptography changes, a key or certificate
@@ -45,6 +45,34 @@ The dedicated approved hash-function policy source-derives every application and
 selection, verifies Django's managed SHA-256 defaults, and bounds SHA-1 to the existing TOTP and
 offline breached-password compatibility formats. See `docs/HASH_FUNCTION_POLICY.md` and
 `docs/hash-function-policy.json`; a new algorithm or use must update both inventories together.
+
+## Key-management policy
+
+The key lifecycle follows NIST SP 800-57 Part 1 Revision 5. Every key class must pass through the
+recorded generation, protected-distribution, activation, rotation, suspension or revocation,
+retirement, and destruction phases. The JSON policy is authoritative for those phases and the
+mandatory controls. A new key cannot be activated until this inventory records its independent
+purpose, owner, algorithm and parameters, authorized consumers, protected storage and distribution,
+rotation trigger and procedure, retirement rule, and recovery boundary.
+
+A **trust entity** is one independently authorized runtime, provider, person, or device permitted to
+perform cryptographic operations with secret or private material. Purpose-specific processes inside
+the same hardened application boundary are one entity; a public key or certificate is not a secret
+holder, and sealed recovery custody or file provisioning alone does not authorize cryptographic
+use. A shared secret may be usable by at most two trust entities, and a private key by exactly one
+active trust entity. Offline recovery and retired verification copies must remain sealed and
+inactive; temporarily unsealing one is a separate, audited maintenance event and does not authorize
+routine concurrent use. If a design needs broader sharing, it must use distinct per-entity keys
+rather than waive this limit.
+
+Generate independent, purpose-specific material with the operating-system CSPRNG or the documented
+managed provider. Move it only through protected files, provider state, or direct enrollment—not
+source control, logs, command lines, or ordinary environment values. Rotate when a documented
+schedule expires, an owner or consumer changes, exposure is suspected, an algorithm or parameter is
+deprecated, or a provider incident affects the material. For suspected exposure, isolate or revoke
+affected consumers before replacement and prove retired access fails before reopening service.
+Destroy retired material after its stated retention purpose ends; only keys explicitly needed for
+historical verification or disaster recovery may remain sealed.
 
 ## Current key and certificate map
 

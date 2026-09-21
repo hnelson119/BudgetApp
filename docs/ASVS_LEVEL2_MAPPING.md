@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 158 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 16 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 159 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 15 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -282,9 +282,13 @@ object/reflection mutation APIs, dynamic bracket-property access, and inherited-
 from every reviewed JavaScript file and script-capable template. See
 `docs/JAVASCRIPT_OBJECT_SAFETY.md`.
 
-The machine-validated key, algorithm, and certificate inventory implements `v5.0.0-11.1.2` with
-explicit permitted/prohibited uses, protected/excluded data, rotation, retirement, provider
-boundaries, test-only exceptions, review cadence, and known absences. See
+The machine-validated key-management policy implements `v5.0.0-11.1.1` against NIST SP 800-57
+Part 1 Revision 5. It pins the full lifecycle, limits shared secrets to two trust entities and
+private keys to one active trust entity, treats offline copies as sealed and inactive, and requires
+revocation, replacement, retired-access proof, retention, and destruction controls. The same key,
+algorithm, and certificate inventory implements `v5.0.0-11.1.2` with explicit permitted/prohibited
+uses, protected/excluded data, rotation, retirement, provider boundaries, test-only exceptions,
+review cadence, and known absences. See
 `docs/CRYPTOGRAPHIC_INVENTORY.md`; release-candidate verification remains pending.
 
 The approved hash-function boundary implements `v5.0.0-11.4.1`. A fail-closed scanner inventories
