@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 160,
+      "implemented": 161,
       "not_applicable": 79,
-      "partial": 14
+      "partial": 13
     }
   },
   "requirements": [
@@ -3602,13 +3602,17 @@
       "level": 2,
       "description": "Verify that the application uses approved key derivation functions with key stretching parameters when deriving secret keys from passwords. The parameters in use must balance security and performance to prevent brute-force attacks from compromising the resulting cryptographic key.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "The pinned Restic 0.19.1 scrypt profile is the sole production password-to-secret-key boundary. Each authenticated repository key file carries a unique random salt and its stored N, r, and p work parameters; application code cannot override them. Repository unlock is isolated to bounded maintenance jobs, and guarded rotation requires the new credential, repository integrity, retired-credential rejection, and release-host performance before promotion.",
       "evidence": [
-        "config/settings/base.py",
-        "identity/services/mfa.py",
-        "audit/services.py",
-        "tests/"
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "docs/BACKUP_AND_RESTORE.md",
+        "deploy/backup/Dockerfile",
+        "deploy/backup/rotate-restic-key.sh",
+        "scripts/check_cryptographic_inventory.py",
+        "tests/test_restore_rehearsal.py",
+        "tests/test_release_hardening.py"
       ]
     },
     {

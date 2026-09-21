@@ -123,6 +123,25 @@ EXPECTED_KEY_MANAGEMENT_CONTROLS = {
         "explicitly required for historical verification or disaster recovery."
     ),
 }
+EXPECTED_PASSWORD_KDF_CONTROLS = {
+    (
+        "Reject a password-derived secret-key path unless its KDF profile is approved in this "
+        "inventory."
+    ),
+    (
+        "Require a unique random salt and explicit stored work parameters for every "
+        "password-derived key record."
+    ),
+    "Pin the KDF implementation and prohibit application-controlled parameter overrides.",
+    (
+        "Treat changing only the password file as invalid; rotate through the provider operation "
+        "that rewraps the repository master keys."
+    ),
+    (
+        "Verify the replacement credential, repository integrity, retired-credential rejection, "
+        "and acceptable release-host performance before promotion."
+    ),
+}
 KEY_FIELDS = {
     "algorithms",
     "boundary",
@@ -406,6 +425,7 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         "inventory_updated",
         "key_management_policy",
         "known_absences",
+        "password_derived_key_policy",
         "review",
         "schema_version",
         "scope",
@@ -482,6 +502,26 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
     if set(controls) != EXPECTED_KEY_MANAGEMENT_CONTROLS:
         _fail("cryptographic key-management controls are incomplete")
 
+    password_kdf_policy = data["password_derived_key_policy"]
+    if not isinstance(password_kdf_policy, dict) or set(password_kdf_policy) != {
+        "approved_profiles",
+        "boundary",
+        "parameter_authority",
+        "performance_boundary",
+        "required_controls",
+    }:
+        _fail("password-derived key policy is incomplete")
+    if password_kdf_policy["approved_profiles"] != ["restic-scrypt"]:
+        _fail("password-derived key profiles differ from the approved boundary")
+    for field in ("boundary", "parameter_authority", "performance_boundary"):
+        _validate_text(password_kdf_policy[field], field=f"password_derived_key_policy.{field}")
+    password_kdf_controls = _validate_string_list(
+        password_kdf_policy["required_controls"],
+        field="password_derived_key_policy.required_controls",
+    )
+    if set(password_kdf_controls) != EXPECTED_PASSWORD_KDF_CONTROLS:
+        _fail("password-derived key controls are incomplete")
+
     scope = data["scope"]
     if not isinstance(scope, dict) or set(scope) != {"excluded", "included"}:
         _fail("cryptographic inventory scope is incomplete")
@@ -555,6 +595,17 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         _fail("MD5 password hashing must remain test-only")
     if keys_by_id["django-signing-key"]["algorithms"] != ["hmac-sha256"]:
         _fail("Django signing key has acquired an unexpected algorithm or purpose")
+    password_kdf_keys = {record["id"] for record in keys if "restic-scrypt" in record["algorithms"]}
+    if password_kdf_keys != {"restic-repository-password"}:
+        _fail("password-derived key use differs from the sole approved Restic boundary")
+    restic_scrypt = algorithms_by_id["restic-scrypt"]
+    if (
+        restic_scrypt["security_status"] != "approved"
+        or restic_scrypt["consumers"] != ["Restic 0.19.1 repository unlock"]
+        or "random salt" not in restic_scrypt["parameters"]
+        or "parameter override by application code" not in restic_scrypt["prohibited_uses"]
+    ):
+        _fail("approved Restic scrypt parameters or ownership changed unexpectedly")
 
     expected_summary = {
         "cryptographic_keys": len(keys),

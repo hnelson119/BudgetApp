@@ -349,6 +349,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V11.4.1",
     "V11.4.2",
     "V11.4.3",
+    "V11.4.4",
     "V11.5.1",
     "V12.1.3",
     "V12.2.1",
@@ -667,6 +668,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "and confines six SHA-1 operations to RFC 6238 TOTP and offline password-corpus formats "
         "that explicitly prohibit signatures, collision resistance, and data integrity. "
         "Release-candidate verification of provider-managed profiles remains pending."
+    ),
+    "V11.4.4": (
+        "The pinned Restic 0.19.1 scrypt profile is the sole production password-to-secret-key "
+        "boundary. Each authenticated repository key file carries a unique random salt and its "
+        "stored N, r, and p work parameters; application code cannot override them. Repository "
+        "unlock is isolated to bounded maintenance jobs, and guarded rotation requires the new "
+        "credential, repository integrity, retired-credential rejection, and release-host "
+        "performance before promotion."
     ),
     "V12.1.3": (
         "PostgreSQL validates every production client certificate against a dedicated client CA "
@@ -1238,6 +1247,16 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "audit/services.py",
         "identity/services/throttling.py",
         "requirements-prod.lock",
+    ],
+    "V11.4.4": [
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "docs/BACKUP_AND_RESTORE.md",
+        "deploy/backup/Dockerfile",
+        "deploy/backup/rotate-restic-key.sh",
+        "scripts/check_cryptographic_inventory.py",
+        "tests/test_restore_rehearsal.py",
+        "tests/test_release_hardening.py",
     ],
     "V12.1.3": [
         "scripts/generate-postgres-tls.py",

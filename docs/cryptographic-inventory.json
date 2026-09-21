@@ -41,6 +41,21 @@
       "Destroy retired material when its documented retention purpose ends; retain only keys explicitly required for historical verification or disaster recovery."
     ]
   },
+  "password_derived_key_policy": {
+    "approved_profiles": [
+      "restic-scrypt"
+    ],
+    "boundary": "The pinned Restic repository unlock is the only production path that derives secret key material from a password. Django account passwords are one-way verifiers, and MFA encryption input is independently random rather than human-memorable.",
+    "parameter_authority": "Restic 0.19.1 creates a unique random salt and records the scrypt N, r, and p work parameters in each authenticated repository key file; application code cannot select or weaken them.",
+    "performance_boundary": "Repository unlock runs only in bounded backup, restore, integrity, and key-rotation jobs. The release rehearsal must retain sanitized parameters and elapsed unlock/restore results proving the work factor is usable without moving derivation into an interactive request path.",
+    "required_controls": [
+      "Reject a password-derived secret-key path unless its KDF profile is approved in this inventory.",
+      "Require a unique random salt and explicit stored work parameters for every password-derived key record.",
+      "Pin the KDF implementation and prohibit application-controlled parameter overrides.",
+      "Treat changing only the password file as invalid; rotate through the provider operation that rewraps the repository master keys.",
+      "Verify the replacement credential, repository integrity, retired-credential rejection, and acceptable release-host performance before promotion."
+    ]
+  },
   "scope": {
     "included": [
       "application-owned cryptography",
