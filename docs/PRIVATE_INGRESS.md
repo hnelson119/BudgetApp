@@ -260,7 +260,8 @@ sudo ./scripts/verify-private-ingress.sh \
 The VM preflight re-runs the production runtime inspection and additionally checks Tailscale is
 online under the exact tagged identity, Serve is HTTPS-only and Funnel-disabled, UFW is active and
 limited to Tailscale TCP 22/443, the upstream listener is loopback-only, the certificate validates
-for the hostname, TLS negotiates 1.2 or 1.3, HSTS is exact, and plain HTTP is either unreachable or
+for the hostname, a modern client offering TLS 1.2 and 1.3 negotiates TLS 1.3 as preferred, HSTS
+is exact, and plain HTTP is either unreachable or
 redirects to the exact HTTPS URL. It reads secret values only to compare them against local
 metadata/history/log output, never prints them, and deletes its temporary status files. Run it only
 from an authorized administrative session; retain a dated sanitized pass/fail summary, not its raw

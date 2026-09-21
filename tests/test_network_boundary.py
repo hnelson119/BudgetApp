@@ -604,6 +604,63 @@ LISTEN 0 4096 0.0.0.0:22 0.0.0.0:*
     assert VM_PROBE.validate_listeners(listener_status) == 5
 
 
+@pytest.mark.parametrize(("negotiated", "accepted"), (("TLSv1.3", True), ("TLSv1.2", False)))
+def test_private_ingress_requires_tls13_preference_for_modern_client(
+    monkeypatch: pytest.MonkeyPatch, negotiated: str, accepted: bool
+) -> None:
+    class Context:
+        minimum_version: Any = None
+        maximum_version: Any = None
+
+    context = Context()
+
+    class Response:
+        status = 200
+
+        @staticmethod
+        def read(_limit: int) -> bytes:
+            return b'{"status": "ok"}'
+
+        @staticmethod
+        def getheader(_name: str) -> str:
+            return VM_PROBE._HSTS_POLICY
+
+    class Socket:
+        @staticmethod
+        def version() -> str:
+            return negotiated
+
+    class Connection:
+        sock = Socket()
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            assert args == ("budget.example.ts.net", 443)
+            assert kwargs["context"] is context
+
+        @staticmethod
+        def request(*args: Any, **kwargs: Any) -> None:
+            pass
+
+        @staticmethod
+        def getresponse() -> Response:
+            return Response()
+
+        @staticmethod
+        def close() -> None:
+            pass
+
+    monkeypatch.setattr(VM_PROBE.ssl, "create_default_context", lambda: context)
+    monkeypatch.setattr(VM_PROBE.http.client, "HTTPSConnection", Connection)
+
+    if accepted:
+        assert VM_PROBE.validate_https("budget.example.ts.net") == 4
+    else:
+        with pytest.raises(VM_PROBE.VerificationFailure, match=r"did not prefer TLS 1\.3"):
+            VM_PROBE.validate_https("budget.example.ts.net")
+    assert context.minimum_version == VM_PROBE.ssl.TLSVersion.TLSv1_2
+    assert context.maximum_version == VM_PROBE.ssl.TLSVersion.TLSv1_3
+
+
 def test_private_ingress_proves_forwarding_headers_cannot_be_spoofed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
