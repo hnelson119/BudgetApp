@@ -168,6 +168,7 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert web["user"] == "10001:10001"
     assert web["group_add"] == ["${BUDGET_SECRET_GID:-10002}"]
     assert web["pids_limit"] == 128
+    assert (web["cpus"], web["mem_limit"]) == (1.0, "1g")
     assert web["cap_drop"] == ["ALL"]
     assert "ports" not in web
     assert compose["networks"]["backend"]["internal"] is True
@@ -175,6 +176,10 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert compose["networks"]["ingress"] is None
     assert set(web["networks"]) == {"frontend", "backend"}
     assert compose["services"]["db"]["networks"] == ["backend"]
+    assert (compose["services"]["db"]["cpus"], compose["services"]["db"]["mem_limit"]) == (
+        2.0,
+        "2g",
+    )
     assert not any(part in web["command"] for part in ("migrate", "collectstatic"))
 
     ingress = compose["services"]["ingress"]
@@ -188,6 +193,7 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert ingress["read_only"] is True
     assert ingress["cap_drop"] == ["ALL"]
     assert ingress["pids_limit"] == 64
+    assert (ingress["cpus"], ingress["mem_limit"]) == (0.5, "256m")
     assert set(ingress["secrets"]) == {
         "gunicorn_ca_certificate",
         "nginx_client_certificate",
@@ -227,6 +233,7 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     assert security_log["read_only"] is True
     assert security_log["cap_drop"] == ["ALL"]
     assert security_log["pids_limit"] == 32
+    assert (security_log["cpus"], security_log["mem_limit"]) == (0.5, "256m")
     assert "secrets" not in security_log
     assert "environment" not in security_log
     assert {volume.split(":")[0] for volume in security_log["volumes"]} == {

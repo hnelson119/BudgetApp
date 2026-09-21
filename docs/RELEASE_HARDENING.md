@@ -121,8 +121,9 @@ real household data.
   offline breached-password corpus, and MD5 remains isolated to synthetic unit tests.
 - The resource-demand inventory documents seven expensive workflow families, five explicit
   response-time boundaries, and twelve pinned implementation contracts. The application-worker
-  timeout is explicit and remains shorter than the ingress upstream-read timeout. Maximum-load
-  measurements and enforced CPU or memory quotas remain release work under `v5.0.0-15.2.2`.
+  timeout is explicit and remains shorter than the ingress upstream-read timeout. Four long-running
+  services now have pinned CPU and memory ceilings; representative maximum-load measurements and
+  one-shot maintenance ceilings remain release work under `v5.0.0-15.2.2`.
 - The maintained logging inventory now covers all 14 current stack layers and 182 source-derived
   operational, security, protected-audit, and maintenance event entries. It records formats,
   destinations, uses, readers, retention, redaction, integrity/availability properties, and known

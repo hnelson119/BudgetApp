@@ -42,6 +42,8 @@ services:
   db:
     image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
     restart: unless-stopped
+    cpus: 2.0
+    mem_limit: 2g
     entrypoint: ["/bin/sh", "/usr/local/bin/start-postgres-tls.sh"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-household_budget}
@@ -430,6 +432,8 @@ services:
     read_only: true
     init: true
     pids_limit: 32
+    cpus: 0.5
+    mem_limit: 256m
     cap_drop:
       - ALL
     security_opt:
@@ -450,6 +454,8 @@ services:
     read_only: true
     init: true
     pids_limit: 64
+    cpus: 0.5
+    mem_limit: 256m
     cap_drop:
       - ALL
     security_opt:
@@ -475,6 +481,8 @@ services:
     build:
       context: ${BUDGET_BUILD_CONTEXT:-.}
     restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 1g
     environment:
       <<: *app-environment
       POSTGRES_USER: ${POSTGRES_RUNTIME_USER:-budget_runtime}

@@ -35,6 +35,14 @@ EXPECTED_DEPLOYMENT_LIMITS = {
     "ingress_worker_connections": 256,
     "ingress_pids": 64,
     "security_log_pids": 32,
+    "db_cpus": 2.0,
+    "db_memory": "2g",
+    "web_cpus": 1.0,
+    "web_memory": "1g",
+    "ingress_cpus": 0.5,
+    "ingress_memory": "256m",
+    "security_log_cpus": 0.5,
+    "security_log_memory": "256m",
 }
 EXPECTED_REQUIRED_CHECKS = {
     "scripts/check_input_validation_policy.py",
@@ -130,7 +138,8 @@ EXPECTED_RESIDUAL_RISKS = {
     "Maximum-size CSV commit and worst-case projection timing still need representative "
     "release-host measurements.",
     "A long-running streamed export can occupy one of the two synchronous web workers.",
-    "Production Compose does not yet enforce CPU or memory quotas for every service.",
+    "One-shot maintenance services do not yet have measured CPU and memory ceilings; "
+    "the four long-running services have enforced Compose limits.",
 }
 
 
@@ -254,6 +263,14 @@ def _validate_deployment_limits(policy: dict[str, Any], project_root: Path) -> N
         "ingress_worker_connections": 256,
         "ingress_pids": services["ingress"]["pids_limit"],
         "security_log_pids": services["security-log"]["pids_limit"],
+        "db_cpus": services["db"].get("cpus"),
+        "db_memory": services["db"].get("mem_limit"),
+        "web_cpus": services["web"].get("cpus"),
+        "web_memory": services["web"].get("mem_limit"),
+        "ingress_cpus": services["ingress"].get("cpus"),
+        "ingress_memory": services["ingress"].get("mem_limit"),
+        "security_log_cpus": services["security-log"].get("cpus"),
+        "security_log_memory": services["security-log"].get("mem_limit"),
     }
     nginx_source = (project_root / "deploy/network/nginx.conf").read_text(encoding="utf-8")
     if "worker_connections 256;" not in nginx_source:
