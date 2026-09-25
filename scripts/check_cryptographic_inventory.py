@@ -165,6 +165,63 @@ NON_SECURITY_STRENGTH_EXCEPTIONS = {
     "password-blocklist-sha1": "non_security_compatibility",
     "test-md5-password-hasher": "test_only_no_security_claim",
 }
+EXPECTED_GENERATION_PROFILES = {
+    "local-os-csprng": {
+        "django-signing-key",
+        "mfa-encryption-key",
+        "user-totp-seeds",
+        "audit-checkpoint-signing-key",
+        "restic-repository-password",
+    },
+    "restic-managed-csprng": {"restic-master-keys"},
+    "tailscale-managed-curve25519": {"tailscale-node-transport-keys"},
+    "tailscale-managed-public-tls": {"tailscale-serve-tls-private-key"},
+    "operating-system-managed-ssh": {"ssh-administrator-keys"},
+    "local-openssl-ecdsa-p256": {
+        "postgres-internal-ca-private-key",
+        "postgres-server-private-key",
+        "postgres-client-ca-private-key",
+        "postgres-client-private-keys",
+        "gunicorn-server-ca-private-key",
+        "gunicorn-server-private-key",
+        "nginx-client-ca-private-key",
+        "nginx-client-private-key",
+    },
+}
+EXPECTED_SIGNATURE_PROFILES = {
+    "local-x509-ecdsa-p256-sha256": {
+        "postgres-internal-ca-certificate",
+        "postgres-server-certificate",
+        "postgres-client-ca-certificate",
+        "postgres-role-client-certificates",
+        "gunicorn-server-ca-certificate",
+        "gunicorn-server-certificate",
+        "nginx-client-ca-certificate",
+        "nginx-client-certificate",
+    },
+    "provider-managed-public-certificate-signatures": {
+        "tailscale-serve-leaf-certificate",
+        "browser-public-trust-roots",
+    },
+    "operating-system-managed-ssh-signatures": {"ssh-administrator-keys"},
+}
+EXPECTED_KEY_GENERATION_AND_SIGNATURE_CONTROLS = {
+    "Reject every key or seed that is not covered exactly once by an approved generation profile.",
+    "Pin local certificate keys to ECDSA P-256 and local certificate signatures to SHA-256.",
+    (
+        "Use operating-system cryptographic randomness with at least 128 bits of output for "
+        "locally generated security keys and seeds."
+    ),
+    (
+        "Reject weak, legacy, dynamically selected, or unclassified key-generation and "
+        "digital-signature profiles."
+    ),
+    (
+        "Treat MAC operations as symmetric authentication rather than misclassifying them as "
+        "digital signatures."
+    ),
+    "Reassess managed profiles and capture sanitized live algorithms during release verification.",
+}
 KEY_FIELDS = {
     "algorithms",
     "boundary",
@@ -340,6 +397,74 @@ def _validate_no_embedded_material(value: Any, *, path: tuple[str, ...] = ()) ->
             _fail(f"inventory contains an exact private hostname at {'.'.join(path)}")
 
 
+def _validate_approved_profiles(
+    value: Any,
+    *,
+    field: str,
+    covered_field: str,
+    expected: dict[str, set[str]],
+) -> set[str]:
+    if not isinstance(value, list) or len(value) != len(expected):
+        _fail(f"{field} is incomplete")
+    seen_ids: set[str] = set()
+    seen_records: set[str] = set()
+    for index, profile in enumerate(value):
+        item = f"{field}[{index}]"
+        if not isinstance(profile, dict) or set(profile) != {
+            "classification",
+            covered_field,
+            "id",
+        }:
+            _fail(f"{item} is incomplete")
+        _validate_text(profile["id"], field=f"{item}.id")
+        if profile["id"] in seen_ids:
+            _fail(f"{field} contains duplicate profile ids")
+        seen_ids.add(profile["id"])
+        if profile["classification"] != "approved_at_least_128_bits":
+            _fail(f"{item} is not an approved 128-bit profile")
+        covered = set(
+            _validate_string_list(profile[covered_field], field=f"{item}.{covered_field}")
+        )
+        if seen_records & covered:
+            _fail(f"{field} covers a record more than once")
+        seen_records.update(covered)
+        if expected.get(profile["id"]) != covered:
+            _fail(f"{item} differs from the approved profile boundary")
+    if seen_ids != set(expected):
+        _fail(f"{field} profile ids differ from the approved boundary")
+    return seen_records
+
+
+def _validate_local_key_generation_sources() -> None:
+    generator = (PROJECT_ROOT / "scripts" / "generate-postgres-tls.py").read_text(encoding="utf-8")
+    approved_hash_flag = "-sha" + "256"
+    required_generator_fragments = (
+        '_run_openssl("ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", str(key))',
+        f'"req",\n        "-x509",\n        "-new",\n        "{approved_hash_flag}",',
+        f'"x509",\n        "-req",\n        "{approved_hash_flag}",',
+        'f"0x{secrets.token_hex(20)}"',
+    )
+    if not all(fragment in generator for fragment in required_generator_fragments):
+        _fail("local ECDSA P-256 key generation or SHA-256 certificate signing drifted")
+    weak_tokens = ("genrsa", "-sha" + "1", "-md" + "5", "secp192")
+    if any(token in generator.casefold() for token in weak_tokens):
+        _fail("local certificate generation acquired a weak or legacy primitive")
+
+    mfa = (PROJECT_ROOT / "identity" / "services" / "mfa.py").read_text(encoding="utf-8")
+    pentest_secrets = (PROJECT_ROOT / "deploy" / "pentest" / "generate-secrets.py").read_text(
+        encoding="utf-8"
+    )
+    network_boundary = (PROJECT_ROOT / "scripts" / "run-network-boundary.sh").read_text(
+        encoding="utf-8"
+    )
+    if "secrets.token_bytes(20)" not in mfa:
+        _fail("TOTP seed generation no longer requests 160 random bits")
+    if "secrets.token_bytes(48)" not in pentest_secrets:
+        _fail("synthetic deployment secret generation no longer requests 384 random bits")
+    if "openssl rand -base64 48" not in network_boundary:
+        _fail("production-boundary secret generation no longer requests 384 random bits")
+
+
 def _validate_record_set(
     value: Any,
     *,
@@ -447,6 +572,7 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         "certificates",
         "cryptographic_keys",
         "inventory_updated",
+        "key_generation_and_signature_policy",
         "key_management_policy",
         "known_absences",
         "password_derived_key_policy",
@@ -573,6 +699,44 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
     )
     if set(strength_controls) != EXPECTED_SECURITY_STRENGTH_CONTROLS:
         _fail("cryptographic security-strength controls are incomplete")
+
+    generation_policy = data["key_generation_and_signature_policy"]
+    if not isinstance(generation_policy, dict) or set(generation_policy) != {
+        "approved_generation_profiles",
+        "approved_signature_profiles",
+        "boundary",
+        "minimum_bits",
+        "required_controls",
+    }:
+        _fail("key-generation and signature policy is incomplete")
+    if generation_policy["minimum_bits"] != 128:
+        _fail("key-generation and signature security floor changed unexpectedly")
+    _validate_text(
+        generation_policy["boundary"], field="key_generation_and_signature_policy.boundary"
+    )
+    generation_coverage = _validate_approved_profiles(
+        generation_policy["approved_generation_profiles"],
+        field="key_generation_and_signature_policy.approved_generation_profiles",
+        covered_field="covered_key_ids",
+        expected=EXPECTED_GENERATION_PROFILES,
+    )
+    if generation_coverage != EXPECTED_KEY_IDS:
+        _fail("approved generation profiles do not cover every cryptographic key exactly once")
+    signature_coverage = _validate_approved_profiles(
+        generation_policy["approved_signature_profiles"],
+        field="key_generation_and_signature_policy.approved_signature_profiles",
+        covered_field="covered_record_ids",
+        expected=EXPECTED_SIGNATURE_PROFILES,
+    )
+    if signature_coverage != EXPECTED_CERTIFICATE_IDS | {"ssh-administrator-keys"}:
+        _fail("approved signature profiles do not cover every digital-signature boundary")
+    generation_controls = _validate_string_list(
+        generation_policy["required_controls"],
+        field="key_generation_and_signature_policy.required_controls",
+    )
+    if set(generation_controls) != EXPECTED_KEY_GENERATION_AND_SIGNATURE_CONTROLS:
+        _fail("key-generation and signature controls are incomplete")
+    _validate_local_key_generation_sources()
 
     scope = data["scope"]
     if not isinstance(scope, dict) or set(scope) != {"excluded", "included"}:
