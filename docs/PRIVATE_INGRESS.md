@@ -84,6 +84,19 @@ Tailscale-provisioned certificate names can appear in public certificate-transpa
 a neutral machine name that reveals no family name or financial purpose. Application HTTP remains
 on loopback only; the browser-facing connection is HTTPS.
 
+### Public certificate trust boundary
+
+Tailscale HTTPS provisioning requests a publicly trusted Let's Encrypt certificate for the exact
+MagicDNS `*.ts.net` hostname. Serve retains the private key in local daemon state and terminates
+browser TLS without making the service public; Funnel remains prohibited. The deployment preflight
+uses Python's default operating-system public trust store and exact hostname validation. It does
+not load a private CA or disable certificate checks, so an untrusted chain, expired certificate,
+or name mismatch fails before an HTTP response is accepted. Current approved browsers must build
+the same public chain without an exception. Retain only a sanitized issuer, validity window,
+public-key algorithm, and fingerprint in dated release evidence; never retain the private key or
+real household hostname. This repeatable boundary implements ASVS `v5.0.0-12.2.2`; the control is
+not release-verified until the exact VM and approved browsers pass.
+
 ### Intermediary-header boundary
 
 The application trusts only the exact `X-Forwarded-Proto: https` signal. Tailscale Serve terminates

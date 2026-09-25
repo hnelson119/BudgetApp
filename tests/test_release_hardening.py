@@ -146,6 +146,16 @@ def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
     with pytest.raises(ValueError, match="key controls are incomplete"):
         validate_cryptographic_inventory(missing_password_kdf_control, today=date(2026, 9, 6))
 
+    private_browser_ca = copy.deepcopy(inventory)
+    browser_roots = next(
+        item
+        for item in private_browser_ca["certificates"]
+        if item["id"] == "browser-public-trust-roots"
+    )
+    browser_roots["prohibited_uses"].remove("self-signed production certificates")
+    with pytest.raises(ValueError, match="public certificate trust boundary"):
+        validate_cryptographic_inventory(private_browser_ca, today=date(2026, 9, 6))
+
     with pytest.raises(ValueError, match="review is overdue"):
         validate_cryptographic_inventory(inventory, today=date(2026, 12, 6))
 
@@ -318,9 +328,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 161,
+            "implemented": 162,
             "not_applicable": 79,
-            "partial": 13,
+            "partial": 12,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -336,6 +346,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-2.1.3"]["status"] == "implemented"
     assert requirements["v5.0.0-2.3.2"]["status"] == "partial"
     assert requirements["v5.0.0-4.2.1"]["status"] == "implemented"
+    assert requirements["v5.0.0-12.2.2"]["status"] == "implemented"
     assert requirements["v5.0.0-4.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-4.1.3"]["status"] == "implemented"
     assert requirements["v5.0.0-12.3.1"]["status"] == "partial"
@@ -430,6 +441,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V11.4.3",
         "V11.4.4",
         "V12.1.3",
+        "V12.2.2",
         "V12.3.3",
         "V12.3.4",
         "V13.1.1",
@@ -454,7 +466,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V16.5.2",
     }
 
-    assert MAPPING_UPDATED == "2026-09-20"
+    assert MAPPING_UPDATED == "2026-09-25"
     assert not NOT_STARTED
     assert completed_m10 <= IMPLEMENTED_REQUIREMENTS
     assert set(IMPLEMENTED_ASSESSMENT_OVERRIDES) == completed_m10

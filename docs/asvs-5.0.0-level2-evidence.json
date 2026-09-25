@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-09-20",
+  "mapping_updated": "2026-09-25",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 161,
+      "implemented": 162,
       "not_applicable": 79,
-      "partial": 13
+      "partial": 12
     }
   },
   "requirements": [
@@ -3740,11 +3740,15 @@
       "level": 1,
       "description": "Verify that external facing services use publicly trusted TLS certificates.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Tailscale Serve provisions the exact ts.net browser hostname with a publicly trusted Let's Encrypt certificate while keeping the service tailnet-private. The deployment preflight connects with the operating system's default public trust store and exact hostname validation, so an untrusted, expired, or name-mismatched certificate fails closed. Dated release-host and approved-browser observation remains pending.",
       "evidence": [
-        "config/settings/production.py",
-        "tests/test_production_settings.py"
+        "docs/PRIVATE_INGRESS.md",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "deploy/network/verify-private-ingress.py",
+        "scripts/verify-private-ingress.sh",
+        "tests/test_network_boundary.py"
       ]
     },
     {
