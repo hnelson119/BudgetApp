@@ -44,6 +44,20 @@ EXPECTED_DEPLOYMENT_LIMITS = {
     "security_log_cpus": 0.5,
     "security_log_memory": "256m",
 }
+EXPECTED_ONE_SHOT_LIMITS = {
+    service: {"cpus": 2.0, "memory": "2g", "pids": 128}
+    for service in (
+        "backup",
+        "db-bootstrap",
+        "import-cleanup",
+        "integrity",
+        "mfa-key-rotate",
+        "migrate",
+        "notify",
+        "restic-key-rotate",
+        "restore-verify",
+    )
+}
 EXPECTED_REQUIRED_CHECKS = {
     "scripts/check_input_validation_policy.py",
     "tests/test_authentication.py",
@@ -138,8 +152,8 @@ EXPECTED_RESIDUAL_RISKS = {
     "Maximum-size CSV commit and worst-case projection timing still need representative "
     "release-host measurements.",
     "A long-running streamed export can occupy one of the two synchronous web workers.",
-    "One-shot maintenance services do not yet have measured CPU and memory ceilings; "
-    "the four long-running services have enforced Compose limits.",
+    "The conservative one-shot service ceilings still require representative release-host "
+    "measurements and may need tightening.",
 }
 
 
@@ -250,6 +264,8 @@ def _validate_timeouts(policy: dict[str, Any], project_root: Path) -> None:
 def _validate_deployment_limits(policy: dict[str, Any], project_root: Path) -> None:
     if policy.get("deployment_limits") != EXPECTED_DEPLOYMENT_LIMITS:
         _fail("resource-demand deployment limits changed")
+    if policy.get("one_shot_limits") != EXPECTED_ONE_SHOT_LIMITS:
+        _fail("resource-demand one-shot limits changed")
     compose = yaml.safe_load((project_root / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
     web_command = services["web"]["command"]
@@ -277,6 +293,16 @@ def _validate_deployment_limits(policy: dict[str, Any], project_root: Path) -> N
         _fail("ingress worker-connection limit changed")
     if actual != EXPECTED_DEPLOYMENT_LIMITS:
         _fail(f"runtime resource-demand deployment limits changed: {actual}")
+    actual_one_shot = {
+        service: {
+            "cpus": services[service].get("cpus"),
+            "memory": services[service].get("mem_limit"),
+            "pids": services[service].get("pids_limit"),
+        }
+        for service in EXPECTED_ONE_SHOT_LIMITS
+    }
+    if actual_one_shot != EXPECTED_ONE_SHOT_LIMITS:
+        _fail(f"runtime one-shot resource limits changed: {actual_one_shot}")
 
 
 def _validate_required_checks(policy: dict[str, Any], project_root: Path) -> None:
@@ -323,11 +349,12 @@ def validate_resource_demand_policy(
     expected_fields = {
         "schema_version",
         "policy_id",
-        "asvs_requirement",
+        "asvs_requirements",
         "last_reviewed",
         "next_review_due",
         "availability_objective",
         "operations",
+        "one_shot_limits",
         "response_timeouts",
         "deployment_limits",
         "required_checks",
@@ -342,8 +369,8 @@ def validate_resource_demand_policy(
         or policy["policy_id"] != "household-budget-resource-demand-v1"
     ):
         _fail("unsupported resource-demand policy identity")
-    if policy["asvs_requirement"] != "v5.0.0-15.1.3":
-        _fail("resource-demand ASVS requirement changed")
+    if policy["asvs_requirements"] != ["v5.0.0-15.1.3", "v5.0.0-15.2.2"]:
+        _fail("resource-demand ASVS requirements changed")
     _text(policy["availability_objective"], "availability objective")
 
     reviewed = date.fromisoformat(_text(policy["last_reviewed"], "last_reviewed"))
@@ -369,6 +396,7 @@ def validate_resource_demand_policy(
             context.endswith("http") for context in EXPECTED_OPERATION_CONTEXTS.values()
         ),
         "response_timeouts": len(EXPECTED_TIMEOUTS),
+        "bounded_one_shot_services": len(EXPECTED_ONE_SHOT_LIMITS),
         "source_assertions": len(EXPECTED_SOURCE_ASSERTIONS),
         "required_checks": len(EXPECTED_REQUIRED_CHECKS),
         "residual_risks": len(EXPECTED_RESIDUAL_RISKS),

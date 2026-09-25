@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "policy_id": "household-budget-resource-demand-v1",
-  "asvs_requirement": "v5.0.0-15.1.3",
+  "asvs_requirements": ["v5.0.0-15.1.3", "v5.0.0-15.2.2"],
   "last_reviewed": "2026-09-13",
   "next_review_due": "2026-12-12",
   "availability_objective": "Interactive work returns its first response within the explicit 30-second application-worker budget; streaming work yields bounded chunks; operator maintenance never runs through an HTTP request.",
@@ -92,6 +92,17 @@
     "security_log_cpus": 0.5,
     "security_log_memory": "256m"
   },
+  "one_shot_limits": {
+    "db-bootstrap": {"cpus": 2.0, "memory": "2g", "pids": 128},
+    "migrate": {"cpus": 2.0, "memory": "2g", "pids": 128},
+    "mfa-key-rotate": {"cpus": 2.0, "memory": "2g", "pids": 128},
+    "backup": {"cpus": 2.0, "memory": "2g", "pids": 128},
+    "restic-key-rotate": {"cpus": 2.0, "memory": "2g", "pids": 128},
+    "integrity": {"cpus": 2.0, "memory": "2g", "pids": 128},
+    "notify": {"cpus": 2.0, "memory": "2g", "pids": 128},
+    "import-cleanup": {"cpus": 2.0, "memory": "2g", "pids": 128},
+    "restore-verify": {"cpus": 2.0, "memory": "2g", "pids": 128}
+  },
   "required_checks": [
     "scripts/check_input_validation_policy.py",
     "tests/test_authentication.py",
@@ -119,12 +130,13 @@
   "residual_risks": [
     "Maximum-size CSV commit and worst-case projection timing still need representative release-host measurements.",
     "A long-running streamed export can occupy one of the two synchronous web workers.",
-    "One-shot maintenance services do not yet have measured CPU and memory ceilings; the four long-running services have enforced Compose limits."
+    "The conservative one-shot service ceilings still require representative release-host measurements and may need tightening."
   ],
   "summary": {
     "operations": 7,
     "interactive_operations": 5,
     "response_timeouts": 5,
+    "bounded_one_shot_services": 9,
     "source_assertions": 12,
     "required_checks": 8,
     "residual_risks": 3

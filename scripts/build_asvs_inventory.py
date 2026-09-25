@@ -383,6 +383,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V15.1.2",
     "V15.1.3",
     "V15.2.1",
+    "V15.2.2",
     "V15.2.3",
     "V15.3.1",
     "V15.3.3",
@@ -802,8 +803,16 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "bounds, and their failure and retry behavior. Five explicit ingress and application "
         "timeouts preserve worker-before-proxy failure ordering. A fail-closed checker pins 12 "
         "source contracts and the two-worker deployment envelope. Four long-running services "
-        "have pinned CPU and memory ceilings; representative load evidence and one-shot "
-        "maintenance ceilings remain separately tracked under V15.2.2."
+        "and all nine one-shot maintenance or recovery services have pinned CPU, memory, and "
+        "PID ceilings; representative load evidence remains release verification work."
+    ),
+    "V15.2.2": (
+        "Seven inventoried expensive workflow families have fixed input, result, horizon, "
+        "process, retry, and timeout controls. The four long-running services and all nine "
+        "maintenance or recovery services have enforced CPU, memory, and PID ceilings; a "
+        "fail-closed checker compares every Compose service to the maintained policy. The "
+        "conservative one-shot limits and synchronous worst cases still require representative "
+        "release-host measurement before verification."
     ),
     "V15.3.6": (
         "The dependency-free production JavaScript uses Map and Set for runtime-selected keys and "
@@ -1480,6 +1489,18 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "tests/test_resource_demand_policy.py",
         "tests/test_deployment_config.py",
         "tests/test_release_hardening.py",
+    ],
+    "V15.2.2": [
+        "docs/RESOURCE_DEMAND_POLICY.md",
+        "docs/resource-demand-policy.json",
+        "compose.yaml",
+        "scripts/check_resource_demand_policy.py",
+        "scripts/check_input_validation_policy.py",
+        "tests/test_resource_demand_policy.py",
+        "tests/test_deployment_config.py",
+        "tests/test_csv_imports.py",
+        "tests/test_debt_projections.py",
+        "tests/test_csv_exports.py",
     ],
     "V15.3.6": [
         "docs/JAVASCRIPT_OBJECT_SAFETY.md",
