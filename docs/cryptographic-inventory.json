@@ -71,6 +71,104 @@
       "Reassess the strength classification whenever an algorithm, parameter, dependency, provider, or release-host cryptographic policy changes."
     ]
   },
+  "key_generation_and_signature_policy": {
+    "minimum_bits": 128,
+    "boundary": "Every cryptographic key or seed and every digital-signature generation or verification path must use an approved profile that preserves at least 128 bits of security. Local profiles are pinned to their exact source configuration; managed profiles remain bounded by the inventoried provider or operating-system contract and require dated release observation before verification.",
+    "approved_generation_profiles": [
+      {
+        "id": "local-os-csprng",
+        "classification": "approved_at_least_128_bits",
+        "covered_key_ids": [
+          "django-signing-key",
+          "mfa-encryption-key",
+          "user-totp-seeds",
+          "audit-checkpoint-signing-key",
+          "restic-repository-password"
+        ]
+      },
+      {
+        "id": "restic-managed-csprng",
+        "classification": "approved_at_least_128_bits",
+        "covered_key_ids": [
+          "restic-master-keys"
+        ]
+      },
+      {
+        "id": "tailscale-managed-curve25519",
+        "classification": "approved_at_least_128_bits",
+        "covered_key_ids": [
+          "tailscale-node-transport-keys"
+        ]
+      },
+      {
+        "id": "tailscale-managed-public-tls",
+        "classification": "approved_at_least_128_bits",
+        "covered_key_ids": [
+          "tailscale-serve-tls-private-key"
+        ]
+      },
+      {
+        "id": "operating-system-managed-ssh",
+        "classification": "approved_at_least_128_bits",
+        "covered_key_ids": [
+          "ssh-administrator-keys"
+        ]
+      },
+      {
+        "id": "local-openssl-ecdsa-p256",
+        "classification": "approved_at_least_128_bits",
+        "covered_key_ids": [
+          "postgres-internal-ca-private-key",
+          "postgres-server-private-key",
+          "postgres-client-ca-private-key",
+          "postgres-client-private-keys",
+          "gunicorn-server-ca-private-key",
+          "gunicorn-server-private-key",
+          "nginx-client-ca-private-key",
+          "nginx-client-private-key"
+        ]
+      }
+    ],
+    "approved_signature_profiles": [
+      {
+        "id": "local-x509-ecdsa-p256-sha256",
+        "classification": "approved_at_least_128_bits",
+        "covered_record_ids": [
+          "postgres-internal-ca-certificate",
+          "postgres-server-certificate",
+          "postgres-client-ca-certificate",
+          "postgres-role-client-certificates",
+          "gunicorn-server-ca-certificate",
+          "gunicorn-server-certificate",
+          "nginx-client-ca-certificate",
+          "nginx-client-certificate"
+        ]
+      },
+      {
+        "id": "provider-managed-public-certificate-signatures",
+        "classification": "approved_at_least_128_bits",
+        "covered_record_ids": [
+          "tailscale-serve-leaf-certificate",
+          "browser-public-trust-roots"
+        ]
+      },
+      {
+        "id": "operating-system-managed-ssh-signatures",
+        "classification": "approved_at_least_128_bits",
+        "covered_record_ids": [
+          "ssh-administrator-keys"
+        ]
+      }
+    ],
+    "required_controls": [
+      "Reject every key or seed that is not covered exactly once by an approved generation profile.",
+      "Pin local certificate keys to ECDSA P-256 and local certificate signatures to SHA-256.",
+      "Use operating-system cryptographic randomness with at least 128 bits of output for locally generated security keys and seeds.",
+      "Reject weak, legacy, dynamically selected, or unclassified key-generation and digital-signature profiles.",
+      "Treat MAC operations as symmetric authentication rather than misclassifying them as digital signatures.",
+      "Reassess managed profiles and capture sanitized live algorithms during release verification."
+    ]
+  },
   "scope": {
     "included": [
       "application-owned cryptography",

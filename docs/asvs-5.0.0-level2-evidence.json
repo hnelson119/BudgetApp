@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 163,
+      "implemented": 164,
       "not_applicable": 79,
-      "partial": 11
+      "partial": 10
     }
   },
   "requirements": [
@@ -3646,14 +3646,20 @@
       "level": 2,
       "description": "Verify that only approved cryptographic algorithms and modes of operation are used for key generation and seeding, and digital signature generation and verification. Key generation algorithms must not generate insecure keys vulnerable to known attacks, for example, RSA keys which are vulnerable to Fermat factorization.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Every inventoried key and seed is covered exactly once by an approved generation profile, and every X.509 or SSH digital-signature boundary is covered by an approved signature profile. Local secret generation requires operating-system cryptographic randomness with at least 128 bits of output; the guarded certificate generator pins ECDSA P-256 keys, SHA-256 signatures, and 160-bit random serials. The fail-closed checker rejects uncovered, weak, legacy, or changed local profiles while retaining sanitized managed-profile observation for release verification.",
       "evidence": [
-        "SECURITY_PLAN.md",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "scripts/check_cryptographic_inventory.py",
+        "scripts/check_hash_function_policy.py",
+        "scripts/generate-postgres-tls.py",
         "identity/services/mfa.py",
-        "audit/checkpoints.py",
-        "tests/test_mfa.py",
-        "tests/test_checkpoints.py"
+        "deploy/pentest/generate-secrets.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_release_hardening.py",
+        "tests/test_hash_function_policy.py",
+        "tests/test_postgres_tls.py"
       ]
     },
     {

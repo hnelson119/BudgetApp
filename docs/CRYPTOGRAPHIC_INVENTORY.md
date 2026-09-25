@@ -114,6 +114,23 @@ The release owner must reassess every classification when algorithms, parameters
 providers, or host cryptographic policy change. Dated live negotiation and provider observations
 remain verification work; the enforced inventory boundary implements ASVS `v5.0.0-11.2.3`.
 
+## Key generation and digital signatures
+
+Every inventoried key and seed belongs to exactly one approved generation profile. Locally owned
+symmetric material and TOTP seeds use operating-system cryptographic randomness with at least 128
+bits of output. The guarded internal-certificate generator pins every authority and leaf key to
+ECDSA P-256, every certificate request and signature to SHA-256, and 160 random bits for serial
+numbers; the checker rejects drift to legacy hashes, weak curves, RSA generation, dynamic profile
+selection, or an uncovered key. Restic, Tailscale, public-certificate, and SSH generation remain
+inside their explicit managed boundaries rather than being treated as unreviewed local primitives.
+
+The only digital-signature paths in scope are the internal and public X.509 chains and approved SSH
+public-key authentication. Application HMAC operations are symmetric message authentication, not
+digital signatures, and the policy preserves that distinction. Every certificate record plus the
+SSH administrator-key record belongs to exactly one approved signature profile. Sanitized live
+public-certificate and SSH algorithms are still captured during release verification; the
+machine-enforced source and managed-profile boundary implements ASVS `v5.0.0-11.6.1`.
+
 ## Current key and certificate map
 
 | Material | Owner and location | Permitted purpose | Must never protect |

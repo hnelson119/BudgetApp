@@ -87,6 +87,10 @@ def test_cryptographic_inventory_is_complete_and_current() -> None:
     strength_policy = inventory["security_strength_policy"]
     assert strength_policy["minimum_bits"] == 128
     assert strength_policy["qualifying_classification"] == "at_least_128_bits"
+    generation_policy = inventory["key_generation_and_signature_policy"]
+    assert generation_policy["minimum_bits"] == 128
+    assert len(generation_policy["approved_generation_profiles"]) == 6
+    assert len(generation_policy["approved_signature_profiles"]) == 3
 
 
 def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
@@ -163,6 +167,20 @@ def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
     weak_approved_profile["algorithms"][0]["security_strength"] = "below_128_bits"
     with pytest.raises(ValueError, match="128-bit security-strength policy"):
         validate_cryptographic_inventory(weak_approved_profile, today=date(2026, 9, 6))
+
+    uncovered_key = copy.deepcopy(inventory)
+    uncovered_key["key_generation_and_signature_policy"]["approved_generation_profiles"][0][
+        "covered_key_ids"
+    ].remove("django-signing-key")
+    with pytest.raises(ValueError, match="approved profile boundary"):
+        validate_cryptographic_inventory(uncovered_key, today=date(2026, 9, 6))
+
+    weak_signature = copy.deepcopy(inventory)
+    weak_signature["key_generation_and_signature_policy"]["approved_signature_profiles"][0][
+        "classification"
+    ] = "legacy"
+    with pytest.raises(ValueError, match="approved 128-bit profile"):
+        validate_cryptographic_inventory(weak_signature, today=date(2026, 9, 6))
 
     with pytest.raises(ValueError, match="review is overdue"):
         validate_cryptographic_inventory(inventory, today=date(2026, 12, 6))
@@ -336,9 +354,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 163,
+            "implemented": 164,
             "not_applicable": 79,
-            "partial": 11,
+            "partial": 10,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -356,6 +374,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-4.2.1"]["status"] == "implemented"
     assert requirements["v5.0.0-12.2.2"]["status"] == "implemented"
     assert requirements["v5.0.0-11.2.3"]["status"] == "implemented"
+    assert requirements["v5.0.0-11.6.1"]["status"] == "implemented"
     assert requirements["v5.0.0-4.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-4.1.3"]["status"] == "implemented"
     assert requirements["v5.0.0-12.3.1"]["status"] == "partial"
@@ -450,6 +469,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V11.4.2",
         "V11.4.3",
         "V11.4.4",
+        "V11.6.1",
         "V12.1.3",
         "V12.2.2",
         "V12.3.3",

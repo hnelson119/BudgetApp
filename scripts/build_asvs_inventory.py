@@ -352,6 +352,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V11.4.3",
     "V11.4.4",
     "V11.5.1",
+    "V11.6.1",
     "V12.1.3",
     "V12.2.1",
     "V12.2.2",
@@ -686,6 +687,15 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "unlock is isolated to bounded maintenance jobs, and guarded rotation requires the new "
         "credential, repository integrity, retired-credential rejection, and release-host "
         "performance before promotion."
+    ),
+    "V11.6.1": (
+        "Every inventoried key and seed is covered exactly once by an approved generation "
+        "profile, and every X.509 or SSH digital-signature boundary is covered by an approved "
+        "signature profile. Local secret generation requires operating-system cryptographic "
+        "randomness with at least 128 bits of output; the guarded certificate generator pins "
+        "ECDSA P-256 keys, SHA-256 signatures, and 160-bit random serials. The fail-closed "
+        "checker rejects uncovered, weak, legacy, or changed local profiles while retaining "
+        "sanitized managed-profile observation for release verification."
     ),
     "V12.1.3": (
         "PostgreSQL validates every production client certificate against a dedicated client CA "
@@ -1285,6 +1295,19 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "scripts/check_cryptographic_inventory.py",
         "tests/test_restore_rehearsal.py",
         "tests/test_release_hardening.py",
+    ],
+    "V11.6.1": [
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "scripts/check_cryptographic_inventory.py",
+        "scripts/check_hash_function_policy.py",
+        "scripts/generate-postgres-tls.py",
+        "identity/services/mfa.py",
+        "deploy/pentest/generate-secrets.py",
+        "scripts/run-network-boundary.sh",
+        "tests/test_release_hardening.py",
+        "tests/test_hash_function_policy.py",
+        "tests/test_postgres_tls.py",
     ],
     "V12.1.3": [
         "scripts/generate-postgres-tls.py",
