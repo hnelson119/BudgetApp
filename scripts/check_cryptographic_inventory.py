@@ -142,6 +142,29 @@ EXPECTED_PASSWORD_KDF_CONTROLS = {
         "and acceptable release-host performance before promotion."
     ),
 }
+EXPECTED_SECURITY_STRENGTH_CONTROLS = {
+    (
+        "Reject every security-purpose profile whose inventoried strength is below 128 bits or "
+        "unclassified."
+    ),
+    (
+        "Require the full configured primitive, key size, mode, rounds, and protocol restrictions "
+        "to preserve the claimed strength."
+    ),
+    (
+        "Treat a compatibility or test-only exception as non-qualifying and prohibit it from "
+        "signatures, general integrity, encryption, key derivation, or production credential "
+        "protection."
+    ),
+    (
+        "Reassess the strength classification whenever an algorithm, parameter, dependency, "
+        "provider, or release-host cryptographic policy changes."
+    ),
+}
+NON_SECURITY_STRENGTH_EXCEPTIONS = {
+    "password-blocklist-sha1": "non_security_compatibility",
+    "test-md5-password-hasher": "test_only_no_security_claim",
+}
 KEY_FIELDS = {
     "algorithms",
     "boundary",
@@ -171,6 +194,7 @@ ALGORITHM_FIELDS = {
     "prohibited_uses",
     "scope",
     "security_status",
+    "security_strength",
 }
 CERTIFICATE_FIELDS = {
     "algorithms",
@@ -426,6 +450,7 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         "key_management_policy",
         "known_absences",
         "password_derived_key_policy",
+        "security_strength_policy",
         "review",
         "schema_version",
         "scope",
@@ -522,6 +547,33 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
     if set(password_kdf_controls) != EXPECTED_PASSWORD_KDF_CONTROLS:
         _fail("password-derived key controls are incomplete")
 
+    strength_policy = data["security_strength_policy"]
+    if not isinstance(strength_policy, dict) or set(strength_policy) != {
+        "boundary",
+        "minimum_bits",
+        "non_security_exceptions",
+        "qualifying_classification",
+        "required_controls",
+    }:
+        _fail("cryptographic security-strength policy is incomplete")
+    strength_exceptions = _validate_string_list(
+        strength_policy["non_security_exceptions"],
+        field="security_strength_policy.non_security_exceptions",
+    )
+    if (
+        strength_policy["minimum_bits"] != 128
+        or strength_policy["qualifying_classification"] != "at_least_128_bits"
+        or set(strength_exceptions) != set(NON_SECURITY_STRENGTH_EXCEPTIONS)
+    ):
+        _fail("cryptographic security-strength floor or exceptions changed unexpectedly")
+    _validate_text(strength_policy["boundary"], field="security_strength_policy.boundary")
+    strength_controls = _validate_string_list(
+        strength_policy["required_controls"],
+        field="security_strength_policy.required_controls",
+    )
+    if set(strength_controls) != EXPECTED_SECURITY_STRENGTH_CONTROLS:
+        _fail("cryptographic security-strength controls are incomplete")
+
     scope = data["scope"]
     if not isinstance(scope, dict) or set(scope) != {"excluded", "included"}:
         _fail("cryptographic inventory scope is incomplete")
@@ -569,6 +621,9 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
     for record in algorithms:
         if record["security_status"] not in ALLOWED_SECURITY_STATUSES:
             _fail(f"algorithm {record['id']!r} has an invalid security status")
+        expected_strength = NON_SECURITY_STRENGTH_EXCEPTIONS.get(record["id"], "at_least_128_bits")
+        if record["security_strength"] != expected_strength:
+            _fail(f"algorithm {record['id']!r} violates the 128-bit security-strength policy")
     for record in certificates:
         if record["state"] not in ALLOWED_KEY_STATES:
             _fail(f"certificate {record['id']!r} has an invalid state")

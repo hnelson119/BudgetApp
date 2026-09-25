@@ -84,6 +84,9 @@ def test_cryptographic_inventory_is_complete_and_current() -> None:
     assert policy["offline_recovery_is_inactive"] is True
     password_kdf_policy = inventory["password_derived_key_policy"]
     assert password_kdf_policy["approved_profiles"] == ["restic-scrypt"]
+    strength_policy = inventory["security_strength_policy"]
+    assert strength_policy["minimum_bits"] == 128
+    assert strength_policy["qualifying_classification"] == "at_least_128_bits"
 
 
 def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
@@ -155,6 +158,11 @@ def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
     browser_roots["prohibited_uses"].remove("self-signed production certificates")
     with pytest.raises(ValueError, match="public certificate trust boundary"):
         validate_cryptographic_inventory(private_browser_ca, today=date(2026, 9, 6))
+
+    weak_approved_profile = copy.deepcopy(inventory)
+    weak_approved_profile["algorithms"][0]["security_strength"] = "below_128_bits"
+    with pytest.raises(ValueError, match="128-bit security-strength policy"):
+        validate_cryptographic_inventory(weak_approved_profile, today=date(2026, 9, 6))
 
     with pytest.raises(ValueError, match="review is overdue"):
         validate_cryptographic_inventory(inventory, today=date(2026, 12, 6))
@@ -328,9 +336,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 162,
+            "implemented": 163,
             "not_applicable": 79,
-            "partial": 12,
+            "partial": 11,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -347,6 +355,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-2.3.2"]["status"] == "partial"
     assert requirements["v5.0.0-4.2.1"]["status"] == "implemented"
     assert requirements["v5.0.0-12.2.2"]["status"] == "implemented"
+    assert requirements["v5.0.0-11.2.3"]["status"] == "implemented"
     assert requirements["v5.0.0-4.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-4.1.3"]["status"] == "implemented"
     assert requirements["v5.0.0-12.3.1"]["status"] == "partial"
@@ -436,6 +445,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V8.1.2",
         "V11.1.1",
         "V11.1.2",
+        "V11.2.3",
         "V11.4.1",
         "V11.4.2",
         "V11.4.3",

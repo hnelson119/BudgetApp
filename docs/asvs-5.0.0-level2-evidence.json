@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 162,
+      "implemented": 163,
       "not_applicable": 79,
-      "partial": 12
+      "partial": 11
     }
   },
   "requirements": [
@@ -3442,14 +3442,17 @@
       "level": 2,
       "description": "Verify that all cryptographic primitives utilize a minimum of 128-bits of security based on the algorithm, key size, and configuration. For example, a 256-bit ECC key provides roughly 128 bits of security where RSA requires a 3072-bit key to achieve 128 bits of security.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Every security-purpose production, deployment, and provider-managed cryptographic profile is classified at 128 bits of security or greater in its complete configured primitive, key-size, mode, rounds, and protocol boundary. The fail-closed inventory checker rejects weaker or unclassified profiles. SHA-1 password-corpus lookup and the synthetic MD5 test hasher are explicit non-security exceptions prohibited from production security use; dated provider and release-host observation remains pending.",
       "evidence": [
-        "SECURITY_PLAN.md",
-        "identity/services/mfa.py",
-        "audit/checkpoints.py",
-        "tests/test_mfa.py",
-        "tests/test_checkpoints.py"
+        "docs/cryptographic-inventory.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "scripts/check_cryptographic_inventory.py",
+        "scripts/check_hash_function_policy.py",
+        "scripts/check_password_hashing_policy.py",
+        "tests/test_release_hardening.py",
+        "tests/test_hash_function_policy.py",
+        "tests/test_password_hashing_policy.py"
       ]
     },
     {
