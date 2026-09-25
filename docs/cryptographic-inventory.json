@@ -56,6 +56,21 @@
       "Verify the replacement credential, repository integrity, retired-credential rejection, and acceptable release-host performance before promotion."
     ]
   },
+  "security_strength_policy": {
+    "minimum_bits": 128,
+    "qualifying_classification": "at_least_128_bits",
+    "non_security_exceptions": [
+      "password-blocklist-sha1",
+      "test-md5-password-hasher"
+    ],
+    "boundary": "Every algorithm used for production, deployment, or provider-managed confidentiality, integrity, authentication, key derivation, signing, or secure randomness must provide at least 128 bits of security in its inventoried configuration. Compatibility formats without a security property and synthetic test-only primitives must be explicitly classified and prohibited from security use.",
+    "required_controls": [
+      "Reject every security-purpose profile whose inventoried strength is below 128 bits or unclassified.",
+      "Require the full configured primitive, key size, mode, rounds, and protocol restrictions to preserve the claimed strength.",
+      "Treat a compatibility or test-only exception as non-qualifying and prohibit it from signatures, general integrity, encryption, key derivation, or production credential protection.",
+      "Reassess the strength classification whenever an algorithm, parameter, dependency, provider, or release-host cryptographic policy changes."
+    ]
+  },
   "scope": {
     "included": [
       "application-owned cryptography",
@@ -827,6 +842,7 @@
       "id": "django-pbkdf2-hmac-sha256",
       "name": "Django PBKDF2-HMAC-SHA256 password hashing",
       "security_status": "approved",
+      "security_strength": "at_least_128_bits",
       "scope": "production application",
       "parameters": "Django 5.2.17 PBKDF2PasswordHasher, 1,000,000 iterations, random per-value salt; primary production hasher",
       "consumers": [
@@ -857,6 +873,7 @@
       "id": "hmac-sha256",
       "name": "HMAC-SHA256",
       "security_status": "approved",
+      "security_strength": "at_least_128_bits",
       "scope": "application and deployment",
       "parameters": "Domain-separated messages; keys are purpose-specific except Django-owned signing and keyed-reference uses of its signing key",
       "consumers": [
@@ -883,6 +900,7 @@
       "id": "sha256",
       "name": "SHA-256",
       "security_status": "approved",
+      "security_strength": "at_least_128_bits",
       "scope": "application and backup tooling",
       "parameters": "Full 256-bit digest; domain-separated when deriving the MFA Fernet key",
       "consumers": [
@@ -911,6 +929,7 @@
       "id": "fernet-v1",
       "name": "Fernet version 1 authenticated encryption",
       "security_status": "approved",
+      "security_strength": "at_least_128_bits",
       "scope": "application",
       "parameters": "256-bit composite key split into 128-bit AES-CBC encryption and 128-bit HMAC-SHA256 signing keys; random 128-bit IV; PKCS7 padding",
       "consumers": [
@@ -934,6 +953,7 @@
       "id": "totp-hmac-sha1",
       "name": "RFC 6238 TOTP with HMAC-SHA1",
       "security_status": "compatibility_only",
+      "security_strength": "at_least_128_bits",
       "scope": "application authentication",
       "parameters": "160-bit random seed, 30-second step, six digits, one-step clock drift, replay prevention by last accepted step",
       "consumers": [
@@ -957,6 +977,7 @@
       "id": "password-blocklist-sha1",
       "name": "Full SHA-1 digest for offline breached-password membership",
       "security_status": "compatibility_only",
+      "security_strength": "non_security_compatibility",
       "scope": "password validation",
       "parameters": "Full uppercase 40-hex-character digest; local hash-only corpus; usedforsecurity disabled; no network lookup",
       "consumers": [
@@ -981,6 +1002,7 @@
       "id": "os-csprng",
       "name": "Operating-system cryptographically secure random generator",
       "security_status": "approved",
+      "security_strength": "at_least_128_bits",
       "scope": "application and deployment",
       "parameters": "Python secrets module or OpenSSL rand; requested output length is purpose-specific",
       "consumers": [
@@ -1006,6 +1028,7 @@
       "id": "restic-scrypt",
       "name": "Restic scrypt repository-key derivation",
       "security_status": "approved",
+      "security_strength": "at_least_128_bits",
       "scope": "backup tooling",
       "parameters": "Parameters and random salt stored in each Restic key file; derives 64 bytes used to unwrap the repository master keys",
       "consumers": [
@@ -1028,6 +1051,7 @@
       "id": "restic-aes256-ctr-poly1305-aes",
       "name": "Restic AES-256-CTR with Poly1305-AES authentication",
       "security_status": "approved",
+      "security_strength": "at_least_128_bits",
       "scope": "backup tooling",
       "parameters": "Restic repository format: random 16-byte nonce, 32-byte AES key, and 32-byte Poly1305-AES key material",
       "consumers": [
@@ -1050,6 +1074,7 @@
       "id": "tls12-tls13",
       "name": "Tailscale Serve TLS 1.2 and TLS 1.3 profile",
       "security_status": "provider_managed",
+      "security_strength": "at_least_128_bits",
       "scope": "private browser ingress",
       "parameters": "Go crypto/tls defaults with ECDHE forward secrecy and AEAD selection between AES-128-GCM and ChaCha20-Poly1305; live certificate and negotiation are checked at release",
       "consumers": [
@@ -1074,6 +1099,7 @@
       "id": "postgres-internal-tls",
       "name": "PostgreSQL internal mutual TLS 1.2 and TLS 1.3 profile",
       "security_status": "approved",
+      "security_strength": "at_least_128_bits",
       "scope": "production internal database transport",
       "parameters": "PostgreSQL 17 and OpenSSL TLS 1.2 or TLS 1.3 with separate ECDSA P-256 server and client authorities, purpose-bound serverAuth and clientAuth leaves, DNS SAN db, libpq verify-full hostname and exact-CA validation, exact certificate-CN-to-role mapping, and no plaintext or password-authentication fallback",
       "consumers": [
@@ -1109,6 +1135,7 @@
       "id": "internal-web-mtls",
       "name": "Internal nginx-to-Gunicorn mutual TLS 1.2 and TLS 1.3 profile",
       "security_status": "approved",
+      "security_strength": "at_least_128_bits",
       "scope": "production internal HTTP transport",
       "parameters": "nginx and Gunicorn with OpenSSL TLS 1.2 or TLS 1.3, separate ECDSA P-256 server and client authorities, purpose-bound serverAuth and clientAuth leaves, DNS SAN web, exact CA and hostname validation, and no plaintext production listener",
       "consumers": [
@@ -1139,6 +1166,7 @@
       "id": "tailscale-wireguard-suite",
       "name": "Tailscale WireGuard transport suite",
       "security_status": "provider_managed",
+      "security_strength": "at_least_128_bits",
       "scope": "private network transport",
       "parameters": "Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s using Curve25519, ChaCha20-Poly1305, BLAKE2s, SipHash24, and HKDF",
       "consumers": [
@@ -1162,6 +1190,7 @@
       "id": "ssh-approved-suite",
       "name": "Operating-system approved SSH public-key suite",
       "security_status": "deployment_managed",
+      "security_strength": "at_least_128_bits",
       "scope": "Linux VM administration",
       "parameters": "Current hardened OpenSSH client and server policy; exact host and user public-key algorithms are captured during release preflight",
       "consumers": [
@@ -1186,6 +1215,7 @@
       "id": "test-md5-password-hasher",
       "name": "Django MD5 test password hasher",
       "security_status": "test_only",
+      "security_strength": "test_only_no_security_claim",
       "scope": "fast local unit tests only",
       "parameters": "Django MD5PasswordHasher selected only by config.settings.test",
       "consumers": [

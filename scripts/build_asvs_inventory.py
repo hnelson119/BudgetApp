@@ -343,6 +343,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V11.1.1",
     "V11.1.2",
     "V11.2.1",
+    "V11.2.3",
     "V11.3.1",
     "V11.3.2",
     "V11.3.3",
@@ -644,6 +645,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "test-only key, algorithm, and certificate boundaries; it defines permitted and "
         "prohibited uses, protected and excluded data, rotation, retirement, review cadence, and "
         "known absences without claiming release verification."
+    ),
+    "V11.2.3": (
+        "Every security-purpose production, deployment, and provider-managed cryptographic "
+        "profile is classified at 128 bits of security or greater in its complete configured "
+        "primitive, key-size, mode, rounds, and protocol boundary. The fail-closed inventory "
+        "checker rejects weaker or unclassified profiles. SHA-1 password-corpus lookup and the "
+        "synthetic MD5 test hasher are explicit non-security exceptions prohibited from "
+        "production security use; dated provider and release-host observation remains pending."
     ),
     "V11.4.1": (
         "SHA-256 is the sole application-selected general-purpose hash and HMAC function, with "
@@ -1209,6 +1218,16 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/CRYPTOGRAPHIC_INVENTORY.md",
         "scripts/check_cryptographic_inventory.py",
         "tests/test_release_hardening.py",
+    ],
+    "V11.2.3": [
+        "docs/cryptographic-inventory.json",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "scripts/check_cryptographic_inventory.py",
+        "scripts/check_hash_function_policy.py",
+        "scripts/check_password_hashing_policy.py",
+        "tests/test_release_hardening.py",
+        "tests/test_hash_function_policy.py",
+        "tests/test_password_hashing_policy.py",
     ],
     "V11.4.1": [
         "docs/HASH_FUNCTION_POLICY.md",

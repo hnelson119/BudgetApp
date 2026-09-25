@@ -91,6 +91,29 @@ replacement credential, repository integrity, retired-credential rejection, and 
 performance before promotion. This repeatable policy and pinned implementation implement ASVS
 `v5.0.0-11.4.4`; dated release-host performance evidence remains pending before verification.
 
+## Minimum security-strength policy
+
+Every production, deployment, or provider-managed profile used for confidentiality, integrity,
+authentication, signing, key derivation, or secure randomness must provide at least 128 bits of
+security in its complete inventoried configuration. The algorithm name alone is insufficient: the
+key size, mode, rounds, protocol floor, purpose restrictions, dependency version, and provider
+boundary must preserve that claim. The JSON inventory classifies every qualifying profile as
+`at_least_128_bits`, and the fail-closed checker rejects an unclassified or weaker security-purpose
+profile.
+
+Two records deliberately make no security-strength claim. Full SHA-1 is only a hash-only lookup
+format for the local breached-password corpus and is prohibited from authentication, integrity,
+signing, encryption, and password storage. MD5 exists only in synthetic unit-test settings and is
+prohibited from hardened, production, migration, backup, browser, pentest, and release targets.
+RFC 6238 TOTP's HMAC-SHA1 compatibility profile remains security-purpose use: it requires an
+independent 160-bit random key, narrow fixed purpose, replay prevention, and the documented online
+attempt throttle, so it retains the 128-bit-or-greater primitive classification even though its
+six-digit output separately limits each online guess.
+
+The release owner must reassess every classification when algorithms, parameters, dependencies,
+providers, or host cryptographic policy change. Dated live negotiation and provider observations
+remain verification work; the enforced inventory boundary implements ASVS `v5.0.0-11.2.3`.
+
 ## Current key and certificate map
 
 | Material | Owner and location | Permitted purpose | Must never protect |
