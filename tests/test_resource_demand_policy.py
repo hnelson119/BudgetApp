@@ -8,6 +8,7 @@ import pytest
 
 from scripts.check_resource_demand_policy import (
     EXPECTED_DEPLOYMENT_LIMITS,
+    EXPECTED_ONE_SHOT_LIMITS,
     EXPECTED_OPERATION_CONTEXTS,
     EXPECTED_REQUIRED_CHECKS,
     EXPECTED_SOURCE_ASSERTIONS,
@@ -33,10 +34,12 @@ def test_resource_demand_policy_accepts_complete_inventory() -> None:
         EXPECTED_OPERATION_CONTEXTS
     )
     assert policy["deployment_limits"] == EXPECTED_DEPLOYMENT_LIMITS
+    assert policy["one_shot_limits"] == EXPECTED_ONE_SHOT_LIMITS
     assert policy["summary"] == {
         "operations": 7,
         "interactive_operations": 5,
         "response_timeouts": 5,
+        "bounded_one_shot_services": 9,
         "source_assertions": 12,
         "required_checks": 8,
         "residual_risks": 3,
@@ -69,6 +72,11 @@ def test_resource_demand_policy_rejects_catalog_tampering() -> None:
     with pytest.raises(ValueError, match="deployment limits changed"):
         validate_resource_demand_policy(changed_deployment, today=date(2026, 9, 13))
 
+    changed_one_shot = copy.deepcopy(policy)
+    changed_one_shot["one_shot_limits"]["backup"]["memory"] = "unlimited"
+    with pytest.raises(ValueError, match="one-shot limits changed"):
+        validate_resource_demand_policy(changed_one_shot, today=date(2026, 9, 13))
+
     with pytest.raises(ValueError, match="review is overdue"):
         validate_resource_demand_policy(policy, today=date(2026, 12, 13))
 
@@ -100,4 +108,14 @@ def test_resource_demand_policy_rejects_runtime_quota_drift(tmp_path) -> None:
     )
 
     with pytest.raises(ValueError, match="runtime resource-demand deployment limits changed"):
+        _validate_deployment_limits(_policy(), tmp_path)
+
+    (tmp_path / "compose.yaml").write_text(
+        compose.replace(
+            '    profiles: ["recovery"]\n    cpus: 2.0\n    mem_limit: 2g\n',
+            '    profiles: ["recovery"]\n    cpus: 2.0\n    mem_limit: 3g\n',
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="runtime one-shot resource limits changed"):
         _validate_deployment_limits(_policy(), tmp_path)

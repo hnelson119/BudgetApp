@@ -1,6 +1,6 @@
 # Resource-demand and response-time policy
 
-Status: implemented documentation boundary; release load verification pending
+Status: implemented resource and availability boundary; release load verification pending
 Last reviewed: 2026-09-13
 Next review due: 2026-12-12
 
@@ -38,8 +38,9 @@ for web, 0.5 CPU/256 MiB for ingress, and 0.5 CPU/256 MiB for the log collector.
 and the 6 MiB ingress body ceiling reject oversized bodies before Django's 5 MiB application limit
 is exceeded. These ceilings are conservative starting bounds, not measured capacity claims; the
 release-host rehearsal must confirm actual CPU throttling, peak memory, restart behavior, and
-response latency. One-shot maintenance services still need measured CPU and memory ceilings before
-`v5.0.0-15.2.2` can be considered complete.
+response latency. Each of the eight maintenance services and the recovery verifier is separately
+capped at 2 CPUs, 2 GiB, and 128 PIDs. These conservative one-shot ceilings prevent unbounded host
+consumption and remain subject to tightening after representative release-host measurements.
 
 ## Failure, retry, and response rules
 
@@ -65,7 +66,9 @@ For every release candidate, exercise maximum-size CSV parsing and commit, the 1
 projection boundary, large filtered exports, notification refresh, and simultaneous ordinary page
 loads on representative VM resources. Record wall time, peak memory, CPU throttling, database
 duration, response status, and whether either web worker restarted or any container was OOM-killed.
-Measure backup, restore, key rotation, migration, and checkpoint jobs before setting their ceilings.
-Keep `v5.0.0-15.2.2` partial until this evidence exists and all production service quotas are
-enforced. If a synchronous operation approaches 20 seconds under that load, reduce its limit or
-move it to a bounded per-user and application-wide queue before release.
+Measure backup, restore, key rotation, migration, and checkpoint jobs to validate and tune their
+ceilings.
+The enforced bounds implement `v5.0.0-15.2.2`; keep it unverified until representative evidence
+confirms the limits preserve availability. If a synchronous operation approaches 20 seconds under
+that load, reduce its limit or move it to a bounded per-user and application-wide queue before
+release.

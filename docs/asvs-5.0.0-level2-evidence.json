@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 164,
+      "implemented": 165,
       "not_applicable": 79,
-      "partial": 10
+      "partial": 9
     }
   },
   "requirements": [
@@ -4373,7 +4373,7 @@
       "description": "Verify that the application documentation identifies functionality which is time-consuming or resource-demanding. This must include how to prevent a loss of availability due to overusing this functionality and how to avoid a situation where building a response takes longer than the consumer's timeout. Potential defenses may include asynchronous processing, using queues, and limiting parallel processes per user and per application.",
       "applicability": "applicable",
       "status": "implemented",
-      "assessment": "The maintained resource-demand policy identifies seven expensive interactive and operator workflow families, their fixed input, result, horizon, process, and concurrency bounds, and their failure and retry behavior. Five explicit ingress and application timeouts preserve worker-before-proxy failure ordering. A fail-closed checker pins 12 source contracts and the two-worker deployment envelope. Four long-running services have pinned CPU and memory ceilings; representative load evidence and one-shot maintenance ceilings remain separately tracked under V15.2.2.",
+      "assessment": "The maintained resource-demand policy identifies seven expensive interactive and operator workflow families, their fixed input, result, horizon, process, and concurrency bounds, and their failure and retry behavior. Five explicit ingress and application timeouts preserve worker-before-proxy failure ordering. A fail-closed checker pins 12 source contracts and the two-worker deployment envelope. Four long-running services and all nine one-shot maintenance or recovery services have pinned CPU, memory, and PID ceilings; representative load evidence remains release verification work.",
       "evidence": [
         "docs/RESOURCE_DEMAND_POLICY.md",
         "docs/resource-demand-policy.json",
@@ -4417,12 +4417,19 @@
       "level": 2,
       "description": "Verify that the application has implemented defenses against loss of availability due to functionality which is time-consuming or resource-demanding, based on the documented security decisions and strategies for this.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "Seven inventoried expensive workflow families have fixed input, result, horizon, process, retry, and timeout controls. The four long-running services and all nine maintenance or recovery services have enforced CPU, memory, and PID ceilings; a fail-closed checker compares every Compose service to the maintained policy. The conservative one-shot limits and synchronous worst cases still require representative release-host measurement before verification.",
       "evidence": [
-        "Dockerfile",
-        ".github/workflows/quality.yml",
-        "tests/test_deployment_config.py"
+        "docs/RESOURCE_DEMAND_POLICY.md",
+        "docs/resource-demand-policy.json",
+        "compose.yaml",
+        "scripts/check_resource_demand_policy.py",
+        "scripts/check_input_validation_policy.py",
+        "tests/test_resource_demand_policy.py",
+        "tests/test_deployment_config.py",
+        "tests/test_csv_imports.py",
+        "tests/test_debt_projections.py",
+        "tests/test_csv_exports.py"
       ]
     },
     {

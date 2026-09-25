@@ -78,6 +78,9 @@ services:
   db-bootstrap:
     image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
     profiles: ["maintenance"]
+    cpus: 2.0
+    mem_limit: 2g
+    pids_limit: 128
     entrypoint: ["/bin/sh", "/usr/local/bin/bootstrap-roles.sh"]
     environment:
       APP_ENVIRONMENT: production
@@ -119,6 +122,8 @@ services:
     build:
       context: ${BUDGET_BUILD_CONTEXT:-.}
     profiles: ["maintenance"]
+    cpus: 2.0
+    mem_limit: 2g
     command: ["python", "manage.py", "migrate", "--noinput"]
     environment:
       <<: *app-environment
@@ -145,6 +150,8 @@ services:
     build:
       context: ${BUDGET_BUILD_CONTEXT:-.}
     profiles: ["maintenance"]
+    cpus: 2.0
+    mem_limit: 2g
     command:
       - python
       - manage.py
@@ -183,6 +190,9 @@ services:
       context: ${BUDGET_BUILD_CONTEXT:-.}
       dockerfile: deploy/backup/Dockerfile
     profiles: ["maintenance"]
+    cpus: 2.0
+    mem_limit: 2g
+    pids_limit: 128
     command: ["/usr/local/bin/backup.sh"]
     environment:
       DATABASE_HOST: db
@@ -233,6 +243,9 @@ services:
       context: ${BUDGET_BUILD_CONTEXT:-.}
       dockerfile: deploy/backup/Dockerfile
     profiles: ["maintenance"]
+    cpus: 2.0
+    mem_limit: 2g
+    pids_limit: 128
     command: ["/usr/local/bin/rotate-restic-key.sh"]
     environment:
       RESTIC_REPOSITORY: /repository
@@ -265,6 +278,8 @@ services:
     build:
       context: ${BUDGET_BUILD_CONTEXT:-.}
     profiles: ["maintenance"]
+    cpus: 2.0
+    mem_limit: 2g
     command: ["python", "manage.py", "write_audit_checkpoints"]
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.integrity
@@ -307,6 +322,8 @@ services:
     build:
       context: ${BUDGET_BUILD_CONTEXT:-.}
     profiles: ["maintenance"]
+    cpus: 2.0
+    mem_limit: 2g
     command: ["python", "manage.py", "generate_notifications"]
     environment:
       <<: *app-environment
@@ -342,6 +359,8 @@ services:
     build:
       context: ${BUDGET_BUILD_CONTEXT:-.}
     profiles: ["maintenance"]
+    cpus: 2.0
+    mem_limit: 2g
     command: ["python", "manage.py", "cleanup_stale_imports"]
     environment:
       <<: *app-environment
@@ -369,6 +388,9 @@ services:
       context: ${BUDGET_BUILD_CONTEXT:-.}
       dockerfile: deploy/backup/Dockerfile
     profiles: ["recovery"]
+    cpus: 2.0
+    mem_limit: 2g
+    pids_limit: 128
     command: ["/usr/local/bin/restore-verify.sh"]
     environment:
       DATABASE_HOST: db
