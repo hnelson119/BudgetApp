@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-09-20"
+MAPPING_UPDATED = "2026-09-25"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -353,6 +353,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V11.5.1",
     "V12.1.3",
     "V12.2.1",
+    "V12.2.2",
     "V12.3.3",
     "V12.3.4",
     "V13.1.1",
@@ -681,6 +682,13 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "PostgreSQL validates every production client certificate against a dedicated client CA "
         "and maps its exact certificate CN to one configured database role. The runtime proof "
         "confirms the web client DN and rejects a web certificate attempting the audit role."
+    ),
+    "V12.2.2": (
+        "Tailscale Serve provisions the exact ts.net browser hostname with a publicly trusted "
+        "Let's Encrypt certificate while keeping the service tailnet-private. The deployment "
+        "preflight connects with the operating system's default public trust store and exact "
+        "hostname validation, so an untrusted, expired, or name-mismatched certificate fails "
+        "closed. Dated release-host and approved-browser observation remains pending."
     ),
     "V12.3.3": (
         "The only internal HTTP service hop uses mutually authenticated TLS 1.2 or TLS 1.3: "
@@ -1267,6 +1275,14 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "deploy/network/run-production-boundary.py",
         "tests/test_network_boundary.py",
         "docs/POSTGRES_TLS.md",
+    ],
+    "V12.2.2": [
+        "docs/PRIVATE_INGRESS.md",
+        "docs/CRYPTOGRAPHIC_INVENTORY.md",
+        "docs/cryptographic-inventory.json",
+        "deploy/network/verify-private-ingress.py",
+        "scripts/verify-private-ingress.sh",
+        "tests/test_network_boundary.py",
     ],
     "V12.3.3": [
         "compose.yaml",

@@ -544,7 +544,7 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         text_fields=TEXT_ALGORITHM_FIELDS,
         list_fields=ALGORITHM_FIELDS - TEXT_ALGORITHM_FIELDS,
     )
-    certificates, _ = _validate_record_set(
+    certificates, certificates_by_id = _validate_record_set(
         data["certificates"],
         collection="certificates",
         expected_ids=EXPECTED_CERTIFICATE_IDS,
@@ -606,6 +606,20 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         or "parameter override by application code" not in restic_scrypt["prohibited_uses"]
     ):
         _fail("approved Restic scrypt parameters or ownership changed unexpectedly")
+    tailscale_leaf = certificates_by_id["tailscale-serve-leaf-certificate"]
+    browser_roots = certificates_by_id["browser-public-trust-roots"]
+    official_https_documentation = "https://tailscale.com/docs/how-to/set-up-https-certificates"
+    if (
+        tailscale_leaf["issuer"] != "Let's Encrypt through Tailscale HTTPS certificate provisioning"
+        or tailscale_leaf["boundary"] != "provider"
+        or "operating-system default public trust store" not in tailscale_leaf["validation"]
+        or "exact hostname validation" not in tailscale_leaf["validation"]
+        or official_https_documentation not in tailscale_leaf["evidence"]
+        or official_https_documentation not in browser_roots["evidence"]
+        or "custom trust bypasses" not in browser_roots["prohibited_uses"]
+        or "self-signed production certificates" not in browser_roots["prohibited_uses"]
+    ):
+        _fail("browser-facing public certificate trust boundary changed unexpectedly")
 
     expected_summary = {
         "cryptographic_keys": len(keys),
