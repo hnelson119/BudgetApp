@@ -4,7 +4,8 @@
   "asvs_requirements": [
     "v5.0.0-2.1.1",
     "v5.0.0-2.1.2",
-    "v5.0.0-2.1.3"
+    "v5.0.0-2.1.3",
+    "v5.0.0-2.3.2"
   ],
   "last_reviewed": "2026-09-13",
   "next_review_due": "2026-12-12",
@@ -302,6 +303,89 @@
       "evidence": ["spending/views.py", "audit/views.py", "tests/test_spending_ui.py", "tests/test_audit.py"]
     }
   ],
+  "business_limit_tests": [
+    {
+      "id": "authenticated-session-limits",
+      "tests": [
+        "tests/test_account_security.py::test_new_login_revokes_oldest_session_at_account_limit",
+        "tests/test_authentication.py::test_idle_session_is_terminated",
+        "tests/test_release_hardening.py::test_session_security_policy_matches_enforced_timeouts"
+      ]
+    },
+    {
+      "id": "csv-import-resource-limits",
+      "tests": [
+        "tests/test_csv_imports.py::test_csv_upload_contract_matches_the_documented_release_limits",
+        "tests/test_csv_imports.py::test_csv_parser_enforces_configured_byte_limit",
+        "tests/test_csv_imports.py::test_csv_parser_enforces_row_and_cell_limits",
+        "tests/test_csv_imports.py::test_csv_parser_enforces_column_and_header_limits"
+      ]
+    },
+    {
+      "id": "debt-projection-limits",
+      "tests": [
+        "tests/test_debt_projections.py::test_projection_rejects_invalid_strategy_and_too_many_debts",
+        "tests/test_debt_projections.py::test_projection_validation_fails_closed"
+      ]
+    },
+    {
+      "id": "login-throttle-limits",
+      "tests": [
+        "tests/test_authentication.py::test_login_failures_are_rate_limited_without_storing_email",
+        "tests/test_password_recovery.py::test_recovery_is_rate_limited_and_never_stores_submitted_values"
+      ]
+    },
+    {
+      "id": "mfa-code-limits",
+      "tests": [
+        "tests/test_mfa.py::test_mfa_services_reject_incomplete_replayed_and_malformed_credentials",
+        "tests/test_mfa.py::test_enrollment_requires_recovery_confirmation_before_household_access",
+        "tests/test_mfa.py::test_pending_mfa_expires_without_consuming_recovery_code"
+      ]
+    },
+    {
+      "id": "money-precision-and-sign-limits",
+      "tests": [
+        "tests/test_debt_accounts.py::test_debt_creation_rejects_invalid_money_terms_and_types",
+        "tests/test_managed_runtime_safety.py::test_numeric_model_inventory_is_bounded"
+      ]
+    },
+    {
+      "id": "notification-window-limits",
+      "tests": [
+        "tests/test_notifications.py::test_notification_ui_is_scoped_csrf_protected_and_updates_preferences",
+        "tests/test_notifications.py::test_notification_models_and_refresh_inputs_reject_invalid_state"
+      ]
+    },
+    {
+      "id": "password-blocklist-limits",
+      "tests": [
+        "tests/test_password_policy.py::test_corpus_loader_rejects_stale_or_impossible_dates",
+        "tests/test_password_policy.py::test_corpus_loader_rejects_missing_oversized_and_invalid_limits"
+      ]
+    },
+    {
+      "id": "percentage-rate-limits",
+      "tests": [
+        "tests/test_debt_accounts.py::test_debt_creation_rejects_invalid_money_terms_and_types",
+        "tests/test_debt_projections.py::test_projection_rejects_invalid_term_assumptions"
+      ]
+    },
+    {
+      "id": "result-page-limits",
+      "tests": [
+        "tests/test_audit_ui.py::test_audit_history_pages_enforce_fifty_record_limit",
+        "tests/test_spending_ui.py::test_transaction_history_pages_enforce_fifty_record_limit"
+      ]
+    },
+    {
+      "id": "schedule-recurrence-limits",
+      "tests": [
+        "tests/test_scheduling_periods.py::test_recurrence_generation_rejects_invalid_windows_limits_and_overflow",
+        "tests/test_scheduling_periods.py::test_period_and_occurrence_sync_reject_invalid_generation_windows"
+      ]
+    }
+  ],
   "source_assertions": [
     {
       "id": "amount-field-contract",
@@ -371,12 +455,6 @@
   ],
   "known_gaps": [
     {
-      "id": "complete-business-rule-enforcement-review",
-      "asvs_requirement": "v5.0.0-2.3.2",
-      "status": "partial",
-      "description": "The rule catalog documents implemented boundaries but does not yet prove an exhaustive, independent review that every business rule is enforced at every applicable trust boundary."
-    },
-    {
       "id": "release-candidate-validation-verification",
       "asvs_requirement": "v5.0.0-2.1.1 through v5.0.0-2.1.3",
       "status": "pending",
@@ -389,7 +467,8 @@
     "structure_rules": 10,
     "context_rules": 10,
     "business_limits": 11,
+    "business_limit_tests": 26,
     "source_assertions": 13,
-    "known_gaps": 2
+    "known_gaps": 1
   }
 }

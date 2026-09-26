@@ -16,6 +16,7 @@ EXPECTED_REQUIREMENTS = {
     "v5.0.0-2.1.1",
     "v5.0.0-2.1.2",
     "v5.0.0-2.1.3",
+    "v5.0.0-2.3.2",
 }
 EXPECTED_FORM_REGISTRY = {
     "audit/forms.py": {"AuditFilterForm"},
@@ -119,8 +120,57 @@ EXPECTED_BUSINESS_LIMIT_IDS = {
     "result-page-limits",
     "schedule-recurrence-limits",
 }
+EXPECTED_BUSINESS_LIMIT_TESTS = {
+    "authenticated-session-limits": {
+        "tests/test_account_security.py::test_new_login_revokes_oldest_session_at_account_limit",
+        "tests/test_authentication.py::test_idle_session_is_terminated",
+        "tests/test_release_hardening.py::test_session_security_policy_matches_enforced_timeouts",
+    },
+    "csv-import-resource-limits": {
+        "tests/test_csv_imports.py::test_csv_upload_contract_matches_the_documented_release_limits",
+        "tests/test_csv_imports.py::test_csv_parser_enforces_configured_byte_limit",
+        "tests/test_csv_imports.py::test_csv_parser_enforces_row_and_cell_limits",
+        "tests/test_csv_imports.py::test_csv_parser_enforces_column_and_header_limits",
+    },
+    "debt-projection-limits": {
+        "tests/test_debt_projections.py::test_projection_rejects_invalid_strategy_and_too_many_debts",
+        "tests/test_debt_projections.py::test_projection_validation_fails_closed",
+    },
+    "login-throttle-limits": {
+        "tests/test_authentication.py::test_login_failures_are_rate_limited_without_storing_email",
+        "tests/test_password_recovery.py::test_recovery_is_rate_limited_and_never_stores_submitted_values",
+    },
+    "mfa-code-limits": {
+        "tests/test_mfa.py::test_mfa_services_reject_incomplete_replayed_and_malformed_credentials",
+        "tests/test_mfa.py::test_enrollment_requires_recovery_confirmation_before_household_access",
+        "tests/test_mfa.py::test_pending_mfa_expires_without_consuming_recovery_code",
+    },
+    "money-precision-and-sign-limits": {
+        "tests/test_debt_accounts.py::test_debt_creation_rejects_invalid_money_terms_and_types",
+        "tests/test_managed_runtime_safety.py::test_numeric_model_inventory_is_bounded",
+    },
+    "notification-window-limits": {
+        "tests/test_notifications.py::test_notification_ui_is_scoped_csrf_protected_and_updates_preferences",
+        "tests/test_notifications.py::test_notification_models_and_refresh_inputs_reject_invalid_state",
+    },
+    "password-blocklist-limits": {
+        "tests/test_password_policy.py::test_corpus_loader_rejects_stale_or_impossible_dates",
+        "tests/test_password_policy.py::test_corpus_loader_rejects_missing_oversized_and_invalid_limits",
+    },
+    "percentage-rate-limits": {
+        "tests/test_debt_accounts.py::test_debt_creation_rejects_invalid_money_terms_and_types",
+        "tests/test_debt_projections.py::test_projection_rejects_invalid_term_assumptions",
+    },
+    "result-page-limits": {
+        "tests/test_audit_ui.py::test_audit_history_pages_enforce_fifty_record_limit",
+        "tests/test_spending_ui.py::test_transaction_history_pages_enforce_fifty_record_limit",
+    },
+    "schedule-recurrence-limits": {
+        "tests/test_scheduling_periods.py::test_recurrence_generation_rejects_invalid_windows_limits_and_overflow",
+        "tests/test_scheduling_periods.py::test_period_and_occurrence_sync_reject_invalid_generation_windows",
+    },
+}
 EXPECTED_GAP_IDS = {
-    "complete-business-rule-enforcement-review",
     "release-candidate-validation-verification",
 }
 EXPECTED_SOURCE_ASSERTIONS = {
@@ -364,6 +414,42 @@ def _validate_source_assertions(policy: dict[str, Any], project_root: Path) -> N
         validate_source_contract(assertion_id, source)
 
 
+def _test_functions(source: str, path: str) -> set[str]:
+    tree = ast.parse(source, filename=path)
+    return {
+        node.name for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+
+def _validate_business_limit_tests(policy: dict[str, Any], project_root: Path) -> None:
+    records = policy.get("business_limit_tests")
+    if not isinstance(records, list):
+        _fail("business_limit_tests must be a list")
+    documented: dict[str, set[str]] = {}
+    for record in records:
+        if not isinstance(record, dict) or set(record) != {"id", "tests"}:
+            _fail("business-limit test fields changed")
+        identifier = _text(record["id"], "business-limit test id")
+        if identifier in documented:
+            _fail(f"duplicate business-limit test record: {identifier}")
+        documented[identifier] = set(_string_list(record["tests"], f"{identifier} tests"))
+    if documented != EXPECTED_BUSINESS_LIMIT_TESTS:
+        _fail("business-limit test inventory changed")
+
+    discovered: dict[str, set[str]] = {}
+    for references in documented.values():
+        for reference in references:
+            path, separator, function = reference.partition("::")
+            if not separator or not function.startswith("test_"):
+                _fail(f"invalid business-limit test reference: {reference}")
+            functions = discovered.setdefault(
+                path,
+                _test_functions(_safe_path(project_root, path).read_text(encoding="utf-8"), path),
+            )
+            if function not in functions:
+                _fail(f"missing business-limit enforcement test: {reference}")
+
+
 def validate_input_validation_policy(
     policy: dict[str, Any], *, project_root: Path = PROJECT_ROOT, today: date | None = None
 ) -> None:
@@ -378,6 +464,7 @@ def validate_input_validation_policy(
         "structure_rules",
         "context_rules",
         "business_limits",
+        "business_limit_tests",
         "source_assertions",
         "known_gaps",
         "summary",
@@ -404,6 +491,7 @@ def validate_input_validation_policy(
     _validate_rules(policy, "structure_rules", EXPECTED_STRUCTURE_RULE_IDS, project_root)
     _validate_rules(policy, "context_rules", EXPECTED_CONTEXT_RULE_IDS, project_root)
     _validate_rules(policy, "business_limits", EXPECTED_BUSINESS_LIMIT_IDS, project_root)
+    _validate_business_limit_tests(policy, project_root)
     _validate_source_assertions(policy, project_root)
 
     gaps = policy.get("known_gaps")
@@ -432,6 +520,7 @@ def validate_input_validation_policy(
         "structure_rules": len(EXPECTED_STRUCTURE_RULE_IDS),
         "context_rules": len(EXPECTED_CONTEXT_RULE_IDS),
         "business_limits": len(EXPECTED_BUSINESS_LIMIT_IDS),
+        "business_limit_tests": sum(len(tests) for tests in EXPECTED_BUSINESS_LIMIT_TESTS.values()),
         "source_assertions": len(EXPECTED_SOURCE_ASSERTIONS),
         "known_gaps": len(EXPECTED_GAP_IDS),
     }
@@ -452,7 +541,8 @@ def main() -> int:
     print(
         "Input-validation policy verified: "
         f"{summary['form_classes']} forms, {summary['structure_rules']} structure rules, "
-        f"{summary['context_rules']} context rules, {summary['business_limits']} business limits."
+        f"{summary['context_rules']} context rules, {summary['business_limits']} business limits, "
+        f"{summary['business_limit_tests']} enforcement tests."
     )
     return 0
 

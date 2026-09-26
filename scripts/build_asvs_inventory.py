@@ -264,6 +264,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V2.2.2",
     "V2.2.3",
     "V2.3.1",
+    "V2.3.2",
     "V2.3.3",
     "V2.3.4",
     "V3.2.1",
@@ -500,8 +501,14 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "Eleven business-limit groups document exact money and rate shapes, upload resources, "
         "recurrence and projection horizons, authentication and MFA time windows, blocklist "
         "bounds, notification windows, and pagination. Thirteen source assertions pin the current "
-        "values and fail the normal gates on drift; exhaustive business-rule enforcement remains "
-        "separately partial under V2.3.2."
+        "values and fail the normal gates on drift, while 26 named enforcement-test references "
+        "cover every group."
+    ),
+    "V2.3.2": (
+        "An exhaustive review maps all eleven documented business-limit groups to their form, "
+        "service, model, database, configuration, or presentation boundaries and to 26 named "
+        "fail-closed tests. The checker parses every referenced test and rejects missing or "
+        "renamed coverage; explicit 51-record histories prove both rendered page limits."
     ),
     "V3.4.2": (
         "The private application deliberately grants no cross-origin reads. An outer same-origin "
@@ -920,6 +927,24 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "tests/test_input_validation_policy.py",
         "config/settings/base.py",
         "debts/services/projections.py",
+    ],
+    "V2.3.2": [
+        "docs/INPUT_VALIDATION_POLICY.md",
+        "docs/input-validation-policy.json",
+        "scripts/check_input_validation_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "tests/test_input_validation_policy.py",
+        "tests/test_audit_ui.py",
+        "tests/test_spending_ui.py",
+        "tests/test_notifications.py",
+        "tests/test_scheduling_periods.py",
+        "tests/test_debt_projections.py",
+        "tests/test_csv_imports.py",
+        "tests/test_account_security.py",
+        "tests/test_authentication.py",
+        "tests/test_mfa.py",
+        "tests/test_password_policy.py",
     ],
     "V1.2.3": [
         "docs/OUTPUT_ENCODING_POLICY.md",

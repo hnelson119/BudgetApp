@@ -8,6 +8,7 @@ import pytest
 
 from scripts.check_input_validation_policy import (
     EXPECTED_BUSINESS_LIMIT_IDS,
+    EXPECTED_BUSINESS_LIMIT_TESTS,
     EXPECTED_CONTEXT_RULE_IDS,
     EXPECTED_SOURCE_ASSERTIONS,
     EXPECTED_STRUCTURE_RULE_IDS,
@@ -34,12 +35,16 @@ def test_input_validation_policy_accepts_complete_inventory() -> None:
         "structure_rules": 10,
         "context_rules": 10,
         "business_limits": 11,
+        "business_limit_tests": 26,
         "source_assertions": 13,
-        "known_gaps": 2,
+        "known_gaps": 1,
     }
     assert {item["id"] for item in policy["structure_rules"]} == EXPECTED_STRUCTURE_RULE_IDS
     assert {item["id"] for item in policy["context_rules"]} == EXPECTED_CONTEXT_RULE_IDS
     assert {item["id"] for item in policy["business_limits"]} == EXPECTED_BUSINESS_LIMIT_IDS
+    assert {item["id"] for item in policy["business_limit_tests"]} == set(
+        EXPECTED_BUSINESS_LIMIT_TESTS
+    )
     assert {item["id"] for item in policy["source_assertions"]} == set(EXPECTED_SOURCE_ASSERTIONS)
 
 
@@ -68,6 +73,11 @@ def test_input_validation_policy_rejects_catalog_tampering() -> None:
     missing_evidence["context_rules"][0]["evidence"] = ["docs/does-not-exist.md"]
     with pytest.raises(ValueError, match="missing evidence path"):
         validate_input_validation_policy(missing_evidence, today=date(2026, 9, 13))
+
+    missing_limit_test = copy.deepcopy(policy)
+    missing_limit_test["business_limit_tests"][0]["tests"].pop()
+    with pytest.raises(ValueError, match="business-limit test inventory changed"):
+        validate_input_validation_policy(missing_limit_test, today=date(2026, 9, 13))
 
     with pytest.raises(ValueError, match="review is overdue"):
         validate_input_validation_policy(policy, today=date(2026, 12, 13))

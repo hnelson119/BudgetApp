@@ -82,6 +82,31 @@ def test_audit_history_is_household_scoped_read_only_and_not_cached(
 
 
 @pytest.mark.django_db
+def test_audit_history_pages_enforce_fifty_record_limit(
+    client: Client,
+    audit_ui_user,
+) -> None:  # type: ignore[no-untyped-def]
+    household, user = audit_ui_user
+    for index in range(50):
+        append_event(
+            household=household,
+            actor=user,
+            action="visible.pagination_event",
+            entity_type="visible.record",
+            entity_id=f"pagination-{index}",
+            request_id=f"audit-pagination-{index}",
+        )
+    client.force_login(user)
+
+    first = client.get(reverse("audit:history"))
+    second = client.get(reverse("audit:history"), {"page": "2"})
+
+    assert first.context["page"].paginator.per_page == 50
+    assert len(first.context["page"].object_list) == 50
+    assert len(second.context["page"].object_list) == 1
+
+
+@pytest.mark.django_db
 def test_audit_history_prominently_warns_when_chain_verification_fails(
     client,
     audit_ui_user,
