@@ -53,6 +53,13 @@ lower its controls. The model registry check catches new models; the mandatory r
 any model or field change catches classification, lifecycle, or retention changes within an
 existing model.
 
+The quality gate also pins the rank of each protection level and a minimum level for every
+dataset. Moving a model between datasets cannot bypass its independent minimum: models default
+to Restricted, with reviewed exceptions only for framework authorization schema (Internal) and
+household profiles and membership (Confidential). Stronger classifications are accepted. Lowering
+a minimum requires an explicit policy-code review; editing the catalog alone fails the gate.
+This guards classification changes, not the live enforcement of every handling requirement.
+
 ## Privacy and regulatory boundary
 
 The current context is a private, self-hosted application for one invited household. It has no
