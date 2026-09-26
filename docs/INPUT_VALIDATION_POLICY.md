@@ -74,6 +74,12 @@ absolute sessions; five concurrent sessions; five login failures within fifteen 
 five-year synchronization windows; 100 debts and 1,200 months per payoff projection; 0-30 day
 notification windows; and 50 records per transaction or audit page.
 
+The machine policy also maps every limit group to named enforcement tests. The checker parses the
+referenced test modules and fails when a mapping is removed, renamed, or points outside the
+repository. These 26 test references cover configuration values, form and service rejection,
+database constraints, transactional rollback, horizons and result caps, plus the two rendered
+history-page boundaries. Both history views now exercise 51 records and prove a 50/1 page split.
+
 Changing a limit requires a single review that updates the source, tests, machine-readable policy,
 capacity and abuse rationale, and any user-facing help text. The checker deliberately fails when a
 source constant, paginator, form registry, evidence path, review date, or catalog count drifts.
@@ -86,8 +92,7 @@ operation, authentication factor, persistence model, or externally reachable rou
 input cannot ship until its structure, combinations, business limits, failure behavior, and test
 evidence are classified here.
 
-This is implementation evidence, not a release pass. ASVS `v5.0.0-2.3.2` remains partial because
-the catalog does not itself prove an exhaustive independent review that every business rule is
-enforced at every applicable trust boundary. The three implemented policy requirements also need a
-dated release-candidate adversarial run and sanitized retained evidence before they can be marked
-verified.
+This is implementation evidence, not a release pass. The exhaustive review ties all eleven
+documented limit groups to their runtime boundaries and fail-closed tests, implementing ASVS
+`v5.0.0-2.3.2`. The validation-policy requirements still need a dated release-candidate adversarial
+run and sanitized retained evidence before any can be marked verified.

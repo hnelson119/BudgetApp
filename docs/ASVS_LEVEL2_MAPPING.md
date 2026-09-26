@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 165 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 9 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 166 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 8 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 9
+These are the clearest implementation or operational work items exposed by the mapping. The 8
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -67,10 +67,11 @@ The maintained input-validation policy implements `v5.0.0-2.1.1`, `v5.0.0-2.1.2`
 ten structure-rule families and ten cross-field or contextual rule groups, and records eleven
 business-limit groups. Thirteen exact source assertions pin money and rate shapes, household and
 balanced-ledger checks, upload caps, recurrence and projection horizons, authentication and MFA
-windows, blocklist bounds, notification limits, and pagination. New form classes, changed limits,
-missing evidence, stale review dates, and catalog drift fail the normal gates. The broader
-exhaustive enforcement review in `v5.0.0-2.3.2` remains partial, and release-candidate verification
-remains pending. See `docs/INPUT_VALIDATION_POLICY.md` and
+windows, blocklist bounds, notification limits, and pagination. The completed exhaustive review
+maps all eleven limit groups to 26 named enforcement tests, including runtime 50/1 page-boundary
+checks. New form classes, changed limits, missing or renamed tests, stale review dates, and catalog
+drift fail the normal gates. `v5.0.0-2.3.2` is implemented; release-candidate verification remains
+pending. See `docs/INPUT_VALIDATION_POLICY.md` and
 `docs/input-validation-policy.json`.
 
 The dangerous-context boundary implements `v5.0.0-1.3.3`. It defines the exact treatment for 11

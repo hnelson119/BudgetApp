@@ -15,7 +15,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
@@ -729,6 +729,10 @@ def test_notification_models_and_refresh_inputs_reject_invalid_state(
     )
     assert "Notification preferences" in str(preference)
     assert preference.as_audit_payload()["upcoming_due_days"] == 3
+
+    for field in ("upcoming_due_days", "missing_income_grace_days"):
+        with pytest.raises(IntegrityError), transaction.atomic():
+            NotificationPreference.objects.filter(pk=preference.pk).update(**{field: 31})
 
     for invalid_hours in (0, 721):
         with pytest.raises(ValidationError, match="between 1 and 720"):

@@ -732,6 +732,33 @@ def test_transaction_list_defaults_to_paycheck_period_and_filters(
 
 
 @pytest.mark.django_db
+def test_transaction_history_pages_enforce_fifty_record_limit(
+    client: Client,
+    spending_context: SpendingContext,
+) -> None:
+    _mfa_ready(spending_context.user)
+    for index in range(51):
+        record_expense(
+            household=spending_context.household,
+            actor=spending_context.user,
+            account=spending_context.checking,
+            category=spending_context.category,
+            amount=Decimal("1.00"),
+            effective_at=datetime(2026, 8, 22, 12, tzinfo=ZoneInfo("America/New_York")),
+            description=f"Page boundary expense {index}",
+            request_id=f"spending-pagination-{index}",
+        )
+    client.force_login(spending_context.user)
+
+    first = client.get(reverse("spending:transaction-list"), {"scope": "all"})
+    second = client.get(reverse("spending:transaction-list"), {"scope": "all", "page": "2"})
+
+    assert first.context["page"].paginator.per_page == 50
+    assert len(first.context["page"].object_list) == 50
+    assert len(second.context["page"].object_list) == 1
+
+
+@pytest.mark.django_db
 def test_full_refund_reversal_is_confirmed_linked_and_audited(
     client: Client,
     spending_context: SpendingContext,
