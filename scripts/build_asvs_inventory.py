@@ -1603,6 +1603,13 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
 }
 
 PARTIAL_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V14.2.4": (
+        "The repository gate enforces protection-level ranks and independent dataset and model "
+        "classification floors, preventing catalog-only downgrades or model reassignment bypasses. "
+        "Documented handling controls remain subject to dated release-host verification of "
+        "encrypted storage, retention, access, disposal, and recovery; "
+        "this control remains partial."
+    ),
     "V12.3.1": (
         "Every application-managed production TCP connection now requires TLS 1.2 or TLS 1.3 "
         "without a plaintext fallback. Dated verification of browser-facing Tailscale HTTPS and "
@@ -1630,8 +1637,17 @@ PARTIAL_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "docs/POSTGRES_TLS.md",
         "docs/cryptographic-inventory.json",
     ]
-    for source_id in PARTIAL_ASSESSMENT_OVERRIDES
+    for source_id in ("V12.3.1", "V12.3.2")
 }
+PARTIAL_EVIDENCE_OVERRIDES["V14.2.4"] = [
+    "docs/DATA_CLASSIFICATION.md",
+    "docs/data-classification.json",
+    "scripts/check_data_classification.py",
+    "tests/test_data_classification.py",
+    "core/middleware.py",
+    "core/logging.py",
+    "tests/test_logging.py",
+]
 
 
 def _catalog_sha256(requirements: list[dict[str, Any]]) -> str:

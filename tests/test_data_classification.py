@@ -81,3 +81,43 @@ def test_data_classification_documents_database_encryption_for_sensitive_levels(
         requirement = levels[identifier]["database_level_encryption"].casefold()
         assert "encrypted" in requirement
         assert "release verification" in requirement
+
+
+@pytest.mark.parametrize("dataset_index", range(15))
+def test_dataset_cannot_be_downgraded(dataset_index: int) -> None:
+    document = _document()
+    dataset = document["datasets"][dataset_index]
+    levels = ["public", "internal", "confidential", "restricted"]
+    rank = levels.index(dataset["level"])
+    if rank == 0:
+        return  # Public data already has the lowest protection level.
+    dataset["level"] = levels[rank - 1]
+    with pytest.raises(ValueError, match="minimum protection level"):
+        validate_inventory_document(PROJECT_ROOT, document)
+
+
+def test_protection_ranks_cannot_be_swapped() -> None:
+    document = _document()
+    levels = {level["id"]: level for level in document["protection_levels"]}
+    levels["public"]["rank"], levels["restricted"]["rank"] = 3, 0
+    with pytest.raises(ValueError, match="required rank"):
+        validate_inventory_document(PROJECT_ROOT, document)
+
+
+@pytest.mark.parametrize("model", ["identity.User", "households.Household", "auth.Permission"])
+def test_model_cannot_be_moved_to_public_dataset(model: str) -> None:
+    document = _document()
+    for dataset in document["datasets"]:
+        if model in dataset["django_models"]:
+            dataset["django_models"].remove(model)
+        if dataset["id"] == "public_static_assets":
+            dataset["django_models"].append(model)
+    with pytest.raises(ValueError, match=r"model .*minimum protection level"):
+        validate_inventory_document(PROJECT_ROOT, document)
+
+
+def test_stronger_classification_is_allowed() -> None:
+    document = _document()
+    for dataset in document["datasets"]:
+        dataset["level"] = "restricted"
+    assert validate_inventory_document(PROJECT_ROOT, document) == (4, 15, 45)

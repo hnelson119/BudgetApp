@@ -510,7 +510,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
     for source_id in completed_m10:
         assert requirements[source_id]["assessment"] == IMPLEMENTED_ASSESSMENT_OVERRIDES[source_id]
         assert requirements[source_id]["evidence"] == IMPLEMENTED_EVIDENCE_OVERRIDES[source_id]
-    assert set(PARTIAL_ASSESSMENT_OVERRIDES) == {"V12.3.1", "V12.3.2"}
+    assert set(PARTIAL_ASSESSMENT_OVERRIDES) == {"V12.3.1", "V12.3.2", "V14.2.4"}
     assert set(PARTIAL_EVIDENCE_OVERRIDES) == set(PARTIAL_ASSESSMENT_OVERRIDES)
     for source_id in PARTIAL_ASSESSMENT_OVERRIDES:
         assert requirements[source_id]["status"] == "partial"

@@ -16,6 +16,32 @@ from django.apps import apps
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 INVENTORY_PATH = PROJECT_ROOT / "docs" / "data-classification.json"
 EXPECTED_LEVEL_IDS = {"public", "internal", "confidential", "restricted"}
+LEVEL_RANKS = {"public": 0, "internal": 1, "confidential": 2, "restricted": 3}
+DATASET_MINIMUM_LEVELS = {
+    "authentication_material": "restricted",
+    "authorization_schema": "internal",
+    "breached_password_reference": "internal",  # pragma: allowlist secret
+    "browser_session_surface": "restricted",
+    "deployment_secret_material": "restricted",  # pragma: allowlist secret
+    "encrypted_backups": "restricted",
+    "financial_and_audit_exports": "restricted",
+    "financial_records": "restricted",
+    "household_identity_and_membership": "confidential",
+    "operational_markers_and_health": "internal",
+    "protected_audit_history": "restricted",
+    "public_static_assets": "public",
+    "release_security_evidence": "internal",
+    "request_and_response_memory": "restricted",
+    "security_and_operational_logs": "confidential",
+}
+# Models default to restricted even if moved into a less sensitive dataset.
+MODEL_MINIMUM_LEVEL_EXCEPTIONS = {
+    "auth.Permission": "internal",
+    "auth.Group": "internal",
+    "contenttypes.ContentType": "internal",
+    "households.Household": "confidential",
+    "households.HouseholdMembership": "confidential",
+}
 EXPECTED_DATASET_IDS = {
     "authentication_material",
     "authorization_schema",
@@ -228,6 +254,8 @@ def _validate_levels(value: Any) -> dict[str, dict[str, Any]]:
             _fail("protection-level identifier is missing or duplicated")
         if not isinstance(record["rank"], int) or isinstance(record["rank"], bool):
             _fail(f"protection level {identifier!r} has an invalid rank")
+        if record["rank"] != LEVEL_RANKS.get(identifier):
+            _fail(f"protection level {identifier!r} differs from its required rank")
         ranks.add(record["rank"])
         for field in TEXT_LEVEL_FIELDS:
             _text(record[field], f"protection_levels.{identifier}.{field}")
@@ -252,6 +280,9 @@ def _validate_datasets(
             _fail("dataset identifier is missing or duplicated")
         if record["level"] not in levels:
             _fail(f"dataset {identifier!r} references an unknown protection level")
+        minimum = DATASET_MINIMUM_LEVELS.get(identifier)
+        if minimum is None or LEVEL_RANKS[record["level"]] < LEVEL_RANKS[minimum]:
+            _fail(f"dataset {identifier!r} is below its minimum protection level")
         for field in TEXT_DATASET_FIELDS:
             _text(record[field], f"datasets.{identifier}.{field}")
         _string_list(record["data_elements"], f"datasets.{identifier}.data_elements")
@@ -262,6 +293,10 @@ def _validate_datasets(
                 allow_empty=True,
             )
         )
+        for model in record["django_models"]:
+            minimum = MODEL_MINIMUM_LEVEL_EXCEPTIONS.get(model, "restricted")
+            if LEVEL_RANKS[record["level"]] < LEVEL_RANKS[minimum]:
+                _fail(f"model {model!r} is below its minimum protection level")
         _evidence(project_root, record["evidence"], identifier)
         datasets[identifier] = record
     if set(datasets) != EXPECTED_DATASET_IDS:

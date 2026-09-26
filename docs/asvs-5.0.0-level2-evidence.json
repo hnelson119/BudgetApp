@@ -4255,9 +4255,12 @@
       "description": "Verify that controls around sensitive data related to encryption, integrity verification, retention, how the data is to be logged, access controls around sensitive data in logs, privacy and privacy-enhancing technologies, are implemented as defined in the documentation for the specific data's protection level.",
       "applicability": "applicable",
       "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "assessment": "The repository gate enforces protection-level ranks and independent dataset and model classification floors, preventing catalog-only downgrades or model reassignment bypasses. Documented handling controls remain subject to dated release-host verification of encrypted storage, retention, access, disposal, and recovery; this control remains partial.",
       "evidence": [
-        "SECURITY_PLAN.md",
+        "docs/DATA_CLASSIFICATION.md",
+        "docs/data-classification.json",
+        "scripts/check_data_classification.py",
+        "tests/test_data_classification.py",
         "core/middleware.py",
         "core/logging.py",
         "tests/test_logging.py"
