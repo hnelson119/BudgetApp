@@ -14,15 +14,18 @@ import pytest
 from scripts.check_hash_function_policy import (
     EXPECTED_NON_PYTHON_OPERATIONS,
     EXPECTED_PYTHON_OPERATIONS,
+    EXPECTED_SHA256_OPERATIONS,
     discover_non_python_hash_operations,
     discover_python_hash_operations,
     scan_non_python_hash_operations,
     scan_python_hash_operations,
     validate_hash_function_policy,
+    validate_sha256_agility_registry,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = PROJECT_ROOT / "docs/hash-function-policy.json"
+SHA256_AGILITY_PATH = PROJECT_ROOT / "docs/sha256-agility.json"
 
 
 def _load_policy() -> dict[str, Any]:
@@ -40,6 +43,7 @@ def test_hash_function_policy_is_complete_and_in_both_gates() -> None:
 
     assert completed.returncode == 0, completed.stderr
     assert "27 files, 37 operations, 6 bounded SHA-1" in completed.stdout
+    assert "30 SHA-256 agility operations" in completed.stdout
     assert "scripts\\check_hash_function_policy.py" in (
         PROJECT_ROOT / "scripts/check.ps1"
     ).read_text(encoding="utf-8")
@@ -53,6 +57,39 @@ def test_hash_operation_inventory_is_source_derived() -> None:
     assert discover_non_python_hash_operations() == EXPECTED_NON_PYTHON_OPERATIONS
     assert sum(sum(items.values()) for items in EXPECTED_PYTHON_OPERATIONS.values()) == 35
     assert sum(sum(items.values()) for items in EXPECTED_NON_PYTHON_OPERATIONS.values()) == 2
+
+
+def test_sha256_agility_registry_exhaustively_classifies_discovered_operations() -> None:
+    registry = json.loads(SHA256_AGILITY_PATH.read_text(encoding="utf-8"))
+    validate_sha256_agility_registry(registry, today=date(2026, 9, 27))
+
+    assert registry["summary"] == {
+        "files": 24,
+        "entries": 25,
+        "operations": 30,
+        "persisted_unversioned_entries": 6,
+    }
+    assert sum(sum(operations.values()) for operations in EXPECTED_SHA256_OPERATIONS.values()) == 30
+
+    missing_entry = copy.deepcopy(registry)
+    missing_entry["entries"] = missing_entry["entries"][1:]
+    with pytest.raises(ValueError, match="SHA-256 agility coverage changed"):
+        validate_sha256_agility_registry(missing_entry, today=date(2026, 9, 27))
+
+    false_version_marker = copy.deepcopy(registry)
+    unversioned = next(
+        item
+        for item in false_version_marker["entries"]
+        if item["artifact_class"] == "persisted_unversioned"
+    )
+    unversioned["format_marker"] = "implicit"
+    with pytest.raises(ValueError, match="persisted unversioned SHA-256 artifact has a marker"):
+        validate_sha256_agility_registry(false_version_marker, today=date(2026, 9, 27))
+
+    changed_classification = copy.deepcopy(registry)
+    changed_classification["entries"][3]["artifact_class"] = "verification_only"
+    with pytest.raises(ValueError, match="SHA-256 agility classification inventory changed"):
+        validate_sha256_agility_registry(changed_classification, today=date(2026, 9, 27))
 
 
 def test_data_authentication_and_integrity_hashes_have_collision_resistant_profiles() -> None:

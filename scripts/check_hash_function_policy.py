@@ -74,6 +74,67 @@ EXPECTED_NON_PYTHON_OPERATIONS = {
     "browser-tests/support.mjs": Counter({"node.createHmac:sha1": 1}),
     "deploy/backup/backup.sh": Counter({"sha256sum:sha256": 1}),
 }
+EXPECTED_SHA256_OPERATIONS = {
+    path: Counter(
+        {
+            operation: count
+            for operation, count in operations.items()
+            if operation.endswith("sha256")
+        }
+    )
+    for path, operations in (EXPECTED_PYTHON_OPERATIONS | EXPECTED_NON_PYTHON_OPERATIONS).items()
+    if any(operation.endswith("sha256") for operation in operations)
+}
+SHA256_ARTIFACT_CLASSES = {
+    "bounded_lifetime",
+    "governance_artifact",
+    "persisted_unversioned",
+    "persisted_versioned",
+    "protocol_bound",
+    "verification_only",
+}
+EXPECTED_SHA256_ENTRY_CLASSES = {
+    "historical-checkpoint-mac": ("audit/checkpoints.py", "persisted_versioned"),
+    "audit-event-chain": ("audit/services.py", "persisted_unversioned"),
+    "variable-budget-concurrency-token": ("budgets/views.py", "bounded_lifetime"),
+    "mortgage-preview-fingerprint": ("debts/services/mortgages.py", "bounded_lifetime"),
+    "release-csv-integrity": ("deploy/pentest/run-csv-security.py", "verification_only"),
+    "goal-preview-fingerprint": ("goals/services.py", "bounded_lifetime"),
+    "goal-contribution-idempotency": ("goals/services.py", "persisted_unversioned"),
+    "password-corpus-build-integrity": (
+        "identity/management/commands/build_breached_password_corpus.py",
+        "persisted_versioned",
+    ),
+    "password-corpus-runtime-integrity": (
+        "identity/password_validation.py",
+        "persisted_versioned",
+    ),
+    "mfa-fernet-key-derivation": ("identity/services/mfa.py", "protocol_bound"),
+    "active-session-reference": ("identity/services/sessions.py", "bounded_lifetime"),
+    "login-throttle-identity": ("identity/services/throttling.py", "bounded_lifetime"),
+    "import-row-fingerprint": ("imports/services/batches.py", "persisted_unversioned"),
+    "import-upload-checksum": ("imports/services/parsing.py", "persisted_unversioned"),
+    "notification-identity": ("notifications/services.py", "persisted_unversioned"),
+    "period-boundary-preview": ("periods/services/boundaries.py", "bounded_lifetime"),
+    "period-generation-preview": ("periods/services/generation.py", "bounded_lifetime"),
+    "schedule-revision-preview": ("schedules/services/sources.py", "bounded_lifetime"),
+    "asvs-source-and-catalog-pins": (
+        "scripts/build_asvs_inventory.py",
+        "governance_artifact",
+    ),
+    "sbom-inventory-fingerprint": ("scripts/build_sbom.py", "governance_artifact"),
+    "anti-automation-assignment-pin": (
+        "scripts/check_anti_automation_policy.py",
+        "governance_artifact",
+    ),
+    "release-evidence-catalog-pin": (
+        "scripts/check_release_evidence.py",
+        "governance_artifact",
+    ),
+    "postgres-certificate-signatures": ("scripts/generate-postgres-tls.py", "protocol_bound"),
+    "secret-scan-reviewed-artifact-pin": ("scripts/secret_scan.py", "governance_artifact"),
+    "backup-schema-tag": ("deploy/backup/backup.sh", "persisted_unversioned"),
+}
 EXPECTED_APPROVED_FUNCTIONS = {
     "sha256": ("SHA-256", 256),
     "sha512": ("SHA-512", 512),
@@ -155,6 +216,13 @@ EXPECTED_SOURCE_ASSERTIONS = {
     "password-hashing": (
         "docs/password-hashing-policy.json",
         ('"algorithm": "pbkdf2_sha256"', '"pseudorandom_function": "HMAC-SHA-256"'),
+    ),
+    "sha256-agility-registry": (
+        "docs/sha256-agility.json",
+        (
+            '"registry_id": "household-budget-sha256-agility-v1"',
+            '"persisted_unversioned_entries": 6',
+        ),
     ),
     "test-only-md5": (
         "config/settings/test.py",
@@ -498,6 +566,96 @@ def _validate_operation_inventories(policy: dict[str, Any], project_root: Path) 
         )
 
 
+def validate_sha256_agility_registry(
+    registry: dict[str, Any], *, project_root: Path = PROJECT_ROOT, today: date | None = None
+) -> None:
+    if set(registry) != {
+        "entries",
+        "last_reviewed",
+        "next_review_due",
+        "registry_id",
+        "schema_version",
+        "summary",
+    }:
+        _fail("SHA-256 agility registry fields changed")
+    if (
+        registry["schema_version"] != 1
+        or registry["registry_id"] != "household-budget-sha256-agility-v1"
+    ):
+        _fail("unsupported SHA-256 agility registry identity")
+    reviewed = date.fromisoformat(_text(registry["last_reviewed"], "SHA-256 last_reviewed"))
+    due = date.fromisoformat(_text(registry["next_review_due"], "SHA-256 next_review_due"))
+    if due <= reviewed or (due - reviewed).days > 90:
+        _fail("SHA-256 agility review cadence exceeds 90 days")
+    if (today or date.today()) > due:
+        _fail("SHA-256 agility registry review is overdue")
+
+    records = registry.get("entries")
+    if not isinstance(records, list) or any(not isinstance(item, dict) for item in records):
+        _fail("SHA-256 agility entries must contain objects")
+    identifiers: set[str] = set()
+    documented_classes: dict[str, tuple[str, str]] = {}
+    documented: dict[str, Counter[str]] = {}
+    persisted_unversioned = 0
+    for record in records:
+        if set(record) != {
+            "artifact",
+            "artifact_class",
+            "format_marker",
+            "id",
+            "operations",
+            "path",
+            "reader_or_verifier",
+            "replacement_boundary",
+        }:
+            _fail("SHA-256 agility entry fields changed")
+        identifier = _text(record["id"], "SHA-256 agility entry id")
+        if identifier in identifiers:
+            _fail(f"duplicate SHA-256 agility entry: {identifier}")
+        identifiers.add(identifier)
+        path = _text(record["path"], f"{identifier} path")
+        _safe_path(path, project_root=project_root)
+        artifact_class = record["artifact_class"]
+        if artifact_class not in SHA256_ARTIFACT_CLASSES:
+            _fail(f"invalid SHA-256 artifact class for {identifier}")
+        documented_classes[identifier] = (path, artifact_class)
+        _text(record["artifact"], f"{identifier} artifact")
+        marker = _text(record["format_marker"], f"{identifier} format_marker")
+        _text(record["reader_or_verifier"], f"{identifier} reader_or_verifier")
+        _text(record["replacement_boundary"], f"{identifier} replacement_boundary")
+        if artifact_class == "persisted_versioned" and marker == "none":
+            _fail(f"persisted versioned SHA-256 artifact lacks a marker: {identifier}")
+        if artifact_class == "persisted_unversioned":
+            persisted_unversioned += 1
+            if marker != "none":
+                _fail(f"persisted unversioned SHA-256 artifact has a marker: {identifier}")
+        raw_operations = record["operations"]
+        if not isinstance(raw_operations, dict) or not raw_operations:
+            _fail(f"SHA-256 operations are invalid for {identifier}")
+        operations = documented.setdefault(path, Counter())
+        for operation, count in raw_operations.items():
+            if not isinstance(operation, str) or not operation.endswith("sha256"):
+                _fail(f"non-SHA-256 operation in agility registry: {identifier}")
+            if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+                _fail(f"SHA-256 operation count is invalid for {identifier}")
+            operations[operation] += count
+    if documented != EXPECTED_SHA256_OPERATIONS:
+        _fail(
+            "SHA-256 agility coverage changed "
+            f"(expected={EXPECTED_SHA256_OPERATIONS}, documented={documented})"
+        )
+    if documented_classes != EXPECTED_SHA256_ENTRY_CLASSES:
+        _fail("SHA-256 agility classification inventory changed")
+    expected_summary = {
+        "files": len(documented),
+        "entries": len(records),
+        "operations": sum(sum(operations.values()) for operations in documented.values()),
+        "persisted_unversioned_entries": persisted_unversioned,
+    }
+    if registry.get("summary") != expected_summary:
+        _fail("SHA-256 agility summary does not match its entries")
+
+
 def _validate_approved_functions(policy: dict[str, Any], project_root: Path) -> None:
     records = policy.get("approved_hash_functions")
     if not isinstance(records, list) or any(not isinstance(item, dict) for item in records):
@@ -694,6 +852,16 @@ def validate_hash_function_policy(
     ):
         _fail("hash-function upgrade requirements changed")
     _validate_operation_inventories(policy, project_root)
+    agility_registry = json.loads(
+        _safe_path("docs/sha256-agility.json", project_root=project_root).read_text(
+            encoding="utf-8"
+        )
+    )
+    validate_sha256_agility_registry(
+        agility_registry,
+        project_root=project_root,
+        today=today,
+    )
     _validate_source_assertions(policy, project_root)
     _validate_runtime_defaults()
     _validate_gate_wiring(project_root)
@@ -733,7 +901,9 @@ def main() -> int:
         "Hash-function policy passed: "
         f"{policy['summary']['operation_files']} files, "
         f"{policy['summary']['operations']} operations, "
-        f"{policy['summary']['compatibility_operations']} bounded SHA-1 compatibility operations."
+        f"{policy['summary']['compatibility_operations']} bounded SHA-1 compatibility operations, "
+        f"{sum(sum(items.values()) for items in EXPECTED_SHA256_OPERATIONS.values())} "
+        "SHA-256 agility operations."
     )
     return 0
 

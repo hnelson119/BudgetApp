@@ -24,6 +24,13 @@ module alias, direct weak-hash import, or undocumented operation fails both qual
 reviewed API inventory supplements code review; it is not a general proof against arbitrary custom
 cryptographic implementations or all possible language indirection.
 
+`docs/sha256-agility.json` classifies all 30 directly selected SHA-256 operations across 24 files.
+Each entry records the artifact lifetime, format marker, reader or verifier, and the required
+replacement boundary. The checker derives the expected coverage from the source operation
+inventory, aggregates entries that share a file, and fails if any operation is missing or counted
+twice. Six persisted formats currently lack an algorithm marker; they remain explicit migration
+work rather than being mistaken for versioned artifacts.
+
 Framework and provider-owned primitives are separately bounded. The checker verifies the pinned
 Django version and its SHA-256 signing, token, and PBKDF2 PRF defaults at runtime. Fernet's
 HMAC-SHA-256, Restic's SHA-256 and scrypt profile, npm's SHA-512 integrity metadata, and Tailscale's
@@ -68,7 +75,8 @@ prohibited from hardened, production, pentest, browser, maintenance, and release
    hashing policy.
 3. For a proposed function or new use, document its strength, purpose, prohibited uses, owner, and
    evidence before changing source. Update the cryptographic inventory when the runtime or
-   deployment algorithm set changes.
+   deployment algorithm set changes, and classify the operation in the SHA-256 agility registry if
+   it directly selects SHA-256.
 4. Revalidate the pinned Django and cryptography behavior, npm integrity handling, Restic format,
    Tailscale/WireGuard provider profile, and operating-system randomness boundary when their
    dependencies change.

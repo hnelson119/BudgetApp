@@ -304,11 +304,13 @@ review cadence, and known absences. See
 `docs/CRYPTOGRAPHIC_INVENTORY.md`; release-candidate verification remains pending.
 
 The approved hash-function boundary implements `v5.0.0-11.4.1`. A fail-closed scanner inventories
-all 36 direct hash and signing operations across 27 Python, JavaScript, and shell files, rejects
+all 37 direct hash and signing operations across 27 Python, JavaScript, and shell files, rejects
 dynamic or unapproved selections, and verifies the pinned Django SHA-256 signing, token, and PBKDF2
 defaults. SHA-1 is limited to six exact compatibility operations for RFC 6238 TOTP and the local
-breached-password corpus; MD5 remains test-only. See `docs/HASH_FUNCTION_POLICY.md` and
-`docs/hash-function-policy.json`. The same inventory implements `v5.0.0-11.4.3`: every signature,
+breached-password corpus; MD5 remains test-only. The linked agility registry classifies all 30
+direct SHA-256 operations and identifies six persisted unversioned formats. See
+`docs/HASH_FUNCTION_POLICY.md`, `docs/hash-function-policy.json`, and
+`docs/sha256-agility.json`. The same inventory implements `v5.0.0-11.4.3`: every signature,
 data-authentication, and data-integrity use selects SHA-256 or SHA-512 with at least 256 output
 bits. The six SHA-1 operations are confined to TOTP and offline corpus compatibility and are
 explicitly prohibited from signatures, collision resistance, and data integrity.
