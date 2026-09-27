@@ -183,7 +183,7 @@ class JournalEntry(ServiceCreatedModel):
     )
     note = models.CharField(max_length=500, blank=True)
     receipt_reference = models.CharField(max_length=255, blank=True)
-    idempotency_key = models.CharField(max_length=64, blank=True)
+    idempotency_key = models.CharField(max_length=71, blank=True)
     reversal_of = models.OneToOneField(
         "self",
         on_delete=models.PROTECT,

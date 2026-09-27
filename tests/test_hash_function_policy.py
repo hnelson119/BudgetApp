@@ -67,7 +67,7 @@ def test_sha256_agility_registry_exhaustively_classifies_discovered_operations()
         "files": 24,
         "entries": 25,
         "operations": 30,
-        "persisted_unversioned_entries": 6,
+        "persisted_unversioned_entries": 5,
     }
     assert sum(sum(operations.values()) for operations in EXPECTED_SHA256_OPERATIONS.values()) == 30
 

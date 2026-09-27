@@ -28,7 +28,7 @@ cryptographic implementations or all possible language indirection.
 Each entry records the artifact lifetime, format marker, reader or verifier, and the required
 replacement boundary. The checker derives the expected coverage from the source operation
 inventory, aggregates entries that share a file, and fails if any operation is missing or counted
-twice. Six persisted formats currently lack an algorithm marker; they remain explicit migration
+twice. Five persisted formats currently lack an algorithm marker; they remain explicit migration
 work rather than being mistaken for versioned artifacts.
 
 Framework and provider-owned primitives are separately bounded. The checker verifies the pinned

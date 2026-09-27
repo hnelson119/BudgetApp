@@ -68,11 +68,11 @@
       "id": "goal-contribution-idempotency",
       "path": "goals/services.py",
       "operations": {"hashlib.sha256": 1},
-      "artifact_class": "persisted_unversioned",
-      "artifact": "Goal-contribution idempotency identity persisted with the contribution",
-      "format_marker": "none",
-      "reader_or_verifier": "Contribution uniqueness lookup compares the deterministic digest",
-      "replacement_boundary": "Introduce a profile-prefixed idempotency value and dual lookup before changing the writer"
+      "artifact_class": "persisted_versioned",
+      "artifact": "Goal-contribution idempotency identity persisted on its journal entry",
+      "format_marker": "sha256$ prefix on current 64-character lowercase hexadecimal digests",
+      "reader_or_verifier": "Goal contribution recording rejects both the current prefixed value and the historical unprefixed digest before writing",
+      "replacement_boundary": "Add a new approved profile prefix and check it alongside sha256$ and historical unprefixed values before changing the writer"
     },
     {
       "id": "password-corpus-build-integrity",
@@ -259,6 +259,6 @@
     "files": 24,
     "entries": 25,
     "operations": 30,
-    "persisted_unversioned_entries": 6
+    "persisted_unversioned_entries": 5
   }
 }
