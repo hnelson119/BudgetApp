@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -53,6 +54,7 @@ from debts.services import (
 from households.models import Household
 from households.services.access import get_active_household
 from identity.models import User
+from identity.services.application_throttling import enforce_application_budget
 from schedules.models import Occurrence
 
 
@@ -853,6 +855,20 @@ def debt_status(request: HttpRequest, debt_id: str, action: str) -> HttpResponse
 @require_GET
 def payoff_comparison(request: HttpRequest) -> HttpResponse:
     household = get_active_household(request)
+    if request.GET:
+        rate_limit_response = enforce_application_budget(
+            request,
+            user=_actor(request),
+            scope="expensive-calculation",
+            maximum=settings.EXPENSIVE_CALCULATION_RATE_LIMIT,
+            window_seconds=settings.EXPENSIVE_CALCULATION_RATE_WINDOW_SECONDS,
+        )
+        if rate_limit_response is not None:
+            security_logger.warning(
+                "Debt payoff calculation rate limited.",
+                extra={"event": "anti_automation.rate_limited", "scope": "expensive_calculation"},
+            )
+            return rate_limit_response
     today = _today(household)
     form = PayoffScenarioForm(
         request.GET or None,

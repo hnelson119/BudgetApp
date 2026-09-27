@@ -1,0 +1,160 @@
+{
+  "policy_version": 1,
+  "title": "BudgetApp anti-automation policy",
+  "asvs_requirements": ["v5.0.0-2.4.1"],
+  "last_reviewed": "2026-09-26",
+  "review_interval_days": 90,
+  "limits": {
+    "authenticated_mutation": {"maximum": 120, "window_seconds": 300},
+    "data_export": {"maximum": 5, "window_seconds": 900},
+    "csv_import": {"maximum": 10, "window_seconds": 900},
+    "expensive_calculation": {"maximum": 20, "window_seconds": 900},
+    "identity_failure": {"maximum": 5, "window_seconds": 900, "block_seconds": 900}
+  },
+  "route_families": [
+    {
+      "id": "identity-failure-throttles",
+      "risk": "Credential guessing, recovery-factor brute force, and repeated password hashing.",
+      "control": "Pseudonymous identifier and network counters block repeated failures without locking the account through successful requests.",
+      "routes": [
+        "identity:login",
+        "identity:mfa-verify",
+        "identity:password-recovery",
+        "identity:reauthenticate"
+      ],
+      "evidence": ["identity/services/throttling.py", "identity/views.py", "tests/test_authentication.py", "tests/test_mfa.py", "tests/test_password_recovery.py"]
+    },
+    {
+      "id": "authenticated-mutations",
+      "risk": "Automated garbage-data creation, repeated state transitions, and quota or storage exhaustion.",
+      "control": "A database-backed per-user budget covers routine authenticated POST, PUT, PATCH, and DELETE requests after CSRF validation and before view execution; business constraints and idempotency remain independent defenses.",
+      "routes": [
+        "budgets:category-create",
+        "budgets:fixed-create",
+        "budgets:occurrence-cancel",
+        "budgets:occurrence-edit",
+        "budgets:occurrence-move",
+        "budgets:occurrence-reconcile",
+        "budgets:reserve-allocate",
+        "budgets:variable-create",
+        "budgets:variable-delete",
+        "budgets:variable-edit",
+        "debts:create",
+        "debts:edit",
+        "debts:mortgage-extra-principal",
+        "debts:mortgage-plan-create",
+        "debts:mortgage-plan-revise",
+        "debts:statement-correct",
+        "debts:statement-create",
+        "debts:status",
+        "debts:terms-create",
+        "goals:contribute",
+        "goals:create",
+        "goals:occurrence-contribute",
+        "goals:priority-allocate",
+        "goals:reserve-allocate",
+        "goals:revise",
+        "goals:status",
+        "identity:mfa-enroll",
+        "identity:mfa-enrollment-restart",
+        "identity:mfa-recovery-confirm",
+        "identity:password-change",
+        "imports:batch-abandon",
+        "imports:batch-commit",
+        "imports:batch-map",
+        "notifications:dismiss",
+        "notifications:preferences",
+        "notifications:read",
+        "spending:account-create",
+        "spending:card-payment-create",
+        "spending:card-purchase-refund",
+        "spending:expense-create",
+        "spending:income-create",
+        "spending:transaction-reverse"
+      ],
+      "evidence": ["identity/middleware.py", "identity/services/application_throttling.py", "tests/test_anti_automation.py"]
+    },
+    {
+      "id": "security-termination-actions",
+      "risk": "A generic automation budget could prevent a member from ending a suspected compromised session.",
+      "control": "Logout and current or all-session revocation remain available after mutation-budget exhaustion; they are authenticated, account-scoped, bounded by the five-session cap, and terminate rather than create durable state.",
+      "routes": ["identity:logout", "identity:logout-all", "identity:session-revoke"],
+      "evidence": ["identity/middleware.py", "identity/services/sessions.py", "identity/views.py", "tests/test_anti_automation.py", "tests/test_account_security.py"]
+    },
+    {
+      "id": "protected-data-exports",
+      "risk": "Repeated bulk data exfiltration and long-lived streamed worker consumption.",
+      "control": "Both recent-authentication-protected CSV exports share a tighter per-user database budget before integrity scans, counts, audit writes, or streaming begins.",
+      "routes": ["audit:export", "spending:transaction-export"],
+      "evidence": ["audit/views.py", "spending/views.py", "tests/test_anti_automation.py", "tests/test_csv_exports.py", "tests/test_audit_ui.py"]
+    },
+    {
+      "id": "csv-import-intake",
+      "risk": "Repeated uploads that consume parsing, staging, storage, and validation resources or create garbage staging data.",
+      "control": "A tighter upload budget is consumed before form parsing; byte, row, column, and cell limits then bound each accepted request.",
+      "routes": ["imports:upload"],
+      "evidence": ["imports/views.py", "imports/services/parsing.py", "config/settings/base.py", "tests/test_anti_automation.py", "tests/test_csv_imports.py"]
+    },
+    {
+      "id": "expensive-calculations",
+      "risk": "Repeated debt projection and household-wide notification recalculation that overuses CPU or database work.",
+      "control": "The projection GET and notification refresh POST share a per-user calculation budget; projection horizons, record counts, worker timeouts, and notification query windows also remain bounded.",
+      "routes": ["debts:payoff-comparison", "notifications:refresh"],
+      "evidence": ["debts/views.py", "debts/services/projections.py", "notifications/views.py", "notifications/services.py", "tests/test_anti_automation.py", "tests/test_debt_projections.py", "tests/test_notifications.py"]
+    },
+    {
+      "id": "bounded-authenticated-reads",
+      "risk": "Automated enumeration and repeated large result construction.",
+      "control": "Household authorization, fixed page or result caps, bounded query horizons, private ingress, two synchronous workers, and application/proxy timeouts constrain read amplification.",
+      "routes": [
+        "audit:detail",
+        "audit:history",
+        "budgets:detail",
+        "core:home",
+        "debts:detail",
+        "debts:list",
+        "goals:detail",
+        "goals:list",
+        "identity:account-security",
+        "imports:batch-preview",
+        "imports:history",
+        "notifications:list",
+        "spending:transaction-detail",
+        "spending:transaction-list"
+      ],
+      "evidence": ["docs/resource-demand-policy.json", "households/services/access.py", "config/gunicorn.py", "deploy/network/nginx.conf", "tests/test_resource_demand_policy.py"]
+    },
+    {
+      "id": "operational-health",
+      "risk": "Unauthenticated health polling that consumes connections or database readiness checks.",
+      "control": "Reserved-path middleware exposes only liveness publicly, while private ingress connection, process, CPU, memory, and timeout ceilings bound request demand; readiness returns a short retry interval on failure.",
+      "routes": ["core:health-live", "core:health-ready"],
+      "evidence": ["core/middleware.py", "core/views.py", "compose.yaml", "deploy/network/nginx.conf", "tests/test_web_foundation.py", "tests/test_network_boundary.py"]
+    }
+  ],
+  "source_assertions": [
+    {"id": "configured-budgets", "path": "config/settings/base.py", "contains": ["APPLICATION_MUTATION_RATE_LIMIT = 120", "DATA_EXPORT_RATE_LIMIT = 5", "CSV_IMPORT_RATE_LIMIT = 10", "EXPENSIVE_CALCULATION_RATE_LIMIT = 20"]},
+    {"id": "mutation-middleware", "path": "identity/middleware.py", "contains": ["class ApplicationRateLimitMiddleware(MiddlewareMixin)", "def process_view(", "_MUTATING_METHODS = frozenset", "_SECURITY_TERMINATION_ROUTES = frozenset", "scope=\"authenticated-mutation\"", "anti_automation.rate_limited"]},
+    {"id": "database-counter", "path": "identity/services/application_throttling.py", "contains": ["select_for_update().get_or_create", "throttle.request_count >= maximum", "response.headers[\"Retry-After\"]"]},
+    {"id": "shared-export-budget", "path": "spending/views.py", "contains": ["scope=\"data-export\"", "settings.DATA_EXPORT_RATE_LIMIT"]},
+    {"id": "shared-audit-export-budget", "path": "audit/views.py", "contains": ["scope=\"data-export\"", "settings.DATA_EXPORT_RATE_LIMIT"]},
+    {"id": "pre-parse-import-budget", "path": "imports/views.py", "contains": ["scope=\"csv-import\"", "settings.CSV_IMPORT_RATE_LIMIT"]},
+    {"id": "shared-projection-budget", "path": "debts/views.py", "contains": ["scope=\"expensive-calculation\"", "settings.EXPENSIVE_CALCULATION_RATE_LIMIT"]},
+    {"id": "shared-refresh-budget", "path": "notifications/views.py", "contains": ["scope=\"expensive-calculation\"", "settings.EXPENSIVE_CALCULATION_RATE_LIMIT"]}
+  ],
+  "runtime_tests": [
+    "tests/test_anti_automation.py::test_application_budget_is_atomic_bounded_and_resets_after_its_window",
+    "tests/test_anti_automation.py::test_all_authenticated_mutations_share_a_fail_closed_budget",
+    "tests/test_anti_automation.py::test_transaction_and_audit_exports_share_a_tighter_data_budget",
+    "tests/test_anti_automation.py::test_rejected_csv_uploads_consume_the_import_budget_before_parsing",
+    "tests/test_anti_automation.py::test_get_projection_and_post_refresh_share_the_expensive_calculation_budget",
+    "tests/test_authentication.py::test_login_failures_are_rate_limited_without_storing_email",
+    "tests/test_mfa.py::test_mfa_failures_are_rate_limited_and_audited",
+    "tests/test_password_recovery.py::test_recovery_is_rate_limited_and_never_stores_submitted_values"
+  ],
+  "residual_risks": [
+    "Per-user application budgets do not identify a distributed pre-authentication flood; private ingress, keyed network failure throttles, connection ceilings, worker limits, and timeouts are the independent boundary.",
+    "Representative release-host load and false-positive behavior remain release verification work and do not change repository implementation status."
+  ],
+  "summary": {"route_families": 8, "named_routes": 70, "source_assertions": 8, "runtime_tests": 8, "residual_risks": 2}
+}

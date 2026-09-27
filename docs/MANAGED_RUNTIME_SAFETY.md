@@ -35,7 +35,7 @@ modules even when imported under an alias.
 ## Numeric overflow, sign, and range
 
 Python integers use arbitrary precision, so application arithmetic does not wrap at machine-word
-boundaries. Django and PostgreSQL provide the final signed database ranges. All 37 current
+boundaries. Django and PostgreSQL provide the final signed database ranges. All 38 current
 non-automatic integer fields are inventoried as bounded big-integer or positive integer types; a new
 type or field changes the inventory and requires review.
 
@@ -72,7 +72,7 @@ Run:
 .\.venv\Scripts\python.exe -m pytest tests\test_managed_runtime_safety.py tests\test_debt_projections.py tests\test_credit_card_calculations.py tests\test_security_log_archive.py
 ```
 
-The checker scans all 219 production Python files and the production JavaScript asset, verifies the
-38 decimal and 37 integer database fields, pins the managed buffer and fixed-width operations, and
+The checker scans all 222 production Python files and the production JavaScript asset, verifies the
+38 decimal and 38 integer database fields, pins the managed buffer and fixed-width operations, and
 tracks all six low-level descriptor files plus every context-managed socket and temporary file.
 This implements ASVS `v5.0.0-1.4.1`, `v5.0.0-1.4.2`, and `v5.0.0-1.4.3` for application-owned code.

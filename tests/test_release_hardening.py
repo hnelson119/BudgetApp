@@ -206,12 +206,12 @@ def test_logging_inventory_is_complete_and_source_derived() -> None:
     assert inventory["summary"] == {
         "layers": 14,
         "event_groups": 5,
-        "event_entries": 182,
+        "event_entries": 183,
         "known_gaps": 2,
     }
     groups = {item["id"]: item for item in inventory["event_groups"]}
     assert len(groups["django-operational-events"]["events"]) == 2
-    assert len(groups["django-security-events"]["events"]) == 56
+    assert len(groups["django-security-events"]["events"]) == 57
     assert len(groups["security-archive-events"]["events"]) == 6
     assert len(groups["protected-audit-actions"]["events"]) == 83
     assert len(groups["maintenance-events"]["events"]) == 35
@@ -354,9 +354,9 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert inventory["summary"] == {
         "applicability": {"applicable": 174, "not_applicable": 79},
         "status": {
-            "implemented": 166,
+            "implemented": 167,
             "not_applicable": 79,
-            "partial": 8,
+            "partial": 7,
         },
     }
     requirements = {item["id"]: item for item in inventory["requirements"]}
@@ -371,6 +371,7 @@ def test_release_evidence_inventory_is_complete_and_validated() -> None:
     assert requirements["v5.0.0-2.1.2"]["status"] == "implemented"
     assert requirements["v5.0.0-2.1.3"]["status"] == "implemented"
     assert requirements["v5.0.0-2.3.2"]["status"] == "implemented"
+    assert requirements["v5.0.0-2.4.1"]["status"] == "implemented"
     assert requirements["v5.0.0-4.2.1"]["status"] == "implemented"
     assert requirements["v5.0.0-12.2.2"]["status"] == "implemented"
     assert requirements["v5.0.0-11.2.3"]["status"] == "implemented"
@@ -442,6 +443,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V2.1.2",
         "V2.1.3",
         "V2.3.2",
+        "V2.4.1",
         "V3.7.2",
         "V3.7.1",
         "V3.4.2",
@@ -499,7 +501,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V16.5.2",
     }
 
-    assert MAPPING_UPDATED == "2026-09-25"
+    assert MAPPING_UPDATED == "2026-09-26"
     assert not NOT_STARTED
     assert completed_m10 <= IMPLEMENTED_REQUIREMENTS
     assert set(IMPLEMENTED_ASSESSMENT_OVERRIDES) == completed_m10

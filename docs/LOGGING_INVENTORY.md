@@ -1,8 +1,8 @@
 # Logging inventory and maintenance
 
 Status: inventory and separate security archive implemented; release verification pending
-Inventory reviewed: 2026-09-18
-Next scheduled review: 2026-12-17
+Inventory reviewed: 2026-09-26
+Next scheduled review: 2026-12-25
 
 ## Purpose and authority
 
@@ -49,7 +49,7 @@ scope, and supersession data allowed by the relevant evidence schema.
 | Security-test output | Tool-native raw reports and sanitized evidence | Ignored/disposable paths and CI; sanitized findings in Git | Raw through triage, CI 90 days, sanitized Git history durable |
 
 The JSON inventory is authoritative for exact language. Its five event groups are generated from
-source literals and validated against the repository: 2 Django operational events, 56 Django
+source literals and validated against the repository: 2 Django operational events, 57 Django
 security events, 6 security-archive diagnostics, 83 protected audit actions, and 35 structured
 maintenance events. Adding, removing, or renaming a literal event without updating the inventory
 fails the local and CI gate.

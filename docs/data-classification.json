@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "inventory_updated": "2026-09-13",
+  "inventory_updated": "2026-09-26",
   "review": {
     "owner": "release owner",
     "cadence_days": 90,
-    "next_review_due": "2026-12-12",
+    "next_review_due": "2026-12-25",
     "procedure": "docs/DATA_CLASSIFICATION.md",
     "update_triggers": [
       "a model, field, upload, export, log, backup, secret, or client-storage surface changes",
@@ -46,7 +46,7 @@
   "summary": {
     "protection_levels": 4,
     "datasets": 15,
-    "classified_django_models": 45
+    "classified_django_models": 46
   },
   "protection_levels": [
     {
@@ -141,9 +141,11 @@
         "encrypted TOTP seeds, enrollment QR payloads, and one-time codes",
         "recovery-code hashes and submitted recovery codes",
         "opaque session keys, signed server-side session payloads, CSRF values, and recent-authentication timestamps",
-        "keyed login-throttle pseudonyms, failure counts, and lockout times"
+        "keyed login-throttle pseudonyms, failure counts, and lockout times",
+        "per-user application-throttle scopes, request counts, and fixed-window timestamps"
       ],
       "django_models": [
+        "identity.ApplicationThrottle",
         "identity.User",
         "identity.LoginThrottle",
         "identity.MfaCredential",
@@ -165,6 +167,7 @@
         "identity/services/mfa.py",
         "identity/services/sessions.py",
         "identity/services/throttling.py",
+        "identity/services/application_throttling.py",
         "config/settings/base.py",
         "config/settings/hardened.py",
         "docs/SESSION_SECURITY.md",

@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q, QuerySet
@@ -27,6 +28,7 @@ from core.logging import current_request_id
 from households.models import Household
 from households.services.access import get_active_household
 from identity.models import User
+from identity.services.application_throttling import enforce_application_budget
 from identity.services.sessions import recent_authentication_is_valid
 
 security_logger = logging.getLogger("security")
@@ -245,6 +247,20 @@ def export(request: HttpRequest) -> HttpResponse | StreamingHttpResponse:
     if not recent_authentication_is_valid(request):
         query = urlencode({"next": request.get_full_path()})
         return redirect(f"{reverse('identity:reauthenticate')}?{query}")
+    actor = _actor(request)
+    rate_limit_response = enforce_application_budget(
+        request,
+        user=actor,
+        scope="data-export",
+        maximum=settings.DATA_EXPORT_RATE_LIMIT,
+        window_seconds=settings.DATA_EXPORT_RATE_WINDOW_SECONDS,
+    )
+    if rate_limit_response is not None:
+        security_logger.warning(
+            "Audit CSV export rate limited.",
+            extra={"event": "anti_automation.rate_limited", "scope": "data_export"},
+        )
+        return rate_limit_response
     integrity = verify_household_chain(household)
     if not integrity.valid:
         security_logger.error(
@@ -265,7 +281,7 @@ def export(request: HttpRequest) -> HttpResponse | StreamingHttpResponse:
     cleaned: dict[str, Any] = filter_form.cleaned_data if filter_form.is_valid() else {}
     append_event(
         household=household,
-        actor=_actor(request),
+        actor=actor,
         action="audit.history_exported",
         entity_type="audit.export",
         entity_id=export_id,
