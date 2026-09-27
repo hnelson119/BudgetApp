@@ -3444,13 +3444,18 @@
       "description": "Verify that the application is designed with crypto agility such that random number, authenticated encryption, MAC, or hashing algorithms, key lengths, rounds, ciphers and modes can be reconfigured, upgraded, or swapped at any time, to protect against cryptographic breaks. Similarly, it must also be possible to replace keys and passwords and re-encrypt data. This will allow for seamless upgrades to post-quantum cryptography (PQC), once high-assurance implementations of approved PQC schemes or standards are widely available.",
       "applicability": "applicable",
       "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "assessment": "All 15 inventoried cryptographic profiles now have an explicit replacement or migration analysis. MFA ciphertext has a backward-compatible authenticated profile envelope, and the atomic key-rotation path migrates legacy unprefixed rows. Password hashes, Restic records, checkpoints, certificates, TOTP enrollment, and invalidated Django signatures have identified transition semantics. The checkpoint verifier still lacks an approved multi-algorithm registry, purpose-specific SHA-256 formats lack one exhaustive migration registry, and provider-managed suite transitions require release evidence; this control therefore remains partial.",
       "evidence": [
-        "SECURITY_PLAN.md",
+        "docs/CRYPTOGRAPHIC_AGILITY.md",
+        "docs/cryptographic-inventory.json",
         "identity/services/mfa.py",
+        "identity/management/commands/rotate_mfa_encryption_key.py",
         "audit/checkpoints.py",
-        "tests/test_mfa.py",
-        "tests/test_checkpoints.py"
+        "deploy/backup/rotate-restic-key.sh",
+        "scripts/check_cryptographic_inventory.py",
+        "tests/test_identity_commands.py",
+        "tests/test_checkpoints.py",
+        "tests/test_password_hashing_policy.py"
       ]
     },
     {

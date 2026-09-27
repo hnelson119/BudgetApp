@@ -1,8 +1,8 @@
 # Cryptographic inventory and maintenance
 
 Status: implemented inventory; deployment evidence pending
-Inventory reviewed: 2026-09-06
-Next scheduled review: 2026-12-05
+Inventory reviewed: 2026-09-26
+Next scheduled review: 2026-12-25
 
 ## Purpose and authority
 
@@ -168,6 +168,12 @@ used for password storage, signatures, or integrity. Restic's repository profile
 Tailscale/WireGuard provider profiles are recorded with their upstream specifications rather than
 silently treated as opaque products.
 
+`docs/CRYPTOGRAPHIC_AGILITY.md` maps all 15 algorithm profiles to their selection boundary,
+persisted format, and replacement or migration path. New MFA ciphertext carries an authenticated
+`fernet-v1$` profile envelope; the guarded rotation accepts legacy unprefixed rows and rewrites the
+complete set atomically into the tagged format. V11.2.2 remains partial until the remaining
+checkpoint, digest-format, and provider-managed transition gaps in that audit are closed.
+
 ## Review procedure
 
 1. Start from a clean, reviewed release branch. Run `python scripts/check_cryptographic_inventory.py`
@@ -199,7 +205,7 @@ silently treated as opaque products.
 Use `docs/INCIDENT_RESPONSE.md` for staged rotation. Purpose separation is mandatory: rotating one
 material class never authorizes substituting another class. Django signing-key rotation deliberately
 invalidates old sessions. MFA rotation transactionally re-encrypts every seed under a monotonically
-higher key version. Audit checkpoint rotation retains the old verification key offline under its
+higher key version and the current tagged ciphertext profile. Audit checkpoint rotation retains the old verification key offline under its
 original ID. A Restic password rotation rewraps repository master keys; suspected master-key
 disclosure instead requires a new repository and full re-encryption. Both PostgreSQL CA keys stay
 offline; the server key reaches only database-owned tmpfs and each client key reaches only its

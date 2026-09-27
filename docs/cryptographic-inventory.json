@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "inventory_updated": "2026-09-06",
+  "inventory_updated": "2026-09-26",
   "review": {
     "owner": "release owner",
     "cadence_days": 90,
-    "next_review_due": "2026-12-05",
+    "next_review_due": "2026-12-25",
     "procedure": "docs/CRYPTOGRAPHIC_INVENTORY.md",
     "update_triggers": [
       "application or infrastructure cryptography changes",
@@ -1043,6 +1043,8 @@
       ],
       "evidence": [
         "identity/services/mfa.py",
+        "docs/CRYPTOGRAPHIC_AGILITY.md",
+        "tests/test_identity_commands.py",
         "pyproject.toml",
         "https://github.com/fernet/spec/blob/master/Spec.md"
       ]
