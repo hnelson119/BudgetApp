@@ -517,6 +517,18 @@ def _validate_dependency_contract(algorithms: dict[str, dict[str, Any]]) -> None
     if '"cryptography==50.0.0"' not in project:
         _fail("the inventoried cryptography dependency is not pinned to 50.0.0")
 
+    mfa_source = (PROJECT_ROOT / "identity" / "services" / "mfa.py").read_text(encoding="utf-8")
+    if not all(
+        fragment in mfa_source
+        for fragment in (
+            '_MFA_CIPHERTEXT_PROFILE = "fernet-v1"',
+            'return f"{_MFA_CIPHERTEXT_PROFILE}{_MFA_CIPHERTEXT_SEPARATOR}{token}"',
+            "if _MFA_CIPHERTEXT_SEPARATOR not in value:",
+            'raise ImproperlyConfigured("The stored MFA credential uses an unsupported profile.")',
+        )
+    ):
+        _fail("the inventoried MFA ciphertext migration boundary changed unexpectedly")
+
     backup_image = (PROJECT_ROOT / "deploy" / "backup" / "Dockerfile").read_text(encoding="utf-8")
     if "ARG RESTIC_VERSION=0.19.1" not in backup_image:
         _fail("the inventoried Restic version is not pinned to 0.19.1")

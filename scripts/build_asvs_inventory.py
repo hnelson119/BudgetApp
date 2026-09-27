@@ -1653,6 +1653,16 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
 }
 
 PARTIAL_ASSESSMENT_OVERRIDES: dict[str, str] = {
+    "V11.2.2": (
+        "All 15 inventoried cryptographic profiles now have an explicit replacement or migration "
+        "analysis. MFA ciphertext has a backward-compatible authenticated profile envelope, and "
+        "the atomic key-rotation path migrates legacy unprefixed rows. Password hashes, Restic "
+        "records, checkpoints, certificates, TOTP enrollment, and invalidated Django signatures "
+        "have identified transition semantics. The checkpoint verifier still lacks an approved "
+        "multi-algorithm registry, purpose-specific SHA-256 formats lack one exhaustive migration "
+        "registry, and provider-managed suite transitions require release evidence; this control "
+        "therefore remains partial."
+    ),
     "V14.2.4": (
         "The repository gate enforces protection-level ranks and independent dataset and model "
         "classification floors, preventing catalog-only downgrades or model reassignment bypasses. "
@@ -1689,6 +1699,18 @@ PARTIAL_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
     ]
     for source_id in ("V12.3.1", "V12.3.2")
 }
+PARTIAL_EVIDENCE_OVERRIDES["V11.2.2"] = [
+    "docs/CRYPTOGRAPHIC_AGILITY.md",
+    "docs/cryptographic-inventory.json",
+    "identity/services/mfa.py",
+    "identity/management/commands/rotate_mfa_encryption_key.py",
+    "audit/checkpoints.py",
+    "deploy/backup/rotate-restic-key.sh",
+    "scripts/check_cryptographic_inventory.py",
+    "tests/test_identity_commands.py",
+    "tests/test_checkpoints.py",
+    "tests/test_password_hashing_policy.py",
+]
 PARTIAL_EVIDENCE_OVERRIDES["V14.2.4"] = [
     "docs/DATA_CLASSIFICATION.md",
     "docs/data-classification.json",

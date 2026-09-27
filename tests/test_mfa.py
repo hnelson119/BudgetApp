@@ -71,6 +71,7 @@ def test_totp_seed_is_encrypted_and_bound_to_its_user(mfa_household_user) -> Non
     enrollment = begin_enrollment(user)
 
     assert enrollment.secret not in enrollment.credential.encrypted_secret
+    assert enrollment.credential.encrypted_secret.startswith("fernet-v1$")
     assert decrypt_secret(enrollment.credential) == enrollment.secret
 
     other_user = get_user_model().objects.create_user(
@@ -83,6 +84,10 @@ def test_totp_seed_is_encrypted_and_bound_to_its_user(mfa_household_user) -> Non
     )
     with pytest.raises(ImproperlyConfigured, match="invalid"):
         decrypt_secret(other_credential)
+
+    enrollment.credential.encrypted_secret = "unsupported-v2$opaque"  # pragma: allowlist secret
+    with pytest.raises(ImproperlyConfigured, match="unsupported profile"):
+        decrypt_secret(enrollment.credential)
 
 
 @pytest.mark.django_db

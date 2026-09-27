@@ -456,6 +456,11 @@ def test_mfa_encryption_key_command_rotates_atomically_and_audits(
     HouseholdMembership.objects.create(household=household, user=user)
     enrollment = begin_enrollment(user)
     original_ciphertext = enrollment.credential.encrypted_secret
+    profile, legacy_ciphertext = original_ciphertext.split("$", 1)
+    assert profile == "fernet-v1"
+    enrollment.credential.encrypted_secret = legacy_ciphertext
+    enrollment.credential.save(update_fields=("encrypted_secret",))
+    assert decrypt_secret(enrollment.credential) == enrollment.secret
     original_session_version = user.session_version
     next_key_file = tmp_path / "next_mfa_key"
     next_key_file.write_text(ROTATED_MFA_KEY, encoding="utf-8")
@@ -475,6 +480,7 @@ def test_mfa_encryption_key_command_rotates_atomically_and_audits(
     user.refresh_from_db()
     assert credential.key_version == 2
     assert credential.encrypted_secret != original_ciphertext
+    assert credential.encrypted_secret.startswith("fernet-v1$")
     assert user.session_version == original_session_version
     with pytest.raises(ImproperlyConfigured, match="cannot be decrypted"):
         decrypt_secret(credential)

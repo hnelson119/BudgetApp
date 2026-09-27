@@ -26,6 +26,8 @@ from django.utils import timezone
 from identity.models import MfaCredential, RecoveryCode, User
 
 _RECOVERY_NORMALIZER = re.compile(r"[^A-Za-z0-9]")
+_MFA_CIPHERTEXT_PROFILE = "fernet-v1"
+_MFA_CIPHERTEXT_SEPARATOR = "$"
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,7 @@ def _encrypt_secret(
     )
     payload = json.dumps(
         {
+            "ciphertext_profile": _MFA_CIPHERTEXT_PROFILE,
             "version": selected_version,
             "user_id": str(user.pk),
             "secret": secret,
@@ -74,12 +77,23 @@ def _encrypt_secret(
         sort_keys=True,
         separators=(",", ":"),
     ).encode()
-    return _fernet(selected_key).encrypt(payload).decode()
+    token = _fernet(selected_key).encrypt(payload).decode()
+    return f"{_MFA_CIPHERTEXT_PROFILE}{_MFA_CIPHERTEXT_SEPARATOR}{token}"
+
+
+def _ciphertext_token(value: str) -> tuple[bytes, bool]:
+    if _MFA_CIPHERTEXT_SEPARATOR not in value:
+        return value.encode(), True
+    profile, token = value.split(_MFA_CIPHERTEXT_SEPARATOR, 1)
+    if profile != _MFA_CIPHERTEXT_PROFILE or not token:
+        raise ImproperlyConfigured("The stored MFA credential uses an unsupported profile.")
+    return token.encode(), False
 
 
 def _decrypt_secret(credential: MfaCredential, *, encryption_key: str) -> str:
     try:
-        payload = json.loads(_fernet(encryption_key).decrypt(credential.encrypted_secret.encode()))
+        token, legacy = _ciphertext_token(credential.encrypted_secret)
+        payload = json.loads(_fernet(encryption_key).decrypt(token))
     except (InvalidToken, UnicodeError, json.JSONDecodeError, TypeError) as error:
         raise ImproperlyConfigured("The stored MFA credential cannot be decrypted.") from error
 
@@ -87,6 +101,8 @@ def _decrypt_secret(credential: MfaCredential, *, encryption_key: str) -> str:
         payload.get("version") != credential.key_version
         or payload.get("user_id") != str(credential.user_id)
         or not isinstance(payload.get("secret"), str)
+        or (legacy and payload.get("ciphertext_profile") not in (None, _MFA_CIPHERTEXT_PROFILE))
+        or (not legacy and payload.get("ciphertext_profile") != _MFA_CIPHERTEXT_PROFILE)
     ):
         raise ImproperlyConfigured("The stored MFA credential is invalid.")
     return str(payload["secret"])

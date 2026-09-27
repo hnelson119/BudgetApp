@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import check_password, identify_hasher
+from django.contrib.auth.hashers import PBKDF2PasswordHasher, check_password, identify_hasher
 from django.test import override_settings
 
 from scripts.check_password_hashing_policy import (
@@ -98,6 +98,22 @@ def test_production_password_hashes_are_salted_pbkdf2_sha256() -> None:
     assert first.split("$")[2] != second.split("$")[2]
     assert check_password(password, first) is True
     assert check_password("incorrect password", first) is False
+
+
+@pytest.mark.django_db
+@override_settings(PASSWORD_HASHERS=PRODUCTION_HASHERS)
+def test_successful_authentication_upgrades_legacy_password_rounds() -> None:
+    password = "correct horse battery migration"  # pragma: allowlist secret
+    legacy = PBKDF2PasswordHasher().encode(password, salt="legacy-salt", iterations=100_000)
+    user = get_user_model().objects.create(email="password-migrate@example.com", password=legacy)
+
+    assert user.check_password(password) is True
+
+    user.refresh_from_db()
+    upgraded = identify_hasher(user.password)
+    assert upgraded.algorithm == "pbkdf2_sha256"
+    assert upgraded.iterations == 1_000_000
+    assert user.password != legacy
 
 
 def test_password_hasher_settings_are_explicit_and_test_only_md5_isolated() -> None:
