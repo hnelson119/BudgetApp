@@ -293,6 +293,11 @@ def test_compose_hardens_runtime_and_keeps_secrets_out_of_environment() -> None:
     environment_example = (PROJECT_ROOT / ".env.example").read_text(encoding="utf-8")
     assert "BUDGET_SECRET_GID=10002" in environment_example
     assert "DJANGO_MFA_ENCRYPTION_KEY_VERSION=1" in environment_example
+    assert "AUDIT_CHECKPOINT_SIGNATURE_ALGORITHM=HMAC-SHA512" in environment_example
+    assert (
+        compose["services"]["integrity"]["environment"]["AUDIT_CHECKPOINT_SIGNATURE_ALGORITHM"]
+        == "${AUDIT_CHECKPOINT_SIGNATURE_ALGORITHM:-HMAC-SHA512}"
+    )
 
     rotation = compose["services"]["mfa-key-rotate"]
     assert rotation["profiles"] == ["maintenance"]

@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-09-26"
+MAPPING_UPDATED = "2026-09-27"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -443,9 +443,9 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
     ),
     "V1.3.3": (
         "A maintained inventory defines the exact treatment for 11 dangerous context families. "
-        "The aggregate fail-closed checker scans all 221 production Python files, including "
-        "migrations, and pins all 25 raw SQL calls to literal text: three application cursor "
-        "calls and 22 fixed schema-editor migration calls. It requires nine specialized context "
+        "The aggregate fail-closed checker scans all 222 production Python files, including "
+        "migrations, and pins all 29 raw SQL calls to literal text: three application cursor "
+        "calls and 26 fixed schema-editor migration calls. It requires nine specialized context "
         "checkers in both quality gates and exact source contracts for CSV formula encoding, "
         "redirect and notification URLs, checkpoint filenames, disabled production email, and "
         "structured-log redaction."
@@ -1654,14 +1654,16 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
 
 PARTIAL_ASSESSMENT_OVERRIDES: dict[str, str] = {
     "V11.2.2": (
-        "All 15 inventoried cryptographic profiles now have an explicit replacement or migration "
+        "All 16 inventoried cryptographic profiles have an explicit replacement or migration "
         "analysis. MFA ciphertext has a backward-compatible authenticated profile envelope, and "
         "the atomic key-rotation path migrates legacy unprefixed rows. Password hashes, Restic "
-        "records, checkpoints, certificates, TOTP enrollment, and invalidated Django signatures "
-        "have identified transition semantics. The checkpoint verifier still lacks an approved "
-        "multi-algorithm registry, purpose-specific SHA-256 formats lack one exhaustive migration "
-        "registry, and provider-managed suite transitions require release evidence; this control "
-        "therefore remains partial."
+        "records, certificates, TOTP enrollment, and invalidated Django signatures have identified "
+        "transition semantics. A fail-closed HMAC-SHA256/HMAC-SHA512 checkpoint registry now "
+        "issues "
+        "the new profile while preserving historical verification, and PostgreSQL enforces both "
+        "exact algorithm-length pairs. Purpose-specific SHA-256 formats still lack one exhaustive "
+        "migration registry, and provider-managed suite transitions require release evidence; this "
+        "control therefore remains partial."
     ),
     "V14.2.4": (
         "The repository gate enforces protection-level ranks and independent dataset and model "
@@ -1705,6 +1707,8 @@ PARTIAL_EVIDENCE_OVERRIDES["V11.2.2"] = [
     "identity/services/mfa.py",
     "identity/management/commands/rotate_mfa_encryption_key.py",
     "audit/checkpoints.py",
+    "audit/migrations/0005_checkpoint_mac_profiles.py",
+    "compose.yaml",
     "deploy/backup/rotate-restic-key.sh",
     "scripts/check_cryptographic_inventory.py",
     "tests/test_identity_commands.py",

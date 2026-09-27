@@ -1,4 +1,5 @@
 import json
+from importlib import import_module
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +18,7 @@ from identity.models import User
 
 TEST_PASSWORD = "checkpoint-test-password"  # pragma: allowlist secret
 SIGNING_KEY = b"checkpoint-test-key-material-which-is-long-enough"
+SIGNING_KEY_V2 = b"replacement-checkpoint-key-material-long-enough-v2"
 
 
 @pytest.fixture
@@ -45,18 +47,56 @@ def test_checkpoint_is_signed_copied_and_immutable(
         directory=tmp_path,
         signing_key=SIGNING_KEY,
         signing_key_id="test-key-v1",
+        signature_algorithm="HMAC-SHA512",
     )
 
     document = json.loads(result.external_path.read_text(encoding="utf-8"))
     assert verify_checkpoint_document(document, SIGNING_KEY) is True
     assert document["checkpoint"]["chain_head"] == result.checkpoint.chain_head
     assert document["signature"]["value"] == result.checkpoint.signature
+    assert document["signature"]["algorithm"] == "HMAC-SHA512"
+    assert len(document["signature"]["value"]) == 128
     assert AuditHead.objects.get(household=checkpoint_household).verified_at is not None
 
     with pytest.raises(ValidationError, match="cannot be updated"):
         AuditCheckpoint.objects.filter(pk=result.checkpoint.pk).update(signature="0" * 64)
     with pytest.raises(ValidationError, match="cannot be deleted"):
         result.checkpoint.delete()
+
+
+@pytest.mark.django_db
+def test_checkpoint_algorithm_rotation_preserves_historical_verification(
+    checkpoint_household,
+    tmp_path: Path,
+) -> None:  # type: ignore[no-untyped-def]
+    historical = write_household_checkpoint(
+        household=checkpoint_household,
+        directory=tmp_path,
+        signing_key=SIGNING_KEY,
+        signing_key_id="test-key-v1",
+        signature_algorithm="HMAC-SHA256",
+    )
+    current = write_household_checkpoint(
+        household=checkpoint_household,
+        directory=tmp_path,
+        signing_key=SIGNING_KEY_V2,
+        signing_key_id="test-key-v2",
+        signature_algorithm="HMAC-SHA512",
+    )
+
+    historical_document = json.loads(historical.external_path.read_text(encoding="utf-8"))
+    current_document = json.loads(current.external_path.read_text(encoding="utf-8"))
+    assert verify_checkpoint_document(historical_document, SIGNING_KEY) is True
+    assert verify_checkpoint_document(current_document, SIGNING_KEY_V2) is True
+    assert verify_checkpoint_document(historical_document, SIGNING_KEY_V2) is False
+    assert verify_checkpoint_document(current_document, SIGNING_KEY) is False
+    assert [
+        (item.signature_algorithm, item.signing_key_id, len(item.signature))
+        for item in AuditCheckpoint.objects.order_by("verified_at")
+    ] == [
+        ("HMAC-SHA256", "test-key-v1", 64),
+        ("HMAC-SHA512", "test-key-v2", 128),
+    ]
 
 
 @pytest.mark.django_db
@@ -73,6 +113,7 @@ def test_checkpoint_rejects_tampered_chain(checkpoint_household, tmp_path: Path)
             directory=tmp_path,
             signing_key=SIGNING_KEY,
             signing_key_id="test-key-v1",
+            signature_algorithm="HMAC-SHA512",
         )
     assert list(tmp_path.iterdir()) == []
     assert AuditCheckpoint.objects.count() == 0
@@ -92,6 +133,7 @@ def test_checkpoint_command_reads_signing_key_from_file_only(
     monkeypatch.setenv("AUDIT_CHECKPOINT_SIGNING_KEY_FILE", str(key_path))
     monkeypatch.setenv("AUDIT_CHECKPOINT_DIRECTORY", str(destination))
     monkeypatch.setenv("AUDIT_CHECKPOINT_KEY_ID", "test-key-v1")
+    monkeypatch.setenv("AUDIT_CHECKPOINT_SIGNATURE_ALGORITHM", "HMAC-SHA512")
     output = StringIO()
 
     call_command("write_audit_checkpoints", stdout=output)
@@ -135,10 +177,14 @@ def test_checkpoint_verification_binds_expected_household_and_signed_key_metadat
         directory=tmp_path,
         signing_key=SIGNING_KEY,
         signing_key_id="test-key-v1",
+        signature_algorithm="HMAC-SHA256",
     )
     document = json.loads(other_result.external_path.read_text(encoding="utf-8"))
+    assert verify_checkpoint_document(document, SIGNING_KEY) is True
     document["signature"]["key_id"] = "substituted-key"
     assert verify_checkpoint_document(document, SIGNING_KEY) is False
+    assert document["signature"]["algorithm"] == "HMAC-SHA256"
+    assert len(document["signature"]["value"]) == 64
 
     key_path = tmp_path / "checkpoint_signing_key"
     key_path.write_text(SIGNING_KEY.decode(), encoding="utf-8")
@@ -186,6 +232,25 @@ def test_checkpoint_document_rejects_malformed_envelopes() -> None:
         )
         is False
     )
+    for algorithm, value in (
+        ("HMAC-SHA256", "0" * 128),
+        ("HMAC-SHA512", "0" * 64),
+        ("HMAC-SHA384", "0" * 96),
+    ):
+        assert (
+            verify_checkpoint_document(
+                {
+                    "checkpoint": {"version": 1},
+                    "signature": {
+                        "algorithm": algorithm,
+                        "key_id": "test-key-v1",
+                        "value": value,
+                    },
+                },
+                SIGNING_KEY,
+            )
+            is False
+        )
 
 
 def test_checkpoint_destination_validation_and_failed_write_cleanup(tmp_path: Path) -> None:
@@ -219,6 +284,7 @@ def test_checkpoint_rejects_weak_keys_and_unsafe_key_identifiers(
             directory=tmp_path,
             signing_key=b"short",
             signing_key_id="test-key-v1",
+            signature_algorithm="HMAC-SHA512",
         )
     with pytest.raises(ValidationError, match="ID is invalid"):
         write_household_checkpoint(
@@ -226,8 +292,27 @@ def test_checkpoint_rejects_weak_keys_and_unsafe_key_identifiers(
             directory=tmp_path,
             signing_key=SIGNING_KEY,
             signing_key_id="../unsafe-key",
+            signature_algorithm="HMAC-SHA512",
+        )
+    with pytest.raises(ValidationError, match="algorithm is unsupported"):
+        write_household_checkpoint(
+            household=checkpoint_household,
+            directory=tmp_path,
+            signing_key=SIGNING_KEY,
+            signing_key_id="test-key-v1",
+            signature_algorithm="HMAC-SHA384",
         )
     assert AuditCheckpoint.objects.count() == 0
+
+
+def test_checkpoint_database_boundary_allows_only_approved_algorithm_lengths() -> None:
+    migration = import_module("audit.migrations.0005_checkpoint_mac_profiles")
+
+    assert AuditCheckpoint._meta.get_field("signature").max_length == 128
+    assert "p_signature_algorithm = 'HMAC-SHA256'" in migration.FUNCTION_SQL
+    assert "p_signature ~ '^[0-9a-f]{64}$'" in migration.FUNCTION_SQL
+    assert "p_signature_algorithm = 'HMAC-SHA512'" in migration.FUNCTION_SQL
+    assert "p_signature ~ '^[0-9a-f]{128}$'" in migration.FUNCTION_SQL
 
 
 @pytest.mark.django_db
@@ -248,5 +333,6 @@ def test_failed_checkpoint_database_record_removes_external_document(
             directory=tmp_path,
             signing_key=SIGNING_KEY,
             signing_key_id="test-key-v1",
+            signature_algorithm="HMAC-SHA512",
         )
     assert list(tmp_path.iterdir()) == []

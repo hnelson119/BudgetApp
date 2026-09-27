@@ -1,7 +1,7 @@
 # OWASP ASVS 5.0.0 Level 2 mapping
 
 Status: requirement-level applicability complete; release verification pending  
-Last updated: 2026-09-26
+Last updated: 2026-09-27
 
 ## Scope and source integrity
 
@@ -86,8 +86,8 @@ quality gates. Representative release-host load and false-positive observation r
 work. See `docs/ANTI_AUTOMATION_POLICY.md` and `docs/anti-automation-policy.json`.
 
 The dangerous-context boundary implements `v5.0.0-1.3.3`. It defines the exact treatment for 11
-context families and scans all 221 production Python files, including migrations, for raw SQL.
-All 25 calls are pinned to literal text: three application cursor calls and 22 fixed schema-editor
+context families and scans all 222 production Python files, including migrations, for raw SQL.
+All 29 calls are pinned to literal text: three application cursor calls and 26 fixed schema-editor
 migration calls. The aggregate checker also requires nine specialized context checks in both
 quality gates and pins source contracts for CSV formula encoding, redirect and notification URLs,
 checkpoint filenames, disabled production email, and structured-log redaction. See

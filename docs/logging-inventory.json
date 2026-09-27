@@ -169,7 +169,7 @@
       "access_control": "Active household membership for summary UI; recent password-plus-MFA verification for detail/export; runtime role can execute only the protected append function; dedicated audit reader is read-only; no application delete/update permission.",
       "retention": "Live audit rows and checkpoints are retained for the application lifetime with no delete path. Encrypted backup copies follow 7 daily, 4 weekly, and 12 monthly snapshot retention unless a preserved incident copy supersedes normal pruning.",
       "sensitive_data_policy": "Protected audit may contain the minimum authorized financial before/after facts and bounded reason, but rejects password, token, cookie, session, recovery-code, and TOTP keys and never stores exports or raw CSV files.",
-      "integrity_and_availability": "Transactional append, PostgreSQL ownership/trigger controls, per-household SHA-256 chains, daily verification, off-VM HMAC-SHA256 checkpoints, and encrypted backups provide layered detection and recovery.",
+      "integrity_and_availability": "Transactional append, PostgreSQL ownership/trigger controls, per-household SHA-256 chains, daily verification, off-VM HMAC-SHA512 checkpoints with historical HMAC-SHA256 verification, and encrypted backups provide layered detection and recovery.",
       "limitations": "Database superusers and host administrators remain trusted; confidentiality relies on host volume controls and encrypted off-VM backups.",
       "evidence": [
         "audit/services.py",

@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "inventory_updated": "2026-09-26",
+  "inventory_updated": "2026-09-27",
   "review": {
     "owner": "release owner",
     "cadence_days": 90,
-    "next_review_due": "2026-12-25",
+    "next_review_due": "2026-12-26",
     "procedure": "docs/CRYPTOGRAPHIC_INVENTORY.md",
     "update_triggers": [
       "application or infrastructure cryptography changes",
@@ -184,7 +184,7 @@
   },
   "summary": {
     "cryptographic_keys": 17,
-    "algorithms": 15,
+    "algorithms": 16,
     "certificates": 10,
     "known_absences": 1
   },
@@ -341,7 +341,8 @@
         "historical checkpoint verifier"
       ],
       "algorithms": [
-        "hmac-sha256"
+        "hmac-sha256",
+        "hmac-sha512"
       ],
       "permitted_uses": [
         "authenticate canonical audit checkpoint documents for the matching key ID"
@@ -992,6 +993,31 @@
         "audit/checkpoints.py",
         "identity/services/throttling.py",
         "identity/services/sessions.py"
+      ]
+    },
+    {
+      "id": "hmac-sha512",
+      "name": "HMAC-SHA512",
+      "security_status": "approved",
+      "security_strength": "at_least_128_bits",
+      "scope": "deployment",
+      "parameters": "Full 512-bit tag with a purpose-specific audit checkpoint key of at least 256 bits; algorithm and key ID are authenticated inside the versioned document",
+      "consumers": [
+        "audit checkpoint authentication"
+      ],
+      "permitted_uses": [
+        "authenticate canonical audit checkpoint documents for the matching key ID"
+      ],
+      "prohibited_uses": [
+        "encryption",
+        "unkeyed hashing",
+        "cross-purpose key reuse",
+        "verification after truncating the tag"
+      ],
+      "evidence": [
+        "audit/checkpoints.py",
+        "audit/migrations/0005_checkpoint_mac_profiles.py",
+        "tests/test_checkpoints.py"
       ]
     },
     {

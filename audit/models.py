@@ -142,7 +142,7 @@ class AuditCheckpoint(models.Model):
     verified_at = models.DateTimeField()
     signature_algorithm = models.CharField(max_length=32)
     signing_key_id = models.CharField(max_length=64)
-    signature = models.CharField(max_length=64)
+    signature = models.CharField(max_length=128)
     external_copy_name = models.CharField(max_length=255)
     external_copied_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)

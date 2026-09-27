@@ -2,8 +2,8 @@
   "schema_version": 1,
   "policy_id": "household-budget-hashes-v1",
   "asvs_requirement": "v5.0.0-11.4.1",
-  "last_reviewed": "2026-09-26",
-  "next_review_due": "2026-12-25",
+  "last_reviewed": "2026-09-27",
+  "next_review_due": "2026-12-26",
   "approved_hash_functions": [
     {
       "id": "sha256",
@@ -32,7 +32,8 @@
       "digest_bits": 512,
       "status": "approved",
       "permitted_uses": [
-        "package-lock integrity metadata validated by npm and the SBOM builder"
+        "package-lock integrity metadata validated by npm and the SBOM builder",
+        "HMAC-SHA512 authentication of versioned audit checkpoints"
       ],
       "prohibited_uses": [
         "application password storage",
@@ -245,7 +246,7 @@
     ]
   },
   "python_operation_inventory": [
-    {"path": "audit/checkpoints.py", "operations": {"hmac.new:sha256": 1}, "purpose": "Authenticate signed audit checkpoints", "status": "approved"},
+    {"path": "audit/checkpoints.py", "operations": {"hmac.new:sha256": 1, "hmac.new:sha512": 1}, "purpose": "Authenticate versioned audit checkpoints with current and historical approved profiles", "status": "approved"},
     {"path": "audit/services.py", "operations": {"hashlib.sha256": 1}, "purpose": "Chain canonical audit-event integrity digests", "status": "approved"},
     {"path": "budgets/views.py", "operations": {"django.signing.dumps:sha256": 1, "django.signing.loads:sha256": 1}, "purpose": "Sign and verify variable-budget optimistic-concurrency state", "status": "approved"},
     {"path": "debts/services/mortgages.py", "operations": {"hashlib.sha256": 1}, "purpose": "Fingerprint deterministic mortgage inputs", "status": "approved"},
@@ -278,7 +279,7 @@
   "source_assertions": [
     {"id": "backup-integrity", "path": "deploy/backup/backup.sh", "contains": ["sha256sum"]},
     {"id": "certificate-signatures", "path": "scripts/generate-postgres-tls.py", "contains": ["\"-sha256\""]},
-    {"id": "cryptographic-inventory", "path": "docs/cryptographic-inventory.json", "contains": ["\"id\": \"sha256\"", "\"security_status\": \"approved\"", "\"id\": \"totp-hmac-sha1\"", "\"id\": \"password-blocklist-sha1\""]},
+    {"id": "cryptographic-inventory", "path": "docs/cryptographic-inventory.json", "contains": ["\"id\": \"sha256\"", "\"id\": \"hmac-sha512\"", "\"security_status\": \"approved\"", "\"id\": \"totp-hmac-sha1\"", "\"id\": \"password-blocklist-sha1\""]},
     {"id": "dependency-lock", "path": "requirements-prod.lock", "contains": ["Django==5.2.17", "cryptography==50.0.0"]},
     {"id": "image-source-integrity", "path": "deploy/backup/Dockerfile", "contains": ["ADD --checksum=sha256:${RESTIC_SHA256}"]},
     {"id": "npm-integrity", "path": "scripts/build_sbom.py", "contains": ["integrity.startswith(\"sha512-\")"]},
@@ -297,7 +298,7 @@
     "approved_hash_functions": 2,
     "managed_profiles": 6,
     "operation_files": 27,
-    "operations": 36,
+    "operations": 37,
     "compatibility_exceptions": 2,
     "compatibility_operations": 6,
     "test_only_exceptions": 1,

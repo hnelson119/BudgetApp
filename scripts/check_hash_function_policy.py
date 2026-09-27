@@ -40,7 +40,7 @@ PYTHON_ROOTS = (
 )
 
 EXPECTED_PYTHON_OPERATIONS = {
-    "audit/checkpoints.py": Counter({"hmac.new:sha256": 1}),
+    "audit/checkpoints.py": Counter({"hmac.new:sha256": 1, "hmac.new:sha512": 1}),
     "audit/services.py": Counter({"hashlib.sha256": 1}),
     "budgets/views.py": Counter(
         {"django.signing.dumps:sha256": 1, "django.signing.loads:sha256": 1}
@@ -134,6 +134,7 @@ EXPECTED_SOURCE_ASSERTIONS = {
         "docs/cryptographic-inventory.json",
         (
             '"id": "sha256"',
+            '"id": "hmac-sha512"',
             '"security_status": "approved"',
             '"id": "totp-hmac-sha1"',
             '"id": "password-blocklist-sha1"',
@@ -252,12 +253,12 @@ def _hmac_algorithm(call: ast.Call, *, context: str) -> str:
         and digest_node.value.id == "hashlib"
     ):
         algorithm = _normalized_algorithm(digest_node.attr, context=context)
-        if algorithm not in {"sha1", "sha256"}:
+        if algorithm not in {"sha1", "sha256", "sha512"}:
             _fail(f"unapproved HMAC hash algorithm {algorithm!r} in {context}")
         return algorithm
     if isinstance(digest_node, ast.Constant) and isinstance(digest_node.value, str):
         algorithm = _normalized_algorithm(digest_node.value, context=context)
-        if algorithm not in {"sha1", "sha256"}:
+        if algorithm not in {"sha1", "sha256", "sha512"}:
             _fail(f"unapproved HMAC hash algorithm {algorithm!r} in {context}")
         return algorithm
     _fail(f"HMAC digest must be an explicit hashlib function in {context}")
@@ -306,7 +307,7 @@ def scan_python_hash_operations(source: str, relative_path: str) -> Counter[str]
             and isinstance(node.value, ast.Name)
             and node.value.id == "hashlib"
         ):
-            if node.attr not in {"sha1", "sha256"}:
+            if node.attr not in {"sha1", "sha256", "sha512"}:
                 _fail(
                     f"unapproved hashlib attribute {node.attr!r} in {relative_path}:{node.lineno}"
                 )

@@ -38,6 +38,7 @@ EXPECTED_ALGORITHM_IDS = {
     "django-pbkdf2-hmac-sha256",
     "fernet-v1",
     "hmac-sha256",
+    "hmac-sha512",
     "internal-web-mtls",
     "os-csprng",
     "password-blocklist-sha1",
@@ -529,6 +530,34 @@ def _validate_dependency_contract(algorithms: dict[str, dict[str, Any]]) -> None
     ):
         _fail("the inventoried MFA ciphertext migration boundary changed unexpectedly")
 
+    checkpoint_source = (PROJECT_ROOT / "audit" / "checkpoints.py").read_text(encoding="utf-8")
+    checkpoint_migration = (
+        PROJECT_ROOT / "audit" / "migrations" / "0005_checkpoint_mac_profiles.py"
+    ).read_text(encoding="utf-8")
+    compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    if not all(
+        fragment in checkpoint_source
+        for fragment in (
+            '"HMAC-SHA256": CheckpointMacProfile(_sign_hmac_sha256, 64)',
+            '"HMAC-SHA512": CheckpointMacProfile(_sign_hmac_sha512, 128)',
+            "signature_algorithm not in CHECKPOINT_MAC_PROFILES",
+        )
+    ) or not all(
+        fragment in checkpoint_migration
+        for fragment in (
+            "p_signature_algorithm = 'HMAC-SHA256'",
+            "p_signature ~ '^[0-9a-f]{64}$'",
+            "p_signature_algorithm = 'HMAC-SHA512'",
+            "p_signature ~ '^[0-9a-f]{128}$'",
+        )
+    ):
+        _fail("the inventoried checkpoint algorithm migration boundary changed unexpectedly")
+    if (
+        "AUDIT_CHECKPOINT_SIGNATURE_ALGORITHM: "
+        "${AUDIT_CHECKPOINT_SIGNATURE_ALGORITHM:-HMAC-SHA512}" not in compose
+    ):
+        _fail("the current checkpoint writer profile is not explicitly selected")
+
     backup_image = (PROJECT_ROOT / "deploy" / "backup" / "Dockerfile").read_text(encoding="utf-8")
     if "ARG RESTIC_VERSION=0.19.1" not in backup_image:
         _fail("the inventoried Restic version is not pinned to 0.19.1")
@@ -826,6 +855,11 @@ def validate_inventory(data: Any, *, today: date | None = None) -> None:
         _fail("MD5 password hashing must remain test-only")
     if keys_by_id["django-signing-key"]["algorithms"] != ["hmac-sha256"]:
         _fail("Django signing key has acquired an unexpected algorithm or purpose")
+    if keys_by_id["audit-checkpoint-signing-key"]["algorithms"] != [
+        "hmac-sha256",
+        "hmac-sha512",
+    ]:
+        _fail("audit checkpoint key does not cover both approved historical and current profiles")
     password_kdf_keys = {record["id"] for record in keys if "restic-scrypt" in record["algorithms"]}
     if password_kdf_keys != {"restic-repository-password"}:
         _fail("password-derived key use differs from the sole approved Restic boundary")

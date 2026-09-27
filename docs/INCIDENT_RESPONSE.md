@@ -190,14 +190,16 @@ replace the password file without changing the repository key first.
   as the MFA seed-encryption key.
 - Audit checkpoint key: write and verify a final checkpoint with the old key ID. Archive the old key
   offline under that ID; it is required to verify historical checkpoints. Stage a new
-  `audit_checkpoint_signing_key`, atomically promote it, increment `AUDIT_CHECKPOINT_KEY_ID`, write
-  a new checkpoint, and verify it before restarting the integrity timer. Never relabel an old key,
+  `audit_checkpoint_signing_key`, atomically promote it, increment `AUDIT_CHECKPOINT_KEY_ID`, and
+  set `AUDIT_CHECKPOINT_SIGNATURE_ALGORITHM=HMAC-SHA512`. Write and verify the first new-profile
+  checkpoint before restarting the integrity timer. Never relabel an old key,
   overwrite retired verification material, or treat a new checkpoint as proof of earlier history.
 
 To verify an older checkpoint, mount only its matching retired key read-only into a one-off
-integrity container and set both the matching key-file path and historical key ID. Keep that key
-offline again immediately afterward. The web container must never receive current or retired
-checkpoint keys.
+integrity container and set both the matching key-file path and historical key ID. Verification
+selects HMAC-SHA256 or HMAC-SHA512 from the signed document and rejects every other profile; it
+does not try unrelated keys. Keep that key offline again immediately afterward. The web container
+must never receive current or retired checkpoint keys.
 
 ## 8. Tailscale, SSH, and identity-provider credentials
 
