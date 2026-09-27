@@ -100,7 +100,7 @@ EXPECTED_SHA256_ENTRY_CLASSES = {
     "mortgage-preview-fingerprint": ("debts/services/mortgages.py", "bounded_lifetime"),
     "release-csv-integrity": ("deploy/pentest/run-csv-security.py", "verification_only"),
     "goal-preview-fingerprint": ("goals/services.py", "bounded_lifetime"),
-    "goal-contribution-idempotency": ("goals/services.py", "persisted_unversioned"),
+    "goal-contribution-idempotency": ("goals/services.py", "persisted_versioned"),
     "password-corpus-build-integrity": (
         "identity/management/commands/build_breached_password_corpus.py",
         "persisted_versioned",
@@ -221,7 +221,7 @@ EXPECTED_SOURCE_ASSERTIONS = {
         "docs/sha256-agility.json",
         (
             '"registry_id": "household-budget-sha256-agility-v1"',
-            '"persisted_unversioned_entries": 6',
+            '"persisted_unversioned_entries": 5',
         ),
     ),
     "test-only-md5": (

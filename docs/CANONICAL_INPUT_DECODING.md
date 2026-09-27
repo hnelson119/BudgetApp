@@ -52,7 +52,7 @@ Run:
 .\.venv\Scripts\python.exe -m pytest tests\test_canonical_decoding.py tests\test_csv_imports.py tests\test_password_policy.py tests\test_security_log_archive.py
 ```
 
-The checker scans all 223 production Python files, pins the seven files and 16 operations that
+The checker scans all 224 production Python files, pins the seven files and 16 operations that
 decode text, parse JSON, or perform the one approved Base32 conversion, and rejects unsafe aliases
 as well as direct calls. Tests prove Django decodes percent-encoded request values once, a nested
 JSON parse changes the inventory, only strict literal encodings are accepted, and every prohibited

@@ -443,7 +443,7 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
     ),
     "V1.3.3": (
         "A maintained inventory defines the exact treatment for 11 dangerous context families. "
-        "The aggregate fail-closed checker scans all 222 production Python files, including "
+        "The aggregate fail-closed checker scans all 223 production Python files, including "
         "migrations, and pins all 29 raw SQL calls to literal text: three application cursor "
         "calls and 26 fixed schema-editor migration calls. It requires nine specialized context "
         "checkers in both quality gates and exact source contracts for CSV formula encoding, "
@@ -1665,8 +1665,9 @@ PARTIAL_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "issues "
         "the new profile while preserving historical verification, and PostgreSQL enforces both "
         "exact algorithm-length pairs. An enforced agility registry now classifies all 30 direct "
-        "SHA-256 operations across 24 files and identifies six persisted unversioned formats with "
-        "their readers and replacement boundaries. Those six runtime formats still require profile "
+        "SHA-256 operations across 24 files. Goal-contribution idempotency now writes marked "
+        "sha256$ values while rejecting both current and historical unprefixed duplicates. Five "
+        "persisted unversioned runtime formats still require profile "
         "markers plus tested compatibility, invalidation, or migration behavior, and "
         "provider-managed suite transitions require release evidence; this control therefore "
         "remains partial."
@@ -1715,6 +1716,8 @@ PARTIAL_EVIDENCE_OVERRIDES["V11.2.2"] = [
     "identity/management/commands/rotate_mfa_encryption_key.py",
     "audit/checkpoints.py",
     "audit/migrations/0005_checkpoint_mac_profiles.py",
+    "goals/services.py",
+    "ledger/migrations/0004_expand_idempotency_profile.py",
     "compose.yaml",
     "deploy/backup/rotate-restic-key.sh",
     "scripts/check_cryptographic_inventory.py",
@@ -1723,6 +1726,7 @@ PARTIAL_EVIDENCE_OVERRIDES["V11.2.2"] = [
     "tests/test_checkpoints.py",
     "tests/test_password_hashing_policy.py",
     "tests/test_hash_function_policy.py",
+    "tests/test_goals.py",
 ]
 PARTIAL_EVIDENCE_OVERRIDES["V14.2.4"] = [
     "docs/DATA_CLASSIFICATION.md",

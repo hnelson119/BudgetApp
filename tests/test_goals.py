@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, replace
 from datetime import date, datetime, time
 from decimal import Decimal
@@ -31,7 +32,7 @@ from goals.services import (
 from households.models import Household, HouseholdMembership
 from identity.models import User
 from ledger.models import FinancialAccount, JournalEntry
-from ledger.services import create_financial_account
+from ledger.services import create_financial_account, record_income
 from periods.models import PayPeriod
 from periods.services import close_period
 from reserves.models import ReserveEntry
@@ -274,10 +275,62 @@ def test_scheduled_contribution_records_transfer_not_income_or_spending(
     assert occurrence.status == Occurrence.Status.COMPLETED
     assert occurrence.actual_amount == Decimal("100.00")
     assert goal_current_amount(goal) == Decimal("350.00")
+    idempotency_key = contribution.journal_entry.idempotency_key
+    assert idempotency_key.startswith("sha256$")
+    assert len(idempotency_key) == 71
+    retry_arguments = {
+        "goal": goal,
+        "actor": goal_context.user,
+        "pay_period": occurrence.pay_period,
+        "amount": Decimal("100.00"),
+        "effective_at": _effective(occurrence.expected_date),
+        "request_id": "goal-scheduled-actual-retry",
+        "idempotency_key": "goal-scheduled-actual",
+        "reason": "Paycheck contribution retry",
+        "contribution_type": GoalContribution.ContributionType.SCHEDULED,
+        "occurrence": occurrence,
+    }
+    with pytest.raises(ValidationError, match="idempotency key has already been used"):
+        record_goal_contribution(**retry_arguments)
+
+    assert GoalContribution.objects.filter(goal=goal).count() == 1
     assert not JournalEntry.objects.filter(
         household=goal_context.household,
         entry_type__in=(JournalEntry.EntryType.INCOME, JournalEntry.EntryType.EXPENSE),
     ).exists()
+
+
+@pytest.mark.django_db
+def test_goal_contribution_rejects_historical_unprefixed_idempotency(
+    goal_context: GoalContext,
+) -> None:
+    goal = _create(goal_context)
+    period = goal_context.periods[0]
+    source_value = "historical-goal-contribution"
+    historical_key = hashlib.sha256(f"goal:{goal.pk}:{source_value}".encode()).hexdigest()
+    record_income(
+        household=goal_context.household,
+        actor=goal_context.user,
+        destination=goal_context.checking,
+        amount=Decimal("1.00"),
+        effective_at=_effective(period.start_date),
+        description="Historical idempotency fixture",
+        request_id="historical-idempotency-fixture",
+        idempotency_key=historical_key,
+    )
+
+    with pytest.raises(ValidationError, match="idempotency key has already been used"):
+        record_goal_contribution(
+            goal=goal,
+            actor=goal_context.user,
+            pay_period=period,
+            amount=Decimal("25.00"),
+            effective_at=_effective(period.start_date),
+            request_id="historical-goal-contribution-retry",
+            idempotency_key=source_value,
+            reason="Historical retry",
+        )
+    assert GoalContribution.objects.filter(goal=goal).count() == 0
 
 
 @pytest.mark.django_db

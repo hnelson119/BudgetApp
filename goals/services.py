@@ -19,7 +19,7 @@ from goals.models import Goal, GoalContribution, GoalFundingPlan, GoalRevision
 from households.models import Household
 from households.services.access import require_household_membership
 from identity.models import User
-from ledger.models import FinancialAccount
+from ledger.models import FinancialAccount, JournalEntry
 from ledger.services.entries import (
     record_debt_payment,
 )
@@ -535,8 +535,9 @@ def _effective_local_date(effective_at: datetime, household: Household) -> date:
     return timezone.localtime(effective_at, ZoneInfo(household.time_zone)).date()
 
 
-def _contribution_idempotency(goal: Goal, request_id: str) -> str:
-    return hashlib.sha256(f"goal:{goal.pk}:{request_id}".encode()).hexdigest()
+def _contribution_idempotency_keys(goal: Goal, request_id: str) -> tuple[str, str]:
+    digest = hashlib.sha256(f"goal:{goal.pk}:{request_id}".encode()).hexdigest()
+    return f"sha256${digest}", digest
 
 
 @transaction.atomic
@@ -582,6 +583,14 @@ def record_goal_contribution(
     if reserve_entry is not None:
         if reserve_entry.household_id != locked.household_id or -reserve_entry.amount != normalized:
             raise ValidationError("The reserve allocation does not match this goal contribution.")
+    current_idempotency, historical_idempotency = _contribution_idempotency_keys(
+        locked, idempotency_key or request_id
+    )
+    if JournalEntry.objects.filter(
+        household=locked.household,
+        idempotency_key__in=(current_idempotency, historical_idempotency),
+    ).exists():
+        raise ValidationError("The journal idempotency key has already been used.")
     description = f"Goal contribution · {revision.name}"
     if revision.goal_type == GoalRevision.GoalType.DEBT_PAYOFF:
         if revision.linked_debt is None or revision.linked_debt.financial_account is None:
@@ -596,7 +605,7 @@ def record_goal_contribution(
             description=description,
             request_id=request_id,
             note=reason,
-            idempotency_key=_contribution_idempotency(locked, idempotency_key or request_id),
+            idempotency_key=current_idempotency,
         )
     else:
         if revision.destination_account is None:
@@ -611,7 +620,7 @@ def record_goal_contribution(
             description=description,
             request_id=request_id,
             note=reason,
-            idempotency_key=_contribution_idempotency(locked, idempotency_key or request_id),
+            idempotency_key=current_idempotency,
         )
     if occurrence is not None:
         plan = GoalFundingPlan.objects.filter(goal=locked).first()
