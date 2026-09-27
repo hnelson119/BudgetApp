@@ -1,8 +1,8 @@
 # Approved hash-function policy
 
 Status: implemented and enforced
-Policy reviewed: 2026-09-13
-Next scheduled review: 2026-12-12
+Policy reviewed: 2026-09-26
+Next scheduled review: 2026-12-25
 
 ## Boundary
 
@@ -18,7 +18,7 @@ The executable checker discovers every direct Python `hashlib`, `hmac`, Django s
 `salted_hmac`, and OpenSSL hash selection in production, maintenance, and release-test source. It
 also scans production scripts and templates, browser and deployment helpers, and shell/PowerShell
 source for Node hash calls, Web Crypto operations, and checksum commands. The
-current inventory contains 35 operations across 26 files. A new call, dynamic algorithm selection,
+current inventory contains 36 operations across 27 files. A new call, dynamic algorithm selection,
 module alias, direct weak-hash import, or undocumented operation fails both quality gates. This
 reviewed API inventory supplements code review; it is not a general proof against arbitrary custom
 cryptographic implementations or all possible language indirection.

@@ -5,8 +5,10 @@ from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.deprecation import MiddlewareMixin
 
 from identity.models import MfaCredential, User
+from identity.services.application_throttling import enforce_application_budget
 from identity.services.mfa import mfa_is_ready
 from identity.services.sessions import (
     SESSION_ESTABLISHED_ATTRIBUTE,
@@ -17,6 +19,46 @@ from identity.services.sessions import (
 
 _CLEAR_SITE_DATA = '"cache", "cookies", "storage"'
 security_logger = logging.getLogger("security")
+
+
+class ApplicationRateLimitMiddleware(MiddlewareMixin):
+    """Bound every authenticated state-changing HTTP request per account."""
+
+    _MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+    _SECURITY_TERMINATION_ROUTES = frozenset(
+        {"identity:logout", "identity:logout-all", "identity:session-revoke"}
+    )
+
+    def process_view(
+        self,
+        request: HttpRequest,
+        _view_func: object,
+        _view_args: object,
+        _view_kwargs: object,
+    ) -> HttpResponse | None:
+        user = request.user
+        route = request.resolver_match.view_name if request.resolver_match else ""
+        if route in self._SECURITY_TERMINATION_ROUTES:
+            return None
+        if (
+            isinstance(user, User)
+            and user.is_authenticated
+            and request.method in self._MUTATING_METHODS
+        ):
+            response = enforce_application_budget(
+                request,
+                user=user,
+                scope="authenticated-mutation",
+                maximum=settings.APPLICATION_MUTATION_RATE_LIMIT,
+                window_seconds=settings.APPLICATION_MUTATION_RATE_WINDOW_SECONDS,
+            )
+            if response is not None:
+                security_logger.warning(
+                    "Authenticated mutation rate limited.",
+                    extra={"event": "anti_automation.rate_limited", "scope": "mutation"},
+                )
+                return response
+        return None
 
 
 class ConcurrentSessionLimitMiddleware:

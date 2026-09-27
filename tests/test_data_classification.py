@@ -21,7 +21,7 @@ def _document() -> dict[str, Any]:
 
 
 def test_data_classification_accepts_the_production_inventory() -> None:
-    assert validate_data_classification() == (4, 15, 45)
+    assert validate_data_classification() == (4, 15, 46)
 
 
 def test_data_classification_covers_every_django_model_once() -> None:
@@ -120,4 +120,4 @@ def test_stronger_classification_is_allowed() -> None:
     document = _document()
     for dataset in document["datasets"]:
         dataset["level"] = "restricted"
-    assert validate_inventory_document(PROJECT_ROOT, document) == (4, 15, 45)
+    assert validate_inventory_document(PROJECT_ROOT, document) == (4, 15, 46)

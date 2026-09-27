@@ -52,6 +52,33 @@ class LoginThrottle(models.Model):
         return f"Login throttle {self.key_hash[:8]}"
 
 
+class ApplicationThrottle(models.Model):
+    """Per-user counters for authenticated application action budgets."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="application_throttles",
+    )
+    scope = models.CharField(max_length=64, editable=False)
+    window_started_at = models.DateTimeField()
+    request_count = models.PositiveIntegerField(default=0)
+    last_request_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ("window_started_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "scope"),
+                name="identity_app_throttle_user_scope_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"Application throttle {self.scope} for {self.user_id}"
+
+
 class MfaCredential(models.Model):
     """Encrypted TOTP material and enrollment state for one user."""
 

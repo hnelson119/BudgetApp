@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import cast
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -12,6 +13,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from households.services.access import get_active_household
 from identity.models import User
+from identity.services.application_throttling import enforce_application_budget
 from imports.forms import CSVAbandonForm, CSVCommitForm, CSVMappingForm, CSVUploadForm
 from imports.models import ImportBatch
 from imports.services import (
@@ -72,12 +74,27 @@ def import_history(request: HttpRequest) -> HttpResponse:
 @require_http_methods(("GET", "POST"))
 def import_upload(request: HttpRequest) -> HttpResponse:
     household = get_active_household(request)
+    actor = _actor(request)
+    if request.method == "POST":
+        rate_limit_response = enforce_application_budget(
+            request,
+            user=actor,
+            scope="csv-import",
+            maximum=settings.CSV_IMPORT_RATE_LIMIT,
+            window_seconds=settings.CSV_IMPORT_RATE_WINDOW_SECONDS,
+        )
+        if rate_limit_response is not None:
+            security_logger.warning(
+                "CSV import upload rate limited.",
+                extra={"event": "anti_automation.rate_limited", "scope": "csv_import"},
+            )
+            return rate_limit_response
     form = CSVUploadForm(request.POST or None, request.FILES or None, household=household)
     if request.method == "POST" and form.is_valid():
         try:
             batch = stage_csv_import(
                 household=household,
-                actor=_actor(request),
+                actor=actor,
                 target_account=form.cleaned_data["target_account"],
                 upload=form.cleaned_data["csv_file"],
                 submission_token=form.cleaned_data["submission_token"],

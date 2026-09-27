@@ -1,7 +1,7 @@
 # OWASP ASVS 5.0.0 Level 2 mapping
 
 Status: requirement-level applicability complete; release verification pending  
-Last updated: 2026-09-25
+Last updated: 2026-09-26
 
 ## Scope and source integrity
 
@@ -31,8 +31,8 @@ The 253 Level 1 and Level 2 requirements currently resolve as follows:
 | --- | ---: | --- |
 | Applicable | 174 | The requirement applies to the initial private-hosted product. |
 | Not applicable | 79 | The associated feature or protocol is absent and a requirement-level reason is recorded. |
-| Implemented | 166 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
-| Partial | 8 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
+| Implemented | 167 | A control and repeatable implementation evidence exist; release-candidate verification is pending. |
+| Partial | 7 | Some relevant control or documentation exists, but the exact requirement remains incomplete or not fully exercised. |
 | Verified | 0 | No dated release-candidate ASVS pass is claimed yet. |
 
 `implemented` is not a release pass. Only a dated `verified` result with sanitized evidence, or a
@@ -40,7 +40,7 @@ justified `not_applicable` result, satisfies the final release review.
 
 ## Most concrete incomplete controls
 
-These are the clearest implementation or operational work items exposed by the mapping. The 8
+These are the clearest implementation or operational work items exposed by the mapping. The 7
 partial items also remain release blockers until their exact requirement boundary is completed and
 verified.
 
@@ -58,7 +58,7 @@ The managed-runtime boundary implements `v5.0.0-1.4.1`, `v5.0.0-1.4.2`, and
 `v5.0.0-1.4.3`. Application Python and JavaScript use managed memory with no native source, FFI,
 pointer, or raw client-memory APIs. Python integers cannot wrap, financial values use bounded
 `Decimal` fields and reject binary-float conversion, and the two fixed-width TOTP conversions have
-literal big-endian sizes. The checker pins the sole managed buffer, 38 decimal and 37 integer
+literal big-endian sizes. The checker pins the sole managed buffer, 38 decimal and 38 integer
 fields, six low-level descriptor files, and every context-managed socket and temporary file. See
 `docs/MANAGED_RUNTIME_SAFETY.md`.
 
@@ -74,8 +74,19 @@ drift fail the normal gates. `v5.0.0-2.3.2` is implemented; release-candidate ve
 pending. See `docs/INPUT_VALIDATION_POLICY.md` and
 `docs/input-validation-policy.json`.
 
+The anti-automation policy implements `v5.0.0-2.4.1` across all 70 named application routes. A
+database-backed per-user budget covers routine authenticated state-changing requests; tighter shared
+budgets protect both bulk CSV exports, CSV upload intake before parsing, debt projections, and
+household-wide notification refreshes. Existing identity-failure throttles, fixed page and result
+caps, workload horizons, private ingress, connection and worker ceilings, and request timeouts
+cover the remaining identity, read, and operational route families. Logout and session revocation
+stay available after budget exhaustion. The fail-closed checker pins eight exhaustive route
+families, eight source contracts, and eight named runtime tests in both
+quality gates. Representative release-host load and false-positive observation remain verification
+work. See `docs/ANTI_AUTOMATION_POLICY.md` and `docs/anti-automation-policy.json`.
+
 The dangerous-context boundary implements `v5.0.0-1.3.3`. It defines the exact treatment for 11
-context families and scans all 218 production Python files, including migrations, for raw SQL.
+context families and scans all 221 production Python files, including migrations, for raw SQL.
 All 25 calls are pinned to literal text: three application cursor calls and 22 fixed schema-editor
 migration calls. The aggregate checker also requires nine specialized context checks in both
 quality gates and pins source contracts for CSV formula encoding, redirect and notification URLs,
@@ -293,7 +304,7 @@ review cadence, and known absences. See
 `docs/CRYPTOGRAPHIC_INVENTORY.md`; release-candidate verification remains pending.
 
 The approved hash-function boundary implements `v5.0.0-11.4.1`. A fail-closed scanner inventories
-all 35 direct hash and signing operations across 26 Python, JavaScript, and shell files, rejects
+all 36 direct hash and signing operations across 27 Python, JavaScript, and shell files, rejects
 dynamic or unapproved selections, and verifies the pinned Django SHA-256 signing, token, and PBKDF2
 defaults. SHA-1 is limited to six exact compatibility operations for RFC 6238 TOTP and the local
 breached-password corpus; MD5 remains test-only. See `docs/HASH_FUNCTION_POLICY.md` and
@@ -344,7 +355,7 @@ event with only the method, resolved route, status, error reference, and pseudon
 Production sends redacted security JSON through a permission-restricted Unix socket to a distinct
 networkless collector; Django cannot mount or read its archive volume. The collector validates and
 redacts again, writes restrictive append-only records, creates minimized warning-or-higher alerts,
-and exposes safe delivery and validation failures. The validator derives 182 stable event entries,
+and exposes safe delivery and validation failures. The validator derives 183 stable event entries,
 verifies every Compose logging and collector isolation policy, and enforces evidence and review
 cadence. See
 `docs/LOGGING_INVENTORY.md`; release-candidate delivery, retention, alert review, escalation, and

@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "inventory_updated": "2026-09-19",
+  "inventory_updated": "2026-09-26",
   "review": {
     "owner": "release owner",
     "cadence_days": 90,
-    "next_review_due": "2026-12-18",
+    "next_review_due": "2026-12-25",
     "procedure": "docs/LOGGING_INVENTORY.md",
     "update_triggers": [
       "a log producer, event, format, destination, access rule, or retention rule changes",
@@ -28,7 +28,7 @@
   "summary": {
     "layers": 14,
     "event_groups": 5,
-    "event_entries": 182,
+    "event_entries": 183,
     "known_gaps": 2
   },
   "layers": [
@@ -483,6 +483,7 @@
       "layer_id": "django-security",
       "source": "Literal structured security event fields in application Python outside migrations and tests",
       "events": [
+        "anti_automation.rate_limited",
         "audit.detail_access_integrity_failed",
         "audit.export_integrity_blocked",
         "audit.history_exported",

@@ -36,7 +36,7 @@ ASVS_SOURCE_GIT_BLOB = "".join(
         "d89524bd",
     )
 )
-MAPPING_UPDATED = "2026-09-25"
+MAPPING_UPDATED = "2026-09-26"
 
 CHAPTER_EVIDENCE: dict[str, list[str]] = {
     "V1": ["core/", "imports/services/", "tests/test_csv_imports.py", "scripts/check.ps1"],
@@ -267,6 +267,7 @@ IMPLEMENTED_REQUIREMENTS = {
     "V2.3.2",
     "V2.3.3",
     "V2.3.4",
+    "V2.4.1",
     "V3.2.1",
     "V3.2.2",
     "V3.3.1",
@@ -442,7 +443,7 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
     ),
     "V1.3.3": (
         "A maintained inventory defines the exact treatment for 11 dangerous context families. "
-        "The aggregate fail-closed checker scans all 218 production Python files, including "
+        "The aggregate fail-closed checker scans all 221 production Python files, including "
         "migrations, and pins all 25 raw SQL calls to literal text: three application cursor "
         "calls and 22 fixed schema-editor migration calls. It requires nine specialized context "
         "checkers in both quality gates and exact source contracts for CSV formula encoding, "
@@ -473,7 +474,7 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
     "V1.4.2": (
         "Python integer arithmetic cannot wrap, financial code cannot convert through binary "
         "float, and fixed-width TOTP operations are explicitly bounded. The model registry pins "
-        "38 DecimalFields to reviewed money or rate shapes and 37 non-automatic IntegerFields to "
+        "38 DecimalFields to reviewed money or rate shapes and 38 non-automatic IntegerFields to "
         "bounded big or positive types; forms, services, models, and database constraints enforce "
         "finiteness, scale, sign, rate, amount, calendar, upload, and projection limits."
     ),
@@ -509,6 +510,15 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "service, model, database, configuration, or presentation boundaries and to 26 named "
         "fail-closed tests. The checker parses every referenced test and rejects missing or "
         "renamed coverage; explicit 51-record histories prove both rendered page limits."
+    ),
+    "V2.4.1": (
+        "A fail-closed inventory assigns all 70 named application routes to eight abuse-risk "
+        "families. Database-backed per-user budgets cover routine authenticated mutations, both "
+        "bulk exports, CSV intake before parsing, and shared expensive calculations; logout and "
+        "session revocation stay available after exhaustion. Existing "
+        "failure throttles, per-request workload bounds, private ingress, worker and connection "
+        "ceilings, and timeouts cover identity, read, and operational routes. Eight named runtime "
+        "tests and eight source assertions are checked for drift in both quality gates."
     ),
     "V3.4.2": (
         "The private application deliberately grants no cross-origin reads. An outer same-origin "
@@ -665,8 +675,8 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
     ),
     "V11.4.1": (
         "SHA-256 is the sole application-selected general-purpose hash and HMAC function, with "
-        "SHA-512 approved for npm dependency integrity. A fail-closed scanner inventories all 35 "
-        "direct hash and signing operations across 26 Python, JavaScript, and shell files, rejects "
+        "SHA-512 approved for npm dependency integrity. A fail-closed scanner inventories all 36 "
+        "direct hash and signing operations across 27 Python, JavaScript, and shell files, rejects "
         "dynamic or unapproved selections, and verifies pinned Django SHA-256 defaults. Six "
         "SHA-1 operations remain exact compatibility exceptions for RFC 6238 TOTP and the offline "
         "breached-password corpus; direct corpus calls require usedforsecurity=False. MD5 remains "
@@ -945,6 +955,21 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
         "tests/test_authentication.py",
         "tests/test_mfa.py",
         "tests/test_password_policy.py",
+    ],
+    "V2.4.1": [
+        "docs/ANTI_AUTOMATION_POLICY.md",
+        "docs/anti-automation-policy.json",
+        "scripts/check_anti_automation_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "identity/models.py",
+        "identity/middleware.py",
+        "identity/services/application_throttling.py",
+        "tests/test_anti_automation.py",
+        "tests/test_anti_automation_policy.py",
+        "tests/test_authentication.py",
+        "tests/test_mfa.py",
+        "tests/test_password_recovery.py",
     ],
     "V1.2.3": [
         "docs/OUTPUT_ENCODING_POLICY.md",

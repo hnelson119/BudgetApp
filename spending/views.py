@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -25,6 +26,7 @@ from audit.services import append_event, verify_household_chain
 from households.models import Household
 from households.services.access import get_active_household
 from identity.models import User
+from identity.services.application_throttling import enforce_application_budget
 from identity.services.sessions import recent_authentication_is_valid
 from ledger.models import FinancialAccount, JournalEntry, JournalPosting
 from ledger.services import create_financial_account, record_income
@@ -338,6 +340,20 @@ def transaction_export(request: HttpRequest) -> HttpResponse | StreamingHttpResp
         reauthentication_url = reverse("identity:reauthenticate")
         query = urlencode({"next": request.get_full_path()})
         return redirect(f"{reauthentication_url}?{query}")
+    actor = _actor(request)
+    rate_limit_response = enforce_application_budget(
+        request,
+        user=actor,
+        scope="data-export",
+        maximum=settings.DATA_EXPORT_RATE_LIMIT,
+        window_seconds=settings.DATA_EXPORT_RATE_WINDOW_SECONDS,
+    )
+    if rate_limit_response is not None:
+        security_logger.warning(
+            "Transaction CSV export rate limited.",
+            extra={"event": "anti_automation.rate_limited", "scope": "data_export"},
+        )
+        return rate_limit_response
 
     period = _selected_period(request, household)
     filter_form = TransactionFilterForm(request.GET or None, household=household)
@@ -367,7 +383,7 @@ def transaction_export(request: HttpRequest) -> HttpResponse | StreamingHttpResp
     export_id = uuid4()
     append_event(
         household=household,
-        actor=_actor(request),
+        actor=actor,
         action="spending.transactions_exported",
         entity_type="transaction_export",
         entity_id=export_id,

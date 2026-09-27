@@ -48,6 +48,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "identity.middleware.SecureSessionMiddleware",
     "core.middleware.ActorContextMiddleware",
+    "identity.middleware.ApplicationRateLimitMiddleware",
     "core.middleware.RedirectHostBoundaryMiddleware",
     "core.middleware.AuthenticatedNoStoreMiddleware",
     "core.middleware.ContentSecurityPolicyMiddleware",
@@ -142,6 +143,15 @@ MAX_CONCURRENT_SESSIONS = 5
 LOGIN_RATE_LIMIT_FAILURES = 5
 LOGIN_RATE_LIMIT_WINDOW_SECONDS = 15 * 60
 LOGIN_RATE_LIMIT_BLOCK_SECONDS = 15 * 60
+
+APPLICATION_MUTATION_RATE_LIMIT = 120
+APPLICATION_MUTATION_RATE_WINDOW_SECONDS = 5 * 60
+DATA_EXPORT_RATE_LIMIT = 5
+DATA_EXPORT_RATE_WINDOW_SECONDS = 15 * 60
+CSV_IMPORT_RATE_LIMIT = 10
+CSV_IMPORT_RATE_WINDOW_SECONDS = 15 * 60
+EXPENSIVE_CALCULATION_RATE_LIMIT = 20
+EXPENSIVE_CALCULATION_RATE_WINDOW_SECONDS = 15 * 60
 
 MFA_ENCRYPTION_KEY = os.getenv(
     "DJANGO_MFA_ENCRYPTION_KEY",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -12,6 +13,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from core.logging import current_request_id
 from households.services.access import get_active_household
 from identity.models import User
+from identity.services.application_throttling import enforce_application_budget
 from notifications.forms import NotificationPreferenceForm
 from notifications.models import Notification, NotificationPreference
 from notifications.services import (
@@ -57,6 +59,19 @@ def notification_list(request: HttpRequest) -> HttpResponse:
 @require_POST
 def refresh(request: HttpRequest) -> HttpResponse:
     household = get_active_household(request)
+    rate_limit_response = enforce_application_budget(
+        request,
+        user=_actor(request),
+        scope="expensive-calculation",
+        maximum=settings.EXPENSIVE_CALCULATION_RATE_LIMIT,
+        window_seconds=settings.EXPENSIVE_CALCULATION_RATE_WINDOW_SECONDS,
+    )
+    if rate_limit_response is not None:
+        security_logger.warning(
+            "Notification refresh rate limited.",
+            extra={"event": "anti_automation.rate_limited", "scope": "expensive_calculation"},
+        )
+        return rate_limit_response
     result = refresh_household_notifications(household=household)
     messages.success(
         request,

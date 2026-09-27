@@ -65,6 +65,7 @@ EXPECTED_PYTHON_OPERATIONS = {
     "schedules/services/sources.py": Counter({"hashlib.sha256": 1}),
     "scripts/build_asvs_inventory.py": Counter({"hashlib.sha256": 2}),
     "scripts/build_sbom.py": Counter({"hashlib.sha256": 1}),
+    "scripts/check_anti_automation_policy.py": Counter({"hashlib.sha256": 1}),
     "scripts/check_release_evidence.py": Counter({"hashlib.sha256": 1}),
     "scripts/generate-postgres-tls.py": Counter({"openssl:sha256": 3}),
     "scripts/secret_scan.py": Counter({"hashlib.sha256": 1}),

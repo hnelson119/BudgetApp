@@ -39,7 +39,7 @@ def test_hash_function_policy_is_complete_and_in_both_gates() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert "26 files, 35 operations, 6 bounded SHA-1" in completed.stdout
+    assert "27 files, 36 operations, 6 bounded SHA-1" in completed.stdout
     assert "scripts\\check_hash_function_policy.py" in (
         PROJECT_ROOT / "scripts/check.ps1"
     ).read_text(encoding="utf-8")
@@ -51,7 +51,7 @@ def test_hash_function_policy_is_complete_and_in_both_gates() -> None:
 def test_hash_operation_inventory_is_source_derived() -> None:
     assert discover_python_hash_operations() == EXPECTED_PYTHON_OPERATIONS
     assert discover_non_python_hash_operations() == EXPECTED_NON_PYTHON_OPERATIONS
-    assert sum(sum(items.values()) for items in EXPECTED_PYTHON_OPERATIONS.values()) == 33
+    assert sum(sum(items.values()) for items in EXPECTED_PYTHON_OPERATIONS.values()) == 34
     assert sum(sum(items.values()) for items in EXPECTED_NON_PYTHON_OPERATIONS.values()) == 2
 
 
@@ -69,14 +69,14 @@ def test_data_authentication_and_integrity_hashes_have_collision_resistant_profi
 
 def test_hash_function_policy_rejects_tampering_and_stale_reviews() -> None:
     policy = _load_policy()
-    validate_hash_function_policy(policy, today=date(2026, 9, 13))
+    validate_hash_function_policy(policy, today=date(2026, 9, 26))
 
     missing_operation = copy.deepcopy(policy)
     missing_operation["python_operation_inventory"] = missing_operation[
         "python_operation_inventory"
     ][1:]
     with pytest.raises(ValueError, match="documented Python hash-operation inventory changed"):
-        validate_hash_function_policy(missing_operation, today=date(2026, 9, 13))
+        validate_hash_function_policy(missing_operation, today=date(2026, 9, 26))
 
     expanded_exception = copy.deepcopy(policy)
     expanded_exception["compatibility_exceptions"][0]["operations"].append(
@@ -88,10 +88,10 @@ def test_hash_function_policy_rejects_tampering_and_stale_reviews() -> None:
         }
     )
     with pytest.raises(ValueError, match="SHA-1 compatibility exception inventory changed"):
-        validate_hash_function_policy(expanded_exception, today=date(2026, 9, 13))
+        validate_hash_function_policy(expanded_exception, today=date(2026, 9, 26))
 
     with pytest.raises(ValueError, match="review is overdue"):
-        validate_hash_function_policy(policy, today=date(2026, 12, 13))
+        validate_hash_function_policy(policy, today=date(2026, 12, 26))
 
 
 def test_python_scanner_rejects_weak_dynamic_and_implicit_sha1_hashes() -> None:

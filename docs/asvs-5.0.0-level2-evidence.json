@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "mapping_updated": "2026-09-25",
+  "mapping_updated": "2026-09-26",
   "release_candidate": null,
   "target_level": 2,
   "source": {
@@ -19,9 +19,9 @@
       "not_applicable": 79
     },
     "status": {
-      "implemented": 166,
+      "implemented": 167,
       "not_applicable": 79,
-      "partial": 8
+      "partial": 7
     }
   },
   "requirements": [
@@ -311,7 +311,7 @@
       "description": "Verify that data being passed to a potentially dangerous context is sanitized beforehand to enforce safety measures, such as only allowing characters which are safe for this context and trimming input which is too long.",
       "applicability": "applicable",
       "status": "implemented",
-      "assessment": "A maintained inventory defines the exact treatment for 11 dangerous context families. The aggregate fail-closed checker scans all 218 production Python files, including migrations, and pins all 25 raw SQL calls to literal text: three application cursor calls and 22 fixed schema-editor migration calls. It requires nine specialized context checkers in both quality gates and exact source contracts for CSV formula encoding, redirect and notification URLs, checkpoint filenames, disabled production email, and structured-log redaction.",
+      "assessment": "A maintained inventory defines the exact treatment for 11 dangerous context families. The aggregate fail-closed checker scans all 221 production Python files, including migrations, and pins all 25 raw SQL calls to literal text: three application cursor calls and 22 fixed schema-editor migration calls. It requires nine specialized context checkers in both quality gates and exact source contracts for CSV formula encoding, redirect and notification URLs, checkpoint filenames, disabled production email, and structured-log redaction.",
       "evidence": [
         "docs/CONTEXT_SANITIZATION.md",
         "docs/context-sanitization.json",
@@ -530,7 +530,7 @@
       "description": "Verify that sign, range, and input validation techniques are used to prevent integer overflows.",
       "applicability": "applicable",
       "status": "implemented",
-      "assessment": "Python integer arithmetic cannot wrap, financial code cannot convert through binary float, and fixed-width TOTP operations are explicitly bounded. The model registry pins 38 DecimalFields to reviewed money or rate shapes and 37 non-automatic IntegerFields to bounded big or positive types; forms, services, models, and database constraints enforce finiteness, scale, sign, rate, amount, calendar, upload, and projection limits.",
+      "assessment": "Python integer arithmetic cannot wrap, financial code cannot convert through binary float, and fixed-width TOTP operations are explicitly bounded. The model registry pins 38 DecimalFields to reviewed money or rate shapes and 38 non-automatic IntegerFields to bounded big or positive types; forms, services, models, and database constraints enforce finiteness, scale, sign, rate, amount, calendar, upload, and projection limits.",
       "evidence": [
         "docs/MANAGED_RUNTIME_SAFETY.md",
         "scripts/check_managed_runtime_safety.py",
@@ -832,13 +832,22 @@
       "level": 2,
       "description": "Verify that anti-automation controls are in place to protect against excessive calls to application functions that could lead to data exfiltration, garbage-data creation, quota exhaustion, rate-limit breaches, denial-of-service, or overuse of costly resources.",
       "applicability": "applicable",
-      "status": "partial",
-      "assessment": "Relevant controls or documentation exist, but the exact Level 2 requirement remains incomplete or has not been fully exercised at its release boundary.",
+      "status": "implemented",
+      "assessment": "A fail-closed inventory assigns all 70 named application routes to eight abuse-risk families. Database-backed per-user budgets cover routine authenticated mutations, both bulk exports, CSV intake before parsing, and shared expensive calculations; logout and session revocation stay available after exhaustion. Existing failure throttles, per-request workload bounds, private ingress, worker and connection ceilings, and timeouts cover identity, read, and operational routes. Eight named runtime tests and eight source assertions are checked for drift in both quality gates.",
       "evidence": [
-        "CALCULATION_RULES.md",
-        "budgets/services/",
-        "ledger/services/",
-        "tests/"
+        "docs/ANTI_AUTOMATION_POLICY.md",
+        "docs/anti-automation-policy.json",
+        "scripts/check_anti_automation_policy.py",
+        "scripts/check.ps1",
+        "scripts/check.sh",
+        "identity/models.py",
+        "identity/middleware.py",
+        "identity/services/application_throttling.py",
+        "tests/test_anti_automation.py",
+        "tests/test_anti_automation_policy.py",
+        "tests/test_authentication.py",
+        "tests/test_mfa.py",
+        "tests/test_password_recovery.py"
       ]
     },
     {
@@ -3532,7 +3541,7 @@
       "description": "Verify that only approved hash functions are used for general cryptographic use cases, including digital signatures, HMAC, KDF, and random bit generation. Disallowed hash functions, such as MD5, must not be used for any cryptographic purpose.",
       "applicability": "applicable",
       "status": "implemented",
-      "assessment": "SHA-256 is the sole application-selected general-purpose hash and HMAC function, with SHA-512 approved for npm dependency integrity. A fail-closed scanner inventories all 35 direct hash and signing operations across 26 Python, JavaScript, and shell files, rejects dynamic or unapproved selections, and verifies pinned Django SHA-256 defaults. Six SHA-1 operations remain exact compatibility exceptions for RFC 6238 TOTP and the offline breached-password corpus; direct corpus calls require usedforsecurity=False. MD5 remains isolated to the synthetic unit-test password hasher.",
+      "assessment": "SHA-256 is the sole application-selected general-purpose hash and HMAC function, with SHA-512 approved for npm dependency integrity. A fail-closed scanner inventories all 36 direct hash and signing operations across 27 Python, JavaScript, and shell files, rejects dynamic or unapproved selections, and verifies pinned Django SHA-256 defaults. Six SHA-1 operations remain exact compatibility exceptions for RFC 6238 TOTP and the offline breached-password corpus; direct corpus calls require usedforsecurity=False. MD5 remains isolated to the synthetic unit-test password hasher.",
       "evidence": [
         "docs/HASH_FUNCTION_POLICY.md",
         "docs/hash-function-policy.json",

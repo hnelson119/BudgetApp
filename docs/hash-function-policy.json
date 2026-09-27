@@ -2,8 +2,8 @@
   "schema_version": 1,
   "policy_id": "household-budget-hashes-v1",
   "asvs_requirement": "v5.0.0-11.4.1",
-  "last_reviewed": "2026-09-13",
-  "next_review_due": "2026-12-12",
+  "last_reviewed": "2026-09-26",
+  "next_review_due": "2026-12-25",
   "approved_hash_functions": [
     {
       "id": "sha256",
@@ -266,6 +266,7 @@
     {"path": "schedules/services/sources.py", "operations": {"hashlib.sha256": 1}, "purpose": "Fingerprint schedule-source inputs", "status": "approved"},
     {"path": "scripts/build_asvs_inventory.py", "operations": {"hashlib.sha256": 2}, "purpose": "Verify the pinned ASVS source and generated catalog", "status": "approved"},
     {"path": "scripts/build_sbom.py", "operations": {"hashlib.sha256": 1}, "purpose": "Fingerprint the generated software inventory", "status": "approved"},
+    {"path": "scripts/check_anti_automation_policy.py", "operations": {"hashlib.sha256": 1}, "purpose": "Pin the reviewed anti-automation route-family assignments", "status": "approved"},
     {"path": "scripts/check_release_evidence.py", "operations": {"hashlib.sha256": 1}, "purpose": "Verify the pinned ASVS evidence catalog", "status": "approved"},
     {"path": "scripts/generate-postgres-tls.py", "operations": {"openssl:sha256": 3}, "purpose": "Select SHA-256 for generated CA and leaf certificate signatures", "status": "approved"},
     {"path": "scripts/secret_scan.py", "operations": {"hashlib.sha256": 1}, "purpose": "Allow only exact reviewed hash-only source artifacts", "status": "approved"}
@@ -295,8 +296,8 @@
   "summary": {
     "approved_hash_functions": 2,
     "managed_profiles": 6,
-    "operation_files": 26,
-    "operations": 35,
+    "operation_files": 27,
+    "operations": 36,
     "compatibility_exceptions": 2,
     "compatibility_operations": 6,
     "test_only_exceptions": 1,
