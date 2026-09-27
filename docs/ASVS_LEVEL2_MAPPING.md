@@ -86,7 +86,7 @@ quality gates. Representative release-host load and false-positive observation r
 work. See `docs/ANTI_AUTOMATION_POLICY.md` and `docs/anti-automation-policy.json`.
 
 The dangerous-context boundary implements `v5.0.0-1.3.3`. It defines the exact treatment for 11
-context families and scans all 223 production Python files, including migrations, for raw SQL.
+context families and scans all 224 production Python files, including migrations, for raw SQL.
 All 29 calls are pinned to literal text: three application cursor calls and 26 fixed schema-editor
 migration calls. The aggregate checker also requires nine specialized context checks in both
 quality gates and pins source contracts for CSV formula encoding, redirect and notification URLs,
@@ -308,8 +308,8 @@ all 37 direct hash and signing operations across 27 Python, JavaScript, and shel
 dynamic or unapproved selections, and verifies the pinned Django SHA-256 signing, token, and PBKDF2
 defaults. SHA-1 is limited to six exact compatibility operations for RFC 6238 TOTP and the local
 breached-password corpus; MD5 remains test-only. The linked agility registry classifies all 30
-direct SHA-256 operations and identifies five persisted unversioned formats. Goal-contribution
-idempotency writes a marked profile while retaining historical duplicate detection. See
+direct SHA-256 operations and identifies four persisted unversioned formats. Goal-contribution and
+notification identities write marked profiles while retaining historical duplicate detection. See
 `docs/HASH_FUNCTION_POLICY.md`, `docs/hash-function-policy.json`, and
 `docs/sha256-agility.json`. The same inventory implements `v5.0.0-11.4.3`: every signature,
 data-authentication, and data-integrity use selects SHA-256 or SHA-512 with at least 256 output

@@ -60,8 +60,9 @@ class NotificationSpec:
     occurred_at: datetime
 
 
-def _fingerprint(spec: NotificationSpec) -> str:
-    return hashlib.sha256(f"{spec.kind}:{spec.identity}".encode()).hexdigest()
+def _fingerprints(spec: NotificationSpec) -> tuple[str, str]:
+    digest = hashlib.sha256(f"{spec.kind}:{spec.identity}".encode()).hexdigest()
+    return f"sha256${digest}", digest
 
 
 def _local_midday(value: date, household: Household) -> datetime:
@@ -86,23 +87,29 @@ def _upsert(
     spec: NotificationSpec,
     evaluated_at: datetime,
 ) -> tuple[Notification, bool, bool]:
-    fingerprint = _fingerprint(spec)
-    notification, created = Notification.objects.get_or_create(
-        household=household,
-        recipient=recipient,
-        fingerprint=fingerprint,
-        defaults={
-            "kind": spec.kind,
-            "severity": spec.severity,
-            "title": spec.title,
-            "message": spec.message,
-            "action_url": spec.action_url,
-            "source_type": spec.source_type,
-            "source_id": spec.source_id,
-            "occurred_at": spec.occurred_at,
-            "last_evaluated_at": evaluated_at,
-        },
-    )
+    fingerprint, historical_fingerprint = _fingerprints(spec)
+    matching = Notification.objects.filter(household=household, recipient=recipient)
+    notification = matching.filter(fingerprint=fingerprint).first()
+    if notification is None:
+        notification = matching.filter(fingerprint=historical_fingerprint).first()
+    created = False
+    if notification is None:
+        notification, created = Notification.objects.get_or_create(
+            household=household,
+            recipient=recipient,
+            fingerprint=fingerprint,
+            defaults={
+                "kind": spec.kind,
+                "severity": spec.severity,
+                "title": spec.title,
+                "message": spec.message,
+                "action_url": spec.action_url,
+                "source_type": spec.source_type,
+                "source_id": spec.source_id,
+                "occurred_at": spec.occurred_at,
+                "last_evaluated_at": evaluated_at,
+            },
+        )
     reopened = False
     if not created:
         reopened = notification.resolved_at is not None

@@ -40,7 +40,7 @@ class Notification(models.Model):
     )
     kind = models.CharField(max_length=24, choices=Kind.choices)
     severity = models.CharField(max_length=12, choices=Severity.choices)
-    fingerprint = models.CharField(max_length=64)
+    fingerprint = models.CharField(max_length=71)
     title = models.CharField(max_length=160)
     message = models.CharField(max_length=500)
     action_url = models.CharField(max_length=500, blank=True)
