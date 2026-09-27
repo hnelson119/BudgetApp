@@ -115,10 +115,12 @@ real household data.
   PBKDF2-HMAC-SHA-256 hasher at 1,000,000 iterations. A fail-closed policy pins the installed
   primitive, its settings and dependency, and all 14 current credential operations while rejecting
   direct password-field writes. The release host still needs a dated synthetic performance check.
-- The approved hash-function policy inventories 35 direct operations across 26 source files and
+- The approved hash-function policy inventories 37 direct operations across 27 source files and
   fails closed on new, dynamic, or unapproved selections. SHA-256 is the application default,
   SHA-512 is approved for npm artifact integrity, six SHA-1 operations are bounded to TOTP and the
-  offline breached-password corpus, and MD5 remains isolated to synthetic unit tests.
+  offline breached-password corpus, and MD5 remains isolated to synthetic unit tests. Its agility
+  registry classifies all 30 direct SHA-256 operations and calls out six persisted unversioned
+  formats that still require runtime transition work.
 - The resource-demand inventory documents seven expensive workflow families, five explicit
   response-time boundaries, and twelve pinned implementation contracts. The application-worker
   timeout is explicit and remains shorter than the ingress upstream-read timeout. Four long-running

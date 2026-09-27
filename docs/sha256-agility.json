@@ -1,0 +1,264 @@
+{
+  "schema_version": 1,
+  "registry_id": "household-budget-sha256-agility-v1",
+  "last_reviewed": "2026-09-27",
+  "next_review_due": "2026-12-26",
+  "entries": [
+    {
+      "id": "historical-checkpoint-mac",
+      "path": "audit/checkpoints.py",
+      "operations": {"hmac.new:sha256": 1},
+      "artifact_class": "persisted_versioned",
+      "artifact": "Historical signed audit checkpoint documents and protected database rows",
+      "format_marker": "Signed document version, signature algorithm, and signing key ID",
+      "reader_or_verifier": "CHECKPOINT_MAC_PROFILES dispatch in audit/checkpoints.py",
+      "replacement_boundary": "Retain HMAC-SHA256 verification by key ID while the selected writer issues HMAC-SHA512 checkpoints"
+    },
+    {
+      "id": "audit-event-chain",
+      "path": "audit/services.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "persisted_unversioned",
+      "artifact": "Per-household append-only audit-event chain hashes",
+      "format_marker": "none",
+      "reader_or_verifier": "verify_household_chain recomputes the fixed canonical SHA-256 chain",
+      "replacement_boundary": "Add an authenticated hash-profile marker and dual-profile chain verification before changing the writer; never rewrite historical events silently"
+    },
+    {
+      "id": "variable-budget-concurrency-token",
+      "path": "budgets/views.py",
+      "operations": {"django.signing.dumps:sha256": 1, "django.signing.loads:sha256": 1},
+      "artifact_class": "bounded_lifetime",
+      "artifact": "User round-trip optimistic-concurrency token",
+      "format_marker": "Django signing serialization plus a purpose-specific salt",
+      "reader_or_verifier": "Django signing.loads with the same salt and maximum age",
+      "replacement_boundary": "Deploy a new signing profile and allow outstanding tokens to expire or invalidate them explicitly"
+    },
+    {
+      "id": "mortgage-preview-fingerprint",
+      "path": "debts/services/mortgages.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "bounded_lifetime",
+      "artifact": "Deterministic mortgage-plan preview confirmation",
+      "format_marker": "none",
+      "reader_or_verifier": "Apply path recomputes the preview fingerprint from current inputs",
+      "replacement_boundary": "Change preview generation and verification together; invalidate outstanding previews"
+    },
+    {
+      "id": "release-csv-integrity",
+      "path": "deploy/pentest/run-csv-security.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "verification_only",
+      "artifact": "In-memory release-rehearsal comparison of streamed CSV content",
+      "format_marker": "none",
+      "reader_or_verifier": "The same bounded rehearsal compares independently retrieved content",
+      "replacement_boundary": "Update both rehearsal comparisons in one release-test change; no production data migration exists"
+    },
+    {
+      "id": "goal-preview-fingerprint",
+      "path": "goals/services.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "bounded_lifetime",
+      "artifact": "Deterministic goal preview confirmation",
+      "format_marker": "none",
+      "reader_or_verifier": "Apply path recomputes the preview fingerprint from current inputs",
+      "replacement_boundary": "Change preview generation and verification together; invalidate outstanding previews"
+    },
+    {
+      "id": "goal-contribution-idempotency",
+      "path": "goals/services.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "persisted_unversioned",
+      "artifact": "Goal-contribution idempotency identity persisted with the contribution",
+      "format_marker": "none",
+      "reader_or_verifier": "Contribution uniqueness lookup compares the deterministic digest",
+      "replacement_boundary": "Introduce a profile-prefixed idempotency value and dual lookup before changing the writer"
+    },
+    {
+      "id": "password-corpus-build-integrity",
+      "path": "identity/management/commands/build_breached_password_corpus.py",
+      "operations": {"hashlib.sha256": 2},
+      "artifact_class": "persisted_versioned",
+      "artifact": "Reviewed source digest and generated offline corpus payload digest",
+      "format_marker": "Corpus metadata schema and explicit source_sha256 and payload_sha256 fields",
+      "reader_or_verifier": "Corpus builder and password validator enforce the metadata schema and exact digest fields",
+      "replacement_boundary": "Publish and atomically install a new metadata schema with new digest field names before retiring SHA-256 verification"
+    },
+    {
+      "id": "password-corpus-runtime-integrity",
+      "path": "identity/password_validation.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "persisted_versioned",
+      "artifact": "Installed offline breached-password corpus payload digest",
+      "format_marker": "Corpus metadata schema and payload_sha256 field",
+      "reader_or_verifier": "Password corpus loader validates metadata and recomputes the complete payload digest",
+      "replacement_boundary": "Read both reviewed metadata schemas during an atomic corpus-format transition"
+    },
+    {
+      "id": "mfa-fernet-key-derivation",
+      "path": "identity/services/mfa.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "protocol_bound",
+      "artifact": "Fixed-length Fernet key derived from already-random MFA key material",
+      "format_marker": "Authenticated fernet-v1 ciphertext envelope",
+      "reader_or_verifier": "MFA decrypt dispatch selects the fernet-v1 profile before deriving the key",
+      "replacement_boundary": "Add a new authenticated ciphertext profile and atomically re-encrypt every row before removing fernet-v1"
+    },
+    {
+      "id": "active-session-reference",
+      "path": "identity/services/sessions.py",
+      "operations": {"django.salted_hmac:sha256": 1},
+      "artifact_class": "bounded_lifetime",
+      "artifact": "Purpose-separated opaque active-session reference",
+      "format_marker": "Purpose-specific salted-HMAC key salt",
+      "reader_or_verifier": "Session lookup recomputes the reference under the active Django secret",
+      "replacement_boundary": "Rotate the secret or profile and revoke outstanding sessions as an explicit security event"
+    },
+    {
+      "id": "login-throttle-identity",
+      "path": "identity/services/throttling.py",
+      "operations": {"hmac.new:sha256": 1},
+      "artifact_class": "bounded_lifetime",
+      "artifact": "Pseudonymous fixed-window login-throttling cache key",
+      "format_marker": "Purpose-bound message prefix",
+      "reader_or_verifier": "Throttle reads and writes use the same short-lived derived key",
+      "replacement_boundary": "Change the profile atomically and accept reset throttle buckets during the bounded transition"
+    },
+    {
+      "id": "import-row-fingerprint",
+      "path": "imports/services/batches.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "persisted_unversioned",
+      "artifact": "Canonical imported transaction row fingerprint",
+      "format_marker": "none",
+      "reader_or_verifier": "Import duplicate detection compares stored row fingerprints",
+      "replacement_boundary": "Add a profile-prefixed fingerprint and dual duplicate lookup before changing new imports"
+    },
+    {
+      "id": "import-upload-checksum",
+      "path": "imports/services/parsing.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "persisted_unversioned",
+      "artifact": "Imported CSV upload checksum recorded with the import batch",
+      "format_marker": "none",
+      "reader_or_verifier": "Import batch records and audit output retain the complete upload checksum",
+      "replacement_boundary": "Add an algorithm/profile field and retain historical checksum display before changing the writer"
+    },
+    {
+      "id": "notification-identity",
+      "path": "notifications/services.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "persisted_unversioned",
+      "artifact": "Deterministic notification identity used for database deduplication",
+      "format_marker": "none",
+      "reader_or_verifier": "Notification generation compares the stored fingerprint for the same user and source",
+      "replacement_boundary": "Add a profile-prefixed identity and dual deduplication lookup before changing new notifications"
+    },
+    {
+      "id": "period-boundary-preview",
+      "path": "periods/services/boundaries.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "bounded_lifetime",
+      "artifact": "Deterministic period-boundary change preview",
+      "format_marker": "none",
+      "reader_or_verifier": "Apply path recomputes the preview from locked current state",
+      "replacement_boundary": "Change preview generation and verification together; invalidate outstanding previews"
+    },
+    {
+      "id": "period-generation-preview",
+      "path": "periods/services/generation.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "bounded_lifetime",
+      "artifact": "Deterministic pay-period generation preview",
+      "format_marker": "none",
+      "reader_or_verifier": "Apply path recomputes the preview from locked current state",
+      "replacement_boundary": "Change preview generation and verification together; invalidate outstanding previews"
+    },
+    {
+      "id": "schedule-revision-preview",
+      "path": "schedules/services/sources.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "bounded_lifetime",
+      "artifact": "Deterministic schedule-source revision preview",
+      "format_marker": "none",
+      "reader_or_verifier": "Apply path recomputes the preview from locked current state",
+      "replacement_boundary": "Change preview generation and verification together; invalidate outstanding previews"
+    },
+    {
+      "id": "asvs-source-and-catalog-pins",
+      "path": "scripts/build_asvs_inventory.py",
+      "operations": {"hashlib.sha256": 2},
+      "artifact_class": "governance_artifact",
+      "artifact": "Pinned upstream ASVS source and generated evidence-catalog fingerprints",
+      "format_marker": "Named source_sha256 and catalog_sha256 metadata fields",
+      "reader_or_verifier": "ASVS inventory builder verifies the upstream pin and deterministic catalog",
+      "replacement_boundary": "Introduce new named metadata fields and update the builder and evidence artifact together"
+    },
+    {
+      "id": "sbom-inventory-fingerprint",
+      "path": "scripts/build_sbom.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "governance_artifact",
+      "artifact": "Deterministic generated SBOM inventory fingerprint",
+      "format_marker": "CycloneDX component name budget:inventory-fingerprint-sha256",
+      "reader_or_verifier": "SBOM builder and release tests compare the generated artifact",
+      "replacement_boundary": "Add a newly named fingerprint component and update the generator and verifier together"
+    },
+    {
+      "id": "anti-automation-assignment-pin",
+      "path": "scripts/check_anti_automation_policy.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "governance_artifact",
+      "artifact": "Reviewed route-family assignment fingerprint embedded in the checker",
+      "format_marker": "Constant name EXPECTED_ROUTE_ASSIGNMENT_SHA256",
+      "reader_or_verifier": "Anti-automation checker recomputes the canonical assignment payload",
+      "replacement_boundary": "Rename the constant and update the checker in one reviewed policy change"
+    },
+    {
+      "id": "release-evidence-catalog-pin",
+      "path": "scripts/check_release_evidence.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "governance_artifact",
+      "artifact": "Deterministic ASVS release-evidence catalog fingerprint",
+      "format_marker": "Named catalog_sha256 metadata field",
+      "reader_or_verifier": "Release-evidence checker recomputes the canonical catalog",
+      "replacement_boundary": "Introduce a new named metadata field and update generated evidence and checker together"
+    },
+    {
+      "id": "postgres-certificate-signatures",
+      "path": "scripts/generate-postgres-tls.py",
+      "operations": {"openssl:sha256": 3},
+      "artifact_class": "protocol_bound",
+      "artifact": "Generated PostgreSQL CA, server, and client X.509 signatures",
+      "format_marker": "X.509 signatureAlgorithm identifiers",
+      "reader_or_verifier": "OpenSSL and TLS peers parse and verify the certificate signature profile",
+      "replacement_boundary": "Generate a parallel approved certificate chain, deploy trust first, then rotate leaf certificates and retire the old CA"
+    },
+    {
+      "id": "secret-scan-reviewed-artifact-pin",
+      "path": "scripts/secret_scan.py",
+      "operations": {"hashlib.sha256": 1},
+      "artifact_class": "governance_artifact",
+      "artifact": "Exact digest allowlist for reviewed hash-only source artifacts",
+      "format_marker": "Checker-owned SHA-256 allowlist entry",
+      "reader_or_verifier": "Secret scanner recomputes file bytes before applying the narrow exception",
+      "replacement_boundary": "Introduce a new explicitly named allowlist field and update the scanner atomically"
+    },
+    {
+      "id": "backup-schema-tag",
+      "path": "deploy/backup/backup.sh",
+      "operations": {"sha256sum:sha256": 1},
+      "artifact_class": "persisted_unversioned",
+      "artifact": "Encrypted Restic snapshot tag identifying the Django migration set",
+      "format_marker": "none",
+      "reader_or_verifier": "Restore tooling compares the schema tag with the expected migration set",
+      "replacement_boundary": "Add an algorithm-named snapshot tag and accept both tag names during the retention window before retiring the SHA-256 tag"
+    }
+  ],
+  "summary": {
+    "files": 24,
+    "entries": 25,
+    "operations": 30,
+    "persisted_unversioned_entries": 6
+  }
+}

@@ -674,8 +674,9 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "production security use; dated provider and release-host observation remains pending."
     ),
     "V11.4.1": (
-        "SHA-256 is the sole application-selected general-purpose hash and HMAC function, with "
-        "SHA-512 approved for npm dependency integrity. A fail-closed scanner inventories all 36 "
+        "SHA-256 is the default application-selected general-purpose hash and HMAC function, with "
+        "SHA-512 approved for npm dependency integrity and checkpoint authentication. A "
+        "fail-closed scanner inventories all 37 "
         "direct hash and signing operations across 27 Python, JavaScript, and shell files, rejects "
         "dynamic or unapproved selections, and verifies pinned Django SHA-256 defaults. Six "
         "SHA-1 operations remain exact compatibility exceptions for RFC 6238 TOTP and the offline "
@@ -1301,6 +1302,7 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
     "V11.4.1": [
         "docs/HASH_FUNCTION_POLICY.md",
         "docs/hash-function-policy.json",
+        "docs/sha256-agility.json",
         "docs/CRYPTOGRAPHIC_INVENTORY.md",
         "docs/cryptographic-inventory.json",
         "scripts/check_hash_function_policy.py",
@@ -1333,6 +1335,7 @@ IMPLEMENTED_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
     "V11.4.3": [
         "docs/HASH_FUNCTION_POLICY.md",
         "docs/hash-function-policy.json",
+        "docs/sha256-agility.json",
         "docs/CRYPTOGRAPHIC_INVENTORY.md",
         "docs/cryptographic-inventory.json",
         "scripts/check_hash_function_policy.py",
@@ -1661,9 +1664,12 @@ PARTIAL_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "transition semantics. A fail-closed HMAC-SHA256/HMAC-SHA512 checkpoint registry now "
         "issues "
         "the new profile while preserving historical verification, and PostgreSQL enforces both "
-        "exact algorithm-length pairs. Purpose-specific SHA-256 formats still lack one exhaustive "
-        "migration registry, and provider-managed suite transitions require release evidence; this "
-        "control therefore remains partial."
+        "exact algorithm-length pairs. An enforced agility registry now classifies all 30 direct "
+        "SHA-256 operations across 24 files and identifies six persisted unversioned formats with "
+        "their readers and replacement boundaries. Those six runtime formats still require profile "
+        "markers plus tested compatibility, invalidation, or migration behavior, and "
+        "provider-managed suite transitions require release evidence; this control therefore "
+        "remains partial."
     ),
     "V14.2.4": (
         "The repository gate enforces protection-level ranks and independent dataset and model "
@@ -1704,6 +1710,7 @@ PARTIAL_EVIDENCE_OVERRIDES: dict[str, list[str]] = {
 PARTIAL_EVIDENCE_OVERRIDES["V11.2.2"] = [
     "docs/CRYPTOGRAPHIC_AGILITY.md",
     "docs/cryptographic-inventory.json",
+    "docs/sha256-agility.json",
     "identity/services/mfa.py",
     "identity/management/commands/rotate_mfa_encryption_key.py",
     "audit/checkpoints.py",
@@ -1711,9 +1718,11 @@ PARTIAL_EVIDENCE_OVERRIDES["V11.2.2"] = [
     "compose.yaml",
     "deploy/backup/rotate-restic-key.sh",
     "scripts/check_cryptographic_inventory.py",
+    "scripts/check_hash_function_policy.py",
     "tests/test_identity_commands.py",
     "tests/test_checkpoints.py",
     "tests/test_password_hashing_policy.py",
+    "tests/test_hash_function_policy.py",
 ]
 PARTIAL_EVIDENCE_OVERRIDES["V14.2.4"] = [
     "docs/DATA_CLASSIFICATION.md",
