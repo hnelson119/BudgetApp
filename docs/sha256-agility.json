@@ -148,11 +148,11 @@
       "id": "notification-identity",
       "path": "notifications/services.py",
       "operations": {"hashlib.sha256": 1},
-      "artifact_class": "persisted_unversioned",
+      "artifact_class": "persisted_versioned",
       "artifact": "Deterministic notification identity used for database deduplication",
-      "format_marker": "none",
-      "reader_or_verifier": "Notification generation compares the stored fingerprint for the same user and source",
-      "replacement_boundary": "Add a profile-prefixed identity and dual deduplication lookup before changing new notifications"
+      "format_marker": "sha256$ prefix on current 64-character lowercase hexadecimal digests",
+      "reader_or_verifier": "Notification generation prefers the current prefixed fingerprint and falls back to the exact historical unprefixed digest for the same household and recipient",
+      "replacement_boundary": "Add a new approved profile prefix and check it alongside sha256$ and historical unprefixed fingerprints before changing the writer"
     },
     {
       "id": "period-boundary-preview",
@@ -259,6 +259,6 @@
     "files": 24,
     "entries": 25,
     "operations": 30,
-    "persisted_unversioned_entries": 5
+    "persisted_unversioned_entries": 4
   }
 }

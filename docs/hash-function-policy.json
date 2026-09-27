@@ -284,7 +284,7 @@
     {"id": "image-source-integrity", "path": "deploy/backup/Dockerfile", "contains": ["ADD --checksum=sha256:${RESTIC_SHA256}"]},
     {"id": "npm-integrity", "path": "scripts/build_sbom.py", "contains": ["integrity.startswith(\"sha512-\")"]},
     {"id": "password-hashing", "path": "docs/password-hashing-policy.json", "contains": ["\"algorithm\": \"pbkdf2_sha256\"", "\"pseudorandom_function\": \"HMAC-SHA-256\""]},
-    {"id": "sha256-agility-registry", "path": "docs/sha256-agility.json", "contains": ["\"registry_id\": \"household-budget-sha256-agility-v1\"", "\"persisted_unversioned_entries\": 5"]},
+    {"id": "sha256-agility-registry", "path": "docs/sha256-agility.json", "contains": ["\"registry_id\": \"household-budget-sha256-agility-v1\"", "\"persisted_unversioned_entries\": 4"]},
     {"id": "test-only-md5", "path": "config/settings/test.py", "contains": ["PASSWORD_HASHERS = [\"django.contrib.auth.hashers.MD5PasswordHasher\"]"]},
     {"id": "totp-compatibility", "path": "identity/services/mfa.py", "contains": ["hashlib.sha1"]}
   ],

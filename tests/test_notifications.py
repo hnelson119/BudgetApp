@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -181,6 +182,9 @@ def test_refresh_generates_due_overdue_missing_income_and_deficit_without_ledger
         Notification.Kind.INTEGRITY,
     }.issubset(user_kinds)
     assert result.created >= 10
+    fingerprints = list(Notification.objects.values_list("fingerprint", flat=True))
+    assert fingerprints
+    assert all(value.startswith("sha256$") and len(value) == 71 for value in fingerprints)
     assert Notification.objects.filter(recipient=notification_context.partner).exists()
     assert JournalEntry.objects.count() == 0
 
@@ -262,6 +266,58 @@ def test_refresh_resolves_conditions_and_preference_changes_are_audited(
         today=TEST_TODAY,
     )
     assert reopened.reopened >= 1
+
+
+@pytest.mark.django_db
+def test_refresh_reuses_historical_unprefixed_notification_identity(
+    notification_context: NotificationContext,
+) -> None:
+    due = _occurrence(
+        notification_context,
+        name="Historical internet",
+        kind=RecurringSource.Kind.FIXED_EXPENSE,
+        amount="75.00",
+        expected_date=date(2026, 8, 25),
+    )
+    identity = f"occurrence:{due.pk}:due-soon"
+    historical_fingerprint = hashlib.sha256(
+        f"{Notification.Kind.DUE_SOON}:{identity}".encode()
+    ).hexdigest()
+    historical = Notification.objects.create(
+        household=notification_context.household,
+        recipient=notification_context.user,
+        kind=Notification.Kind.DUE_SOON,
+        severity=Notification.Severity.INFO,
+        fingerprint=historical_fingerprint,
+        title="Historical title",
+        message="Historical message",
+        action_url="/notifications/",
+        source_type="schedule.occurrence",
+        source_id=str(due.pk),
+        occurred_at=_aware(due.expected_date),
+        last_evaluated_at=_aware(date(2026, 8, 23)),
+    )
+
+    refresh_household_notifications(
+        household=notification_context.household,
+        now=_aware(),
+        today=TEST_TODAY,
+    )
+
+    historical.refresh_from_db()
+    assert historical.fingerprint == historical_fingerprint
+    assert historical.title == "Historical internet is due soon"
+    assert historical.resolved_at is None
+    assert (
+        Notification.objects.filter(
+            household=notification_context.household,
+            recipient=notification_context.user,
+            source_type="schedule.occurrence",
+            source_id=str(due.pk),
+            kind=Notification.Kind.DUE_SOON,
+        ).count()
+        == 1
+    )
 
 
 @pytest.mark.django_db

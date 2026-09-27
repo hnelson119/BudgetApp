@@ -38,7 +38,7 @@ def test_upgrade_services_are_isolated_and_use_separate_database_roles() -> None
     assert rollback["environment"]["PENTEST_RESTORE_EXPECTATION"] == ("upgrade-restored-match")
     migration_mount = (
         "./deploy/pentest/upgrade_probe_migration.py:"
-        "/app/notifications/migrations/0002_upgrade_rehearsal_marker.py:ro"
+        "/app/notifications/migrations/0003_upgrade_rehearsal_marker.py:ro"
     )
     assert migration_mount in migration["volumes"]
     assert migration_mount in candidate["volumes"]
@@ -52,7 +52,8 @@ def test_upgrade_probe_is_additive_bounded_and_not_a_production_migration() -> N
     migration = _read("deploy/pentest/upgrade_probe_migration.py")
     verifier = _read("deploy/pentest/verify-upgrade-rollback.py")
 
-    assert not (PROJECT_ROOT / "notifications/migrations/0002_upgrade_rehearsal_marker.py").exists()
+    assert not (PROJECT_ROOT / "notifications/migrations/0003_upgrade_rehearsal_marker.py").exists()
+    assert '("notifications", "0002_expand_fingerprint_profile")' in migration
     assert "CREATE TABLE public.pentest_upgrade_rehearsal_marker" in migration
     assert "REVOKE ALL" in migration
     assert "GRANT SELECT" in migration

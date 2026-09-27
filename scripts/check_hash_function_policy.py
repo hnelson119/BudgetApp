@@ -114,7 +114,7 @@ EXPECTED_SHA256_ENTRY_CLASSES = {
     "login-throttle-identity": ("identity/services/throttling.py", "bounded_lifetime"),
     "import-row-fingerprint": ("imports/services/batches.py", "persisted_unversioned"),
     "import-upload-checksum": ("imports/services/parsing.py", "persisted_unversioned"),
-    "notification-identity": ("notifications/services.py", "persisted_unversioned"),
+    "notification-identity": ("notifications/services.py", "persisted_versioned"),
     "period-boundary-preview": ("periods/services/boundaries.py", "bounded_lifetime"),
     "period-generation-preview": ("periods/services/generation.py", "bounded_lifetime"),
     "schedule-revision-preview": ("schedules/services/sources.py", "bounded_lifetime"),
@@ -221,7 +221,7 @@ EXPECTED_SOURCE_ASSERTIONS = {
         "docs/sha256-agility.json",
         (
             '"registry_id": "household-budget-sha256-agility-v1"',
-            '"persisted_unversioned_entries": 5',
+            '"persisted_unversioned_entries": 4',
         ),
     ),
     "test-only-md5": (
