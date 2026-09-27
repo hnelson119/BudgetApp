@@ -49,6 +49,7 @@ EXPECTED_SQL_CALLS = {
     "audit/migrations/0004_postgresql_protect_checkpoints.py": Counter(
         {"schema_editor.execute": 2}
     ),
+    "audit/migrations/0005_checkpoint_mac_profiles.py": Counter({"schema_editor.execute": 4}),
     "audit/services.py": Counter({"cursor.execute": 1}),
     "budgets/migrations/0002_postgresql_protect_reconciliations.py": Counter(
         {"schema_editor.execute": 2}

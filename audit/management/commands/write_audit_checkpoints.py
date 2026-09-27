@@ -24,6 +24,7 @@ class Command(BaseCommand):
             minimum_length=43,
         ).encode()
         key_id = required_environment("AUDIT_CHECKPOINT_KEY_ID")
+        signature_algorithm = required_environment("AUDIT_CHECKPOINT_SIGNATURE_ALGORITHM")
         heads = AuditHead.objects.order_by("household_id")
         household_id = options.get("household_id")
         if household_id:
@@ -39,6 +40,7 @@ class Command(BaseCommand):
                     directory=directory,
                     signing_key=signing_key,
                     signing_key_id=key_id,
+                    signature_algorithm=signature_algorithm,
                 )
             except Exception as error:
                 raise CommandError(

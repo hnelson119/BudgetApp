@@ -156,7 +156,7 @@ encrypted off-VM repository and a disconnected or independent copy.
 Audit checkpoints are separate from Restic backups so restoring a modified database cannot silently
 establish a new history. `BUDGET_AUDIT_CHECKPOINT_DIRECTORY` must be an existing off-VM mount and is
 bound only into the short-lived `integrity` container. That container verifies each complete chain,
-writes a canonical HMAC-SHA256 checkpoint with mode `0600`, and records the external filename and
+writes a canonical HMAC-SHA512 checkpoint with mode `0600`, and records the external filename and
 signature metadata through a narrowly scoped database function.
 
 Run it manually after the first household is provisioned:

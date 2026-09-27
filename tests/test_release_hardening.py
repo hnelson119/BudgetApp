@@ -65,7 +65,7 @@ def test_cryptographic_inventory_is_complete_and_current() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert "17 keys, 15 algorithms, 10 certificates" in completed.stdout
+    assert "17 keys, 16 algorithms, 10 certificates" in completed.stdout
     inventory = json.loads(
         (PROJECT_ROOT / "docs/cryptographic-inventory.json").read_text(encoding="utf-8")
     )
@@ -101,57 +101,57 @@ def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
     duplicate_key = copy.deepcopy(inventory)
     duplicate_key["cryptographic_keys"].append(duplicate_key["cryptographic_keys"][0])
     with pytest.raises(ValueError, match="duplicate id"):
-        validate_cryptographic_inventory(duplicate_key, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(duplicate_key, today=date(2026, 9, 27))
 
     missing_prohibition = copy.deepcopy(inventory)
     missing_prohibition["cryptographic_keys"][0]["prohibited_uses"] = []
     with pytest.raises(ValueError, match="non-empty string list"):
-        validate_cryptographic_inventory(missing_prohibition, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(missing_prohibition, today=date(2026, 9, 27))
 
     missing_evidence = copy.deepcopy(inventory)
     missing_evidence["algorithms"][0]["evidence"] = ["docs/does-not-exist.md"]
     with pytest.raises(ValueError, match="missing evidence"):
-        validate_cryptographic_inventory(missing_evidence, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(missing_evidence, today=date(2026, 9, 27))
 
     embedded_private_key = copy.deepcopy(inventory)
     embedded_private_key["cryptographic_keys"][0]["storage"] = "BEGIN " + "PRIVATE" + " KEY"
     with pytest.raises(ValueError, match="private-key material"):
-        validate_cryptographic_inventory(embedded_private_key, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(embedded_private_key, today=date(2026, 9, 27))
 
     exact_hostname = copy.deepcopy(inventory)
     exact_hostname["certificates"][0]["subject"] = "budget.private-tail.ts.net"
     with pytest.raises(ValueError, match="exact private hostname"):
-        validate_cryptographic_inventory(exact_hostname, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(exact_hostname, today=date(2026, 9, 27))
 
     unknown_algorithm = copy.deepcopy(inventory)
     unknown_algorithm["cryptographic_keys"][0]["algorithms"] = ["unknown-profile"]
     with pytest.raises(ValueError, match="unknown algorithms"):
-        validate_cryptographic_inventory(unknown_algorithm, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(unknown_algorithm, today=date(2026, 9, 27))
 
     overshared_secret = copy.deepcopy(inventory)
     overshared_secret["key_management_policy"]["shared_secret_max_trust_entities"] = 3
     with pytest.raises(ValueError, match="key-sharing limits"):
-        validate_cryptographic_inventory(overshared_secret, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(overshared_secret, today=date(2026, 9, 27))
 
     incomplete_lifecycle = copy.deepcopy(inventory)
     incomplete_lifecycle["key_management_policy"]["lifecycle_phases"].remove("destruction")
     with pytest.raises(ValueError, match="lifecycle is incomplete"):
-        validate_cryptographic_inventory(incomplete_lifecycle, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(incomplete_lifecycle, today=date(2026, 9, 27))
 
     missing_compromise_control = copy.deepcopy(inventory)
     missing_compromise_control["key_management_policy"]["required_controls"].pop()
     with pytest.raises(ValueError, match="controls are incomplete"):
-        validate_cryptographic_inventory(missing_compromise_control, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(missing_compromise_control, today=date(2026, 9, 27))
 
     unapproved_password_kdf = copy.deepcopy(inventory)
     unapproved_password_kdf["password_derived_key_policy"]["approved_profiles"] = ["pbkdf2"]
     with pytest.raises(ValueError, match="profiles differ"):
-        validate_cryptographic_inventory(unapproved_password_kdf, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(unapproved_password_kdf, today=date(2026, 9, 27))
 
     missing_password_kdf_control = copy.deepcopy(inventory)
     missing_password_kdf_control["password_derived_key_policy"]["required_controls"].pop()
     with pytest.raises(ValueError, match="key controls are incomplete"):
-        validate_cryptographic_inventory(missing_password_kdf_control, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(missing_password_kdf_control, today=date(2026, 9, 27))
 
     private_browser_ca = copy.deepcopy(inventory)
     browser_roots = next(
@@ -161,29 +161,29 @@ def test_cryptographic_inventory_rejects_tampering_and_stale_reviews() -> None:
     )
     browser_roots["prohibited_uses"].remove("self-signed production certificates")
     with pytest.raises(ValueError, match="public certificate trust boundary"):
-        validate_cryptographic_inventory(private_browser_ca, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(private_browser_ca, today=date(2026, 9, 27))
 
     weak_approved_profile = copy.deepcopy(inventory)
     weak_approved_profile["algorithms"][0]["security_strength"] = "below_128_bits"
     with pytest.raises(ValueError, match="128-bit security-strength policy"):
-        validate_cryptographic_inventory(weak_approved_profile, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(weak_approved_profile, today=date(2026, 9, 27))
 
     uncovered_key = copy.deepcopy(inventory)
     uncovered_key["key_generation_and_signature_policy"]["approved_generation_profiles"][0][
         "covered_key_ids"
     ].remove("django-signing-key")
     with pytest.raises(ValueError, match="approved profile boundary"):
-        validate_cryptographic_inventory(uncovered_key, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(uncovered_key, today=date(2026, 9, 27))
 
     weak_signature = copy.deepcopy(inventory)
     weak_signature["key_generation_and_signature_policy"]["approved_signature_profiles"][0][
         "classification"
     ] = "legacy"
     with pytest.raises(ValueError, match="approved 128-bit profile"):
-        validate_cryptographic_inventory(weak_signature, today=date(2026, 9, 26))
+        validate_cryptographic_inventory(weak_signature, today=date(2026, 9, 27))
 
     with pytest.raises(ValueError, match="review is overdue"):
-        validate_cryptographic_inventory(inventory, today=date(2026, 12, 26))
+        validate_cryptographic_inventory(inventory, today=date(2026, 12, 27))
 
     assert "docs/CRYPTOGRAPHIC_AGILITY.md" in (
         PROJECT_ROOT / "docs/cryptographic-inventory.json"
@@ -505,7 +505,7 @@ def test_asvs_builder_preserves_completed_m10_overrides() -> None:
         "V16.5.2",
     }
 
-    assert MAPPING_UPDATED == "2026-09-26"
+    assert MAPPING_UPDATED == "2026-09-27"
     assert not NOT_STARTED
     assert completed_m10 <= IMPLEMENTED_REQUIREMENTS
     assert set(IMPLEMENTED_ASSESSMENT_OVERRIDES) == completed_m10

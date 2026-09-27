@@ -115,6 +115,12 @@
       "parameterization": "module-level fixed literal migration SQL with no untrusted data"
     },
     {
+      "path": "audit/migrations/0005_checkpoint_mac_profiles.py",
+      "operation": "schema_editor.execute",
+      "count": 4,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
       "path": "audit/services.py",
       "operation": "cursor.execute",
       "count": 1,
@@ -226,7 +232,7 @@
   ],
   "summary": {
     "contexts": 11,
-    "sql_calls": 25,
+    "sql_calls": 29,
     "required_boundary_checks": 9,
     "source_assertions": 6
   }

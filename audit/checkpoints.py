@@ -6,6 +6,7 @@ import json
 import os
 import re
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,12 @@ _SAFE_KEY_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 class CheckpointWriteResult:
     checkpoint: AuditCheckpoint
     external_path: Path
+
+
+@dataclass(frozen=True)
+class CheckpointMacProfile:
+    signer: Callable[[dict[str, Any], bytes], str]
+    hexadecimal_length: int
 
 
 def _checkpoint_body(checkpoint: AuditCheckpoint) -> dict[str, Any]:
@@ -50,8 +57,33 @@ def _canonical_json(value: dict[str, Any]) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
-def _sign(body: dict[str, Any], signing_key: bytes) -> str:
+def _sign_hmac_sha256(body: dict[str, Any], signing_key: bytes) -> str:
     return hmac.new(signing_key, _canonical_json(body), hashlib.sha256).hexdigest()
+
+
+def _sign_hmac_sha512(body: dict[str, Any], signing_key: bytes) -> str:
+    return hmac.new(signing_key, _canonical_json(body), hashlib.sha512).hexdigest()
+
+
+CHECKPOINT_MAC_PROFILES = {
+    "HMAC-SHA256": CheckpointMacProfile(_sign_hmac_sha256, 64),
+    "HMAC-SHA512": CheckpointMacProfile(_sign_hmac_sha512, 128),
+}
+
+
+def _sign(body: dict[str, Any], signing_key: bytes, algorithm: str) -> str:
+    profile = CHECKPOINT_MAC_PROFILES.get(algorithm)
+    if profile is None:
+        raise ValidationError("The audit checkpoint signature algorithm is unsupported.")
+    return profile.signer(body, signing_key)
+
+
+def _is_lowercase_hexadecimal(value: str, expected_length: int) -> bool:
+    return (
+        len(value) == expected_length
+        and value.isascii()
+        and all(character in "0123456789abcdef" for character in value)
+    )
 
 
 def verify_checkpoint_document(document: dict[str, Any], signing_key: bytes) -> bool:
@@ -65,14 +97,21 @@ def verify_checkpoint_document(document: dict[str, Any], signing_key: bytes) -> 
     provided = signature.get("value")
     algorithm = signature.get("algorithm")
     key_id = signature.get("key_id")
-    if algorithm != "HMAC-SHA256" or not isinstance(key_id, str) or not isinstance(provided, str):
+    if (
+        not isinstance(algorithm, str)
+        or not isinstance(key_id, str)
+        or not isinstance(provided, str)
+    ):
+        return False
+    profile = CHECKPOINT_MAC_PROFILES.get(algorithm)
+    if profile is None or not _is_lowercase_hexadecimal(provided, profile.hexadecimal_length):
         return False
     if version == 2 and (
         checkpoint.get("signature_algorithm") != algorithm
         or checkpoint.get("signing_key_id") != key_id
     ):
         return False
-    expected = _sign(checkpoint, signing_key)
+    expected = _sign(checkpoint, signing_key, algorithm)
     return hmac.compare_digest(expected, provided)
 
 
@@ -142,11 +181,14 @@ def write_household_checkpoint(
     directory: Path,
     signing_key: bytes,
     signing_key_id: str,
+    signature_algorithm: str,
 ) -> CheckpointWriteResult:
     if len(signing_key) < 32:
         raise ValidationError("The audit checkpoint signing key is too short.")
     if not _SAFE_KEY_ID.fullmatch(signing_key_id):
         raise ValidationError("The audit checkpoint signing key ID is invalid.")
+    if signature_algorithm not in CHECKPOINT_MAC_PROFILES:
+        raise ValidationError("The audit checkpoint signature algorithm is unsupported.")
     destination = _checkpoint_directory(directory)
     integrity = verify_household_chain(household)
     if not integrity.valid or integrity.event_count == 0:
@@ -161,14 +203,14 @@ def write_household_checkpoint(
         event_count=integrity.event_count,
         chain_head=integrity.chain_head,
         verified_at=verified_at,
-        signature_algorithm="HMAC-SHA256",
+        signature_algorithm=signature_algorithm,
         signing_key_id=signing_key_id,
         signature="",
         external_copy_name=file_name,
         external_copied_at=verified_at,
     )
     body = _checkpoint_body(checkpoint)
-    checkpoint.signature = _sign(body, signing_key)
+    checkpoint.signature = _sign(body, signing_key, signature_algorithm)
     document = {
         "checkpoint": body,
         "signature": {

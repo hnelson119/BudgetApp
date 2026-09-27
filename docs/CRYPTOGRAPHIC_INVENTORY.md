@@ -1,8 +1,8 @@
 # Cryptographic inventory and maintenance
 
 Status: implemented inventory; deployment evidence pending
-Inventory reviewed: 2026-09-26
-Next scheduled review: 2026-12-25
+Inventory reviewed: 2026-09-27
+Next scheduled review: 2026-12-26
 
 ## Purpose and authority
 
@@ -138,7 +138,7 @@ machine-enforced source and managed-profile boundary implements ASVS `v5.0.0-11.
 | Django signing key | Root-owned file; approved Django containers only | Framework signing and domain-separated keyed identifiers | MFA seeds, backups, or audit checkpoints |
 | MFA encryption key | Root-owned file; approved Django consumers only | Domain-separated Fernet encryption of TOTP seeds | Passwords, financial records, backups, or checkpoints |
 | Per-user TOTP seed | Fernet ciphertext in PostgreSQL plus member authenticator | TOTP for exactly one member account | Data encryption, logs, or another account |
-| Audit checkpoint key | Independent protected file; integrity container only | HMAC-SHA256 checkpoint authentication under its key ID | Runtime signing, backup encryption, or rewritten history |
+| Audit checkpoint key | Independent protected file; integrity container only | Versioned HMAC-SHA512 checkpoints and historical HMAC-SHA256 verification under explicit key IDs | Runtime signing, backup encryption, or rewritten history |
 | Restic repository password | Backup secret file plus off-VM recovery copy | scrypt-based unlocking of Restic master keys | Django, database, or application-field cryptography |
 | Restic master keys | Wrapped Restic repository key files | Repository encryption and authentication | Any use outside the pinned Restic implementation |
 | Tailscale node keys | Tailscale state on approved devices and VM | Tailnet identity and WireGuard transport | Application data at rest or shared identities |
@@ -205,8 +205,10 @@ checkpoint, digest-format, and provider-managed transition gaps in that audit ar
 Use `docs/INCIDENT_RESPONSE.md` for staged rotation. Purpose separation is mandatory: rotating one
 material class never authorizes substituting another class. Django signing-key rotation deliberately
 invalidates old sessions. MFA rotation transactionally re-encrypts every seed under a monotonically
-higher key version and the current tagged ciphertext profile. Audit checkpoint rotation retains the old verification key offline under its
-original ID. A Restic password rotation rewraps repository master keys; suspected master-key
+higher key version and the current tagged ciphertext profile. Audit checkpoint rotation writes a
+final checkpoint under the old algorithm and key ID, retains that verification key offline, then
+writes the first HMAC-SHA512 checkpoint under the replacement key ID without rewriting history. A
+Restic password rotation rewraps repository master keys; suspected master-key
 disclosure instead requires a new repository and full re-encryption. Both PostgreSQL CA keys stay
 offline; the server key reaches only database-owned tmpfs and each client key reaches only its
 assigned service. They rotate as one complete trust set. The Gunicorn server and nginx client CAs

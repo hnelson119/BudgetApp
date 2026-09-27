@@ -1,7 +1,7 @@
 # Cryptographic agility audit
 
 BudgetApp inventories every cryptographic profile used by production, deployment, compatibility,
-and tests in `docs/cryptographic-inventory.json`. This audit records how each of the 15 profiles is
+and tests in `docs/cryptographic-inventory.json`. This audit records how each of the 16 profiles is
 selected, how persisted or external artifacts identify it, and what an algorithm or parameter
 replacement requires. It does not claim that a future replacement algorithm is already approved.
 
@@ -9,7 +9,8 @@ replacement requires. It does not claim that a future replacement algorithm is a
 | --- | --- | --- |
 | `django-pbkdf2-hmac-sha256` | Django's ordered `PASSWORD_HASHERS`; encoded password strings contain the algorithm and rounds | Add the approved replacement ahead of the old hasher; successful authentication rewrites an old encoding, and forced resets cover inactive accounts |
 | `fernet-v1` | MFA ciphertext now uses a `fernet-v1$` envelope and an authenticated payload profile plus a monotonic key version | The guarded rotation accepts legacy unprefixed rows, decrypts every row before writing, and atomically rewrites them in the current tagged format under the replacement key |
-| `hmac-sha256` | Django signing is framework selected; audit checkpoints store document version, algorithm, and key ID | Django signing-key replacement intentionally invalidates sessions. Checkpoint key rotation preserves old documents and offline verification keys, but adding a second checkpoint MAC algorithm still requires an explicit verifier registry |
+| `hmac-sha256` | Django signing is framework selected; historical audit checkpoints store document version, algorithm, and key ID | Django signing-key replacement intentionally invalidates sessions. Historical checkpoints remain verifiable through the explicit profile registry and their original offline key |
+| `hmac-sha512` | The checkpoint writer explicitly selects an approved registry profile; the algorithm and key ID are authenticated inside the document | Write a final HMAC-SHA256 checkpoint, promote the new key ID and HMAC-SHA512 writer setting, then write and verify the first new-profile checkpoint without rewriting history |
 | `sha256` | Purpose-specific source sites and versioned artifact policies select SHA-256 | Each persisted format must version its digest transition. The inventory and hash policy locate every call, but a shared digest-profile registry does not yet cover all application fingerprints |
 | `totp-hmac-sha1` | RFC 6238 provisioning explicitly declares SHA1 | This interoperability profile changes through MFA reset and re-enrollment with a newly approved authenticator profile; existing seeds are never silently reinterpreted |
 | `password-blocklist-sha1` | Versioned offline corpus metadata fixes the compatibility digest and authenticates the payload with SHA-256 | Build and atomically install a new versioned corpus before changing the lookup format; no password-derived value leaves the host |
@@ -31,12 +32,19 @@ continuing to accept the previous unprefixed Fernet rows. The existing all-row k
 transaction therefore doubles as the format migration: it proves every legacy row decrypts before
 writing any row, then rewrites all rows with the tagged profile or rolls the transaction back.
 
+## Enforced checkpoint algorithm transition
+
+The checkpoint MAC registry contains exactly `HMAC-SHA256` with a 64-character tag and
+`HMAC-SHA512` with a 128-character tag. New deployment checkpoints explicitly select
+`HMAC-SHA512`; verification dispatches from the authenticated document metadata, so historical
+HMAC-SHA256 documents remain readable only with their explicitly selected original key ID. Unknown
+algorithms, truncated tags, extended tags, and algorithm/length mismatches fail closed. The
+protected PostgreSQL function repeats the same allowlist before appending a checkpoint row.
+
 ## Remaining V11.2.2 work
 
 V11.2.2 remains partial. The audit identified the next concrete repository gaps:
 
-- audit checkpoint verification dispatches only `HMAC-SHA256`; its tagged algorithm and key ID
-  preserve historical interpretation, but there is no approved multi-algorithm verifier registry;
 - purpose-specific SHA-256 fingerprints are completely inventoried, but their persisted formats do
   not share an exhaustive version-and-migration registry;
 - provider-managed Tailscale and operating-system SSH suite changes require dated release evidence

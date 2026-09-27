@@ -25,11 +25,11 @@ def test_context_sanitization_accepts_complete_boundary() -> None:
 
     runtime_count = validate_context_sanitization(policy, today=date(2026, 9, 13))
 
-    assert runtime_count == 221
+    assert runtime_count == 222
     assert {item["id"] for item in policy["contexts"]} == EXPECTED_CONTEXT_IDS
     assert policy["summary"] == {
         "contexts": 11,
-        "sql_calls": 25,
+        "sql_calls": 29,
         "required_boundary_checks": 9,
         "source_assertions": 6,
     }
