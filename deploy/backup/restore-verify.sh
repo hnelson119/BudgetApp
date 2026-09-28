@@ -76,6 +76,56 @@ trap cleanup EXIT HUP INT TERM
 restic --no-lock cat config >/dev/null || \
   fail "restore_repository_unlock_failed" "The encrypted repository could not be opened"
 
+if [ "$RESTORE_SNAPSHOT_ID" = "latest" ]; then
+  snapshot_metadata="$(restic --no-lock snapshots \
+    --json \
+    --host household-budget \
+    --tag "database=$POSTGRES_DB")" || \
+    fail "restore_snapshot_metadata_failed" "The selected snapshot metadata could not be read"
+else
+  snapshot_metadata="$(restic --no-lock snapshots \
+    --json \
+    "$RESTORE_SNAPSHOT_ID")" || \
+    fail "restore_snapshot_metadata_failed" "The selected snapshot metadata could not be read"
+fi
+
+if [ "$RESTORE_SNAPSHOT_ID" = "latest" ]; then
+  selected_snapshot="$(printf '%s' "$snapshot_metadata" | jq -cer '
+    select(length > 0)
+    | max_by(.time)
+  ')" || fail "restore_snapshot_metadata_failed" "No matching snapshot was available"
+else
+  selected_snapshot="$(printf '%s' "$snapshot_metadata" | jq -cer '
+    select(length == 1)
+    | .[0]
+  ')" || fail "restore_snapshot_metadata_failed" "The snapshot selection was missing or ambiguous"
+fi
+unset snapshot_metadata
+
+resolved_snapshot_id="$(printf '%s' "$selected_snapshot" | jq -er \
+  --arg database "$POSTGRES_DB" '
+  select(.hostname == "household-budget")
+  | select(.tags | type == "array")
+  | select(([.tags[] | select(. == ("database=" + $database))] | length) == 1)
+  | .id
+  | select(type == "string" and test("^[0-9a-f]{64}$"))
+')" || fail "restore_snapshot_metadata_failed" "The snapshot selection was missing or ambiguous"
+
+expected_schema_fingerprint="$(printf '%s' "$selected_snapshot" | jq -er '
+  .tags
+  | select(type == "array")
+  | [.[] | select(startswith("schema"))]
+  | select(length == 1)
+  | .[0]
+  | if startswith("schema-sha256=") then sub("^schema-sha256="; "")
+    elif startswith("schema=") then sub("^schema="; "")
+    else empty
+    end
+  | select(test("^[0-9a-f]{64}$"))
+')" || fail "restore_schema_tag_invalid" \
+  "The snapshot schema tag was missing, ambiguous, or malformed"
+unset selected_snapshot
+
 target_exists="$(psql \
   --host "$DATABASE_HOST" \
   --port "$DATABASE_PORT" \
@@ -101,7 +151,7 @@ target_created=true
 
 log "info" "restore_verification_started" "Restoring the selected snapshot into a new test database"
 
-restic --no-lock dump "$RESTORE_SNAPSHOT_ID" "/${POSTGRES_DB}.dump" \
+restic --no-lock dump "$resolved_snapshot_id" "/${POSTGRES_DB}.dump" \
   | pg_restore \
       --host "$DATABASE_HOST" \
       --port "$DATABASE_PORT" \
@@ -112,7 +162,7 @@ restic --no-lock dump "$RESTORE_SNAPSHOT_ID" "/${POSTGRES_DB}.dump" \
       --no-owner \
       --no-privileges || fail "restore_stream_failed" "The restore verification stream failed"
 
-migration_count="$(psql \
+restored_migration_list="$(psql \
   --host "$DATABASE_HOST" \
   --port "$DATABASE_PORT" \
   --username "$POSTGRES_ADMIN_USER" \
@@ -121,12 +171,19 @@ migration_count="$(psql \
   --tuples-only \
   --no-align \
   --set ON_ERROR_STOP=1 \
-  --command "SELECT count(*) FROM django_migrations")" || \
+  --command "SELECT app || ':' || name FROM django_migrations ORDER BY app, name")" || \
   fail "restore_schema_verification_failed" "The restored schema could not be verified"
+if [ -z "$restored_migration_list" ]; then
+  fail "restore_schema_verification_failed" "The restored schema is incomplete"
+fi
 
-case "$migration_count" in
-  ""|0|*[!0-9]*) fail "restore_schema_verification_failed" "The restored schema is incomplete" ;;
-esac
+actual_schema_fingerprint="$(printf '%s' "$restored_migration_list" | sha256sum | cut -d ' ' -f 1)"
+unset restored_migration_list resolved_snapshot_id
+if [ "$actual_schema_fingerprint" != "$expected_schema_fingerprint" ]; then
+  fail "restore_schema_verification_failed" \
+    "The restored migration set does not match the snapshot schema tag"
+fi
+unset actual_schema_fingerprint expected_schema_fingerprint
 
 restore_completed=true
 log "info" "restore_verification_completed" \

@@ -73,6 +73,7 @@ EXPECTED_PYTHON_OPERATIONS = {
 EXPECTED_NON_PYTHON_OPERATIONS = {
     "browser-tests/support.mjs": Counter({"node.createHmac:sha1": 1}),
     "deploy/backup/backup.sh": Counter({"sha256sum:sha256": 1}),
+    "deploy/backup/restore-verify.sh": Counter({"sha256sum:sha256": 1}),
 }
 EXPECTED_SHA256_OPERATIONS = {
     path: Counter(
@@ -133,7 +134,11 @@ EXPECTED_SHA256_ENTRY_CLASSES = {
     ),
     "postgres-certificate-signatures": ("scripts/generate-postgres-tls.py", "protocol_bound"),
     "secret-scan-reviewed-artifact-pin": ("scripts/secret_scan.py", "governance_artifact"),
-    "backup-schema-tag": ("deploy/backup/backup.sh", "persisted_unversioned"),
+    "backup-schema-tag": ("deploy/backup/backup.sh", "persisted_versioned"),
+    "restore-schema-tag-verification": (
+        "deploy/backup/restore-verify.sh",
+        "verification_only",
+    ),
 }
 EXPECTED_APPROVED_FUNCTIONS = {
     "sha256": ("SHA-256", 256),
@@ -187,6 +192,10 @@ EXPECTED_SOURCE_ASSERTIONS = {
         "deploy/backup/backup.sh",
         ("sha256sum",),
     ),
+    "restore-schema-integrity": (
+        "deploy/backup/restore-verify.sh",
+        ("sha256sum", "schema-sha256=", "schema="),
+    ),
     "certificate-signatures": (
         "scripts/generate-postgres-tls.py",
         ('"-sha256"',),
@@ -221,7 +230,7 @@ EXPECTED_SOURCE_ASSERTIONS = {
         "docs/sha256-agility.json",
         (
             '"registry_id": "household-budget-sha256-agility-v1"',
-            '"persisted_unversioned_entries": 2',
+            '"persisted_unversioned_entries": 1',
         ),
     ),
     "test-only-md5": (

@@ -90,6 +90,9 @@ migration_list="$(psql \
   --set ON_ERROR_STOP=1 \
   --command "SELECT app || ':' || name FROM django_migrations ORDER BY app, name")" || \
   fail "backup_schema_read_failed" "The schema version could not be read"
+if [ -z "$migration_list" ]; then
+  fail "backup_schema_read_failed" "The schema version was empty"
+fi
 
 schema_fingerprint="$(printf '%s' "$migration_list" | sha256sum | cut -d ' ' -f 1)"
 unset migration_list
@@ -114,7 +117,7 @@ pg_dump \
       --tag "application=household-budget" \
       --tag "database=$POSTGRES_DB" \
       --tag "release=$APP_RELEASE" \
-      --tag "schema=$schema_fingerprint" \
+      --tag "schema-sha256=$schema_fingerprint" \
       --tag "created=$snapshot_time" \
       --quiet || fail "backup_stream_failed" "The PostgreSQL backup stream failed"
 

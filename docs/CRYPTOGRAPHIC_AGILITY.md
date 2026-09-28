@@ -11,7 +11,7 @@ replacement requires. It does not claim that a future replacement algorithm is a
 | `fernet-v1` | MFA ciphertext now uses a `fernet-v1$` envelope and an authenticated payload profile plus a monotonic key version | The guarded rotation accepts legacy unprefixed rows, decrypts every row before writing, and atomically rewrites them in the current tagged format under the replacement key |
 | `hmac-sha256` | Django signing is framework selected; historical audit checkpoints store document version, algorithm, and key ID | Django signing-key replacement intentionally invalidates sessions. Historical checkpoints remain verifiable through the explicit profile registry and their original offline key |
 | `hmac-sha512` | The checkpoint writer explicitly selects an approved registry profile; the algorithm and key ID are authenticated inside the document | Write a final HMAC-SHA256 checkpoint, promote the new key ID and HMAC-SHA512 writer setting, then write and verify the first new-profile checkpoint without rewriting history |
-| `sha256` | The source inventory and `docs/sha256-agility.json` classify all 30 direct operations across 24 files by artifact lifetime and format marker | Goal-contribution, notification, import-row, and upload-checksum writers use `sha256$` while matching historical values; two persisted unversioned formats still require transition work |
+| `sha256` | The source inventory and `docs/sha256-agility.json` classify all 31 direct operations across 25 files by artifact lifetime and format marker | Goal-contribution, notification, import-row, upload-checksum, and backup-schema writers use explicit profiles while matching historical values; one persisted unversioned format still requires transition work |
 | `totp-hmac-sha1` | RFC 6238 provisioning explicitly declares SHA1 | This interoperability profile changes through MFA reset and re-enrollment with a newly approved authenticator profile; existing seeds are never silently reinterpreted |
 | `password-blocklist-sha1` | Versioned offline corpus metadata fixes the compatibility digest and authenticates the payload with SHA-256 | Build and atomically install a new versioned corpus before changing the lookup format; no password-derived value leaves the host |
 | `os-csprng` | Python `secrets` and approved provider generators | Replace the dependency/provider implementation and regenerate affected ephemeral or purpose-specific material; no persisted random-stream format exists |
@@ -45,9 +45,8 @@ protected PostgreSQL function repeats the same allowlist before appending a chec
 
 V11.2.2 remains partial. The audit identified the next concrete repository gaps:
 
-- the exhaustive SHA-256 agility registry identifies two persisted unversioned formats whose
-  runtime readers and writers still need profile markers plus tested dual-read, invalidation, or
-  migration behavior;
+- the exhaustive SHA-256 agility registry identifies one persisted unversioned format whose runtime
+  reader and writer still need a profile marker plus tested dual-read or migration behavior;
 - provider-managed Tailscale and operating-system SSH suite changes require dated release evidence
   and cannot be proven solely from this checkout.
 

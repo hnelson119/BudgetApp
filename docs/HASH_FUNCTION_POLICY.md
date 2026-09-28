@@ -19,16 +19,16 @@ The executable checker discovers every direct Python `hashlib`, `hmac`, Django s
 `salted_hmac`, and OpenSSL hash selection in production, maintenance, and release-test source. It
 also scans production scripts and templates, browser and deployment helpers, and shell/PowerShell
 source for Node hash calls, Web Crypto operations, and checksum commands. The
-current inventory contains 37 operations across 27 files. A new call, dynamic algorithm selection,
+current inventory contains 38 operations across 28 files. A new call, dynamic algorithm selection,
 module alias, direct weak-hash import, or undocumented operation fails both quality gates. This
 reviewed API inventory supplements code review; it is not a general proof against arbitrary custom
 cryptographic implementations or all possible language indirection.
 
-`docs/sha256-agility.json` classifies all 30 directly selected SHA-256 operations across 24 files.
+`docs/sha256-agility.json` classifies all 31 directly selected SHA-256 operations across 25 files.
 Each entry records the artifact lifetime, format marker, reader or verifier, and the required
 replacement boundary. The checker derives the expected coverage from the source operation
 inventory, aggregates entries that share a file, and fails if any operation is missing or counted
-twice. Two persisted formats currently lack an algorithm marker; they remain explicit migration
+twice. One persisted format currently lacks an algorithm marker; it remains explicit migration
 work rather than being mistaken for versioned artifacts.
 
 Framework and provider-owned primitives are separately bounded. The checker verifies the pinned
