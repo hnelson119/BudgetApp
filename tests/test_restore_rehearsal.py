@@ -127,6 +127,32 @@ def test_restore_probes_are_bounded_and_emit_only_sanitized_outcomes() -> None:
     assert "print(manifest" not in advance + verify
 
 
+def test_backup_schema_tags_are_profiled_and_restores_accept_only_exact_profiles() -> None:
+    backup = _read("deploy/backup/backup.sh")
+    restore = _read("deploy/backup/restore-verify.sh")
+    image = _read("deploy/backup/Dockerfile")
+
+    assert '--tag "schema-sha256=$schema_fingerprint"' in backup
+    assert '--tag "schema=$schema_fingerprint"' not in backup
+    assert 'if [ -z "$migration_list" ]' in backup
+    assert "apk add --no-cache jq postgresql17-client" in image
+    assert "--host household-budget" in restore
+    assert '--tag "database=$POSTGRES_DB"' in restore
+    assert "max_by(.time)" in restore
+    assert "select(length == 1)" in restore
+    assert 'select(.hostname == "household-budget")' in restore
+    assert '("database=" + $database)' in restore
+    assert 'startswith("schema-sha256=")' in restore
+    assert 'startswith("schema=")' in restore
+    assert 'test("^[0-9a-f]{64}$")' in restore
+    assert 'restic --no-lock dump "$resolved_snapshot_id"' in restore
+    assert restore.count("SELECT app || ':' || name FROM django_migrations ORDER BY app, name") == 1
+    assert 'if [ -z "$restored_migration_list" ]' in restore
+    assert 'if [ "$actual_schema_fingerprint" != "$expected_schema_fingerprint" ]' in restore
+    assert 'fail "restore_schema_tag_invalid"' in restore
+    assert 'fail "restore_schema_verification_failed"' in restore
+
+
 def test_restore_runner_refuses_live_and_existing_targets_and_always_cleans_up() -> None:
     powershell = _read("scripts/run-restore-rehearsal.ps1")
     shell = _read("scripts/run-restore-rehearsal.sh")

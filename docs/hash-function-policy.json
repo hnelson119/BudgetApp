@@ -274,17 +274,19 @@
   ],
   "non_python_operation_inventory": [
     {"path": "browser-tests/support.mjs", "operations": {"node.createHmac:sha1": 1}, "purpose": "Generate RFC 6238 browser-test TOTP values", "status": "compatibility_only"},
-    {"path": "deploy/backup/backup.sh", "operations": {"sha256sum:sha256": 1}, "purpose": "Fingerprint the migration schema included in backup metadata", "status": "approved"}
+    {"path": "deploy/backup/backup.sh", "operations": {"sha256sum:sha256": 1}, "purpose": "Fingerprint the migration schema included in backup metadata", "status": "approved"},
+    {"path": "deploy/backup/restore-verify.sh", "operations": {"sha256sum:sha256": 1}, "purpose": "Verify the restored migration set against versioned backup metadata", "status": "approved"}
   ],
   "source_assertions": [
     {"id": "backup-integrity", "path": "deploy/backup/backup.sh", "contains": ["sha256sum"]},
+    {"id": "restore-schema-integrity", "path": "deploy/backup/restore-verify.sh", "contains": ["sha256sum", "schema-sha256=", "schema="]},
     {"id": "certificate-signatures", "path": "scripts/generate-postgres-tls.py", "contains": ["\"-sha256\""]},
     {"id": "cryptographic-inventory", "path": "docs/cryptographic-inventory.json", "contains": ["\"id\": \"sha256\"", "\"id\": \"hmac-sha512\"", "\"security_status\": \"approved\"", "\"id\": \"totp-hmac-sha1\"", "\"id\": \"password-blocklist-sha1\""]},
     {"id": "dependency-lock", "path": "requirements-prod.lock", "contains": ["Django==5.2.17", "cryptography==50.0.0"]},
     {"id": "image-source-integrity", "path": "deploy/backup/Dockerfile", "contains": ["ADD --checksum=sha256:${RESTIC_SHA256}"]},
     {"id": "npm-integrity", "path": "scripts/build_sbom.py", "contains": ["integrity.startswith(\"sha512-\")"]},
     {"id": "password-hashing", "path": "docs/password-hashing-policy.json", "contains": ["\"algorithm\": \"pbkdf2_sha256\"", "\"pseudorandom_function\": \"HMAC-SHA-256\""]},
-    {"id": "sha256-agility-registry", "path": "docs/sha256-agility.json", "contains": ["\"registry_id\": \"household-budget-sha256-agility-v1\"", "\"persisted_unversioned_entries\": 2"]},
+    {"id": "sha256-agility-registry", "path": "docs/sha256-agility.json", "contains": ["\"registry_id\": \"household-budget-sha256-agility-v1\"", "\"persisted_unversioned_entries\": 1"]},
     {"id": "test-only-md5", "path": "config/settings/test.py", "contains": ["PASSWORD_HASHERS = [\"django.contrib.auth.hashers.MD5PasswordHasher\"]"]},
     {"id": "totp-compatibility", "path": "identity/services/mfa.py", "contains": ["hashlib.sha1"]}
   ],
@@ -298,11 +300,11 @@
   "summary": {
     "approved_hash_functions": 2,
     "managed_profiles": 6,
-    "operation_files": 27,
-    "operations": 37,
+    "operation_files": 28,
+    "operations": 38,
     "compatibility_exceptions": 2,
     "compatibility_operations": 6,
     "test_only_exceptions": 1,
-    "source_assertions": 10
+    "source_assertions": 11
   }
 }

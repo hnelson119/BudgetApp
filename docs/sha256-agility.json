@@ -248,17 +248,27 @@
       "id": "backup-schema-tag",
       "path": "deploy/backup/backup.sh",
       "operations": {"sha256sum:sha256": 1},
-      "artifact_class": "persisted_unversioned",
+      "artifact_class": "persisted_versioned",
       "artifact": "Encrypted Restic snapshot tag identifying the Django migration set",
+      "format_marker": "schema-sha256= tag name on current snapshots",
+      "reader_or_verifier": "Restore tooling accepts exactly one schema-sha256= or historical schema= tag and compares it with the restored migration set",
+      "replacement_boundary": "Add a new algorithm-named tag and dual-read it with schema-sha256= and historical schema= during the retention window before changing the writer"
+    },
+    {
+      "id": "restore-schema-tag-verification",
+      "path": "deploy/backup/restore-verify.sh",
+      "operations": {"sha256sum:sha256": 1},
+      "artifact_class": "verification_only",
+      "artifact": "In-memory verification of a restored Django migration set against authenticated Restic snapshot metadata",
       "format_marker": "none",
-      "reader_or_verifier": "Restore tooling compares the schema tag with the expected migration set",
-      "replacement_boundary": "Add an algorithm-named snapshot tag and accept both tag names during the retention window before retiring the SHA-256 tag"
+      "reader_or_verifier": "Restore tooling recomputes the selected snapshot's migration-set digest and requires an exact match",
+      "replacement_boundary": "Dispatch recomputation from the accepted algorithm-named snapshot tag before adding a replacement digest profile"
     }
   ],
   "summary": {
-    "files": 24,
-    "entries": 25,
-    "operations": 30,
-    "persisted_unversioned_entries": 2
+    "files": 25,
+    "entries": 26,
+    "operations": 31,
+    "persisted_unversioned_entries": 1
   }
 }

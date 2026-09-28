@@ -1664,12 +1664,12 @@ PARTIAL_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "transition semantics. A fail-closed HMAC-SHA256/HMAC-SHA512 checkpoint registry now "
         "issues "
         "the new profile while preserving historical verification, and PostgreSQL enforces both "
-        "exact algorithm-length pairs. An enforced agility registry now classifies all 30 direct "
-        "SHA-256 operations across 24 files. Goal-contribution, notification, import-row, and "
-        "upload-checksum writers now use marked sha256$ values while matching historical "
-        "unprefixed values. Two "
-        "persisted unversioned runtime formats still require profile "
-        "markers plus tested compatibility, invalidation, or migration behavior, and "
+        "exact algorithm-length pairs. An enforced agility registry now classifies all 31 direct "
+        "SHA-256 operations across 25 files. Goal-contribution, notification, import-row, "
+        "upload-checksum, and backup-schema writers now use explicit profile markers while "
+        "matching historical unprefixed values or tags. One persisted unversioned runtime format "
+        "still requires a profile marker plus tested compatibility, invalidation, or migration "
+        "behavior, and "
         "provider-managed suite transitions require release evidence; this control therefore "
         "remains partial."
     ),
@@ -1723,6 +1723,8 @@ PARTIAL_EVIDENCE_OVERRIDES["V11.2.2"] = [
     "imports/migrations/0002_expand_row_fingerprint_profile.py",
     "imports/services/parsing.py",
     "imports/migrations/0003_expand_upload_checksum_profile.py",
+    "deploy/backup/backup.sh",
+    "deploy/backup/restore-verify.sh",
     "notifications/services.py",
     "notifications/migrations/0002_expand_fingerprint_profile.py",
     "compose.yaml",

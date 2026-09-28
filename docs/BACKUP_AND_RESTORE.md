@@ -135,10 +135,13 @@ docker compose --profile recovery run --rm restore-verify
 ```
 
 The verifier mounts the repository read-only, streams the dump into a newly created database, and
-checks that Django migration history exists. If restoration fails, it removes only the new target
-that it created. On success, the test database remains available for application and audit-chain
-verification. Remove it only after documenting the test result and independently confirming the
-exact target name.
+checks the restored Django migration set against the authenticated snapshot metadata. New snapshots
+use the algorithm-named `schema-sha256=` tag; the verifier also accepts one historical `schema=` tag
+while retained older snapshots remain eligible for recovery. A missing, malformed, unknown,
+duplicate, or conflicting schema tag fails closed. If restoration or schema verification fails, it
+removes only the new target that it created. On success, the test database remains available for
+application and audit-chain verification. Remove it only after documenting the test result and
+independently confirming the exact target name.
 
 ## Full disaster recovery
 
