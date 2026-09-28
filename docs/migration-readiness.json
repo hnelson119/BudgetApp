@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "inventory_id": "budgetapp-migration-readiness-v1",
+  "last_reviewed": "2026-09-28",
+  "next_review_due": "2026-12-27",
+  "policy": "docs/MIGRATIONS.md",
+  "runbook": "docs/UPGRADE_AND_ROLLBACK.md",
+  "controls": [
+    {
+      "id": "immutable-release-identity",
+      "objective": "Bind every deployment attempt to reviewed candidate and previous full commit IDs with preserved release artifacts.",
+      "evidence": ["docs/UPGRADE_AND_ROLLBACK.md", ".github/workflows/upgrade-rehearsal.yml"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Record both full commit IDs, image digests, operator, and maintenance window from clean protected release directories on the selected VM."
+    },
+    {
+      "id": "migration-review-and-classification",
+      "objective": "Review the exact migration plan and classify forward-schema compatibility before service interruption.",
+      "evidence": ["docs/MIGRATIONS.md", "docs/UPGRADE_AND_ROLLBACK.md", "tests/test_upgrade_rehearsal.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Retain a sanitized classification for every candidate migration and abort when backward compatibility is not proven."
+    },
+    {
+      "id": "pre-upgrade-recovery-point",
+      "objective": "Write and verify signed audit checkpoints and an encrypted snapshot before applying candidate migrations.",
+      "evidence": ["docs/UPGRADE_AND_ROLLBACK.md", "scripts/run-upgrade-rehearsal.sh", "scripts/run-upgrade-rehearsal.ps1", "tests/test_upgrade_rehearsal.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Verify the off-VM snapshot, release marker, external checkpoints, and available clean restore capacity immediately before cutover."
+    },
+    {
+      "id": "least-privilege-migration-role",
+      "objective": "Apply schema changes only with the dedicated migration identity while runtime and verification identities retain narrower privileges.",
+      "evidence": ["compose.yaml", "compose.pentest.yaml", "tests/test_upgrade_rehearsal.py", "tests/test_deployment_config.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Confirm the rendered release configuration uses the migration role for schema changes and the runtime role cannot alter schema."
+    },
+    {
+      "id": "candidate-health-and-integrity",
+      "objective": "Require candidate health, fixture integrity, audit chains, signed checkpoints, and exact candidate schema state after migration.",
+      "evidence": ["scripts/run-upgrade-rehearsal.sh", "deploy/pentest/verify-upgrade-rollback.py", "tests/test_upgrade_rehearsal.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Run approved-device login and read-only financial, audit, checkpoint, and sanitized-log checks on the selected candidate."
+    },
+    {
+      "id": "forward-schema-application-rollback",
+      "objective": "Start the preserved previous application against the forward schema only after explicit compatibility proof and without reversing migrations.",
+      "evidence": ["docs/UPGRADE_AND_ROLLBACK.md", "scripts/run-upgrade-rehearsal.sh", "tests/test_upgrade_rehearsal.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Prove the actual previous release artifact remains healthy against the candidate schema or select clean-database rollback."
+    },
+    {
+      "id": "clean-database-rollback",
+      "objective": "Restore the pre-upgrade snapshot into a new protected database, reject live or existing targets, and prove candidate schema is absent.",
+      "evidence": ["docs/UPGRADE_AND_ROLLBACK.md", "deploy/backup/restore-verify.sh", "deploy/pentest/verify-upgrade-rollback.py", "scripts/run-upgrade-rehearsal.sh", "tests/test_upgrade_rehearsal.py", "tests/test_restore_rehearsal.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Time a clean restore from the real off-VM snapshot and start the preserved previous artifact on the verified replacement database."
+    },
+    {
+      "id": "sanitized-release-evidence",
+      "objective": "Record release IDs, snapshot and checkpoint references, timings, outcomes, and finding IDs without secrets or household data.",
+      "evidence": ["docs/UPGRADE_AND_ROLLBACK.md", "docs/RELEASE_HARDENING.md", "docs/release-evidence.json"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Bind the clean-VM result and observed recovery time to the exact candidate while retaining raw transcripts only in encrypted assessment storage."
+    }
+  ],
+  "rehearsal": {
+    "workflow": ".github/workflows/upgrade-rehearsal.yml",
+    "runners": ["scripts/run-upgrade-rehearsal.sh", "scripts/run-upgrade-rehearsal.ps1"],
+    "services": ["pentest-upgrade-migrate", "pentest-upgrade-candidate-web", "pentest-upgrade-rollback-web", "pentest-upgrade-verify"],
+    "success_markers": ["UPGRADE-01 automated checks passed", "ROLLBACK-01 automated checks passed", "Disposable forward-upgrade and clean-database rollback rehearsal completed."],
+    "limitation": "The disposable rehearsal uses one source tree and synthetic data; clean-VM validation still requires two preserved release artifacts, private TLS, approved devices, off-VM backup storage, and observed recovery time."
+  },
+  "summary": {
+    "controls": 8,
+    "repository_implemented_controls": 8,
+    "release_pending_controls": 8,
+    "rehearsal_services": 4
+  }
+}
