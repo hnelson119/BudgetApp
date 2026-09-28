@@ -202,4 +202,8 @@ real household data.
   rehearsal boundaries. Security test 20 and release gate 9 are implemented with candidate
   execution still pending; real Tailscale revocation, VM isolation, off-VM recovery, and sanitized
   incident-tabletop evidence remain release work.
+- The migration-readiness inventory now binds eight deployment and rollback controls to the
+  maintained policy, runbook, and four-service Linux rehearsal. Release gate 10 is implemented,
+  not verified; two preserved release artifacts, clean-VM execution, private-device smoke testing,
+  off-VM recovery, and observed recovery time remain release-candidate work.
 - No complete release-candidate penetration-test pass is claimed yet.

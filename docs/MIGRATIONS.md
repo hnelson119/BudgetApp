@@ -19,3 +19,6 @@
   a verified pre-upgrade snapshot restored to a new target, never an in-place reverse migration.
 - Follow `docs/UPGRADE_AND_ROLLBACK.md` for release staging, cutover, abort criteria, and the
   disposable forward-upgrade/clean-database rollback rehearsal.
+- Maintain `docs/migration-readiness.json` as the repository control inventory. Its checker pins
+  the policy, runbook, isolated rehearsal, least-privilege services, release-gate status, and the
+  clean-VM observations that must remain pending until a selected release candidate is exercised.
