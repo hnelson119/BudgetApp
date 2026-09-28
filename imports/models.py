@@ -92,7 +92,7 @@ class ImportRow(models.Model):
         null=True,
         blank=True,
     )
-    fingerprint = models.CharField(max_length=64, blank=True)
+    fingerprint = models.CharField(max_length=71, blank=True)
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.STAGED)
     rejection_reason = models.CharField(max_length=200, blank=True)
     journal_entry = models.OneToOneField(
