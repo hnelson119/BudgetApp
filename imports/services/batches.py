@@ -120,13 +120,13 @@ def _expense_amount(value: str, expense_sign: str) -> Decimal:
     return abs(signed)
 
 
-def _fingerprint(
+def _fingerprints(
     *,
     account: FinancialAccount,
     effective_date: date,
     amount: Decimal,
     description: str,
-) -> str:
+) -> tuple[str, str]:
     normalized_description = " ".join(description.split()).casefold()
     payload = "\x1f".join(
         (
@@ -136,7 +136,8 @@ def _fingerprint(
             normalized_description,
         )
     )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return f"sha256${digest}", digest
 
 
 def _existing_fingerprints(
@@ -157,15 +158,17 @@ def _existing_fingerprints(
         financial_account=account,
         side=JournalPosting.Side.CREDIT,
     ).select_related("entry")
-    return {
-        _fingerprint(
-            account=account,
-            effective_date=timezone.localtime(posting.entry.effective_at, zone).date(),
-            amount=posting.amount,
-            description=posting.entry.description,
+    fingerprints: set[str] = set()
+    for posting in postings:
+        fingerprints.update(
+            _fingerprints(
+                account=account,
+                effective_date=timezone.localtime(posting.entry.effective_at, zone).date(),
+                amount=posting.amount,
+                description=posting.entry.description,
+            )
         )
-        for posting in postings
-    }
+    return fingerprints
 
 
 def _category_lookup(household: Household) -> dict[str, Category]:
@@ -329,7 +332,7 @@ def preview_import_batch(
             category_name = row.raw_data.get(category_column, "").strip() if category_column else ""
             category = categories.get(category_name.casefold()) if category_name else None
             category = category or default_category
-            fingerprint = _fingerprint(
+            fingerprint, _ = _fingerprints(
                 account=account,
                 effective_date=effective_date,
                 amount=amount,

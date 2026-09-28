@@ -265,6 +265,11 @@ def test_csv_import_preview_commit_is_atomic_audited_and_idempotent(
     assert first_preview.category_required_count == 1
     assert first_preview.duplicate_count == 1
     assert first_preview.rejected_count == 1
+    fingerprints = list(
+        first_preview.rows.exclude(fingerprint="").values_list("fingerprint", flat=True)
+    )
+    assert fingerprints
+    assert all(value.startswith("sha256$") and len(value) == 71 for value in fingerprints)
     with pytest.raises(ValidationError, match="missing category"):
         commit_import_batch(
             batch=first_preview,
@@ -485,6 +490,10 @@ def test_preview_detects_existing_and_post_preview_duplicates(
     )
     pending = _preview(import_context, _stage(import_context, second_content))
     assert pending.ready_count == 1
+    pending_row = pending.rows.get(status=ImportRow.Status.READY)
+    assert pending_row.fingerprint.startswith("sha256$")
+    historical_fingerprint = pending_row.fingerprint.removeprefix("sha256$")
+    ImportRow.objects.filter(pk=pending_row.pk).update(fingerprint=historical_fingerprint)
     record_spending_expense(
         household=import_context.household,
         actor=import_context.user,
@@ -505,6 +514,9 @@ def test_preview_detects_existing_and_post_preview_duplicates(
     pending.refresh_from_db()
     assert pending.committed_count == 0
     assert pending.duplicate_count == 1
+    pending_row.refresh_from_db()
+    assert pending_row.fingerprint == historical_fingerprint
+    assert pending_row.status == ImportRow.Status.DUPLICATE
 
 
 @pytest.mark.django_db

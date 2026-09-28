@@ -443,7 +443,7 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
     ),
     "V1.3.3": (
         "A maintained inventory defines the exact treatment for 11 dangerous context families. "
-        "The aggregate fail-closed checker scans all 224 production Python files, including "
+        "The aggregate fail-closed checker scans all 225 production Python files, including "
         "migrations, and pins all 29 raw SQL calls to literal text: three application cursor "
         "calls and 26 fixed schema-editor migration calls. It requires nine specialized context "
         "checkers in both quality gates and exact source contracts for CSV formula encoding, "
@@ -1665,8 +1665,9 @@ PARTIAL_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "issues "
         "the new profile while preserving historical verification, and PostgreSQL enforces both "
         "exact algorithm-length pairs. An enforced agility registry now classifies all 30 direct "
-        "SHA-256 operations across 24 files. Goal-contribution and notification identities now "
-        "write marked sha256$ values while matching historical unprefixed duplicates. Four "
+        "SHA-256 operations across 24 files. Goal-contribution, notification, and import-row "
+        "identities now write marked sha256$ values while matching historical unprefixed "
+        "duplicates. Three "
         "persisted unversioned runtime formats still require profile "
         "markers plus tested compatibility, invalidation, or migration behavior, and "
         "provider-managed suite transitions require release evidence; this control therefore "
@@ -1718,6 +1719,8 @@ PARTIAL_EVIDENCE_OVERRIDES["V11.2.2"] = [
     "audit/migrations/0005_checkpoint_mac_profiles.py",
     "goals/services.py",
     "ledger/migrations/0004_expand_idempotency_profile.py",
+    "imports/services/batches.py",
+    "imports/migrations/0002_expand_row_fingerprint_profile.py",
     "notifications/services.py",
     "notifications/migrations/0002_expand_fingerprint_profile.py",
     "compose.yaml",
@@ -1729,6 +1732,7 @@ PARTIAL_EVIDENCE_OVERRIDES["V11.2.2"] = [
     "tests/test_password_hashing_policy.py",
     "tests/test_hash_function_policy.py",
     "tests/test_goals.py",
+    "tests/test_csv_imports.py",
     "tests/test_notifications.py",
 ]
 PARTIAL_EVIDENCE_OVERRIDES["V14.2.4"] = [

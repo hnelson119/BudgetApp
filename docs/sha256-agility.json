@@ -128,11 +128,11 @@
       "id": "import-row-fingerprint",
       "path": "imports/services/batches.py",
       "operations": {"hashlib.sha256": 1},
-      "artifact_class": "persisted_unversioned",
+      "artifact_class": "persisted_versioned",
       "artifact": "Canonical imported transaction row fingerprint",
-      "format_marker": "none",
-      "reader_or_verifier": "Import duplicate detection compares stored row fingerprints",
-      "replacement_boundary": "Add a profile-prefixed fingerprint and dual duplicate lookup before changing new imports"
+      "format_marker": "sha256$ prefix on current 64-character lowercase hexadecimal digests",
+      "reader_or_verifier": "Import previews write the current prefixed fingerprint while committed-ledger duplicate detection compares both current and historical unprefixed values",
+      "replacement_boundary": "Add a new approved profile prefix to preview writes and ledger-derived comparison sets before changing the writer"
     },
     {
       "id": "import-upload-checksum",
@@ -259,6 +259,6 @@
     "files": 24,
     "entries": 25,
     "operations": 30,
-    "persisted_unversioned_entries": 4
+    "persisted_unversioned_entries": 3
   }
 }

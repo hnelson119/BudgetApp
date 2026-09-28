@@ -72,7 +72,7 @@ Run:
 .\.venv\Scripts\python.exe -m pytest tests\test_managed_runtime_safety.py tests\test_debt_projections.py tests\test_credit_card_calculations.py tests\test_security_log_archive.py
 ```
 
-The checker scans all 225 production Python files and the production JavaScript asset, verifies the
+The checker scans all 226 production Python files and the production JavaScript asset, verifies the
 38 decimal and 38 integer database fields, pins the managed buffer and fixed-width operations, and
 tracks all six low-level descriptor files plus every context-managed socket and temporary file.
 This implements ASVS `v5.0.0-1.4.1`, `v5.0.0-1.4.2`, and `v5.0.0-1.4.3` for application-owned code.
