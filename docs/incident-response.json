@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "inventory_id": "budgetapp-incident-response-v1",
+  "last_reviewed": "2026-09-28",
+  "next_review_due": "2026-12-27",
+  "runbook": "docs/INCIDENT_RESPONSE.md",
+  "actions": [
+    {
+      "id": "revoke-lost-device",
+      "objective": "Remove the exact lost Tailscale device and any affected SSH or provider session before replacement enrollment.",
+      "containment": "Keep the replacement outside the tailnet until the individual identity and least-privilege role are confirmed.",
+      "evidence": ["docs/INCIDENT_RESPONSE.md", "docs/PRIVATE_INGRESS.md", "deploy/network/verify-private-ingress.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Observe revoked-device rejection and replacement-device TCP 443 access on the selected release VM without recording private addresses."
+    },
+    {
+      "id": "terminate-application-access",
+      "objective": "Revoke one account or all application sessions and reset affected password and MFA credentials through guarded console operations.",
+      "containment": "Use the narrowest scope and preserve protected audit events for every affected household.",
+      "evidence": ["docs/INCIDENT_RESPONSE.md", "identity/management/commands/revoke_user_sessions.py", "identity/management/commands/reset_user_password.py", "identity/management/commands/reset_user_mfa.py", "tests/test_identity_commands.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Prove retired cookies, password, TOTP, and recovery code fail before fresh enrollment on the selected candidate."
+    },
+    {
+      "id": "isolate-compromised-vm",
+      "objective": "Stop ingress and disconnect a suspected compromised VM from the tailnet before rebuilding from a known-good system.",
+      "containment": "Do not rotate in place after suspected root, Docker, database-administrator, backup-key, or audit-key compromise.",
+      "evidence": ["docs/INCIDENT_RESPONSE.md", "docs/PRIVATE_INGRESS.md"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Record the bounded VM and tailnet isolation procedure during the release-host tabletop."
+    },
+    {
+      "id": "preserve-logs-and-checkpoints",
+      "objective": "Preserve the incident window from the collector-only archive, host logs, and external signed audit checkpoints before destructive work.",
+      "containment": "Never create a fresh checkpoint over an unexplained audit-chain failure or delete the affected system before preservation.",
+      "evidence": ["docs/INCIDENT_RESPONSE.md", "docs/LOGGING_INVENTORY.md", "audit/checkpoints.py", "tests/test_security_log_archive.py", "tests/test_checkpoints.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Preserve a sanitized incident-window summary and verify access to the restricted raw archive and matching offline checkpoint."
+    },
+    {
+      "id": "rotate-affected-credentials",
+      "objective": "Rotate application, MFA, PostgreSQL, Restic, audit, Tailscale, SSH, and identity-provider credentials according to compromise scope.",
+      "containment": "Stage one bounded generation at a time, prove replacement access, and reject retired access before resuming ingress.",
+      "evidence": ["docs/INCIDENT_RESPONSE.md", "scripts/run-credential-rehearsal.sh", "scripts/run-restore-rehearsal.sh", "tests/test_pentest_harness.py", "tests/test_restore_rehearsal.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Exercise the applicable rotations on the selected release boundary and retain only sanitized outcomes."
+    },
+    {
+      "id": "check-compromise-indicators",
+      "objective": "Review dependency, image, host, application, database, network, and security-log indicators before selecting a recovery point.",
+      "containment": "Treat an unexplained integrity failure, unaccepted severe finding, or unexpected administrative access as release blocking.",
+      "evidence": ["docs/INCIDENT_RESPONSE.md", "docs/SECURITY_FINDINGS.md", "docs/SBOM.md", ".github/workflows/quality.yml", "scripts/secret_scan.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Review current scanner results and bounded host indicators against the incident window on a known-good device."
+    },
+    {
+      "id": "restore-known-good-backup",
+      "objective": "Select a pre-incident encrypted snapshot and restore it into a new protected target without overwriting the affected system.",
+      "containment": "Reject live or existing restore targets and preserve the affected VM for investigation.",
+      "evidence": ["docs/INCIDENT_RESPONSE.md", "docs/BACKUP_AND_RESTORE.md", "deploy/backup/restore-verify.sh", "scripts/run-restore-rehearsal.sh", "tests/test_restore_rehearsal.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Perform and time a clean off-VM restore of the selected release snapshot."
+    },
+    {
+      "id": "verify-restored-audit-chain",
+      "objective": "Verify every restored household audit chain against its matching independently signed external checkpoint.",
+      "containment": "Fail closed on chain, count, key ID, signature profile, or checkpoint mismatch.",
+      "evidence": ["docs/INCIDENT_RESPONSE.md", "audit/checkpoints.py", "deploy/pentest/verify-restored-backup.py", "tests/test_checkpoints.py", "tests/test_restore_rehearsal.py"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Record pass or failure for each restored household without retaining raw audit content."
+    },
+    {
+      "id": "reenroll-users-and-devices",
+      "objective": "Require fresh password-plus-MFA enrollment and individually approved least-privilege Tailscale devices after containment.",
+      "containment": "Do not weaken MFA, tailnet policy, host validation, or firewall rules to recover access.",
+      "evidence": ["docs/INCIDENT_RESPONSE.md", "deploy/pentest/run-credential-rehearsal.py", "tests/test_identity_commands.py", "docs/PRIVATE_INGRESS.md"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Confirm both intended members can enroll and the revoked device remains unable to connect."
+    },
+    {
+      "id": "record-incident-and-actions",
+      "objective": "Record dates, operator, release, affected credential classes, outcomes, findings, recovery time, and corrective actions without restricted values.",
+      "containment": "Keep raw logs and proof material in restricted incident storage and commit only sanitized summaries.",
+      "evidence": ["docs/INCIDENT_RESPONSE.md", "docs/RELEASE_HARDENING.md", "docs/release-evidence.json", "docs/SECURITY_FINDINGS.md"],
+      "repository_status": "implemented",
+      "release_status": "pending",
+      "release_verification": "Complete a dated sanitized record bound to the exact release candidate after the tabletop and recovery exercise."
+    }
+  ],
+  "rehearsals": [
+    {
+      "id": "credential-and-lost-device",
+      "runner": "scripts/run-credential-rehearsal.sh",
+      "evidence": ["deploy/pentest/run-credential-rehearsal.py", "tests/test_pentest_harness.py"],
+      "proves": "MFA key rotation, retired-key rejection, emergency password and MFA reset, session and recovery-code revocation, fresh enrollment, and protected audit evidence on disposable data.",
+      "limitation": "Does not revoke a real Tailscale device or rotate production host credentials."
+    },
+    {
+      "id": "encrypted-backup-recovery",
+      "runner": "scripts/run-restore-rehearsal.sh",
+      "evidence": ["deploy/backup/restore-verify.sh", "deploy/pentest/verify-restored-backup.py", "tests/test_restore_rehearsal.py"],
+      "proves": "Replacement Restic access, retired-key rejection, clean-target restoration, full fixture integrity, audit-chain verification, and signed checkpoint verification.",
+      "limitation": "Uses disposable storage rather than the real off-VM repository and selected release host."
+    },
+    {
+      "id": "private-ingress-containment",
+      "runner": "scripts/verify-private-ingress.sh",
+      "evidence": ["deploy/network/verify-private-ingress.py", "tests/test_network_boundary.py"],
+      "proves": "Exact private hostname, tagged server identity, HTTPS-only Serve configuration, Funnel rejection, deny-by-default firewall, and loopback-only application listener.",
+      "limitation": "Must run on the real VM and therefore remains release-candidate evidence."
+    }
+  ],
+  "summary": {
+    "actions": 10,
+    "repository_implemented_actions": 10,
+    "release_pending_actions": 10,
+    "rehearsals": 3
+  }
+}
