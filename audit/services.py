@@ -13,7 +13,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
-from audit.models import ZERO_HASH, AuditEvent, AuditHead
+from audit.models import LEGACY_ZERO_HASH, ZERO_HASH, AuditEvent, AuditHead
 from households.models import Household, HouseholdMembership
 from identity.models import User
 
@@ -71,9 +71,23 @@ def _normalize(value: Any, path: tuple[str, ...] = ()) -> Any:
     raise ValidationError(f"Unsupported audit value type at {'.'.join(path)}.")
 
 
-def _canonical_bytes(event: AuditEvent) -> bytes:
+_CURRENT_HASH_PROFILE = "sha256"
+_CURRENT_HASH_PREFIX = f"{_CURRENT_HASH_PROFILE}$"
+_LOWERCASE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _hash_profile(value: str) -> str | None:
+    if _LOWERCASE_SHA256.fullmatch(value):
+        return "legacy-sha256"
+    if value.startswith(_CURRENT_HASH_PREFIX) and _LOWERCASE_SHA256.fullmatch(
+        value.removeprefix(_CURRENT_HASH_PREFIX)
+    ):
+        return _CURRENT_HASH_PROFILE
+    return None
+
+
+def _canonical_bytes(event: AuditEvent, *, profile: str = _CURRENT_HASH_PROFILE) -> bytes:
     body = {
-        "version": 1,
         "sequence": event.sequence,
         "id": str(event.id),
         "household_id": str(event.household_id),
@@ -89,11 +103,19 @@ def _canonical_bytes(event: AuditEvent) -> bytes:
         "request_id": event.request_id,
         "previous_hash": event.previous_hash,
     }
+    if profile == "legacy-sha256":
+        body["version"] = 1
+    elif profile == _CURRENT_HASH_PROFILE:
+        body["version"] = 2
+        body["hash_profile"] = _CURRENT_HASH_PROFILE
+    else:
+        raise ValueError("Unsupported audit-event hash profile.")
     return json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
-def _event_hash(event: AuditEvent) -> str:
-    return hashlib.sha256(_canonical_bytes(event)).hexdigest()
+def _event_hash(event: AuditEvent, *, profile: str = _CURRENT_HASH_PROFILE) -> str:
+    digest = hashlib.sha256(_canonical_bytes(event, profile=profile)).hexdigest()
+    return digest if profile == "legacy-sha256" else f"{profile}${digest}"
 
 
 def _append_with_postgresql_function(event: AuditEvent) -> AuditEvent:
@@ -204,6 +226,16 @@ def verify_household_chain(household: Household) -> AuditIntegrityResult:
     event_count = 0
 
     for event in AuditEvent.objects.filter(household=household).order_by("sequence"):
+        profile = _hash_profile(event.event_hash)
+        if profile is None:
+            return AuditIntegrityResult(
+                valid=False,
+                event_count=event_count,
+                chain_head=expected_previous_hash,
+                failure_sequence=event.sequence,
+            )
+        if expected_sequence == 1:
+            expected_previous_hash = LEGACY_ZERO_HASH if profile == "legacy-sha256" else ZERO_HASH
         if event.sequence != expected_sequence or event.previous_hash != expected_previous_hash:
             return AuditIntegrityResult(
                 valid=False,
@@ -211,7 +243,7 @@ def verify_household_chain(household: Household) -> AuditIntegrityResult:
                 chain_head=expected_previous_hash,
                 failure_sequence=event.sequence,
             )
-        if event.event_hash != _event_hash(event):
+        if event.event_hash != _event_hash(event, profile=profile):
             return AuditIntegrityResult(
                 valid=False,
                 event_count=event_count,

@@ -171,8 +171,9 @@ silently treated as opaque products.
 `docs/CRYPTOGRAPHIC_AGILITY.md` maps all 15 algorithm profiles to their selection boundary,
 persisted format, and replacement or migration path. New MFA ciphertext carries an authenticated
 `fernet-v1$` profile envelope; the guarded rotation accepts legacy unprefixed rows and rewrites the
-complete set atomically into the tagged format. V11.2.2 remains partial until the remaining
-checkpoint, digest-format, and provider-managed transition gaps in that audit are closed.
+complete set atomically into the tagged format. Audit-event hashes now carry an authenticated
+`sha256$` profile while the verifier preserves historical unprefixed chains. V11.2.2 remains
+partial until the provider-managed transition evidence in that audit is captured.
 
 ## Review procedure
 

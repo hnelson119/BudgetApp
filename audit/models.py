@@ -7,7 +7,8 @@ from django.db import models
 
 from households.models import Household
 
-ZERO_HASH = "0" * 64
+LEGACY_ZERO_HASH = "0" * 64
+ZERO_HASH = f"sha256${LEGACY_ZERO_HASH}"
 
 
 class ImmutableAuditQuerySet(models.QuerySet["AuditEvent"]):
@@ -44,7 +45,7 @@ class AuditHead(models.Model):
     )
     last_sequence = models.PositiveBigIntegerField(default=0)
     event_count = models.PositiveBigIntegerField(default=0)
-    chain_head = models.CharField(max_length=64, default=ZERO_HASH)
+    chain_head = models.CharField(max_length=71, default=ZERO_HASH)
     verified_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -72,8 +73,8 @@ class AuditEvent(models.Model):
     after_payload = models.JSONField(default=dict)
     reason = models.CharField(max_length=500, blank=True)
     request_id = models.CharField(max_length=64)
-    previous_hash = models.CharField(max_length=64)
-    event_hash = models.CharField(max_length=64)
+    previous_hash = models.CharField(max_length=71)
+    event_hash = models.CharField(max_length=71)
 
     objects = ImmutableAuditManager()
 
@@ -138,7 +139,7 @@ class AuditCheckpoint(models.Model):
     )
     last_sequence = models.PositiveBigIntegerField()
     event_count = models.PositiveBigIntegerField()
-    chain_head = models.CharField(max_length=64)
+    chain_head = models.CharField(max_length=71)
     verified_at = models.DateTimeField()
     signature_algorithm = models.CharField(max_length=32)
     signing_key_id = models.CharField(max_length=64)

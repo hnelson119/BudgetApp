@@ -3444,7 +3444,7 @@
       "description": "Verify that the application is designed with crypto agility such that random number, authenticated encryption, MAC, or hashing algorithms, key lengths, rounds, ciphers and modes can be reconfigured, upgraded, or swapped at any time, to protect against cryptographic breaks. Similarly, it must also be possible to replace keys and passwords and re-encrypt data. This will allow for seamless upgrades to post-quantum cryptography (PQC), once high-assurance implementations of approved PQC schemes or standards are widely available.",
       "applicability": "applicable",
       "status": "partial",
-      "assessment": "All 16 inventoried cryptographic profiles have an explicit replacement or migration analysis. MFA ciphertext has a backward-compatible authenticated profile envelope, and the atomic key-rotation path migrates legacy unprefixed rows. Password hashes, Restic records, certificates, TOTP enrollment, and invalidated Django signatures have identified transition semantics. A fail-closed HMAC-SHA256/HMAC-SHA512 checkpoint registry now issues the new profile while preserving historical verification, and PostgreSQL enforces both exact algorithm-length pairs. An enforced agility registry now classifies all 31 direct SHA-256 operations across 25 files. Goal-contribution, notification, import-row, upload-checksum, and backup-schema writers now use explicit profile markers while matching historical unprefixed values or tags. One persisted unversioned runtime format still requires a profile marker plus tested compatibility, invalidation, or migration behavior, and provider-managed suite transitions require release evidence; this control therefore remains partial.",
+      "assessment": "All 16 inventoried cryptographic profiles have an explicit replacement or migration analysis. MFA ciphertext has a backward-compatible authenticated profile envelope, and the atomic key-rotation path migrates legacy unprefixed rows. Password hashes, Restic records, certificates, TOTP enrollment, and invalidated Django signatures have identified transition semantics. A fail-closed HMAC-SHA256/HMAC-SHA512 checkpoint registry now issues the new profile while preserving historical verification, and PostgreSQL enforces both exact algorithm-length pairs. An enforced agility registry now classifies all 31 direct SHA-256 operations across 25 files. Goal-contribution, notification, import-row, upload-checksum, backup-schema, and audit-chain writers now use explicit profile markers while matching historical unprefixed values or tags. No persisted unversioned SHA-256 formats remain. Provider-managed suite transitions require release evidence; this control therefore remains partial.",
       "evidence": [
         "docs/CRYPTOGRAPHIC_AGILITY.md",
         "docs/cryptographic-inventory.json",
@@ -3453,6 +3453,8 @@
         "identity/management/commands/rotate_mfa_encryption_key.py",
         "audit/checkpoints.py",
         "audit/migrations/0005_checkpoint_mac_profiles.py",
+        "audit/services.py",
+        "audit/migrations/0006_audit_event_hash_profiles.py",
         "goals/services.py",
         "ledger/migrations/0004_expand_idempotency_profile.py",
         "imports/services/batches.py",

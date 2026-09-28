@@ -67,7 +67,7 @@ def test_sha256_agility_registry_exhaustively_classifies_discovered_operations()
         "files": 25,
         "entries": 26,
         "operations": 31,
-        "persisted_unversioned_entries": 1,
+        "persisted_unversioned_entries": 0,
     }
     assert sum(sum(operations.values()) for operations in EXPECTED_SHA256_OPERATIONS.values()) == 31
 
@@ -76,15 +76,13 @@ def test_sha256_agility_registry_exhaustively_classifies_discovered_operations()
     with pytest.raises(ValueError, match="SHA-256 agility coverage changed"):
         validate_sha256_agility_registry(missing_entry, today=date(2026, 9, 27))
 
-    false_version_marker = copy.deepcopy(registry)
-    unversioned = next(
-        item
-        for item in false_version_marker["entries"]
-        if item["artifact_class"] == "persisted_unversioned"
+    missing_version_marker = copy.deepcopy(registry)
+    versioned = next(
+        item for item in missing_version_marker["entries"] if item["id"] == "audit-event-chain"
     )
-    unversioned["format_marker"] = "implicit"
-    with pytest.raises(ValueError, match="persisted unversioned SHA-256 artifact has a marker"):
-        validate_sha256_agility_registry(false_version_marker, today=date(2026, 9, 27))
+    versioned["format_marker"] = "none"
+    with pytest.raises(ValueError, match="persisted versioned SHA-256 artifact lacks a marker"):
+        validate_sha256_agility_registry(missing_version_marker, today=date(2026, 9, 27))
 
     changed_classification = copy.deepcopy(registry)
     changed_classification["entries"][3]["artifact_class"] = "verification_only"

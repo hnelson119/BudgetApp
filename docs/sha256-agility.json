@@ -18,11 +18,11 @@
       "id": "audit-event-chain",
       "path": "audit/services.py",
       "operations": {"hashlib.sha256": 1},
-      "artifact_class": "persisted_unversioned",
+      "artifact_class": "persisted_versioned",
       "artifact": "Per-household append-only audit-event chain hashes",
-      "format_marker": "none",
-      "reader_or_verifier": "verify_household_chain recomputes the fixed canonical SHA-256 chain",
-      "replacement_boundary": "Add an authenticated hash-profile marker and dual-profile chain verification before changing the writer; never rewrite historical events silently"
+      "format_marker": "Authenticated canonical-body version 2, hash_profile field, and sha256$ stored-value prefix",
+      "reader_or_verifier": "verify_household_chain dispatches version-1 historical raw hashes and version-2 sha256$ hashes",
+      "replacement_boundary": "Add a new authenticated canonical-body profile and stored-value prefix while retaining exact historical profile verification; never rewrite historical events silently"
     },
     {
       "id": "variable-budget-concurrency-token",
@@ -269,6 +269,6 @@
     "files": 25,
     "entries": 26,
     "operations": 31,
-    "persisted_unversioned_entries": 1
+    "persisted_unversioned_entries": 0
   }
 }
