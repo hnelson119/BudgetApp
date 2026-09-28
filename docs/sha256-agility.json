@@ -138,11 +138,11 @@
       "id": "import-upload-checksum",
       "path": "imports/services/parsing.py",
       "operations": {"hashlib.sha256": 1},
-      "artifact_class": "persisted_unversioned",
+      "artifact_class": "persisted_versioned",
       "artifact": "Imported CSV upload checksum recorded with the import batch",
-      "format_marker": "none",
-      "reader_or_verifier": "Import batch records and audit output retain the complete upload checksum",
-      "replacement_boundary": "Add an algorithm/profile field and retain historical checksum display before changing the writer"
+      "format_marker": "sha256$ prefix on current 64-character lowercase hexadecimal digests",
+      "reader_or_verifier": "Same-file detection compares the current prefixed checksum and historical unprefixed digest while existing batch display remains unchanged",
+      "replacement_boundary": "Add a new approved profile to parser output and same-file lookup before changing the writer"
     },
     {
       "id": "notification-identity",
@@ -259,6 +259,6 @@
     "files": 24,
     "entries": 25,
     "operations": 30,
-    "persisted_unversioned_entries": 3
+    "persisted_unversioned_entries": 2
   }
 }

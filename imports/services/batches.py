@@ -218,7 +218,7 @@ def stage_csv_import(
         ImportBatch.objects.filter(
             household=household,
             target_account=target_account,
-            file_checksum=parsed.checksum,
+            file_checksum__in=(parsed.checksum, parsed.historical_checksum),
         )
         .exclude(status=ImportBatch.Status.ABANDONED)
         .first()
@@ -233,7 +233,7 @@ def stage_csv_import(
             ImportBatch.objects.filter(
                 household=household,
                 target_account=target_account,
-                file_checksum=parsed.checksum,
+                file_checksum__in=(parsed.checksum, parsed.historical_checksum),
             )
             .exclude(status=ImportBatch.Status.ABANDONED)
             .first()

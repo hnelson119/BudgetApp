@@ -311,7 +311,7 @@
       "description": "Verify that data being passed to a potentially dangerous context is sanitized beforehand to enforce safety measures, such as only allowing characters which are safe for this context and trimming input which is too long.",
       "applicability": "applicable",
       "status": "implemented",
-      "assessment": "A maintained inventory defines the exact treatment for 11 dangerous context families. The aggregate fail-closed checker scans all 225 production Python files, including migrations, and pins all 29 raw SQL calls to literal text: three application cursor calls and 26 fixed schema-editor migration calls. It requires nine specialized context checkers in both quality gates and exact source contracts for CSV formula encoding, redirect and notification URLs, checkpoint filenames, disabled production email, and structured-log redaction.",
+      "assessment": "A maintained inventory defines the exact treatment for 11 dangerous context families. The aggregate fail-closed checker scans all 226 production Python files, including migrations, and pins all 29 raw SQL calls to literal text: three application cursor calls and 26 fixed schema-editor migration calls. It requires nine specialized context checkers in both quality gates and exact source contracts for CSV formula encoding, redirect and notification URLs, checkpoint filenames, disabled production email, and structured-log redaction.",
       "evidence": [
         "docs/CONTEXT_SANITIZATION.md",
         "docs/context-sanitization.json",
@@ -3444,7 +3444,7 @@
       "description": "Verify that the application is designed with crypto agility such that random number, authenticated encryption, MAC, or hashing algorithms, key lengths, rounds, ciphers and modes can be reconfigured, upgraded, or swapped at any time, to protect against cryptographic breaks. Similarly, it must also be possible to replace keys and passwords and re-encrypt data. This will allow for seamless upgrades to post-quantum cryptography (PQC), once high-assurance implementations of approved PQC schemes or standards are widely available.",
       "applicability": "applicable",
       "status": "partial",
-      "assessment": "All 16 inventoried cryptographic profiles have an explicit replacement or migration analysis. MFA ciphertext has a backward-compatible authenticated profile envelope, and the atomic key-rotation path migrates legacy unprefixed rows. Password hashes, Restic records, certificates, TOTP enrollment, and invalidated Django signatures have identified transition semantics. A fail-closed HMAC-SHA256/HMAC-SHA512 checkpoint registry now issues the new profile while preserving historical verification, and PostgreSQL enforces both exact algorithm-length pairs. An enforced agility registry now classifies all 30 direct SHA-256 operations across 24 files. Goal-contribution, notification, and import-row identities now write marked sha256$ values while matching historical unprefixed duplicates. Three persisted unversioned runtime formats still require profile markers plus tested compatibility, invalidation, or migration behavior, and provider-managed suite transitions require release evidence; this control therefore remains partial.",
+      "assessment": "All 16 inventoried cryptographic profiles have an explicit replacement or migration analysis. MFA ciphertext has a backward-compatible authenticated profile envelope, and the atomic key-rotation path migrates legacy unprefixed rows. Password hashes, Restic records, certificates, TOTP enrollment, and invalidated Django signatures have identified transition semantics. A fail-closed HMAC-SHA256/HMAC-SHA512 checkpoint registry now issues the new profile while preserving historical verification, and PostgreSQL enforces both exact algorithm-length pairs. An enforced agility registry now classifies all 30 direct SHA-256 operations across 24 files. Goal-contribution, notification, import-row, and upload-checksum writers now use marked sha256$ values while matching historical unprefixed values. Two persisted unversioned runtime formats still require profile markers plus tested compatibility, invalidation, or migration behavior, and provider-managed suite transitions require release evidence; this control therefore remains partial.",
       "evidence": [
         "docs/CRYPTOGRAPHIC_AGILITY.md",
         "docs/cryptographic-inventory.json",
@@ -3457,6 +3457,8 @@
         "ledger/migrations/0004_expand_idempotency_profile.py",
         "imports/services/batches.py",
         "imports/migrations/0002_expand_row_fingerprint_profile.py",
+        "imports/services/parsing.py",
+        "imports/migrations/0003_expand_upload_checksum_profile.py",
         "notifications/services.py",
         "notifications/migrations/0002_expand_fingerprint_profile.py",
         "compose.yaml",

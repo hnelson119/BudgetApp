@@ -297,9 +297,8 @@ def test_csv_import_preview_commit_is_atomic_audited_and_idempotent(
     assert preview.committed_count == 2
     assert preview.raw_deleted_at is not None
     assert all(row.raw_data == {} for row in preview.rows.all())
-    assert AuditEvent.objects.filter(
-        action="import.batch_uploaded", entity_id=str(batch.pk)
-    ).exists()
+    uploaded_event = AuditEvent.objects.get(action="import.batch_uploaded", entity_id=str(batch.pk))
+    assert uploaded_event.after_payload["file_checksum"] == preview.file_checksum
     assert (
         AuditEvent.objects.filter(action="import.batch_previewed", entity_id=str(batch.pk)).count()
         == 2
@@ -318,9 +317,14 @@ def test_csv_import_preview_commit_is_atomic_audited_and_idempotent(
     assert len(replay.entries) == 2
     assert JournalEntry.objects.filter(provenance=JournalEntry.Provenance.IMPORTED).count() == 2
 
+    assert preview.file_checksum.startswith("sha256$")
+    assert len(preview.file_checksum) == 71
+    historical_checksum = preview.file_checksum.removeprefix("sha256$")
+    ImportBatch.objects.filter(pk=preview.pk).update(file_checksum=historical_checksum)
     same_file = _stage(import_context, content, token=uuid.uuid4())
     same_submission = _stage(import_context, b"ignored", token=token)
     assert same_file.pk == preview.pk
+    assert same_file.file_checksum == historical_checksum
     assert same_submission.pk == preview.pk
 
 
