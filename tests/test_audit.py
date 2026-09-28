@@ -1,13 +1,15 @@
 from datetime import datetime
 from decimal import Decimal
+from importlib import import_module
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
+from django.utils import timezone
 
-from audit.models import AuditEvent
-from audit.services import append_event, verify_household_chain
+from audit.models import LEGACY_ZERO_HASH, ZERO_HASH, AuditEvent, AuditHead
+from audit.services import _event_hash, append_event, verify_household_chain
 from households.models import Household, HouseholdMembership
 
 TEST_PASSWORD = "correct-horse-battery-test"  # pragma: allowlist secret
@@ -52,7 +54,8 @@ def test_events_are_canonical_hash_chained_and_verifiable(household_and_user) ->
     assert first.after_payload == {"amount": "12.30", "enabled": True}
     assert second.sequence == 2
     assert second.previous_hash == first.event_hash
-    assert len(second.event_hash) == 64
+    assert second.event_hash.startswith("sha256$")
+    assert len(second.event_hash) == 71
 
     result = verify_household_chain(household)
     assert result.valid is True
@@ -186,6 +189,77 @@ def test_empty_household_chain_is_valid() -> None:
 
     assert result.valid is True
     assert result.event_count == 0
+    assert result.chain_head == ZERO_HASH
+
+
+@pytest.mark.django_db
+def test_legacy_chain_remains_verifiable_and_transitions_to_current_profile(
+    household_and_user,
+) -> None:  # type: ignore[no-untyped-def]
+    household, user = household_and_user
+    legacy_event = AuditEvent(
+        sequence=1,
+        household=household,
+        actor=user,
+        occurred_at=timezone.now(),
+        household_timezone=household.time_zone,
+        action="audit.legacy_event",
+        entity_type="audit.test",
+        entity_id="legacy-event",
+        before_payload={},
+        after_payload={"historical": True},
+        reason="",
+        request_id="request-audit-legacy",
+        previous_hash=LEGACY_ZERO_HASH,
+        event_hash=LEGACY_ZERO_HASH,
+    )
+    legacy_event.event_hash = _event_hash(legacy_event, profile="legacy-sha256")
+    legacy_event._append_authorized = True  # type: ignore[attr-defined]
+    legacy_event.save()
+    AuditHead.objects.create(
+        household=household,
+        last_sequence=1,
+        event_count=1,
+        chain_head=legacy_event.event_hash,
+    )
+
+    legacy_result = verify_household_chain(household)
+    assert legacy_result.valid is True
+    current_event = append_event(
+        household=household,
+        actor=user,
+        action="audit.current_event",
+        entity_type="audit.test",
+        entity_id="current-event",
+        request_id="request-audit-current",
+    )
+
+    assert current_event.previous_hash == legacy_event.event_hash
+    assert current_event.event_hash.startswith("sha256$")
+    assert verify_household_chain(household).valid is True
+
+
+@pytest.mark.django_db
+def test_audit_chain_rejects_unknown_hash_profile(household_and_user) -> None:  # type: ignore[no-untyped-def]
+    household, user = household_and_user
+    event = append_event(
+        household=household,
+        actor=user,
+        action="audit.profile_test",
+        entity_type="audit.test",
+        entity_id="profile-test",
+        request_id="request-audit-profile",
+    )
+    table_name = connection.ops.quote_name(AuditEvent._meta.db_table)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"UPDATE {table_name} SET event_hash = %s WHERE id = %s",
+            ["sha512$" + "0" * 64, event.pk.hex],
+        )
+
+    result = verify_household_chain(household)
+    assert result.valid is False
+    assert result.failure_sequence == 1
 
 
 @pytest.mark.django_db
@@ -291,3 +365,12 @@ def test_audit_chain_detects_head_tampering(household_and_user) -> None:  # type
     head_result = verify_household_chain(household)
     assert head_result.valid is False
     assert head_result.failure_sequence == 2
+
+
+def test_postgresql_hash_profile_migration_enforces_current_writes() -> None:
+    migration = import_module("audit.migrations.0006_audit_event_hash_profiles")
+
+    assert r"^sha256\$[0-9a-f]{64}$" in migration.CURRENT_FUNCTION_SQL
+    assert r"^(sha256\$[0-9a-f]{64}|[0-9a-f]{64})$" in migration.CURRENT_FUNCTION_SQL
+    assert "sha256$" + "0" * 64 in migration.CURRENT_FUNCTION_SQL
+    assert r"^sha256\$[0-9a-f]{64}$" not in migration.LEGACY_FUNCTION_SQL

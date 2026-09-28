@@ -1666,12 +1666,10 @@ PARTIAL_ASSESSMENT_OVERRIDES: dict[str, str] = {
         "the new profile while preserving historical verification, and PostgreSQL enforces both "
         "exact algorithm-length pairs. An enforced agility registry now classifies all 31 direct "
         "SHA-256 operations across 25 files. Goal-contribution, notification, import-row, "
-        "upload-checksum, and backup-schema writers now use explicit profile markers while "
-        "matching historical unprefixed values or tags. One persisted unversioned runtime format "
-        "still requires a profile marker plus tested compatibility, invalidation, or migration "
-        "behavior, and "
-        "provider-managed suite transitions require release evidence; this control therefore "
-        "remains partial."
+        "upload-checksum, backup-schema, and audit-chain writers now use explicit profile markers "
+        "while matching historical unprefixed values or tags. No persisted unversioned SHA-256 "
+        "formats remain. Provider-managed suite transitions require release evidence; this "
+        "control therefore remains partial."
     ),
     "V14.2.4": (
         "The repository gate enforces protection-level ranks and independent dataset and model "
@@ -1717,6 +1715,8 @@ PARTIAL_EVIDENCE_OVERRIDES["V11.2.2"] = [
     "identity/management/commands/rotate_mfa_encryption_key.py",
     "audit/checkpoints.py",
     "audit/migrations/0005_checkpoint_mac_profiles.py",
+    "audit/services.py",
+    "audit/migrations/0006_audit_event_hash_profiles.py",
     "goals/services.py",
     "ledger/migrations/0004_expand_idempotency_profile.py",
     "imports/services/batches.py",

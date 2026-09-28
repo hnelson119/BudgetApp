@@ -96,7 +96,7 @@ SHA256_ARTIFACT_CLASSES = {
 }
 EXPECTED_SHA256_ENTRY_CLASSES = {
     "historical-checkpoint-mac": ("audit/checkpoints.py", "persisted_versioned"),
-    "audit-event-chain": ("audit/services.py", "persisted_unversioned"),
+    "audit-event-chain": ("audit/services.py", "persisted_versioned"),
     "variable-budget-concurrency-token": ("budgets/views.py", "bounded_lifetime"),
     "mortgage-preview-fingerprint": ("debts/services/mortgages.py", "bounded_lifetime"),
     "release-csv-integrity": ("deploy/pentest/run-csv-security.py", "verification_only"),
@@ -230,7 +230,7 @@ EXPECTED_SOURCE_ASSERTIONS = {
         "docs/sha256-agility.json",
         (
             '"registry_id": "household-budget-sha256-agility-v1"',
-            '"persisted_unversioned_entries": 1',
+            '"persisted_unversioned_entries": 0',
         ),
     ),
     "test-only-md5": (

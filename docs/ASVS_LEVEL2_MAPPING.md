@@ -308,8 +308,8 @@ all 38 direct hash and signing operations across 28 Python, JavaScript, and shel
 dynamic or unapproved selections, and verifies the pinned Django SHA-256 signing, token, and PBKDF2
 defaults. SHA-1 is limited to six exact compatibility operations for RFC 6238 TOTP and the local
 breached-password corpus; MD5 remains test-only. The linked agility registry classifies all 31
-direct SHA-256 operations and identifies one persisted unversioned format. Goal-contribution,
-notification, import-row, upload-checksum, and backup-schema writers retain historical reads.
+direct SHA-256 operations with no persisted unversioned formats. Goal-contribution, notification,
+import-row, upload-checksum, backup-schema, and audit-chain writers retain historical reads.
 See `docs/HASH_FUNCTION_POLICY.md`, `docs/hash-function-policy.json`, and
 `docs/sha256-agility.json`. The same inventory implements `v5.0.0-11.4.3`: every signature,
 data-authentication, and data-integrity use selects SHA-256 or SHA-512 with at least 256 output

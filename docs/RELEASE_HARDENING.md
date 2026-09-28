@@ -119,9 +119,9 @@ real household data.
   fails closed on new, dynamic, or unapproved selections. SHA-256 is the application default,
   SHA-512 is approved for npm artifact integrity, six SHA-1 operations are bounded to TOTP and the
   offline breached-password corpus, and MD5 remains isolated to synthetic unit tests. Its agility
-  registry classifies all 31 direct SHA-256 operations. Goal-contribution, notification,
-  import-row, upload-checksum, and backup-schema values now have marked writers and historical read
-  paths; one persisted unversioned format still requires runtime transition work.
+  registry classifies all 31 direct SHA-256 operations with no persisted unversioned formats.
+  Goal-contribution, notification, import-row, upload-checksum, backup-schema, and audit-chain
+  values now have marked writers and historical read paths.
 - The resource-demand inventory documents seven expensive workflow families, five explicit
   response-time boundaries, and twelve pinned implementation contracts. The application-worker
   timeout is explicit and remains shorter than the ingress upstream-read timeout. Four long-running

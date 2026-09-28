@@ -121,6 +121,12 @@
       "parameterization": "module-level fixed literal migration SQL with no untrusted data"
     },
     {
+      "path": "audit/migrations/0006_audit_event_hash_profiles.py",
+      "operation": "schema_editor.execute",
+      "count": 12,
+      "parameterization": "module-level fixed literal migration SQL with no untrusted data"
+    },
+    {
       "path": "audit/services.py",
       "operation": "cursor.execute",
       "count": 1,
@@ -232,7 +238,7 @@
   ],
   "summary": {
     "contexts": 11,
-    "sql_calls": 29,
+    "sql_calls": 41,
     "required_boundary_checks": 9,
     "source_assertions": 6
   }
