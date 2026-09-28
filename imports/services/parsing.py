@@ -20,6 +20,7 @@ class ParsedCSVRow:
 class ParsedCSV:
     filename: str
     checksum: str
+    historical_checksum: str
     headers: tuple[str, ...]
     rows: tuple[ParsedCSVRow, ...]
 
@@ -99,9 +100,11 @@ def parse_csv_upload(upload: UploadedFile) -> ParsedCSV:
 
     if not rows:
         raise ValidationError("The CSV file does not contain any transaction rows.")
+    digest = hashlib.sha256(payload).hexdigest()
     return ParsedCSV(
         filename=filename,
-        checksum=hashlib.sha256(payload).hexdigest(),
+        checksum=f"sha256${digest}",
+        historical_checksum=digest,
         headers=headers,
         rows=tuple(rows),
     )

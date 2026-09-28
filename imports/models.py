@@ -34,7 +34,7 @@ class ImportBatch(models.Model):
         related_name="import_batches",
     )
     original_filename = models.CharField(max_length=255)
-    file_checksum = models.CharField(max_length=64)
+    file_checksum = models.CharField(max_length=71)
     submission_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     confirmation_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.UPLOADED)
