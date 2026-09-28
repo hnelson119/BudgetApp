@@ -9,6 +9,9 @@ container group. Keep the recovery copy and retired audit-verification keys outs
 The disposable rehearsal in this repository is supporting development evidence. A release pass
 still requires the selected release candidate, real VM, Tailscale administrator, two household
 devices, timed observations, and a sanitized record in `docs/release-evidence.json`.
+`docs/incident-response.json` maps every required response action to its repository evidence and
+remaining release observation. `scripts/check_incident_response.py` validates that inventory,
+the fixed runbook commands, the three rehearsal boundaries, and the M10 release-evidence status.
 
 ## 1. Decide scope before changing anything
 

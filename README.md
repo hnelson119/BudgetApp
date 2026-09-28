@@ -271,6 +271,9 @@ unfinished imports cannot retain raw statement cells indefinitely.
 Lost-device containment, protected password/MFA recovery, and staged application, database,
 Restic, audit, Tailscale, and SSH credential rotation are documented in
 [`docs/INCIDENT_RESPONSE.md`](docs/INCIDENT_RESPONSE.md).
+Its machine-enforced action inventory keeps all ten required response steps, three bounded
+rehearsals, and their remaining release-host observations explicit without treating readiness as
+a completed incident exercise.
 Release staging, backward-compatible application rollback, and clean-database recovery are in
 [`docs/UPGRADE_AND_ROLLBACK.md`](docs/UPGRADE_AND_ROLLBACK.md).
 
@@ -288,6 +291,7 @@ python scripts/secret_scan.py
 python scripts/check_cryptographic_inventory.py
 python scripts/check_logging_inventory.py
 python scripts/check_sbom.py
+python scripts/check_incident_response.py
 python scripts/check_release_evidence.py
 python scripts/check_device_test_evidence.py
 python scripts/check_adversarial_test_evidence.py
@@ -334,5 +338,6 @@ automatically.
 13. [`docs/POSTGRES_TLS.md`](docs/POSTGRES_TLS.md) — internal database TLS trust, generation, validation, and rotation
 14. [`docs/LOGGING_INVENTORY.md`](docs/LOGGING_INVENTORY.md) — maintained event, destination, access, retention, and sensitive-data inventory
 15. [`docs/SBOM.md`](docs/SBOM.md) — maintained CycloneDX inventory, approved repositories, and release retention procedure
+16. [`docs/INCIDENT_RESPONSE.md`](docs/INCIDENT_RESPONSE.md) — incident containment, credential rotation, recovery, and sanitized evidence procedure
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.

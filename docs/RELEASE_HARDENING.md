@@ -1,7 +1,7 @@
 # Release hardening and evidence
 
 Status: Milestone 10 baseline in progress  
-Last updated: 2026-09-20
+Last updated: 2026-09-28
 
 ## Purpose
 
@@ -197,4 +197,9 @@ real household data.
   restored database where candidate schema is absent. The real off-VM release-candidate restore,
   timed recovery observation, Tailscale device revocation, full host credential rotation, and
   clean-VM upgrade/rollback validation with two preserved release artifacts remain pending.
+- The incident-response inventory now binds all ten required containment, preservation, rotation,
+  recovery, re-enrollment, and recording actions to the maintained runbook and three repeatable
+  rehearsal boundaries. Security test 20 and release gate 9 are implemented with candidate
+  execution still pending; real Tailscale revocation, VM isolation, off-VM recovery, and sanitized
+  incident-tabletop evidence remain release work.
 - No complete release-candidate penetration-test pass is claimed yet.
