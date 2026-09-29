@@ -84,6 +84,9 @@ try {
     & $pythonPath scripts\check_product_criteria.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $pythonPath scripts\check_http_exposure_boundary.py
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     & $pythonPath scripts\check_anti_automation_policy.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
