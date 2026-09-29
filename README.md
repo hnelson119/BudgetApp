@@ -288,6 +288,9 @@ inspection pending.
 The CSRF inventory derives every state-changing application route from source, binds all of them to
 four real-HTTP attack variants, rejects unprotected POST forms, and regression-tests every generated
 Django admin mutation shape without claiming the release run.
+The object-authorization inventory derives every UUID-bearing route and supported method from
+source, requires two-way foreign-versus-missing probes for each operation, and separately covers
+nested parent-child and same-household recipient boundaries without claiming the release run.
 
 ## Quality commands
 
@@ -309,6 +312,7 @@ python scripts/check_product_criteria.py
 python scripts/check_http_exposure_boundary.py
 python scripts/check_session_browser_boundary.py
 python scripts/check_csrf_boundary.py
+python scripts/check_object_authorization_boundary.py
 python scripts/check_release_evidence.py
 python scripts/check_device_test_evidence.py
 python scripts/check_adversarial_test_evidence.py
@@ -361,5 +365,6 @@ automatically.
 19. [`docs/http-exposure-boundary.json`](docs/http-exposure-boundary.json) — private HTTP and HTTPS exposure control inventory
 20. [`docs/session-browser-boundary.json`](docs/session-browser-boundary.json) — session-cookie and browser-state control inventory
 21. [`docs/csrf-boundary.json`](docs/csrf-boundary.json) — exhaustive state-changing route and CSRF attack inventory
+22. [`docs/object-authorization-boundary.json`](docs/object-authorization-boundary.json) — exhaustive identifier route, method, relationship, and recipient-isolation inventory
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.

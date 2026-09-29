@@ -221,4 +221,9 @@ real household data.
   cross-session, and unsafe-origin checks. A CSRF-enforcing regression also covers every generated
   Django admin mutation shape. Security test 5 is implemented, not verified; the release-candidate
   adversarial run and log review remain pending.
+- The object-authorization inventory now derives all 38 UUID-bearing routes and 66 supported route
+  operations, fixes 28 mutation operations that previously had only GET coverage, and binds 72
+  route and nested-relationship operations to 146 two-way household and recipient checks. Security
+  test 6 is implemented, not verified; the release-candidate adversarial run, identifier-entry-point
+  review, and authorization-log review remain pending.
 - No complete release-candidate penetration-test pass is claimed yet.

@@ -25,6 +25,10 @@ does not replace the tester's review of logs, errors, route coverage, or registe
 it to the four `AUTHZ-04` attacks. Generated Django admin add, change, delete, password-change,
 bulk-action, and logout mutations have a separate CSRF-enforcing regression test. The inventory
 checker keeps repository implementation separate from the pending release-candidate adversarial run.
+`docs/object-authorization-boundary.json` derives every UUID-bearing application route and its
+supported GET and POST operations from source. Its checker binds those operations to the two-way
+foreign-versus-missing `AUTHZ-01` probe, nested relationship variants, same-household recipient
+isolation, and protected-count invariants while keeping the release-candidate review pending.
 
 The equally guarded `scripts/run-session-security.ps1` and `scripts/run-session-security.sh`
 helpers supply real-HTTP, browser, and controlled server-side boundary observations for implemented

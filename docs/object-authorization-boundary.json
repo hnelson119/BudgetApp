@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "inventory_id": "budgetapp-object-authorization-boundary-v1",
+  "last_reviewed": "2026-09-29",
+  "next_review_due": "2026-12-28",
+  "security_test_id": 6,
+  "controls": [
+    {
+      "id": "exhaustive-identifier-route-inventory",
+      "objective": "Discover every named application route containing a UUID identifier and require a real-HTTP probe for every supported GET and POST operation.",
+      "evidence": ["scripts/check_object_authorization_boundary.py", "docs/authorization-policy.json", "deploy/pentest/run-authz-csrf.py"],
+      "test_refs": ["tests/test_object_authorization_boundary.py::test_object_authorization_inventory_is_complete_and_gate_wired"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "two-way-household-isolation",
+      "objective": "Probe every identifier operation as a primary-household member against isolation-household records and in the reverse direction.",
+      "evidence": ["deploy/pentest/run-authz-csrf.py", "scripts/run-authz-csrf.sh", "scripts/run-authz-csrf.ps1"],
+      "test_refs": ["tests/test_pentest_harness.py::test_authz_probe_covers_every_identifier_route_and_method"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "foreign-and-missing-indistinguishability",
+      "objective": "Require foreign and nonexistent identifiers to return identical 404 status, content type, redirect location, and response body without exposing fixture identifiers.",
+      "evidence": ["deploy/pentest/run-authz-csrf.py", "docs/ADVERSARIAL_TESTING.md#authz-01"],
+      "test_refs": ["tests/test_object_authorization_boundary.py::test_object_authorization_inventory_rejects_missing_operation_and_relationship"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "nested-relationship-isolation",
+      "objective": "Probe nested statement, goal occurrence, and goal reserve routes with an authorized parent and a foreign child in every supported method.",
+      "evidence": ["docs/object-authorization-boundary.json", "deploy/pentest/run-authz-csrf.py"],
+      "test_refs": ["tests/test_object_authorization_boundary.py::test_object_authorization_inventory_rejects_missing_operation_and_relationship"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "recipient-ownership-isolation",
+      "objective": "Reject same-household notification read and dismiss attempts by an authenticated member who is not the notification recipient.",
+      "evidence": ["notifications/services.py", "deploy/pentest/run-authz-csrf.py"],
+      "test_refs": ["tests/test_notifications.py::test_notification_state_actions_are_recipient_only_idempotent_and_audited"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "invariant-preserving-real-http-gate",
+      "objective": "Run the complete boundary through disposable real HTTP and prove every rejected attempt leaves protected model counts unchanged.",
+      "evidence": ["compose.pentest.yaml", "deploy/pentest/run-authz-csrf.py", "scripts/run-authz-csrf.sh", "scripts/run-authz-csrf.ps1"],
+      "test_refs": ["tests/test_pentest_harness.py::test_pentest_compose_isolated_from_normal_data_and_networks"],
+      "repository_status": "implemented"
+    }
+  ],
+  "identifier_routes": [
+    {"id": "audit:detail", "template": "/audit/{audit_event_id}/", "methods": ["GET"]},
+    {"id": "budgets:detail", "template": "/budget/{pay_period_id}/", "methods": ["GET"]},
+    {"id": "budgets:variable-create", "template": "/budget/{pay_period_id}/variable/add/", "methods": ["GET", "POST"]},
+    {"id": "budgets:variable-edit", "template": "/budget/variable/{variable_budget_id}/edit/", "methods": ["GET", "POST"]},
+    {"id": "budgets:variable-delete", "template": "/budget/variable/{variable_budget_id}/delete/", "methods": ["GET", "POST"]},
+    {"id": "budgets:category-create", "template": "/budget/{pay_period_id}/categories/add/", "methods": ["GET", "POST"]},
+    {"id": "budgets:fixed-create", "template": "/budget/{pay_period_id}/fixed-expenses/add/", "methods": ["GET", "POST"]},
+    {"id": "budgets:occurrence-edit", "template": "/budget/occurrence/{occurrence_id}/edit/", "methods": ["GET", "POST"]},
+    {"id": "budgets:occurrence-move", "template": "/budget/occurrence/{occurrence_id}/move/", "methods": ["GET", "POST"]},
+    {"id": "budgets:occurrence-cancel", "template": "/budget/occurrence/{occurrence_id}/cancel/", "methods": ["GET", "POST"]},
+    {"id": "budgets:occurrence-reconcile", "template": "/budget/occurrence/{occurrence_id}/reconcile/", "methods": ["GET", "POST"]},
+    {"id": "budgets:reserve-allocate", "template": "/budget/{pay_period_id}/reserve/allocate/", "methods": ["GET", "POST"]},
+    {"id": "debts:detail", "template": "/debts/{debt_id}/", "methods": ["GET"]},
+    {"id": "debts:edit", "template": "/debts/{debt_id}/edit/", "methods": ["GET", "POST"]},
+    {"id": "debts:terms-create", "template": "/debts/{debt_id}/terms/add/", "methods": ["GET", "POST"]},
+    {"id": "debts:mortgage-plan-create", "template": "/debts/{debt_id}/mortgage-plan/add/", "methods": ["GET", "POST"]},
+    {"id": "debts:mortgage-plan-revise", "template": "/debts/{debt_id}/mortgage-plan/revise/", "methods": ["GET", "POST"]},
+    {"id": "debts:mortgage-extra-principal", "template": "/debts/mortgage-occurrence/{occurrence_id}/extra-principal/", "methods": ["GET", "POST"]},
+    {"id": "debts:statement-create", "template": "/debts/{debt_id}/statements/add/", "methods": ["GET", "POST"]},
+    {"id": "debts:statement-correct", "template": "/debts/{debt_id}/statements/{debt_statement_id}/correct/", "methods": ["GET", "POST"]},
+    {"id": "debts:status", "template": "/debts/{debt_id}/status/archive/", "methods": ["GET", "POST"]},
+    {"id": "goals:priority-allocate", "template": "/goals/priority-allocation/{pay_period_id}/", "methods": ["GET", "POST"]},
+    {"id": "goals:detail", "template": "/goals/{goal_id}/", "methods": ["GET"]},
+    {"id": "goals:revise", "template": "/goals/{goal_id}/revise/", "methods": ["GET", "POST"]},
+    {"id": "goals:status", "template": "/goals/{goal_id}/status/paused/", "methods": ["GET", "POST"]},
+    {"id": "goals:contribute", "template": "/goals/{goal_id}/contribute/", "methods": ["GET", "POST"]},
+    {"id": "goals:occurrence-contribute", "template": "/goals/{goal_id}/occurrence/{occurrence_id}/contribute/", "methods": ["GET", "POST"]},
+    {"id": "goals:reserve-allocate", "template": "/goals/{goal_id}/reserve/{pay_period_id}/", "methods": ["GET", "POST"]},
+    {"id": "imports:batch-map", "template": "/imports/{import_batch_id}/map/", "methods": ["GET", "POST"]},
+    {"id": "imports:batch-preview", "template": "/imports/{import_batch_id}/", "methods": ["GET"]},
+    {"id": "imports:batch-commit", "template": "/imports/{import_batch_id}/commit/", "methods": ["POST"]},
+    {"id": "imports:batch-abandon", "template": "/imports/{import_batch_id}/abandon/", "methods": ["POST"]},
+    {"id": "notifications:read", "template": "/notifications/{notification_id}/read/", "methods": ["POST"]},
+    {"id": "notifications:dismiss", "template": "/notifications/{notification_id}/dismiss/", "methods": ["POST"]},
+    {"id": "spending:card-payment-create", "template": "/spending/cards/{financial_account_id}/payments/add/", "methods": ["GET", "POST"]},
+    {"id": "spending:transaction-detail", "template": "/spending/{journal_entry_id}/", "methods": ["GET"]},
+    {"id": "spending:card-purchase-refund", "template": "/spending/{journal_entry_id}/refund/", "methods": ["GET", "POST"]},
+    {"id": "spending:transaction-reverse", "template": "/spending/{journal_entry_id}/reverse/", "methods": ["GET", "POST"]}
+  ],
+  "relationship_probes": [
+    {"id": "debt-statement-relationship", "template": "/debts/{own_debt_id}/statements/{debt_statement_id}/correct/", "foreign_keys": ["debt_statement_id"], "methods": ["GET", "POST"]},
+    {"id": "goal-occurrence-relationship", "template": "/goals/{own_goal_id}/occurrence/{occurrence_id}/contribute/", "foreign_keys": ["occurrence_id"], "methods": ["GET", "POST"]},
+    {"id": "goal-reserve-relationship", "template": "/goals/{own_goal_id}/reserve/{pay_period_id}/", "foreign_keys": ["pay_period_id"], "methods": ["GET", "POST"]}
+  ],
+  "release_boundary": {
+    "status": "pending",
+    "required_observation": "Run AUTHZ-01 against the selected release candidate, manually review every identifier entry point and authorization-denial log, and retain sanitized evidence that foreign and missing identifiers remain indistinguishable without side effects.",
+    "evidence_location": "docs/release-evidence.json"
+  },
+  "summary": {
+    "identifier_routes": 38,
+    "route_operations": 66,
+    "relationship_operations": 6,
+    "probe_operations": 72,
+    "household_direction_checks": 144,
+    "recipient_checks": 2,
+    "bounded_checks": 146,
+    "release_pending": 1
+  }
+}
