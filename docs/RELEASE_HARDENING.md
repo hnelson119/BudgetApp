@@ -216,4 +216,9 @@ real household data.
   termination, cache, real-HTTP probe, and multi-engine CI controls. The test is implemented, not
   verified; real TLS-boundary and supported-browser/device inspection remains release-candidate
   work.
+- The CSRF inventory now derives all 51 named POST-capable application routes, adds the three
+  missing identity paths to the guarded probe, and binds 52 paths to 208 missing, invalid,
+  cross-session, and unsafe-origin checks. A CSRF-enforcing regression also covers every generated
+  Django admin mutation shape. Security test 5 is implemented, not verified; the release-candidate
+  adversarial run and log review remain pending.
 - No complete release-candidate penetration-test pass is claimed yet.

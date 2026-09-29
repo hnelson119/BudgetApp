@@ -21,6 +21,10 @@ The guarded `scripts/run-authz-csrf.ps1` and `scripts/run-authz-csrf.sh` helpers
 real-HTTP and database-invariant checks for `AUTHZ-01` through `AUTHZ-04`. Their sanitized output is
 supporting evidence only: it does not create a run record, does not advance the target count, and
 does not replace the tester's review of logs, errors, route coverage, or registered findings.
+`docs/csrf-boundary.json` derives every named POST-capable application route from source and binds
+it to the four `AUTHZ-04` attacks. Generated Django admin add, change, delete, password-change,
+bulk-action, and logout mutations have a separate CSRF-enforcing regression test. The inventory
+checker keeps repository implementation separate from the pending release-candidate adversarial run.
 
 The equally guarded `scripts/run-session-security.ps1` and `scripts/run-session-security.sh`
 helpers supply real-HTTP, browser, and controlled server-side boundary observations for implemented
