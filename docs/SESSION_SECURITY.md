@@ -28,6 +28,10 @@ termination responses direct the browser to clear its cache, cookies, and origin
 forms also clear supported client storage and authenticated DOM content without waiting for the
 server.
 
+`docs/session-browser-boundary.json` maps security test 4 to the exact cookie, storage, cache,
+termination, real-HTTP probe, and multi-engine CI controls. Its checker keeps repository
+implementation separate from the pending release-browser observation.
+
 Disabling an existing account synchronously removes all of its stored authenticated and pending-MFA
 sessions. Deleting an account does the same for both individual and queryset deletion paths. A
 browser that later presents one of the displaced cookies is redirected to full login and receives

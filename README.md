@@ -282,6 +282,9 @@ The product-criteria inventory maps all 39 critical acceptance criteria to concr
 and tests while preserving eight release-environment observations as pending.
 The HTTP-exposure inventory enforces the exact private origin, loopback relay, internal mTLS,
 insecure-request behavior, and release-verifier boundary without claiming the VM observation.
+The session-browser inventory enforces cookie scope and flags, non-persistent browser sessions,
+storage minimization, logout cleanup, and authenticated cache boundaries while keeping real-device
+inspection pending.
 
 ## Quality commands
 
@@ -301,6 +304,7 @@ python scripts/check_incident_response.py
 python scripts/check_migration_readiness.py
 python scripts/check_product_criteria.py
 python scripts/check_http_exposure_boundary.py
+python scripts/check_session_browser_boundary.py
 python scripts/check_release_evidence.py
 python scripts/check_device_test_evidence.py
 python scripts/check_adversarial_test_evidence.py
@@ -351,5 +355,6 @@ automatically.
 17. [`docs/migration-readiness.json`](docs/migration-readiness.json) — enforced deployment and rollback control inventory
 18. [`docs/product-criteria.json`](docs/product-criteria.json) — exhaustive critical-acceptance implementation and test mapping
 19. [`docs/http-exposure-boundary.json`](docs/http-exposure-boundary.json) — private HTTP and HTTPS exposure control inventory
+20. [`docs/session-browser-boundary.json`](docs/session-browser-boundary.json) — session-cookie and browser-state control inventory
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.
