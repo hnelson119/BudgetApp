@@ -44,7 +44,7 @@
     {"id": 24, "status": "partial", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md", "scripts/check_zap_reports.py", "scripts/check_adversarial_test_evidence.py", "docs/adversarial-test-runs/README.md"]}
   ],
   "release_gates": [
-    {"id": 1, "status": "partial", "evidence": ["PRODUCT_SPEC.md", "tests/"]},
+    {"id": 1, "status": "implemented", "evidence": ["PRODUCT_SPEC.md", "docs/product-criteria.json", "scripts/check_product_criteria.py", "tests/test_product_criteria.py", "tests/"]},
     {"id": 2, "status": "partial", "evidence": ["SECURITY_PLAN.md", "docs/release-evidence.json"]},
     {"id": 3, "status": "implemented", "evidence": ["CALCULATION_RULES.md", "tests/"]},
     {"id": 4, "status": "partial", "evidence": [".github/workflows/quality.yml", "docs/SECURITY_FINDINGS.md"]},

@@ -278,6 +278,8 @@ Release staging, backward-compatible application rollback, and clean-database re
 [`docs/UPGRADE_AND_ROLLBACK.md`](docs/UPGRADE_AND_ROLLBACK.md).
 The migration-readiness inventory keeps eight repository controls and the four-service rehearsal
 contract enforced while clean-VM execution and recovery timing remain release evidence.
+The product-criteria inventory maps all 39 critical acceptance criteria to concrete implementation
+and tests while preserving eight release-environment observations as pending.
 
 ## Quality commands
 
@@ -295,6 +297,7 @@ python scripts/check_logging_inventory.py
 python scripts/check_sbom.py
 python scripts/check_incident_response.py
 python scripts/check_migration_readiness.py
+python scripts/check_product_criteria.py
 python scripts/check_release_evidence.py
 python scripts/check_device_test_evidence.py
 python scripts/check_adversarial_test_evidence.py
@@ -343,5 +346,6 @@ automatically.
 15. [`docs/SBOM.md`](docs/SBOM.md) — maintained CycloneDX inventory, approved repositories, and release retention procedure
 16. [`docs/INCIDENT_RESPONSE.md`](docs/INCIDENT_RESPONSE.md) — incident containment, credential rotation, recovery, and sanitized evidence procedure
 17. [`docs/migration-readiness.json`](docs/migration-readiness.json) — enforced deployment and rollback control inventory
+18. [`docs/product-criteria.json`](docs/product-criteria.json) — exhaustive critical-acceptance implementation and test mapping
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.
