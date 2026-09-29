@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "inventory_id": "budgetapp-csrf-boundary-v1",
+  "last_reviewed": "2026-09-29",
+  "next_review_due": "2026-12-28",
+  "security_test_id": 5,
+  "controls": [
+    {
+      "id": "exhaustive-mutation-route-inventory",
+      "objective": "Discover every named application route whose view accepts POST and require one exact real-HTTP probe path for each route.",
+      "evidence": ["docs/authorization-policy.json", "scripts/check_csrf_boundary.py", "deploy/pentest/run-authz-csrf.py"],
+      "test_refs": [
+        "tests/test_authorization_policy.py::test_authorization_policy_accepts_complete_boundary",
+        "tests/test_csrf_boundary.py::test_csrf_inventory_is_complete_and_gate_wired"
+      ],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "middleware-and-origin-enforcement",
+      "objective": "Keep Django CSRF middleware enabled, trust only the exact production Tailscale HTTPS origin, and reject tokenless requests across every generated admin mutation shape.",
+      "evidence": ["config/settings/base.py", "config/settings/production.py", "config/urls.py", "tests/test_admin_security.py"],
+      "test_refs": [
+        "tests/test_production_settings.py::test_production_settings_pin_exact_private_ingress_and_proxy_boundary",
+        "tests/test_admin_security.py::test_admin_mutation_shapes_retain_csrf_protection"
+      ],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "same-origin-token-rendering",
+      "objective": "Render a CSRF token inside every application HTML form that submits with POST.",
+      "evidence": ["scripts/check_csrf_boundary.py", "core/templates/core/app_base.html", "identity/templates/identity/login.html"],
+      "test_refs": ["tests/test_csrf_boundary.py::test_csrf_inventory_rejects_missing_route_and_unprotected_form"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "missing-and-invalid-token-rejection",
+      "objective": "Reject missing and malformed CSRF tokens with 403 across every mutation probe path.",
+      "evidence": ["deploy/pentest/run-authz-csrf.py", "docs/ADVERSARIAL_TESTING.md#authz-04"],
+      "test_refs": [
+        "tests/test_authentication.py::test_login_requires_csrf",
+        "tests/test_pentest_harness.py::test_authz_csrf_probe_covers_sensitive_identity_mutations"
+      ],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "cross-session-token-rejection",
+      "objective": "Reject a valid token copied from another authenticated session across every mutation probe path.",
+      "evidence": ["deploy/pentest/run-authz-csrf.py", "scripts/run-authz-csrf.sh"],
+      "test_refs": ["tests/test_pentest_harness.py::test_authz_csrf_probe_covers_sensitive_identity_mutations"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "unsafe-origin-rejection",
+      "objective": "Reject valid same-session tokens when the request carries an untrusted origin.",
+      "evidence": ["config/settings/production.py", "deploy/pentest/run-authz-csrf.py"],
+      "test_refs": ["tests/test_production_settings.py::test_production_settings_pin_exact_private_ingress_and_proxy_boundary"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "invariant-preserving-real-http-gate",
+      "objective": "Run all four attacks through disposable real HTTP, require 403, and prove rejected requests do not change protected record counts.",
+      "evidence": ["compose.pentest.yaml", "deploy/pentest/run-authz-csrf.py", "scripts/run-authz-csrf.sh", "scripts/run-authz-csrf.ps1"],
+      "test_refs": ["tests/test_pentest_harness.py::test_pentest_compose_isolated_from_normal_data_and_networks"],
+      "repository_status": "implemented"
+    }
+  ],
+  "mutation_routes": [
+    {"id": "budgets:category-create", "probe_path": "/budget/00000000-0000-4000-8000-000000000001/categories/add/"},
+    {"id": "budgets:fixed-create", "probe_path": "/budget/00000000-0000-4000-8000-000000000001/fixed-expenses/add/"},
+    {"id": "budgets:occurrence-cancel", "probe_path": "/budget/occurrence/00000000-0000-4000-8000-000000000001/cancel/"},
+    {"id": "budgets:occurrence-edit", "probe_path": "/budget/occurrence/00000000-0000-4000-8000-000000000001/edit/"},
+    {"id": "budgets:occurrence-move", "probe_path": "/budget/occurrence/00000000-0000-4000-8000-000000000001/move/"},
+    {"id": "budgets:occurrence-reconcile", "probe_path": "/budget/occurrence/00000000-0000-4000-8000-000000000001/reconcile/"},
+    {"id": "budgets:reserve-allocate", "probe_path": "/budget/00000000-0000-4000-8000-000000000001/reserve/allocate/"},
+    {"id": "budgets:variable-create", "probe_path": "/budget/00000000-0000-4000-8000-000000000001/variable/add/"},
+    {"id": "budgets:variable-delete", "probe_path": "/budget/variable/00000000-0000-4000-8000-000000000001/delete/"},
+    {"id": "budgets:variable-edit", "probe_path": "/budget/variable/00000000-0000-4000-8000-000000000001/edit/"},
+    {"id": "debts:create", "probe_path": "/debts/add/"},
+    {"id": "debts:edit", "probe_path": "/debts/00000000-0000-4000-8000-000000000001/edit/"},
+    {"id": "debts:mortgage-extra-principal", "probe_path": "/debts/mortgage-occurrence/00000000-0000-4000-8000-000000000001/extra-principal/"},
+    {"id": "debts:mortgage-plan-create", "probe_path": "/debts/00000000-0000-4000-8000-000000000001/mortgage-plan/add/"},
+    {"id": "debts:mortgage-plan-revise", "probe_path": "/debts/00000000-0000-4000-8000-000000000001/mortgage-plan/revise/"},
+    {"id": "debts:statement-correct", "probe_path": "/debts/00000000-0000-4000-8000-000000000001/statements/00000000-0000-4000-8000-000000000001/correct/"},
+    {"id": "debts:statement-create", "probe_path": "/debts/00000000-0000-4000-8000-000000000001/statements/add/"},
+    {"id": "debts:status", "probe_path": "/debts/00000000-0000-4000-8000-000000000001/status/archive/"},
+    {"id": "debts:terms-create", "probe_path": "/debts/00000000-0000-4000-8000-000000000001/terms/add/"},
+    {"id": "goals:contribute", "probe_path": "/goals/00000000-0000-4000-8000-000000000001/contribute/"},
+    {"id": "goals:create", "probe_path": "/goals/add/"},
+    {"id": "goals:occurrence-contribute", "probe_path": "/goals/00000000-0000-4000-8000-000000000001/occurrence/00000000-0000-4000-8000-000000000001/contribute/"},
+    {"id": "goals:priority-allocate", "probe_path": "/goals/priority-allocation/00000000-0000-4000-8000-000000000001/"},
+    {"id": "goals:reserve-allocate", "probe_path": "/goals/00000000-0000-4000-8000-000000000001/reserve/00000000-0000-4000-8000-000000000001/"},
+    {"id": "goals:revise", "probe_path": "/goals/00000000-0000-4000-8000-000000000001/revise/"},
+    {"id": "goals:status", "probe_path": "/goals/00000000-0000-4000-8000-000000000001/status/paused/"},
+    {"id": "identity:login", "probe_path": "/accounts/login/"},
+    {"id": "identity:logout", "probe_path": "/accounts/logout/"},
+    {"id": "identity:logout-all", "probe_path": "/accounts/logout-all/"},
+    {"id": "identity:mfa-enroll", "probe_path": "/accounts/mfa/enroll/"},
+    {"id": "identity:mfa-enrollment-restart", "probe_path": "/accounts/mfa/enroll/restart/"},
+    {"id": "identity:mfa-recovery-confirm", "probe_path": "/accounts/mfa/recovery-codes/confirm/"},
+    {"id": "identity:mfa-verify", "probe_path": "/accounts/mfa/verify/"},
+    {"id": "identity:password-change", "probe_path": "/accounts/security/password/"},
+    {"id": "identity:password-recovery", "probe_path": "/accounts/recover/"},
+    {"id": "identity:reauthenticate", "probe_path": "/accounts/reauthenticate/"},
+    {"id": "identity:session-revoke", "probe_path": "/accounts/security/sessions/revoke/"},
+    {"id": "imports:batch-abandon", "probe_path": "/imports/00000000-0000-4000-8000-000000000001/abandon/"},
+    {"id": "imports:batch-commit", "probe_path": "/imports/00000000-0000-4000-8000-000000000001/commit/"},
+    {"id": "imports:batch-map", "probe_path": "/imports/00000000-0000-4000-8000-000000000001/map/"},
+    {"id": "imports:upload", "probe_path": "/imports/new/"},
+    {"id": "notifications:dismiss", "probe_path": "/notifications/00000000-0000-4000-8000-000000000001/dismiss/"},
+    {"id": "notifications:preferences", "probe_path": "/notifications/preferences/"},
+    {"id": "notifications:read", "probe_path": "/notifications/00000000-0000-4000-8000-000000000001/read/"},
+    {"id": "notifications:refresh", "probe_path": "/notifications/refresh/"},
+    {"id": "spending:account-create", "probe_path": "/spending/accounts/add/"},
+    {"id": "spending:card-payment-create", "probe_path": "/spending/cards/00000000-0000-4000-8000-000000000001/payments/add/"},
+    {"id": "spending:card-purchase-refund", "probe_path": "/spending/00000000-0000-4000-8000-000000000001/refund/"},
+    {"id": "spending:expense-create", "probe_path": "/spending/expenses/add/"},
+    {"id": "spending:income-create", "probe_path": "/spending/income/add/"},
+    {"id": "spending:transaction-reverse", "probe_path": "/spending/00000000-0000-4000-8000-000000000001/reverse/"}
+  ],
+  "release_boundary": {
+    "status": "pending",
+    "required_observation": "Run the guarded AUTHZ-04 probe and manual adversarial review against the selected release candidate, inspect the rejection and security logs, and record that all four attack variants fail without protected-data mutation.",
+    "evidence_location": "docs/release-evidence.json"
+  },
+  "summary": {"mutation_routes": 51, "probe_paths": 52, "attack_variants": 4, "bounded_checks": 208, "post_forms": 37, "release_pending": 1}
+}

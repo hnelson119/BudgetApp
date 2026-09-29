@@ -208,13 +208,40 @@ def test_admin_user_editor_cannot_write_internal_authentication_state(
     assert protected <= set(admin.site.get_model_admin(User).readonly_fields)
 
 
-def test_admin_retains_csrf_protection(administrator: tuple[User, tuple[str, ...]]) -> None:
+def test_admin_mutation_shapes_retain_csrf_protection(
+    administrator: tuple[User, tuple[str, ...]],
+) -> None:
     user, codes = administrator
     client = Client()
     _login(client, user, codes[0])
     csrf_client = Client(enforce_csrf_checks=True)
     csrf_client.cookies[settings.SESSION_COOKIE_NAME] = client.cookies[settings.SESSION_COOKIE_NAME]
+    original_email = user.email
+    original_password = user.password
 
-    response = csrf_client.post(reverse("admin:logout"))
-    assert response.status_code == 403
+    mutation_urls = (
+        reverse("admin:identity_user_add"),
+        reverse("admin:identity_user_change", args=(user.pk,)),
+        reverse("admin:identity_user_delete", args=(user.pk,)),
+        reverse("admin:auth_user_password_change", args=(user.pk,)),
+        reverse("admin:identity_user_changelist"),
+        reverse("admin:logout"),
+    )
+    for url in mutation_urls:
+        response = csrf_client.post(
+            url,
+            {
+                "email": "csrf-attacker@example.com",
+                "password1": REPLACEMENT_PASSWORD,
+                "password2": REPLACEMENT_PASSWORD,
+                "action": "delete_selected",
+                "_selected_action": str(user.pk),
+            },
+        )
+        assert response.status_code == 403, url
+
+    user.refresh_from_db()
+    assert user.email == original_email
+    assert user.password == original_password
+    assert User.objects.filter(pk=user.pk).exists()
     assert csrf_client.get(reverse("admin:index")).status_code == 200

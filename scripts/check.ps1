@@ -90,6 +90,9 @@ try {
     & $pythonPath scripts\check_session_browser_boundary.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $pythonPath scripts\check_csrf_boundary.py
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     & $pythonPath scripts\check_anti_automation_policy.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
