@@ -2,7 +2,7 @@
 
 Status: procedure and evidence format implemented; no manual run is recorded yet
 
-Last updated: 2026-09-04
+Last updated: 2026-09-29
 
 ## Purpose
 
@@ -33,6 +33,10 @@ isolation, and protected-count invariants while keeping the release-candidate re
 scanners to explicit blocking thresholds and scanner-finding dispositions. It forbids hidden
 vulnerability ignores and keeps fresh-database scanning, image SBOM preservation, runtime
 inspection, and final findings review inside the pending release-candidate `NET-06` observation.
+`docs/findings-exit-boundary.json` parses every registered finding and enforces the required
+severity, state transition, retest, acceptance-owner, acceptance-deadline, and release-blocker
+metadata. Its release-ready mode remains blocked until the exact candidate has complete target
+records and no critical or high finding awaiting retest.
 
 The equally guarded `scripts/run-session-security.ps1` and `scripts/run-session-security.sh`
 helpers supply real-HTTP, browser, and controlled server-side boundary observations for implemented

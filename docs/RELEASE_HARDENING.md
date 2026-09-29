@@ -233,4 +233,9 @@ real household data.
   which are retested with no vulnerability ignores. Security test 14 is implemented, not verified;
   fresh release-candidate scans, three preserved image SBOMs, runtime inspection, and final finding
   review remain pending.
+- The findings-exit inventory now parses and pins all 33 registered M10 findings, enforces their
+  severity/state transition evidence, rejects expired or incomplete medium-risk acceptances, and
+  keeps every remediated high/critical item in an explicit release-blocker list. Security test 24
+  is implemented, not verified; `M10-F024`, the selected candidate, and the three complete
+  adversarial target records remain release-candidate work.
 - No complete release-candidate penetration-test pass is claimed yet.

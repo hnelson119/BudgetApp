@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "inventory_id": "budgetapp-findings-exit-boundary-v1",
+  "last_reviewed": "2026-09-29",
+  "next_review_due": "2026-12-28",
+  "security_test_id": 24,
+  "controls": [
+    {
+      "id": "complete-finding-register",
+      "objective": "Keep every M10 finding in one contiguous, source-derived register with severity, state, detection date, owner, affected boundary, and detection evidence.",
+      "evidence": ["docs/SECURITY_FINDINGS.md", "docs/findings-exit-boundary.json", "scripts/check_findings_exit_boundary.py"],
+      "test_refs": ["tests/test_findings_exit_boundary.py::test_findings_exit_inventory_is_complete_and_gate_wired"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "state-transition-contract",
+      "objective": "Require remediated findings to identify remediation and automated retest evidence, and require retested findings to retain their completed retest result.",
+      "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md"],
+      "test_refs": ["tests/test_findings_exit_boundary.py::test_findings_exit_inventory_rejects_invalid_state_transition"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "time-bounded-acceptance",
+      "objective": "Permit formal acceptance only for medium-severity findings with a named owner, rationale, deadline, and narrow acceptance boundary; expired acceptances fail closed.",
+      "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md"],
+      "test_refs": ["tests/test_findings_exit_boundary.py::test_findings_exit_inventory_rejects_expired_or_high_acceptance"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "high-critical-release-blocker",
+      "objective": "Require every critical or high finding to be retested before release and keep any merely remediated high finding in the explicit release-blocker inventory.",
+      "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md", "docs/SESSION_SECURITY.md"],
+      "test_refs": ["tests/test_findings_exit_boundary.py::test_findings_exit_release_closure_remains_pending"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "exact-candidate-closure",
+      "objective": "Bind final closure to the selected release candidate, complete adversarial target evidence, current accepted-finding deadlines, and zero unresolved high or critical findings.",
+      "evidence": ["docs/adversarial-test-matrix.json", "docs/adversarial-test-runs/README.md", "scripts/check_adversarial_test_evidence.py", "scripts/check_findings_exit_boundary.py"],
+      "test_refs": ["tests/test_findings_exit_boundary.py::test_findings_exit_release_closure_remains_pending"],
+      "repository_status": "implemented"
+    }
+  ],
+  "findings": [
+    {"id": "M10-F001", "severity": "Critical", "state": "Retested"},
+    {"id": "M10-F002", "severity": "Medium", "state": "Retested"},
+    {"id": "M10-F003", "severity": "Medium", "state": "Accepted"},
+    {"id": "M10-F004", "severity": "Low", "state": "Retested"},
+    {"id": "M10-F005", "severity": "Low", "state": "Retested"},
+    {"id": "M10-F006", "severity": "High", "state": "Retested"},
+    {"id": "M10-F007", "severity": "Low", "state": "Retested"},
+    {"id": "M10-F008", "severity": "Medium", "state": "Retested"},
+    {"id": "M10-F009", "severity": "Medium", "state": "Retested"},
+    {"id": "M10-F010", "severity": "Medium", "state": "Retested"},
+    {"id": "M10-F011", "severity": "Medium", "state": "Retested"},
+    {"id": "M10-F012", "severity": "Low", "state": "Retested"},
+    {"id": "M10-F013", "severity": "High", "state": "Retested"},
+    {"id": "M10-F014", "severity": "Medium", "state": "Retested"},
+    {"id": "M10-F015", "severity": "Medium", "state": "Retested"},
+    {"id": "M10-F016", "severity": "Medium", "state": "Retested"},
+    {"id": "M10-F017", "severity": "Low", "state": "Retested"},
+    {"id": "M10-F018", "severity": "High", "state": "Retested"},
+    {"id": "M10-F019", "severity": "Low", "state": "Retested"},
+    {"id": "M10-F020", "severity": "High", "state": "Retested"},
+    {"id": "M10-F021", "severity": "High", "state": "Retested"},
+    {"id": "M10-F022", "severity": "High", "state": "Retested"},
+    {"id": "M10-F023", "severity": "Low", "state": "Retested"},
+    {"id": "M10-F024", "severity": "High", "state": "Remediated"},
+    {"id": "M10-F025", "severity": "Low", "state": "Remediated"},
+    {"id": "M10-F026", "severity": "Low", "state": "Remediated"},
+    {"id": "M10-F027", "severity": "Low", "state": "Remediated"},
+    {"id": "M10-F028", "severity": "Low", "state": "Remediated"},
+    {"id": "M10-F029", "severity": "Low", "state": "Remediated"},
+    {"id": "M10-F030", "severity": "Low", "state": "Remediated"},
+    {"id": "M10-F031", "severity": "Low", "state": "Remediated"},
+    {"id": "M10-F032", "severity": "Low", "state": "Remediated"},
+    {"id": "M10-F033", "severity": "Low", "state": "Remediated"}
+  ],
+  "release_blockers": [
+    {
+      "id": "M10-F024",
+      "required_transition": "Retested",
+      "required_observation": "Revoke every pre-upgrade authenticated and pending-MFA session, then retest administration MFA and recent-authentication enforcement on the selected release candidate."
+    }
+  ],
+  "release_boundary": {
+    "status": "pending",
+    "candidate_source": "docs/adversarial-test-matrix.json",
+    "completion_command": "python scripts/check_adversarial_test_evidence.py --require-complete",
+    "required_observation": "Select the exact release candidate, complete all three adversarial targets, register every new finding, retest every critical or high finding, and confirm every accepted medium finding remains within its approved deadline and boundary."
+  },
+  "summary": {
+    "findings": 33,
+    "critical": 1,
+    "high": 7,
+    "medium": 9,
+    "low": 16,
+    "retested": 22,
+    "remediated": 10,
+    "accepted": 1,
+    "release_blockers": 1,
+    "release_pending": 1
+  }
+}
