@@ -206,4 +206,7 @@ real household data.
   maintained policy, runbook, and four-service Linux rehearsal. Release gate 10 is implemented,
   not verified; two preserved release artifacts, clean-VM execution, private-device smoke testing,
   off-VM recovery, and observed recovery time remain release-candidate work.
+- The product-criteria inventory now maps all 39 critical acceptance criteria to concrete source
+  and exact test references. Release gate 1 is implemented, not verified; eight private-network,
+  recovery, scan, incident, and real-device observations remain release-candidate work.
 - No complete release-candidate penetration-test pass is claimed yet.

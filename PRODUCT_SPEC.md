@@ -624,6 +624,10 @@ The application and database must remain portable so the same containers can lat
 38. Account transfers do not alter spending-category totals.
 39. Supported desktop and mobile Firefox smoke tests pass before release.
 
+`docs/product-criteria.json` maps every criterion above to repository implementation and exact test
+references. `scripts/check_product_criteria.py` validates that exhaustive mapping and keeps the
+eight deployment, recovery, scan, incident, and real-device observations explicitly pending.
+
 ## 24. Design references
 
 The approved direction is documented in `design/mockups/`. Mockup names and sample figures are illustrative; this specification is authoritative for calculations and behavior.
