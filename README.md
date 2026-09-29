@@ -294,6 +294,9 @@ nested parent-child and same-household recipient boundaries without claiming the
 The security-scan inventory binds application and operational static analysis, repository secret
 scanning, both locked dependency ecosystems, all three release images, scanner suppressions, and
 scanner-origin finding dispositions without treating a prior clean scan as release evidence.
+The findings-exit inventory parses every registered M10 finding, enforces severity-specific state
+transitions and time-bounded acceptance, and blocks final closure until the exact release candidate
+has no unresolved high or critical finding and complete adversarial evidence.
 
 ## Quality commands
 
@@ -317,6 +320,7 @@ python scripts/check_session_browser_boundary.py
 python scripts/check_csrf_boundary.py
 python scripts/check_object_authorization_boundary.py
 python scripts/check_security_scan_boundary.py
+python scripts/check_findings_exit_boundary.py
 python scripts/check_release_evidence.py
 python scripts/check_device_test_evidence.py
 python scripts/check_adversarial_test_evidence.py
@@ -371,5 +375,6 @@ automatically.
 21. [`docs/csrf-boundary.json`](docs/csrf-boundary.json) — exhaustive state-changing route and CSRF attack inventory
 22. [`docs/object-authorization-boundary.json`](docs/object-authorization-boundary.json) — exhaustive identifier route, method, relationship, and recipient-isolation inventory
 23. [`docs/security-scan-boundary.json`](docs/security-scan-boundary.json) — exhaustive source, dependency, release-image, suppression, and scanner-finding inventory
+24. [`docs/findings-exit-boundary.json`](docs/findings-exit-boundary.json) — complete finding disposition, acceptance, release-blocker, and exact-candidate exit inventory
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.

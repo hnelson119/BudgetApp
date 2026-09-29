@@ -41,7 +41,7 @@
     {"id": 21, "status": "implemented", "evidence": ["docs/BROWSER_TESTING.md", "browser-tests/", "playwright.config.mjs", ".github/workflows/browser.yml", "tests/test_browser_harness.py"]},
     {"id": 22, "status": "partial", "evidence": ["docs/BROWSER_TESTING.md", "docs/REAL_DEVICE_ACCESSIBILITY_TESTING.md", "docs/device-test-matrix.json", "scripts/check_device_test_evidence.py", "playwright.config.mjs", "IMPLEMENTATION_PLAN.md#4-browser-support-and-test-matrix"]},
     {"id": 23, "status": "implemented", "evidence": ["SECURITY_PLAN.md#18-penetration-testing-and-adversarial-validation", "compose.pentest.yaml", "docs/PENTESTING.md", "docs/ADVERSARIAL_TESTING.md", "docs/adversarial-test-matrix.json", "scripts/check_adversarial_test_evidence.py", "docs/SECURITY_FINDINGS.md", "tests/test_pentest_harness.py"]},
-    {"id": 24, "status": "partial", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md", "scripts/check_zap_reports.py", "scripts/check_adversarial_test_evidence.py", "docs/adversarial-test-runs/README.md"]}
+    {"id": 24, "status": "implemented", "evidence": ["SECURITY_PLAN.md#184-findings-and-exit-criteria", "docs/SECURITY_FINDINGS.md", "docs/ADVERSARIAL_TESTING.md", "docs/findings-exit-boundary.json", "scripts/check_zap_reports.py", "scripts/check_adversarial_test_evidence.py", "scripts/check_findings_exit_boundary.py", "docs/adversarial-test-runs/README.md", "tests/test_findings_exit_boundary.py"]}
   ],
   "release_gates": [
     {"id": 1, "status": "implemented", "evidence": ["PRODUCT_SPEC.md", "docs/product-criteria.json", "scripts/check_product_criteria.py", "tests/test_product_criteria.py", "tests/"]},
