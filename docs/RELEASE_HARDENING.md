@@ -226,4 +226,11 @@ real household data.
   route and nested-relationship operations to 146 two-way household and recipient checks. Security
   test 6 is implemented, not verified; the release-candidate adversarial run, identifier-entry-point
   review, and authorization-log review remain pending.
+- The security-scan inventory now binds eight blocking targets: strict application Bandit, a new
+  high-severity Bandit pass over all deployment and maintenance Python, repository secret scanning,
+  Python and npm lock audits, and Trivy vulnerability/secret scans for all three release images. It
+  also pins the single reviewed low-risk Bandit suppression and all five scanner-origin findings,
+  which are retested with no vulnerability ignores. Security test 14 is implemented, not verified;
+  fresh release-candidate scans, three preserved image SBOMs, runtime inspection, and final finding
+  review remain pending.
 - No complete release-candidate penetration-test pass is claimed yet.

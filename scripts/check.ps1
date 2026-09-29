@@ -96,6 +96,9 @@ try {
     & $pythonPath scripts\check_object_authorization_boundary.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    & $pythonPath scripts\check_security_scan_boundary.py
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     & $pythonPath scripts\check_anti_automation_policy.py
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -123,6 +126,10 @@ try {
         "schedules", "spending"
     )
     & $pythonPath -m bandit -q -c pyproject.toml -r @sourceDirectories
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    $operationsSource = @("deploy", "scripts", "manage.py")
+    & $pythonPath -m bandit -q -lll -c pyproject.toml -r @operationsSource
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     & $pythonPath -m coverage erase

@@ -29,6 +29,10 @@ checker keeps repository implementation separate from the pending release-candid
 supported GET and POST operations from source. Its checker binds those operations to the two-way
 foreign-versus-missing `AUTHZ-01` probe, nested relationship variants, same-household recipient
 isolation, and protected-count invariants while keeping the release-candidate review pending.
+`docs/security-scan-boundary.json` binds the source, dependency, secret, and three release-image
+scanners to explicit blocking thresholds and scanner-finding dispositions. It forbids hidden
+vulnerability ignores and keeps fresh-database scanning, image SBOM preservation, runtime
+inspection, and final findings review inside the pending release-candidate `NET-06` observation.
 
 The equally guarded `scripts/run-session-security.ps1` and `scripts/run-session-security.sh`
 helpers supply real-HTTP, browser, and controlled server-side boundary observations for implemented
