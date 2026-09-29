@@ -20,7 +20,7 @@
   "security_tests": [
     {"id": 1, "status": "not_started", "evidence": ["SECURITY_PLAN.md#17-required-security-tests", "docs/ADVERSARIAL_TESTING.md#net-01", "docs/adversarial-test-matrix.json"]},
     {"id": 2, "status": "not_started", "evidence": ["SECURITY_PLAN.md#5-tailscale-and-network-boundary", "docs/ADVERSARIAL_TESTING.md#net-02", "docs/adversarial-test-matrix.json"]},
-    {"id": 3, "status": "partial", "evidence": ["config/settings/production.py", "tests/test_production_settings.py", "docs/ADVERSARIAL_TESTING.md#net-03", "docs/adversarial-test-matrix.json"]},
+    {"id": 3, "status": "implemented", "evidence": ["config/settings/production.py", "deploy/network/nginx.conf", "deploy/network/run-production-boundary.py", "deploy/network/verify-private-ingress.py", "docs/PRIVATE_INGRESS.md", "docs/http-exposure-boundary.json", ".github/workflows/http-framing.yml", "scripts/check_http_exposure_boundary.py", "scripts/run-network-boundary.sh", "scripts/verify-private-ingress.sh", "tests/test_http_exposure_boundary.py", "tests/test_network_boundary.py", "tests/test_production_settings.py", "docs/ADVERSARIAL_TESTING.md#net-03", "docs/adversarial-test-matrix.json"]},
     {"id": 4, "status": "partial", "evidence": ["identity/", "tests/test_authentication.py", "docs/ADVERSARIAL_TESTING.md#sess-05", "docs/adversarial-test-matrix.json"]},
     {"id": 5, "status": "partial", "evidence": ["tests/test_web_foundation.py", "tests/", "docs/ADVERSARIAL_TESTING.md#authz-04", "docs/adversarial-test-matrix.json"]},
     {"id": 6, "status": "partial", "evidence": ["households/services/", "tests/", "docs/ADVERSARIAL_TESTING.md#authz-01", "docs/adversarial-test-matrix.json"]},

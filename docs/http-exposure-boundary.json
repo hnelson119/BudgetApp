@@ -1,0 +1,98 @@
+{
+    "schema_version": 1,
+    "inventory_id": "budgetapp-http-exposure-boundary-v1",
+    "last_reviewed": "2026-09-28",
+    "next_review_due": "2026-12-27",
+    "security_test_id": 3,
+    "controls": [
+        {
+            "id": "exact-private-origin",
+            "objective": "Accept exactly one lowercase Tailscale hostname and its matching HTTPS CSRF origin, with no external redirect allowlist.",
+            "evidence": ["config/settings/production.py", "docs/PRIVATE_INGRESS.md"],
+            "test_refs": [
+                "tests/test_production_settings.py::test_production_settings_pin_exact_private_ingress_and_proxy_boundary"
+            ],
+            "repository_status": "implemented"
+        },
+        {
+            "id": "loopback-only-edge",
+            "objective": "Publish only the nginx relay on IPv4 loopback port 8000 while keeping the application and database off host ports.",
+            "evidence": ["compose.yaml", "deploy/network/run-production-boundary.py"],
+            "test_refs": [
+                "tests/test_network_boundary.py::test_production_probe_accepts_only_loopback_internal_compose_boundary"
+            ],
+            "repository_status": "implemented"
+        },
+        {
+            "id": "encrypted-internal-upstream",
+            "objective": "Proxy from the loopback relay to Gunicorn only through the fixed internal destination with mutual TLS and certificate validation.",
+            "evidence": [
+                "deploy/network/nginx.conf",
+                "config/gunicorn.py",
+                "deploy/network/run-production-boundary.py"
+            ],
+            "test_refs": [
+                "tests/test_network_boundary.py::test_production_probe_accepts_only_the_static_internal_relay_destination",
+                "tests/test_network_boundary.py::test_production_probe_uses_a_ca_validated_certificateless_mtls_negative_probe"
+            ],
+            "repository_status": "implemented"
+        },
+        {
+            "id": "insecure-browser-redirect",
+            "objective": "Redirect an insecure browser page only to the exact private HTTPS URL without returning application content or accepting ambiguous proxy schemes.",
+            "evidence": ["deploy/network/run-production-boundary.py", "core/middleware.py"],
+            "test_refs": [
+                "tests/test_network_boundary.py::test_production_probe_rejects_trace_without_reflecting_request_content",
+                "tests/test_production_settings.py::test_production_django_security_check_passes"
+            ],
+            "repository_status": "implemented"
+        },
+        {
+            "id": "insecure-nonbrowser-rejection",
+            "objective": "Reject insecure health and operational requests with an empty non-cacheable 400 response and no redirect.",
+            "evidence": ["core/middleware.py", "deploy/network/run-production-boundary.py"],
+            "test_refs": [
+                "tests/test_network_boundary.py::test_production_probe_rejects_insecure_nonbrowser_requests_without_redirecting",
+                "tests/test_network_boundary.py::test_production_probe_rejects_unsafe_nonbrowser_transport_results"
+            ],
+            "repository_status": "implemented"
+        },
+        {
+            "id": "deployed-plain-http-boundary",
+            "objective": "Require deployed port 80 to be unreachable or return one exact HTTPS redirect while Funnel stays disabled and port 8000 stays loopback-only.",
+            "evidence": [
+                "deploy/network/verify-private-ingress.py",
+                "scripts/verify-private-ingress.sh",
+                "docs/PRIVATE_INGRESS.md"
+            ],
+            "test_refs": [
+                "tests/test_network_boundary.py::test_private_ingress_accepts_exact_tagged_https_only_configuration",
+                "tests/test_network_boundary.py::test_private_ingress_rejects_public_or_nonloopback_proxy",
+                "tests/test_network_boundary.py::test_private_ingress_rejects_public_or_administrative_listeners",
+                "tests/test_network_boundary.py::test_private_ingress_plain_http_accepts_only_an_exact_redirect_or_closed_port",
+                "tests/test_network_boundary.py::test_private_ingress_plain_http_rejects_content_or_wrong_redirect"
+            ],
+            "repository_status": "implemented"
+        },
+        {
+            "id": "repeatable-boundary-gates",
+            "objective": "Run the production-derived boundary on pull requests and retain a bounded real-VM verifier for release evidence.",
+            "evidence": [
+                ".github/workflows/http-framing.yml",
+                "scripts/run-network-boundary.sh",
+                "scripts/run-network-boundary.ps1",
+                "scripts/verify-private-ingress.sh"
+            ],
+            "test_refs": [
+                "tests/test_network_boundary.py::test_network_runners_are_bounded_and_keep_release_checks_honest"
+            ],
+            "repository_status": "implemented"
+        }
+    ],
+    "release_boundary": {
+        "status": "pending",
+        "required_observation": "Run the bounded verifier on the selected Linux VM and record that plain HTTP is unreachable or redirects exactly, HTTPS succeeds through Tailscale Serve, Funnel is disabled, and upstream port 8000 remains client-unreachable.",
+        "evidence_location": "docs/release-evidence.json"
+    },
+    "summary": {"controls": 7, "repository_implemented": 7, "release_pending": 1}
+}

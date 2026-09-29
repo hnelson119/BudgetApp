@@ -604,6 +604,91 @@ LISTEN 0 4096 0.0.0.0:22 0.0.0.0:*
     assert VM_PROBE.validate_listeners(listener_status) == 5
 
 
+def test_private_ingress_plain_http_accepts_only_an_exact_redirect_or_closed_port(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Response:
+        status = 308
+
+        @staticmethod
+        def read(_limit: int) -> bytes:
+            return b""
+
+        @staticmethod
+        def getheader(name: str) -> str | None:
+            if name == "Location":
+                return "https://budget.example.ts.net/health/live/"
+            return None
+
+    class Connection:
+        def request(self, *_args: Any, **_kwargs: Any) -> None:
+            return None
+
+        @staticmethod
+        def getresponse() -> Response:
+            return Response()
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        VM_PROBE.http.client, "HTTPConnection", lambda *_args, **_kwargs: Connection()
+    )
+    assert VM_PROBE.validate_plain_http("budget.example.ts.net") == 2
+
+    class ClosedConnection(Connection):
+        def request(self, *_args: Any, **_kwargs: Any) -> None:
+            raise ConnectionError
+
+    monkeypatch.setattr(
+        VM_PROBE.http.client, "HTTPConnection", lambda *_args, **_kwargs: ClosedConnection()
+    )
+    assert VM_PROBE.validate_plain_http("budget.example.ts.net") == 1
+
+
+@pytest.mark.parametrize(
+    ("status", "location"),
+    (
+        (200, None),
+        (302, "http://budget.example.ts.net/health/live/"),
+        (302, "https://attacker.invalid/health/live/"),
+    ),
+)
+def test_private_ingress_plain_http_rejects_content_or_wrong_redirect(
+    monkeypatch: pytest.MonkeyPatch,
+    status: int,
+    location: str | None,
+) -> None:
+    class Response:
+        @staticmethod
+        def read(_limit: int) -> bytes:
+            return b"content" if status == 200 else b""
+
+        @staticmethod
+        def getheader(name: str) -> str | None:
+            return location if name == "Location" else None
+
+    response = Response()
+    response.status = status
+
+    class Connection:
+        def request(self, *_args: Any, **_kwargs: Any) -> None:
+            return None
+
+        @staticmethod
+        def getresponse() -> Response:
+            return response
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        VM_PROBE.http.client, "HTTPConnection", lambda *_args, **_kwargs: Connection()
+    )
+    with pytest.raises(VM_PROBE.VerificationFailure, match="Plain HTTP served content"):
+        VM_PROBE.validate_plain_http("budget.example.ts.net")
+
+
 @pytest.mark.parametrize(("negotiated", "accepted"), (("TLSv1.3", True), ("TLSv1.2", False)))
 def test_private_ingress_requires_tls13_preference_for_modern_client(
     monkeypatch: pytest.MonkeyPatch, negotiated: str, accepted: bool

@@ -10,6 +10,8 @@ no plaintext or password fallback. No router port is forwarded and Tailscale Fun
 The disposable workstation probe is useful pre-deployment evidence, but it cannot satisfy
 `NET-01`, `NET-02`, or the deployed portions of `NET-03` through `NET-06`. Those require the actual
 VM, tailnet policy, firewall, certificate, approved devices, and an unapproved test device.
+`docs/http-exposure-boundary.json` maps security test 3 to the exact production, relay, probe, and
+CI controls. Its checker keeps the repository implementation separate from the pending VM result.
 
 ## 1. Identity and device prerequisites
 

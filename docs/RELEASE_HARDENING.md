@@ -209,4 +209,7 @@ real household data.
 - The product-criteria inventory now maps all 39 critical acceptance criteria to concrete source
   and exact test references. Release gate 1 is implemented, not verified; eight private-network,
   recovery, scan, incident, and real-device observations remain release-candidate work.
+- The HTTP-exposure inventory now binds security test 3 to seven exact private-origin, loopback,
+  upstream-mTLS, insecure-request, deployed-ingress, and CI controls. The test is implemented, not
+  verified; the bounded Linux VM observation remains release-candidate work.
 - No complete release-candidate penetration-test pass is claimed yet.
