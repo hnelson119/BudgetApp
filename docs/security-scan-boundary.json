@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "inventory_id": "budgetapp-security-scan-boundary-v1",
+  "last_reviewed": "2026-09-29",
+  "next_review_due": "2026-12-28",
+  "security_test_id": 14,
+  "controls": [
+    {
+      "id": "exhaustive-scan-target-inventory",
+      "objective": "Maintain one fail-closed inventory for application source, operational source, repository secrets, both dependency locks, and all three shipped release images.",
+      "evidence": ["docs/security-scan-boundary.json", "scripts/check_security_scan_boundary.py"],
+      "test_refs": ["tests/test_security_scan_boundary.py::test_security_scan_inventory_is_complete_and_gate_wired"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "source-static-analysis",
+      "objective": "Retain the strict Bandit application scan and add a blocking high-severity scan across all deployment and maintenance Python source.",
+      "evidence": ["scripts/check.ps1", "scripts/check.sh", "pyproject.toml"],
+      "test_refs": ["tests/test_security_scan_boundary.py::test_security_scan_inventory_rejects_missing_target_and_suppression"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "repository-secret-scan",
+      "objective": "Scan repository-owned files with detect-secrets and permit only exact public fingerprints, generated SBOM digest fields, and the reviewed whole-file breached-password corpus.",
+      "evidence": ["scripts/secret_scan.py", "tests/test_release_hardening.py"],
+      "test_refs": ["tests/test_release_hardening.py::test_secret_scan_only_exempts_exact_public_asvs_fingerprints", "tests/test_release_hardening.py::test_secret_scan_only_exempts_hash_fields_in_the_generated_sbom", "tests/test_release_hardening.py::test_secret_scan_only_exempts_the_exact_reviewed_hash_corpus"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "locked-dependency-audits",
+      "objective": "Block any Python advisory in the complete development lock and any high or critical npm advisory in the browser-test lock.",
+      "evidence": [".github/workflows/quality.yml", "Dockerfile.browser-tests", "requirements-dev.lock", "requirements-prod.lock", "package-lock.json"],
+      "test_refs": ["tests/test_deployment_config.py::test_ci_uses_read_only_permissions_and_immutable_official_actions", "tests/test_browser_harness.py::test_browser_image_and_dependencies_are_exactly_pinned"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "three-image-vulnerability-and-secret-gate",
+      "objective": "Build and scan the application, ingress relay, and backup/restore release images with digest-pinned Trivy, failing on every high or critical vulnerability or embedded secret.",
+      "evidence": [".github/workflows/quality.yml", "Dockerfile", "deploy/network/Dockerfile", "deploy/backup/Dockerfile"],
+      "test_refs": ["tests/test_deployment_config.py::test_ci_uses_read_only_permissions_and_immutable_official_actions"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "suppression-and-finding-disposition",
+      "objective": "Forbid vulnerability ignore flags and files, inventory the one reviewed low-risk Bandit suppression, and require every scanner-origin high or critical finding to be retested rather than accepted.",
+      "evidence": ["docs/SECURITY_FINDINGS.md", "deploy/pentest/authenticate-sessions.py", "scripts/check_security_scan_boundary.py"],
+      "test_refs": ["tests/test_security_scan_boundary.py::test_security_scan_inventory_rejects_unresolved_scanner_finding"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "release-candidate-rerun-boundary",
+      "objective": "Keep repository implementation separate from a fresh vulnerability-database scan, SBOM preservation, runtime inspection, and findings review on the selected release candidate.",
+      "evidence": ["docs/RELEASE_HARDENING.md", "docs/SBOM.md", "docs/ADVERSARIAL_TESTING.md#net-06"],
+      "test_refs": ["tests/test_security_scan_boundary.py::test_security_scan_release_remains_pending"],
+      "repository_status": "implemented"
+    }
+  ],
+  "scan_targets": [
+    {"id": "bandit-application", "scanner": "bandit", "scope": "application packages and deploy/pentest", "blocking_threshold": "any reported issue", "evidence": ["scripts/check.ps1", "scripts/check.sh"]},
+    {"id": "bandit-operations", "scanner": "bandit", "scope": "deploy, scripts, and manage.py", "blocking_threshold": "high severity", "evidence": ["scripts/check.ps1", "scripts/check.sh"]},
+    {"id": "detect-secrets-source", "scanner": "detect-secrets", "scope": "repository-owned files outside tool caches and design mockups", "blocking_threshold": "any non-allowlisted finding", "evidence": ["scripts/secret_scan.py"]},
+    {"id": "pip-audit-python-lock", "scanner": "pip-audit", "scope": "requirements-dev.lock including requirements-prod.lock", "blocking_threshold": "any advisory", "evidence": [".github/workflows/quality.yml", "requirements-dev.lock", "requirements-prod.lock"]},
+    {"id": "npm-audit-browser-lock", "scanner": "npm audit", "scope": "package-lock.json browser-test dependencies", "blocking_threshold": "high or critical advisory", "evidence": ["Dockerfile.browser-tests", "package-lock.json", ".github/workflows/browser.yml"]},
+    {"id": "trivy-application-image", "scanner": "Trivy", "scope": "household-budget release image", "blocking_threshold": "high or critical vulnerability or embedded secret", "evidence": [".github/workflows/quality.yml", "Dockerfile"]},
+    {"id": "trivy-ingress-image", "scanner": "Trivy", "scope": "household-budget-ingress release image", "blocking_threshold": "high or critical vulnerability or embedded secret", "evidence": [".github/workflows/quality.yml", "deploy/network/Dockerfile"]},
+    {"id": "trivy-backup-image", "scanner": "Trivy", "scope": "household-budget-backup release image", "blocking_threshold": "high or critical vulnerability or embedded secret", "evidence": [".github/workflows/quality.yml", "deploy/backup/Dockerfile"]}
+  ],
+  "scanner_findings": [
+    {"id": "M10-F001", "severity": "Critical", "state": "Retested"},
+    {"id": "M10-F006", "severity": "High", "state": "Retested"},
+    {"id": "M10-F018", "severity": "High", "state": "Retested"},
+    {"id": "M10-F021", "severity": "High", "state": "Retested"},
+    {"id": "M10-F022", "severity": "High", "state": "Retested"}
+  ],
+  "reviewed_suppressions": [
+    {"id": "pentest-auth-directory-readonly-mode", "path": "deploy/pentest/authenticate-sessions.py", "tool": "bandit", "rule": "B103", "reason": "The disposable credential directory intentionally becomes read-and-execute-only after exclusive secret creation; the parent remains inside the guarded synthetic stack."}
+  ],
+  "release_boundary": {
+    "status": "pending",
+    "required_observation": "Rebuild the exact release candidate, refresh vulnerability databases, rerun every blocking scan, preserve the three image SBOMs, inspect runtime privileges and secret handling, and disposition every new finding before approval.",
+    "evidence_location": "docs/release-evidence.json"
+  },
+  "summary": {"scan_targets": 8, "source_scans": 3, "dependency_scans": 2, "image_scans": 3, "scanner_findings": 5, "reviewed_suppressions": 1, "release_pending": 1}
+}

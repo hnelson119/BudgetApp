@@ -291,6 +291,9 @@ Django admin mutation shape without claiming the release run.
 The object-authorization inventory derives every UUID-bearing route and supported method from
 source, requires two-way foreign-versus-missing probes for each operation, and separately covers
 nested parent-child and same-household recipient boundaries without claiming the release run.
+The security-scan inventory binds application and operational static analysis, repository secret
+scanning, both locked dependency ecosystems, all three release images, scanner suppressions, and
+scanner-origin finding dispositions without treating a prior clean scan as release evidence.
 
 ## Quality commands
 
@@ -313,6 +316,7 @@ python scripts/check_http_exposure_boundary.py
 python scripts/check_session_browser_boundary.py
 python scripts/check_csrf_boundary.py
 python scripts/check_object_authorization_boundary.py
+python scripts/check_security_scan_boundary.py
 python scripts/check_release_evidence.py
 python scripts/check_device_test_evidence.py
 python scripts/check_adversarial_test_evidence.py
@@ -366,5 +370,6 @@ automatically.
 20. [`docs/session-browser-boundary.json`](docs/session-browser-boundary.json) — session-cookie and browser-state control inventory
 21. [`docs/csrf-boundary.json`](docs/csrf-boundary.json) — exhaustive state-changing route and CSRF attack inventory
 22. [`docs/object-authorization-boundary.json`](docs/object-authorization-boundary.json) — exhaustive identifier route, method, relationship, and recipient-isolation inventory
+23. [`docs/security-scan-boundary.json`](docs/security-scan-boundary.json) — exhaustive source, dependency, release-image, suppression, and scanner-finding inventory
 
 Where a mockup's sample figure conflicts with a specification or calculation rule, the written specification and golden calculation cases are authoritative.

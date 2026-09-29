@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "updated": "2026-09-28",
+  "updated": "2026-09-29",
   "release_candidate": null,
   "status_definitions": {
     "not_started": "No release verification has been performed.",
@@ -31,7 +31,7 @@
     {"id": 11, "status": "implemented", "evidence": ["spending/services/exports.py", "audit/exports.py", "tests/test_audit_ui.py", "docs/ADVERSARIAL_TESTING.md#csv-02", "docs/adversarial-test-matrix.json"]},
     {"id": 12, "status": "implemented", "evidence": ["Dockerfile", "compose.yaml", "tests/test_deployment_config.py", "docs/ADVERSARIAL_TESTING.md#net-06", "docs/adversarial-test-matrix.json"]},
     {"id": 13, "status": "not_started", "evidence": ["SECURITY_PLAN.md#5-tailscale-and-network-boundary", "docs/ADVERSARIAL_TESTING.md#net-04", "docs/adversarial-test-matrix.json"]},
-    {"id": 14, "status": "partial", "evidence": [".github/workflows/quality.yml", "scripts/secret_scan.py", "docs/SECURITY_FINDINGS.md", "docs/ADVERSARIAL_TESTING.md#net-06", "docs/adversarial-test-matrix.json"]},
+    {"id": 14, "status": "implemented", "evidence": [".github/workflows/quality.yml", ".github/workflows/browser.yml", "Dockerfile.browser-tests", "requirements-dev.lock", "requirements-prod.lock", "package-lock.json", "scripts/check.ps1", "scripts/check.sh", "scripts/secret_scan.py", "scripts/check_security_scan_boundary.py", "docs/security-scan-boundary.json", "docs/SECURITY_FINDINGS.md", "docs/RELEASE_HARDENING.md", "docs/SBOM.md", "tests/test_security_scan_boundary.py", "tests/test_deployment_config.py", "tests/test_browser_harness.py", "tests/test_release_hardening.py", "docs/ADVERSARIAL_TESTING.md#net-06", "docs/adversarial-test-matrix.json"]},
     {"id": 15, "status": "implemented", "evidence": ["audit/migrations/0002_postgresql_protected_schema.py", "tests/test_audit.py", "tests/test_deployment_config.py", "docs/ADVERSARIAL_TESTING.md#audit-01", "docs/adversarial-test-matrix.json"]},
     {"id": 16, "status": "implemented", "evidence": ["audit/services.py", "tests/test_audit.py", "docs/ADVERSARIAL_TESTING.md#audit-02", "docs/adversarial-test-matrix.json"]},
     {"id": 17, "status": "implemented", "evidence": ["audit/services.py", "tests/test_audit.py", "docs/ADVERSARIAL_TESTING.md#audit-03", "docs/adversarial-test-matrix.json"]},
