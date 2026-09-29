@@ -36,6 +36,7 @@ cd "$project_root"
 "$python_path" scripts/check_migration_readiness.py
 "$python_path" scripts/check_product_criteria.py
 "$python_path" scripts/check_http_exposure_boundary.py
+"$python_path" scripts/check_session_browser_boundary.py
 "$python_path" scripts/check_anti_automation_policy.py
 "$python_path" scripts/check_password_hashing_policy.py
 "$python_path" scripts/check_hash_function_policy.py

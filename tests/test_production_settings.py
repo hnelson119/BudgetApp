@@ -130,3 +130,31 @@ def test_production_settings_pin_exact_private_ingress_and_proxy_boundary() -> N
     assert "Shared hardened settings cannot be selected directly." in hardened_file
     assert '"socket_path": "/run/security-log/security.sock"' in production_file
     assert 'append("security_archive")' in production_file
+
+
+def test_hardened_session_cookie_profile_is_exact() -> None:
+    settings_root = Path(__file__).resolve().parents[1] / "config/settings"
+    base_file = (settings_root / "base.py").read_text(encoding="utf-8")
+    hardened_file = (settings_root / "hardened.py").read_text(encoding="utf-8")
+
+    for fragment in (
+        "SESSION_COOKIE_HTTPONLY = True",
+        'SESSION_COOKIE_SAMESITE = "Strict"',
+        "CSRF_COOKIE_HTTPONLY = True",
+        'CSRF_COOKIE_SAMESITE = "Strict"',
+    ):
+        assert fragment in base_file
+    for fragment in (
+        'SESSION_COOKIE_NAME = "__Host-budget_sessionid"',
+        "SESSION_COOKIE_SECURE = True",
+        'SESSION_COOKIE_SAMESITE = "Strict"',
+        "SESSION_EXPIRE_AT_BROWSER_CLOSE = True",
+        "SESSION_COOKIE_DOMAIN = None",
+        'SESSION_COOKIE_PATH = "/"',
+        'CSRF_COOKIE_NAME = "__Host-budget_csrftoken"',
+        "CSRF_COOKIE_SECURE = True",
+        'CSRF_COOKIE_SAMESITE = "Strict"',
+        "CSRF_COOKIE_DOMAIN = None",
+        'CSRF_COOKIE_PATH = "/"',
+    ):
+        assert fragment in hardened_file

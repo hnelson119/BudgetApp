@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "inventory_id": "budgetapp-session-browser-boundary-v1",
+  "last_reviewed": "2026-09-28",
+  "next_review_due": "2026-12-27",
+  "security_test_id": 4,
+  "controls": [
+    {
+      "id": "hardened-cookie-profile",
+      "objective": "Use host-only, path-rooted, Secure, HttpOnly, SameSite=Strict session and CSRF cookies with reserved __Host- names.",
+      "evidence": ["config/settings/base.py", "config/settings/hardened.py"],
+      "test_refs": ["tests/test_production_settings.py::test_hardened_session_cookie_profile_is_exact"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "browser-session-lifetime",
+      "objective": "Keep authenticated browser state in a non-persistent session cookie backed by bounded server-side idle and absolute lifetimes.",
+      "evidence": ["config/settings/base.py", "config/settings/hardened.py", "docs/SESSION_SECURITY.md"],
+      "test_refs": [
+        "tests/test_authentication.py::test_idle_session_is_terminated",
+        "tests/test_pentest_harness.py::test_session_security_runner_is_guarded_fixed_and_always_disposable"
+      ],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "script-readable-storage-minimization",
+      "objective": "Keep credentials and household data out of Web Storage while allowing only the non-sensitive fixed theme preference.",
+      "evidence": ["core/static/core/app.js", "browser-tests/security-accessibility.spec.mjs"],
+      "test_refs": ["tests/test_browser_harness.py::test_browser_specs_cover_real_mfa_security_accessibility_and_workflows"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "termination-client-state-cleanup",
+      "objective": "Clear cookies, cache, origin storage, and authenticated DOM content when a session terminates or logout begins.",
+      "evidence": ["identity/middleware.py", "core/static/core/app.js", "browser-tests/session-lifecycle.spec.mjs"],
+      "test_refs": [
+        "tests/test_authentication.py::test_logout_is_post_only_and_audited",
+        "tests/test_browser_harness.py::test_browser_specs_cover_real_mfa_security_accessibility_and_workflows"
+      ],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "authenticated-cache-prevention",
+      "objective": "Apply no-store and no-cache directives to authenticated pages and exports and prevent protected history recovery after logout.",
+      "evidence": ["core/middleware.py", "deploy/pentest/run-session-security.py", "browser-tests/session-lifecycle.spec.mjs"],
+      "test_refs": [
+        "tests/test_authentication.py::test_logout_is_post_only_and_audited",
+        "tests/test_pentest_harness.py::test_session_security_runner_is_guarded_fixed_and_always_disposable"
+      ],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "real-http-session-probe",
+      "objective": "Exercise cookie scope, flags, browser-session expiry, and representative authenticated cache directives through disposable real HTTP requests.",
+      "evidence": ["deploy/pentest/run-session-security.py", "scripts/run-session-security.sh", "scripts/run-session-security.ps1"],
+      "test_refs": ["tests/test_pentest_harness.py::test_session_security_runner_is_guarded_fixed_and_always_disposable"],
+      "repository_status": "implemented"
+    },
+    {
+      "id": "multi-engine-browser-gate",
+      "objective": "Run cookie, storage, logout, cache, and history boundaries in Chromium, Firefox, and WebKit on every pull request.",
+      "evidence": ["browser-tests/auth.setup.mjs", "browser-tests/security-accessibility.spec.mjs", "browser-tests/session-lifecycle.spec.mjs", "playwright.config.mjs", ".github/workflows/browser.yml"],
+      "test_refs": [
+        "tests/test_browser_harness.py::test_playwright_matrix_is_bounded_and_keeps_artifacts_ephemeral",
+        "tests/test_browser_harness.py::test_browser_ci_is_read_only_pinned_and_not_a_privileged_event"
+      ],
+      "repository_status": "implemented"
+    }
+  ],
+  "release_boundary": {
+    "status": "pending",
+    "required_observation": "Inspect the selected release candidate at the real TLS boundary in every supported browser and device family, confirming exact cookie scope and flags, absence of sensitive browser storage, non-recoverable authenticated cache content after logout and restart, and no password-manager storage acceptance.",
+    "evidence_location": "docs/release-evidence.json"
+  },
+  "summary": {"controls": 7, "repository_implemented": 7, "release_pending": 1}
+}

@@ -212,4 +212,8 @@ real household data.
 - The HTTP-exposure inventory now binds security test 3 to seven exact private-origin, loopback,
   upstream-mTLS, insecure-request, deployed-ingress, and CI controls. The test is implemented, not
   verified; the bounded Linux VM observation remains release-candidate work.
+- The session-browser inventory now binds security test 4 to seven exact cookie, lifetime, storage,
+  termination, cache, real-HTTP probe, and multi-engine CI controls. The test is implemented, not
+  verified; real TLS-boundary and supported-browser/device inspection remains release-candidate
+  work.
 - No complete release-candidate penetration-test pass is claimed yet.
