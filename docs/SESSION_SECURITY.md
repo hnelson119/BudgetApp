@@ -57,7 +57,9 @@ in the user editor. Admin CSRF protection and no-store response policy remain en
 
 Staff browser accounts must have an active household membership for the application authentication
 flows. Initial enrollment and session-security reinitialization do not manufacture MFA proof;
-administration requires reauthentication when that proof is absent.
+administration requires reauthentication when that proof is absent. The trusted-console household
+bootstrap requires exactly two members and designates exactly one of them as the staff administrator;
+it refuses an administrator identity outside those two accounts.
 
 ## Sensitive account changes
 

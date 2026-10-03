@@ -129,23 +129,28 @@ On Linux or macOS, activate `.venv/bin/activate` and use `./scripts/check.sh`.
 
 ### First household provisioning
 
-After migrations, create the household and exactly two individual accounts from a trusted console.
-Passwords are prompted without echo and are never accepted as command-line arguments, environment
-variables, or configuration values. The same context-specific and offline breached-password policy
-used by self-service password changes applies to this command:
+After migrations, create the household and exactly two individual accounts from a trusted console,
+designating exactly one of those accounts as the household administrator. Passwords are prompted
+without echo and are never accepted as command-line arguments, environment variables, or
+configuration values. The same context-specific and offline breached-password policy used by
+self-service password changes applies to this command:
 
 ```powershell
 python manage.py bootstrap_household `
   --household-name "Our Household" `
   --user-email "first@example.com" --display-name "First person" `
-  --user-email "second@example.com" --display-name "Second person"
+  --user-email "second@example.com" --display-name "Second person" `
+  --administrator-email "first@example.com"
 ```
 
-Each person is restricted to MFA enrollment at first login. TOTP seeds are encrypted with the
-separate `django_mfa_encryption_key` secret; recovery codes are displayed once and only salted
-password hashes are retained. The sign-in screen's recovery flow accepts a current authenticator
-code or one unused recovery code and never bypasses the next MFA challenge. If an authenticator and
-all recovery codes are lost, a VM
+The administrator receives Django staff and superuser authority but remains an ordinary member of
+the same two-person household. Both people are restricted to MFA enrollment at first login, and the
+administrator cannot enter Django administration until the current browser session has completed
+password-plus-MFA authentication. TOTP seeds are encrypted with the separate
+`django_mfa_encryption_key` secret; recovery codes are displayed once and only salted password
+hashes are retained. The sign-in screen's recovery flow accepts a current authenticator code or one
+unused recovery code and never bypasses the next MFA challenge. If an authenticator and all recovery
+codes are lost, a VM
 administrator can run the interactive
 `reset_user_mfa <email> --reason "..." --identity-proof-confirmed` command only after completing
 the same-assurance identity check in `docs/INCIDENT_RESPONSE.md`. That reset revokes every session,
