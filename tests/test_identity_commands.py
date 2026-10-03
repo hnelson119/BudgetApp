@@ -64,6 +64,8 @@ def test_bootstrap_creates_exactly_two_distinct_users_without_cli_passwords() ->
             "First",
             "--display-name",
             "Second",
+            "--administrator-email",
+            "FIRST@example.com",
             stdout=output,
         )
 
@@ -73,11 +75,48 @@ def test_bootstrap_creates_exactly_two_distinct_users_without_cli_passwords() ->
     assert [user.email for user in users] == ["first@example.com", "second@example.com"]
     assert users[0].check_password(FIRST_PASSWORD)
     assert users[1].check_password(SECOND_PASSWORD)
+    assert users[0].is_staff is True
+    assert users[0].is_superuser is True
+    assert users[1].is_staff is False
+    assert users[1].is_superuser is False
     assert HouseholdMembership.objects.filter(household=household).count() == 2
     event = AuditEvent.objects.get(action="household.bootstrap_completed")
     assert event.actor is None
-    assert event.after_payload == {"member_count": 2, "mfa_enrollment_required": True}
+    assert event.after_payload == {
+        "administrator_count": 1,
+        "member_count": 2,
+        "mfa_enrollment_required": True,
+    }
     assert "must enroll MFA" in output.getvalue()
+
+
+@pytest.mark.django_db
+def test_bootstrap_requires_the_administrator_to_be_one_of_the_two_users() -> None:
+    with (
+        patch(
+            "identity.management.commands.bootstrap_household.getpass.getpass"
+        ) as password_prompt,
+        pytest.raises(CommandError, match="administrator email must match"),
+    ):
+        call_command(
+            "bootstrap_household",
+            "--household-name",
+            "Our Household",
+            "--user-email",
+            "first@example.com",
+            "--user-email",
+            "second@example.com",
+            "--display-name",
+            "First",
+            "--display-name",
+            "Second",
+            "--administrator-email",
+            "outsider@example.com",
+        )
+
+    password_prompt.assert_not_called()
+    assert Household.objects.count() == 0
+    assert User.objects.count() == 0
 
 
 @pytest.mark.django_db
@@ -101,6 +140,8 @@ def test_bootstrap_rejects_a_shared_password() -> None:
             "First",
             "--display-name",
             "Second",
+            "--administrator-email",
+            "first@example.com",
         )
 
     assert Household.objects.count() == 0

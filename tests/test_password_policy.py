@@ -237,6 +237,8 @@ def test_console_provisioning_uses_custom_password_policy(tmp_path: Path) -> Non
             "First",
             "--display-name",
             "Second",
+            "--administrator-email",
+            "first@example.com",
         )
 
 
