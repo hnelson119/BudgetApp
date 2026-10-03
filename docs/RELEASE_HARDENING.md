@@ -60,11 +60,12 @@ normal quality gate. See `docs/SBOM.md` for trusted repositories, diff review, c
 preservation, and failure rules.
 
 The image and application scans identified and remediated `M10-F001`, `M10-F002`, `M10-F006`, and
-the relay-image finding `M10-F018`, and the backup-image finding `M10-F021`; their sanitized findings and clean retests are recorded in
-`docs/SECURITY_FINDINGS.md`. The synthetic ZAP baseline also records the scoped test-transport
-acceptance `M10-F003`. These results are baseline evidence, not a future release pass: every
-candidate must rebuild and repeat the applicable scans against then-current vulnerability data and
-code.
+the relay-image finding `M10-F018`, and the backup-image finding `M10-F021`; their sanitized
+findings and clean retests are recorded in `docs/SECURITY_FINDINGS.md`. The synthetic ZAP baseline
+also recorded the scoped test-transport finding `M10-F003`; its expired acceptance was closed by a
+dated, sanitized Linux VM ingress retest. These results are baseline evidence, not a future release
+pass: every candidate must rebuild and repeat the applicable scans against then-current
+vulnerability data and code.
 
 ## Evidence handling
 
@@ -172,8 +173,10 @@ real household data.
   and authenticated-cookie observations still require the Linux VM and cannot be marked verified
   from the disposable run.
 - The disposable ZAP baseline completed for unauthenticated traffic and both MFA-authenticated
-  synthetic users with no High/Critical alert. Its internal plain-HTTP transport remains a scoped,
-  time-bound Medium acceptance until the real VM TLS boundary is verified.
+  synthetic users with no High/Critical alert. Its internal plain-HTTP transport remains confined
+  to the guarded synthetic network, and a dated Linux VM retest verified that the deployed boundary
+  uses trusted private HTTPS with the expected redirect, HSTS, and isolation controls. Exact future
+  release candidates still require the same deployed observation.
 - The disposable Chromium, Firefox, and WebKit baseline passed after remediating the two
   cross-browser findings recorded in `docs/SECURITY_FINDINGS.md`. Release-candidate repetition and
   branded/real-device mobile passes remain pending. Their exact browser, device, keyboard,
