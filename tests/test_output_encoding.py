@@ -44,7 +44,7 @@ def test_output_encoding_inventory_accepts_the_production_surface() -> None:
 
     assert template_count > 0
     assert script_count > 0
-    assert json_response_count == 3
+    assert json_response_count == 6
 
 
 def test_output_encoding_inventory_tracks_the_complete_client_surface() -> None:

@@ -48,8 +48,8 @@ verified.
 
 The canonical input-decoding boundary implements `v5.0.0-1.1.1`. Django owns the single percent
 and form-decoding pass before application validation, and runtime code contains no second unquote,
-query-string, or HTML-entity decoder. A fail-closed AST inventory pins all 16 strict text, JSON, and
-purpose-specific Base32 operations across seven files; rejects permissive, dynamic, and general
+query-string, or HTML-entity decoder. A fail-closed AST inventory pins all 18 strict text, JSON, and
+purpose-specific Base32 operations across eight files; rejects permissive, dynamic, and general
 input decoders; and detects nested deserialization. Each documented input validates its canonical
 result before persistence, business processing, or security use. See
 `docs/CANONICAL_INPUT_DECODING.md`.
@@ -331,7 +331,7 @@ and rejects direct password-field writes or unreviewed hasher imports. The fast 
 confined to synthetic unit tests. See `docs/PASSWORD_HASHING_POLICY.md` and
 `docs/password-hashing-policy.json`; release-host performance verification remains pending.
 
-The deterministic CycloneDX source/build inventory implements `v5.0.0-15.1.2` for all 83 current
+The deterministic CycloneDX source/build inventory implements `v5.0.0-15.1.2` for all 88 current
 third-party production, development, build, test, and CI inputs. Its validator derives exact
 components and approved repositories from locks, digest-pinned images, checksummed sources, Go
 module pins, and immutable actions. CI separately generates and retains image-resolved SBOMs for
@@ -358,7 +358,7 @@ event with only the method, resolved route, status, error reference, and pseudon
 Production sends redacted security JSON through a permission-restricted Unix socket to a distinct
 networkless collector; Django cannot mount or read its archive volume. The collector validates and
 redacts again, writes restrictive append-only records, creates minimized warning-or-higher alerts,
-and exposes safe delivery and validation failures. The validator derives 183 stable event entries,
+and exposes safe delivery and validation failures. The validator derives 189 stable event entries,
 verifies every Compose logging and collector isolation policy, and enforces evidence and review
 cadence. See
 `docs/LOGGING_INVENTORY.md`; release-candidate delivery, retention, alert review, escalation, and

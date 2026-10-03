@@ -30,6 +30,7 @@ EXPECTED_SECURITY_EVIDENCE = {
     "config/settings/hardened.py",
     "core/middleware.py",
     "core/static/core/app.js",
+    "core/static/core/passkeys.js",
     "deploy/pentest/run-session-security.py",
     "docs/SESSION_SECURITY.md",
     "docs/session-browser-boundary.json",
@@ -254,7 +255,7 @@ def validate_session_browser_boundary(
     runtime_javascript = {
         path.relative_to(project_root).as_posix() for path in project_root.glob("*/static/**/*.js")
     }
-    if runtime_javascript != {"core/static/core/app.js"}:
+    if runtime_javascript != {"core/static/core/app.js", "core/static/core/passkeys.js"}:
         _fail("runtime JavaScript inventory changed; review browser-storage behavior")
     app_javascript = (project_root / "core/static/core/app.js").read_text(encoding="utf-8")
     storage_writes = re.findall(

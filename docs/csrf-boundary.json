@@ -98,6 +98,9 @@
     {"id": "identity:mfa-enrollment-restart", "probe_path": "/accounts/mfa/enroll/restart/"},
     {"id": "identity:mfa-recovery-confirm", "probe_path": "/accounts/mfa/recovery-codes/confirm/"},
     {"id": "identity:mfa-verify", "probe_path": "/accounts/mfa/verify/"},
+    {"id": "identity:passkey-delete", "probe_path": "/accounts/security/passkeys/00000000-0000-4000-8000-000000000001/delete/"},
+    {"id": "identity:passkey-registration-complete", "probe_path": "/accounts/security/passkeys/complete/"},
+    {"id": "identity:passkey-registration-options", "probe_path": "/accounts/security/passkeys/options/"},
     {"id": "identity:password-change", "probe_path": "/accounts/security/password/"},
     {"id": "identity:password-recovery", "probe_path": "/accounts/recover/"},
     {"id": "identity:reauthenticate", "probe_path": "/accounts/reauthenticate/"},
@@ -122,5 +125,5 @@
     "required_observation": "Run the guarded AUTHZ-04 probe and manual adversarial review against the selected release candidate, inspect the rejection and security logs, and record that all four attack variants fail without protected-data mutation.",
     "evidence_location": "docs/release-evidence.json"
   },
-  "summary": {"mutation_routes": 51, "probe_paths": 52, "attack_variants": 4, "bounded_checks": 208, "post_forms": 37, "release_pending": 1}
+  "summary": {"mutation_routes": 54, "probe_paths": 55, "attack_variants": 4, "bounded_checks": 220, "post_forms": 38, "release_pending": 1}
 }

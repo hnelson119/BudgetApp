@@ -47,7 +47,7 @@ an explicit irreversible declassification review proves otherwise.
 | Internal | Release, readiness, backup-freshness, and service-health metadata |
 | Public | Intentionally public CSS and dependency-free JavaScript assets |
 
-The machine catalog assigns all 46 current database models exactly once. A model is classified at
+The machine catalog assigns all 47 current database models exactly once. A model is classified at
 the highest protection needed for any of its fields, so adding a field to an existing model cannot
 lower its controls. The model registry check catches new models; the mandatory review trigger for
 any model or field change catches classification, lifecycle, or retention changes within an
@@ -114,7 +114,7 @@ Run:
 ```
 
 The validator checks schema completeness, review cadence, privacy reassessment triggers, all four
-protection levels, all 15 datasets, evidence paths, the exact 46-model registry, cookie and session
+protection levels, all 15 datasets, evidence paths, the exact 47-model registry, cookie and session
 requirements, secure database transport, browser cleanup, no-store exports, staged-import
 scrubbing, and encrypted-backup retention. It implements the repository-deliverable documentation
 for ASVS `v5.0.0-14.1.1` and `v5.0.0-14.1.2` without claiming the separate live implementation

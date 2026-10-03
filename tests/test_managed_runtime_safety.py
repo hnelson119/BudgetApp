@@ -20,7 +20,7 @@ def test_managed_runtime_safety_accepts_the_production_boundary() -> None:
 
     assert runtime_count > 0
     assert decimal_count == 38
-    assert integer_count == 38
+    assert integer_count == 39
     assert descriptor_file_count == 6
 
 
@@ -95,4 +95,4 @@ def test_managed_runtime_safety_rejects_shift_arithmetic() -> None:
 
 
 def test_numeric_model_inventory_is_bounded() -> None:
-    assert validate_numeric_models() == (38, 38)
+    assert validate_numeric_models() == (38, 39)

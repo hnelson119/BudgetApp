@@ -228,7 +228,7 @@ def validate_numeric_models() -> tuple[int, int]:
         if isinstance(field, models.IntegerField) and not isinstance(field, models.AutoField)
     ]
     integer_types = {type(field).__name__ for field in integer_fields}
-    if len(integer_fields) != 38 or integer_types != ALLOWED_INTEGER_FIELD_TYPES:
+    if len(integer_fields) != 39 or integer_types != ALLOWED_INTEGER_FIELD_TYPES:
         _fail("bounded integer-field inventory changed")
     return len(decimal_fields), len(integer_fields)
 

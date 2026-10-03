@@ -7,9 +7,9 @@ Last updated: 2026-09-05
 ## Scope
 
 `docs/sbom.cdx.json` is the canonical, deterministic CycloneDX 1.6 inventory for third-party
-software selected by this repository. It currently contains 83 components:
+software selected by this repository. It currently contains 88 components:
 
-- 61 locked Python packages, with production and development scope distinguished;
+- 66 locked Python packages, with production and development scope distinguished;
 - 6 locked npm packages with their registry resolution and SHA-512 integrity values;
 - 8 digest-pinned container images used by production, builds, CI, browser tests, or security tests;
 - 4 version-pinned Go modules compiled into the backup image;

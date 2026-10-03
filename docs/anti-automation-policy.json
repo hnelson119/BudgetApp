@@ -58,6 +58,9 @@
         "identity:mfa-enroll",
         "identity:mfa-enrollment-restart",
         "identity:mfa-recovery-confirm",
+        "identity:passkey-delete",
+        "identity:passkey-registration-complete",
+        "identity:passkey-registration-options",
         "identity:password-change",
         "imports:batch-abandon",
         "imports:batch-commit",
@@ -156,5 +159,5 @@
     "Per-user application budgets do not identify a distributed pre-authentication flood; private ingress, keyed network failure throttles, connection ceilings, worker limits, and timeouts are the independent boundary.",
     "Representative release-host load and false-positive behavior remain release verification work and do not change repository implementation status."
   ],
-  "summary": {"route_families": 8, "named_routes": 70, "source_assertions": 8, "runtime_tests": 8, "residual_risks": 2}
+  "summary": {"route_families": 8, "named_routes": 73, "source_assertions": 8, "runtime_tests": 8, "residual_risks": 2}
 }

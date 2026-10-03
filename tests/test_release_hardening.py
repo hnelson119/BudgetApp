@@ -210,14 +210,14 @@ def test_logging_inventory_is_complete_and_source_derived() -> None:
     assert inventory["summary"] == {
         "layers": 14,
         "event_groups": 5,
-        "event_entries": 185,
+        "event_entries": 189,
         "known_gaps": 2,
     }
     groups = {item["id"]: item for item in inventory["event_groups"]}
     assert len(groups["django-operational-events"]["events"]) == 2
-    assert len(groups["django-security-events"]["events"]) == 57
+    assert len(groups["django-security-events"]["events"]) == 59
     assert len(groups["security-archive-events"]["events"]) == 6
-    assert len(groups["protected-audit-actions"]["events"]) == 83
+    assert len(groups["protected-audit-actions"]["events"]) == 85
     assert len(groups["maintenance-events"]["events"]) == 37
 
 
@@ -306,12 +306,12 @@ def test_sbom_is_complete_and_source_derived() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert "83 components" in completed.stdout
+    assert "88 components" in completed.stdout
     sbom = json.loads((PROJECT_ROOT / "docs/sbom.cdx.json").read_text(encoding="utf-8"))
     assert sbom == build_sbom()
     assert sbom["bomFormat"] == "CycloneDX"
     assert sbom["specVersion"] == "1.6"
-    assert len(sbom["components"]) == 83
+    assert len(sbom["components"]) == 88
     assert {component["type"] for component in sbom["components"]} == {
         "application",
         "container",

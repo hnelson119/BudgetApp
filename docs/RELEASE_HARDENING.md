@@ -55,7 +55,7 @@ scanner cannot silently replace another.
 
 The same image job generates CycloneDX inventories from the three built images and uploads them as
 a commit-bound artifact retained for 90 days. The deterministic checked-in CycloneDX inventory
-covers 83 locked or pinned production, development, build, test, and CI inputs and is rebuilt by the
+covers 88 locked or pinned production, development, build, test, and CI inputs and is rebuilt by the
 normal quality gate. See `docs/SBOM.md` for trusted repositories, diff review, candidate artifact
 preservation, and failure rules.
 
@@ -128,7 +128,7 @@ real household data.
   timeout is explicit and remains shorter than the ingress upstream-read timeout. Four long-running
   services now have pinned CPU and memory ceilings; representative maximum-load measurements and
   one-shot maintenance ceilings remain release work under `v5.0.0-15.2.2`.
-- The maintained logging inventory now covers all 14 current stack layers and 185 source-derived
+- The maintained logging inventory now covers all 14 current stack layers and 189 source-derived
   operational, security, protected-audit, and maintenance event entries. It records formats,
   destinations, uses, readers, retention, redaction, integrity/availability properties, and known
   limitations; its validator also enforces bounded Docker logging, the networkless collector and
@@ -140,7 +140,7 @@ real household data.
   preference submissions now emit minimized fixed events without submitted financial or form
   values. Live delivery, retention, alert review, escalation, and host/provider observations remain
   pending; implementation is not release verification.
-- The maintained CycloneDX inventory now derives 83 third-party components from exact locks,
+- The maintained CycloneDX inventory now derives 88 third-party components from exact locks,
   digest-pinned images, checksummed source, Go pins, and immutable workflow actions, and restricts
   them to six approved repository services. CI additionally retains image-resolved SBOMs for all
   three release images for 90 days. The exact candidate artifacts still require release-owner

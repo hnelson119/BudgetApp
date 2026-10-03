@@ -84,7 +84,14 @@ EXPECTED_ROUTE_ACCESS = {
             "mfa-recovery-confirm",
             "reauthenticate",
         },
-        "recent_auth": {"logout-all", "password-change", "session-revoke"},
+        "recent_auth": {
+            "logout-all",
+            "passkey-delete",
+            "passkey-registration-complete",
+            "passkey-registration-options",
+            "password-change",
+            "session-revoke",
+        },
     },
     "imports/urls.py": {
         "member": {

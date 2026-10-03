@@ -4,6 +4,7 @@ asgiref==3.12.1
 bandit==1.9.4
 boolean.py==5.0
 CacheControl==0.14.4
+cbor2==6.1.5
 certifi==2026.7.22
 cffi==2.1.1
 charset-normalizer==3.5.1
@@ -40,6 +41,9 @@ pluggy==1.6.0
 psycopg==3.3.4
 psycopg-binary==3.3.4
 py-serializable==2.1.0
+pyasn1==0.6.4
+pyasn1-modules==0.4.2
+pyOpenSSL==26.4.0
 Pygments==2.21.0
 pycparser==3.0
 pyparsing==3.3.2
@@ -60,4 +64,5 @@ types-qrcode==8.2.0.20260518
 typing_extensions==4.16.0
 tzdata==2026.3; sys_platform == "win32"
 urllib3==2.8.0
+webauthn==3.0.1
 whitenoise==6.12.0

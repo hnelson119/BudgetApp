@@ -28,11 +28,11 @@ def test_object_authorization_inventory_is_complete_and_gate_wired() -> None:
     routes = discover_identifier_routes()
     probes = discover_boundary_probes()
     assert {item["id"] for item in inventory["controls"]} == EXPECTED_CONTROL_IDS
-    assert len(routes) == 38
-    assert sum(len(route["methods"]) for route in routes.values()) == 66
-    assert len(probes) == 41
-    assert sum(len(probe["methods"]) for probe in probes.values()) == 72
-    assert inventory["summary"]["bounded_checks"] == 146
+    assert len(routes) == 39
+    assert sum(len(route["methods"]) for route in routes.values()) == 67
+    assert len(probes) == 42
+    assert sum(len(probe["methods"]) for probe in probes.values()) == 73
+    assert inventory["summary"]["bounded_checks"] == 148
 
 
 def test_object_authorization_inventory_rejects_missing_operation_and_relationship() -> None:

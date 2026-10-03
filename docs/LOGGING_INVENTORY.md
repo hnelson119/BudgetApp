@@ -49,8 +49,8 @@ scope, and supersession data allowed by the relevant evidence schema.
 | Security-test output | Tool-native raw reports and sanitized evidence | Ignored/disposable paths and CI; sanitized findings in Git | Raw through triage, CI 90 days, sanitized Git history durable |
 
 The JSON inventory is authoritative for exact language. Its five event groups are generated from
-source literals and validated against the repository: 2 Django operational events, 57 Django
-security events, 6 security-archive diagnostics, 83 protected audit actions, and 35 structured
+source literals and validated against the repository: 2 Django operational events, 59 Django
+security events, 6 security-archive diagnostics, 85 protected audit actions, and 37 structured
 maintenance events. Adding, removing, or renaming a literal event without updating the inventory
 fails the local and CI gate.
 
