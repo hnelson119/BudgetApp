@@ -13,6 +13,7 @@ from scripts.check_findings_exit_boundary import (
     EXPECTED_FINDING_IDS,
     INVENTORY_PATH,
     PROJECT_ROOT,
+    _validate_finding,
     parse_finding_register,
     validate_findings_exit_boundary,
 )
@@ -25,7 +26,7 @@ def _inventory() -> dict[str, object]:
 def test_findings_exit_inventory_is_complete_and_gate_wired() -> None:
     inventory = _inventory()
 
-    validate_findings_exit_boundary(inventory, today=date(2026, 9, 29))
+    validate_findings_exit_boundary(inventory, today=date(2026, 10, 2))
 
     assert {item["id"] for item in inventory["controls"]} == EXPECTED_CONTROL_IDS
     assert [item["id"] for item in inventory["findings"]] == EXPECTED_FINDING_IDS
@@ -36,9 +37,9 @@ def test_findings_exit_inventory_is_complete_and_gate_wired() -> None:
         "high": 7,
         "medium": 9,
         "low": 16,
-        "retested": 22,
+        "retested": 23,
         "remediated": 10,
-        "accepted": 1,
+        "accepted": 0,
         "release_blockers": 1,
         "release_pending": 1,
     }
@@ -55,15 +56,26 @@ def test_findings_exit_inventory_rejects_invalid_state_transition() -> None:
 
 
 def test_findings_exit_inventory_rejects_expired_or_high_acceptance() -> None:
-    inventory = _inventory()
+    accepted = {
+        "severity": "Medium",
+        "state": "Accepted",
+        "detected": "2026-08-24",
+        "owner": "release owner",
+        "fields": {
+            "Affected environment": "isolated synthetic transport",
+            "Detection": "A bounded scanner observed plaintext transport.",
+            "Reason": "The transport is confined to a guarded synthetic network.",
+            "Deadline": "Close before release and no later than 2026-09-30.",
+            "Acceptance boundary": "No deployed plaintext transport is accepted.",
+        },
+    }
     with pytest.raises(ValueError, match="past its deadline"):
-        validate_findings_exit_boundary(inventory, today=date(2026, 10, 1))
+        _validate_finding("M10-TEST", accepted, today=date(2026, 10, 1))
 
-    high_acceptance = copy.deepcopy(inventory)
-    finding = next(item for item in high_acceptance["findings"] if item["id"] == "M10-F024")
-    finding["state"] = "Accepted"
-    with pytest.raises(ValueError, match="does not match the source register"):
-        validate_findings_exit_boundary(high_acceptance, today=date(2026, 9, 29))
+    high_acceptance = copy.deepcopy(accepted)
+    high_acceptance["severity"] = "High"
+    with pytest.raises(ValueError, match="must be medium severity"):
+        _validate_finding("M10-TEST", high_acceptance, today=date(2026, 9, 29))
 
 
 def test_findings_exit_release_closure_remains_pending() -> None:

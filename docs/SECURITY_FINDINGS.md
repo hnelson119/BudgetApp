@@ -47,19 +47,24 @@ directory or an encrypted assessment location outside the repository.
 ## M10-F003 — Plain HTTP in the isolated scanner transport
 
 - Severity: Medium
-- State: Accepted
+- State: Retested
 - Detected: 2026-08-24
 - Affected environment: the disposable internal-only synthetic pentest network
 - Detection: ZAP reported `HTTP Only Site` for the synthetic login page.
-- Reason: ZAP and the production-derived app communicate over a private Docker network during this
-  one-run test. The pentest settings are guarded by the exact environment, database host, database
-  name, and synthetic-data opt-in; they alone disable HTTPS redirect, HSTS, and secure cookies.
-  Production settings retain HTTPS redirect, secure `__Host-` cookies, and HSTS.
 - Owner: release owner
-- Deadline: verify the real VM ingress, certificate, redirect, HSTS, and secure-cookie boundary
-  before release-candidate approval and no later than 2026-09-30.
-- Acceptance boundary: this exception applies only to the disposable scanner transport. Plain HTTP
-  is not accepted for a deployed instance.
+- Remediation: the guarded disposable scanner remains isolated on its private Docker network, while
+  the deployed production path requires Tailscale HTTPS, a publicly trusted exact-host certificate,
+  HSTS, secure `__Host-` cookies, and a loopback-only relay. Plain HTTP is not accepted for a
+  deployed instance.
+- Retest: on 2026-10-02, the release owner ran the sanitized Linux VM private-ingress preflight
+  against commit `3ea0c445cd47d213faa76a911f3746ed80bc2e43`. The production-derived probe passed
+  265 runtime, isolation, HTTP-policy, header/error, and request-framing checks. The deployed probe
+  then passed 27 private-ingress, transport, and intermediary-header checks, including public
+  certificate validation, TLS 1.3 preference, exact HSTS, a loopback-only upstream, spoofed-header
+  removal, Funnel absence, and plain HTTP either closed or redirecting only to the exact private
+  HTTPS health endpoint. This dated result closes the expired scanner-transport acceptance; the
+  exact future release candidate and the remaining approved/unapproved-device procedures still
+  require their own release records.
 
 ## M10-F004 — Nonportable native date-control defaults
 

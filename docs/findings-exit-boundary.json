@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "inventory_id": "budgetapp-findings-exit-boundary-v1",
-  "last_reviewed": "2026-09-29",
-  "next_review_due": "2026-12-28",
+  "last_reviewed": "2026-10-02",
+  "next_review_due": "2026-12-31",
   "security_test_id": 24,
   "controls": [
     {
@@ -44,7 +44,7 @@
   "findings": [
     {"id": "M10-F001", "severity": "Critical", "state": "Retested"},
     {"id": "M10-F002", "severity": "Medium", "state": "Retested"},
-    {"id": "M10-F003", "severity": "Medium", "state": "Accepted"},
+    {"id": "M10-F003", "severity": "Medium", "state": "Retested"},
     {"id": "M10-F004", "severity": "Low", "state": "Retested"},
     {"id": "M10-F005", "severity": "Low", "state": "Retested"},
     {"id": "M10-F006", "severity": "High", "state": "Retested"},
@@ -95,9 +95,9 @@
     "high": 7,
     "medium": 9,
     "low": 16,
-    "retested": 22,
+    "retested": 23,
     "remediated": 10,
-    "accepted": 1,
+    "accepted": 0,
     "release_blockers": 1,
     "release_pending": 1
   }
