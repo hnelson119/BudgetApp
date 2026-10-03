@@ -19,10 +19,14 @@
       "routes": [
         "identity:login",
         "identity:mfa-verify",
+        "identity:passkey-login-complete",
+        "identity:passkey-login-options",
+        "identity:passkey-reauthentication-complete",
+        "identity:passkey-reauthentication-options",
         "identity:password-recovery",
         "identity:reauthenticate"
       ],
-      "evidence": ["identity/services/throttling.py", "identity/views.py", "tests/test_authentication.py", "tests/test_mfa.py", "tests/test_password_recovery.py"]
+      "evidence": ["identity/services/throttling.py", "identity/views.py", "tests/test_authentication.py", "tests/test_mfa.py", "tests/test_passkeys.py", "tests/test_password_recovery.py"]
     },
     {
       "id": "authenticated-mutations",
@@ -159,5 +163,5 @@
     "Per-user application budgets do not identify a distributed pre-authentication flood; private ingress, keyed network failure throttles, connection ceilings, worker limits, and timeouts are the independent boundary.",
     "Representative release-host load and false-positive behavior remain release verification work and do not change repository implementation status."
   ],
-  "summary": {"route_families": 8, "named_routes": 73, "source_assertions": 8, "runtime_tests": 8, "residual_risks": 2}
+  "summary": {"route_families": 8, "named_routes": 77, "source_assertions": 8, "runtime_tests": 8, "residual_risks": 2}
 }

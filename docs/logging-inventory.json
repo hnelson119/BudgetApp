@@ -28,7 +28,7 @@
   "summary": {
     "layers": 14,
     "event_groups": 5,
-    "event_entries": 189,
+    "event_entries": 191,
     "known_gaps": 2
   },
   "layers": [
@@ -492,6 +492,8 @@
         "auth.mfa_enrolled",
         "auth.mfa_failed",
         "auth.mfa_succeeded",
+        "auth.passkey_login_failed",
+        "auth.passkey_login_succeeded",
         "auth.passkey_registered",
         "auth.passkey_registration_failed",
         "auth.password_accepted",

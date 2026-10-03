@@ -6,7 +6,8 @@ Last reviewed: 2026-09-17
 ## Scope and assurance target
 
 The private Household Budget application treats an authenticated session as an AAL2-style session
-because normal sign-in requires a password and a confirmed TOTP or single-use recovery code. This
+because sign-in requires either a password plus confirmed TOTP or single-use recovery code, or a
+registered user-verified passkey. This
 is a product risk target, not a claim that the application or deployment has been formally assessed
 for NIST conformance. Sessions protect private household identity, income, spending, debt, reserve,
 goal, and audit data, so unattended and long-lived browser access is deliberately bounded.
@@ -15,10 +16,10 @@ goal, and audit data, so unattended and long-lived browser access is deliberatel
 
 | Boundary | Production limit | Enforcement and rationale |
 | --- | ---: | --- |
-| Inactivity | 1 hour | `SESSION_IDLE_TIMEOUT_SECONDS`; a request after the limit terminates the server session and requires the full password-plus-MFA login flow. This matches the NIST AAL2 recommended maximum. |
+| Inactivity | 1 hour | `SESSION_IDLE_TIMEOUT_SECONDS`; a request after the limit terminates the server session and requires a full password-plus-MFA or user-verified passkey login flow. This matches the NIST AAL2 recommended maximum. |
 | Overall lifetime | 12 hours | `SESSION_ABSOLUTE_TIMEOUT_SECONDS` and `SESSION_COOKIE_AGE`; this is stricter than the NIST AAL2 recommended maximum of 24 hours because the application exposes consolidated financial data. Successful sensitive-action reauthentication does not extend this limit. |
 | Activity persistence | 60 seconds | `SESSION_ACTIVITY_UPDATE_SECONDS`; active requests refresh the stored last-seen time at most once per minute to limit database writes without relaxing the 1-hour inactivity decision. |
-| Sensitive-action freshness | 10 minutes | `RECENT_AUTH_TIMEOUT_SECONDS`; password changes, session revocation, all-device logout, protected exports, and other guarded actions require a fresh password plus TOTP or recovery-code verification. This is an additional control and does not extend the overall session lifetime. |
+| Sensitive-action freshness | 10 minutes | `RECENT_AUTH_TIMEOUT_SECONDS`; password changes, session revocation, all-device logout, protected exports, and other guarded actions require fresh password-plus-TOTP/recovery-code verification or a user-verified passkey assertion. This is an additional control and does not extend the overall session lifetime. |
 | Concurrent sessions | 5 | `MAX_CONCURRENT_SESSIONS`; after a sixth fully authenticated session is saved, the oldest active session for that account is deleted while the new session is preserved. Per-account enforcement is serialized with a database lock. |
 | Browser persistence | Browser session only | Hardened settings enable `SESSION_EXPIRE_AT_BROWSER_CLOSE` and use a host-only, path-rooted, Secure, HttpOnly, SameSite=Strict session cookie. There is no remember-me mode. |
 
@@ -38,7 +39,7 @@ browser that later presents one of the displaced cookies is redirected to full l
 the secure client-state cleanup response. Both lifecycle events are recorded in the security log.
 
 The concurrent limit counts only unexpired, current-version authenticated sessions; incomplete MFA
-attempts and stale session versions do not consume a slot. A new valid password-plus-MFA login is
+attempts and stale session versions do not consume a slot. A new valid password-plus-MFA or passkey login is
 not rejected at the limit. Instead, the oldest authenticated session is revoked deterministically,
 the replacement login succeeds, and the security stream records the automatic revocation. The
 evicted browser is redirected to full login and receives the client-state cleanup response on its
@@ -71,6 +72,7 @@ route. Their supported mutation paths require the following proof before a chang
 | Password | Self-service change requires a current password and authentication within the 10-minute password-plus-MFA freshness window. Public recovery requires a confirmed TOTP or unused recovery code, does not authenticate the requester, revokes prior sessions, and requires a fresh full login. |
 | Email address and account permissions or active state | Only staff can change these values through `SecureAdminSite`; every admin request requires an active staff account, completed MFA, explicit current-session MFA proof, and authentication within the 10-minute freshness window. |
 | MFA credential and recovery codes | Browser users cannot replace or restart a confirmed enrollment. Enrollment restart is available only while MFA remains unconfirmed. A trusted-console emergency reset clears the credential and revokes every session so the user must authenticate and enroll again. |
+| Passkeys | Enrollment and removal require recent authentication. Passwordless sign-in uses discoverable credentials; sign-in and reauthentication require user verification, an exact RP ID and origin, a single-use expiring challenge, the stored public key, and the authenticator counter. Private keys remain in the authenticator. |
 | Phone number | The application does not collect or use a phone number for authentication or recovery. |
 
 The admin user editor also keeps session versions and authentication timestamps read-only. Tests

@@ -7,6 +7,7 @@ import pytest
 from django.conf import settings
 from django.test import Client
 from django.urls import reverse
+from webauthn.helpers import bytes_to_base64url
 from webauthn.helpers.structs import CredentialDeviceType
 
 from audit.models import AuditEvent
@@ -18,7 +19,7 @@ from identity.services.mfa import (
     confirm_recovery_codes_saved,
     totp_code,
 )
-from identity.services.sessions import SESSION_AUTH_VERIFIED_AT
+from identity.services.sessions import SESSION_AUTH_VERIFIED_AT, SESSION_USER_VERSION
 
 PASSWORD = "passkey-test-current-passphrase"  # pragma: allowlist secret
 
@@ -64,6 +65,30 @@ def _credential_payload() -> dict[str, object]:
             "transports": ["internal", "hybrid"],
         },
     }
+
+
+def _authentication_payload(user: User, credential_id: str) -> dict[str, object]:
+    return {
+        "id": credential_id,
+        "rawId": credential_id,
+        "type": "public-key",
+        "authenticatorAttachment": "platform",
+        "clientExtensionResults": {},
+        "response": {
+            "authenticatorData": "authenticator-data",
+            "clientDataJSON": "client-data",
+            "signature": "signature",
+            "userHandle": bytes_to_base64url(user.pk.bytes),
+        },
+    }
+
+
+def _authentication_verification(*, sign_count: int = 8) -> SimpleNamespace:
+    return SimpleNamespace(
+        new_sign_count=sign_count,
+        credential_device_type=CredentialDeviceType.MULTI_DEVICE,
+        credential_backed_up=True,
+    )
 
 
 @pytest.mark.django_db
@@ -180,3 +205,165 @@ def test_passkey_endpoints_require_login_and_csrf(passkey_user) -> None:  # type
     csrf_client = Client(enforce_csrf_checks=True)
     csrf_client.force_login(user)
     assert csrf_client.post(reverse("identity:passkey-registration-options")).status_code == 403
+
+
+@pytest.mark.django_db
+def test_discoverable_passkey_login_requires_user_verification_and_establishes_session(
+    passkey_user,
+) -> None:  # type: ignore[no-untyped-def]
+    household, user, _ = passkey_user
+    credential_id = bytes_to_base64url(b"login-authenticator")
+    passkey = PasskeyCredential.objects.create(
+        user=user,
+        name="Login key",
+        credential_id=credential_id,
+        public_key=b"public-key",
+        sign_count=7,
+        device_type="single_device",
+    )
+    client = Client()
+
+    options = client.post(
+        reverse("identity:passkey-login-options"),
+        {"next": reverse("identity:account-security")},
+    )
+
+    assert options.status_code == 200
+    assert options.json()["userVerification"] == "required"
+    assert not options.json().get("allowCredentials")
+    with patch(
+        "identity.services.passkeys.verify_authentication_response",
+        return_value=_authentication_verification(),
+    ) as verify:
+        response = client.post(
+            reverse("identity:passkey-login-complete"),
+            data=json.dumps({"credential": _authentication_payload(user, credential_id)}),
+            content_type="application/json",
+        )
+
+    assert response.status_code == 200
+    assert response.json()["redirect"] == reverse("identity:account-security")
+    assert client.session[SESSION_USER_VERSION] == user.session_version
+    verify.assert_called_once()
+    assert verify.call_args.kwargs["require_user_verification"] is True
+    assert verify.call_args.kwargs["credential_current_sign_count"] == 7
+    passkey.refresh_from_db()
+    assert passkey.sign_count == 8
+    assert passkey.backed_up is True
+    assert passkey.last_used_at is not None
+    event = AuditEvent.objects.filter(
+        household=household,
+        action="auth.login_succeeded",
+    ).latest("sequence")
+    assert event.after_payload == {"authentication_method": "passkey"}
+
+
+@pytest.mark.django_db
+def test_passkey_reauthentication_is_owner_bound_single_use_and_audited(
+    passkey_user,
+) -> None:  # type: ignore[no-untyped-def]
+    household, user, client = passkey_user
+    credential_id = bytes_to_base64url(b"reauth-authenticator")
+    passkey = PasskeyCredential.objects.create(
+        user=user,
+        name="Reauthentication key",
+        credential_id=credential_id,
+        public_key=b"public-key",
+        sign_count=3,
+        device_type="single_device",
+        transports=["internal"],
+    )
+    session = client.session
+    session[SESSION_AUTH_VERIFIED_AT] = 1
+    session.save()
+
+    options = client.post(
+        reverse("identity:passkey-reauthentication-options"),
+        {"next": reverse("identity:account-security")},
+    )
+
+    assert options.status_code == 200
+    assert options.json()["allowCredentials"][0]["id"] == credential_id
+    with patch(
+        "identity.services.passkeys.verify_authentication_response",
+        return_value=_authentication_verification(sign_count=4),
+    ):
+        response = client.post(
+            reverse("identity:passkey-reauthentication-complete"),
+            data=json.dumps({"credential": _authentication_payload(user, credential_id)}),
+            content_type="application/json",
+        )
+        replay = client.post(
+            reverse("identity:passkey-reauthentication-complete"),
+            data=json.dumps({"credential": _authentication_payload(user, credential_id)}),
+            content_type="application/json",
+        )
+
+    assert response.status_code == 200
+    assert response.json()["redirect"] == reverse("identity:account-security")
+    assert client.session[SESSION_AUTH_VERIFIED_AT] > 1
+    assert replay.status_code == 400
+    passkey.refresh_from_db()
+    assert passkey.sign_count == 4
+    event = AuditEvent.objects.filter(
+        household=household,
+        action="auth.reauthentication_succeeded",
+    ).latest("occurred_at")
+    assert event.after_payload == {"method": "passkey"}
+
+
+@pytest.mark.django_db
+def test_passkey_login_rejects_wrong_user_handle_and_inactive_membership(passkey_user) -> None:  # type: ignore[no-untyped-def]
+    household, user, _ = passkey_user
+    credential_id = bytes_to_base64url(b"rejected-authenticator")
+    passkey = PasskeyCredential.objects.create(
+        user=user,
+        name="Rejected key",
+        credential_id=credential_id,
+        public_key=b"public-key",
+        sign_count=2,
+        device_type="single_device",
+    )
+    client = Client()
+    client.post(reverse("identity:passkey-login-options"))
+    payload = _authentication_payload(user, credential_id)
+    payload["response"]["userHandle"] = bytes_to_base64url(b"wrong-user")  # type: ignore[index]
+
+    with patch("identity.services.passkeys.verify_authentication_response") as verify:
+        response = client.post(
+            reverse("identity:passkey-login-complete"),
+            data=json.dumps({"credential": payload}),
+            content_type="application/json",
+        )
+
+    assert response.status_code == 400
+    assert response.json() == {"error": "Passkey sign-in was not accepted."}
+    verify.assert_not_called()
+    passkey.refresh_from_db()
+    assert passkey.sign_count == 2
+
+    HouseholdMembership.objects.filter(household=household, user=user).update(is_active=False)
+    client.post(reverse("identity:passkey-login-options"))
+    with patch("identity.services.passkeys.verify_authentication_response") as verify:
+        response = client.post(
+            reverse("identity:passkey-login-complete"),
+            data=json.dumps({"credential": _authentication_payload(user, credential_id)}),
+            content_type="application/json",
+        )
+    assert response.status_code == 400
+    verify.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_passkey_authentication_endpoints_enforce_csrf_and_authentication(passkey_user) -> None:  # type: ignore[no-untyped-def]
+    _, user, _ = passkey_user
+    anonymous = Client()
+    assert anonymous.post(reverse("identity:passkey-reauthentication-options")).status_code == 302
+    csrf_client = Client(enforce_csrf_checks=True)
+    assert csrf_client.post(reverse("identity:passkey-login-options")).status_code == 403
+    assert csrf_client.post(reverse("identity:passkey-login-complete")).status_code == 403
+    csrf_client.force_login(user)
+    assert csrf_client.post(reverse("identity:passkey-reauthentication-options")).status_code == 403
+    assert (
+        csrf_client.post(reverse("identity:passkey-reauthentication-complete")).status_code == 403
+    )

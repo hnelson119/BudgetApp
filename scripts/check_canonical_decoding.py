@@ -44,7 +44,7 @@ EXPECTED_DECODING_OPERATIONS: dict[str, Counter[str]] = {
     "identity/services/mfa.py": Counter(
         {"bytes.decode:utf-8:strict": 4, "json.loads": 1, "base64.b32decode": 1}
     ),
-    "identity/services/passkeys.py": Counter({"json.loads": 2}),
+    "identity/services/passkeys.py": Counter({"json.loads": 4}),
     "imports/services/parsing.py": Counter({"bytes.decode:utf-8-sig:strict": 1}),
 }
 FORBIDDEN_DECODERS = {

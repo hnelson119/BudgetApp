@@ -6,6 +6,16 @@ app_name = "identity"
 
 urlpatterns = [
     path("login/", views.login_view, name="login"),
+    path(
+        "login/passkey/options/",
+        views.passkey_login_options_view,
+        name="passkey-login-options",
+    ),
+    path(
+        "login/passkey/complete/",
+        views.passkey_login_complete_view,
+        name="passkey-login-complete",
+    ),
     path("recover/", views.password_recovery_view, name="password-recovery"),
     path("mfa/verify/", views.mfa_verify_view, name="mfa-verify"),
     path("mfa/enroll/", views.mfa_enroll_view, name="mfa-enroll"),
@@ -20,6 +30,16 @@ urlpatterns = [
         name="mfa-enrollment-restart",
     ),
     path("reauthenticate/", views.reauthenticate_view, name="reauthenticate"),
+    path(
+        "reauthenticate/passkey/options/",
+        views.passkey_reauthentication_options_view,
+        name="passkey-reauthentication-options",
+    ),
+    path(
+        "reauthenticate/passkey/complete/",
+        views.passkey_reauthentication_complete_view,
+        name="passkey-reauthentication-complete",
+    ),
     path("security/", views.account_security_view, name="account-security"),
     path("security/password/", views.password_change_view, name="password-change"),
     path(

@@ -19,7 +19,7 @@
     },
     {
       "id": "active-household-member",
-      "permissions": "An authenticated user with an active HouseholdMembership has equal member access to the selected household. Some functions additionally require recent password-plus-MFA proof or recipient ownership."
+      "permissions": "An authenticated user with an active HouseholdMembership has equal member access to the selected household. Some functions additionally require recent password-plus-MFA or user-verified passkey proof, or recipient ownership."
     },
     {
       "id": "trusted-administrator",
@@ -104,7 +104,12 @@
       "namespace": "identity",
       "path": "identity/urls.py",
       "access": {
-        "public": ["login", "password-recovery"],
+        "public": [
+          "login",
+          "passkey-login-complete",
+          "passkey-login-options",
+          "password-recovery"
+        ],
         "pending_auth": ["mfa-verify"],
         "member": [
           "account-security",
@@ -112,6 +117,8 @@
           "mfa-enroll",
           "mfa-enrollment-restart",
           "mfa-recovery-confirm",
+          "passkey-reauthentication-complete",
+          "passkey-reauthentication-options",
           "reauthenticate"
         ],
         "recent_auth": [
@@ -166,14 +173,14 @@
   "function_rules": [
     {
       "id": "public-authentication-and-liveness",
-      "permissions": "Anonymous consumers may reach only hardened liveness, login, and generic recovery. Password-accepted pending sessions may reach only MFA verification. Readiness is blocked by the hardened operational endpoint boundary.",
-      "resource_attributes": ["route purpose", "hardened deployment mode", "pending-session age and version"],
+      "permissions": "Anonymous consumers may reach only hardened liveness, password or passkey login, and generic recovery. Password-accepted pending sessions may reach only MFA verification. Readiness is blocked by the hardened operational endpoint boundary.",
+      "resource_attributes": ["route purpose", "hardened deployment mode", "pending-session age and version", "single-use passkey challenge"],
       "evidence": ["core/urls.py", "core/middleware.py", "identity/urls.py", "identity/views.py", "tests/test_authentication.py", "tests/test_web_foundation.py"]
     },
     {
       "id": "session-and-account-security",
-      "permissions": "Members may view and terminate their own sessions, change their own password, and manage only their own passkeys. Password change, passkey enrollment or removal, individual revocation, and all-device revocation require recent password-plus-MFA proof.",
-      "resource_attributes": ["authenticated user identity", "session or passkey owner", "recent-auth timestamp", "session version"],
+      "permissions": "Members may view and terminate their own sessions, change their own password, and manage only their own passkeys. Password change, passkey enrollment or removal, individual revocation, and all-device revocation require recent password-plus-MFA or user-verified passkey proof.",
+      "resource_attributes": ["authenticated user identity", "session or passkey owner", "recent-auth timestamp", "session version", "authenticator counter and user verification"],
       "evidence": ["identity/views.py", "identity/services/sessions.py", "identity/services/passkeys.py", "docs/SESSION_SECURITY.md", "tests/test_authentication.py", "tests/test_passkeys.py"]
     },
     {
@@ -360,7 +367,7 @@
   "summary": {
     "consumer_states": 4,
     "route_namespaces": 9,
-    "routes": 73,
+    "routes": 77,
     "function_rules": 11,
     "field_rules": 10,
     "source_assertions": 8,

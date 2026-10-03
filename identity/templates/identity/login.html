@@ -37,11 +37,28 @@
         </form>
 
         <div class="auth-actions">
+          <p class="auth-help">Or use a passkey already registered to your account.</p>
+          <form
+            method="post"
+            class="auth-form"
+            data-passkey-authentication
+            data-options-url="{% url 'identity:passkey-login-options' %}"
+            data-complete-url="{% url 'identity:passkey-login-complete' %}"
+          >
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+            <p class="form-alert" data-passkey-authentication-error role="alert" hidden></p>
+            <button type="submit" class="secondary-button">Sign in with a passkey</button>
+          </form>
+        </div>
+
+        <div class="auth-actions">
           <a class="auth-link" href="{% url 'identity:password-recovery' %}">Forgot your password?</a>
           <p class="auth-help">Your authenticator is required before household data can be opened.</p>
         </div>
       </section>
     </main>
     <script src="{% static 'core/app.js' %}" defer></script>
+    <script src="{% static 'core/passkey_authentication.js' %}" defer></script>
   </body>
 </html>
