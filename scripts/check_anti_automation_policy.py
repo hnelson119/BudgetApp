@@ -32,7 +32,7 @@ EXPECTED_ROUTE_FILES = (
     "core/urls.py",
 )
 EXPECTED_FAMILY_COUNTS = {
-    "identity-failure-throttles": 4,
+    "identity-failure-throttles": 8,
     "authenticated-mutations": 45,
     "security-termination-actions": 3,
     "protected-data-exports": 2,
@@ -42,7 +42,7 @@ EXPECTED_FAMILY_COUNTS = {
     "operational-health": 2,
 }
 EXPECTED_ROUTE_ASSIGNMENT_SHA256 = (
-    "033a8853c844e3ede328fbe0ee67cf2eb67ee9826e57c5e45b9723b3164a5e79"  # pragma: allowlist secret
+    "170879f08b049638ed5e49214775968a04ab46fd03e2d28915dbd773e436431a"  # pragma: allowlist secret
 )
 EXPECTED_SOURCE_ASSERTIONS = {
     "configured-budgets": (
@@ -106,7 +106,7 @@ EXPECTED_RUNTIME_TESTS = {
 }
 EXPECTED_SUMMARY = {
     "route_families": 8,
-    "named_routes": 73,
+    "named_routes": 77,
     "source_assertions": 8,
     "runtime_tests": 8,
     "residual_risks": 2,

@@ -148,7 +148,9 @@ the same two-person household. Both people are restricted to MFA enrollment at f
 administrator cannot enter Django administration until the current browser session has completed
 password-plus-MFA authentication. TOTP seeds are encrypted with the separate
 `django_mfa_encryption_key` secret; recovery codes are displayed once and only salted password
-hashes are retained. The sign-in screen's recovery flow accepts a current authenticator code or one
+hashes are retained. After that initial proof, each member may register up to five user-verified
+passkeys for optional passwordless sign-in and sensitive-action confirmation; password, TOTP, and
+recovery-code authentication remain available as fallback. The sign-in screen's recovery flow accepts a current authenticator code or one
 unused recovery code and never bypasses the next MFA challenge. If an authenticator and all recovery
 codes are lost, a VM
 administrator can run the interactive

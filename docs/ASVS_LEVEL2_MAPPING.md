@@ -197,7 +197,7 @@ The deny-by-default authorization policy implements `v5.0.0-8.1.1` and `v5.0.0-8
 consumer states distinguish anonymous, pending-MFA, active household member, and separately trusted
 administrator authority. Eleven function and record rule groups and ten field rule groups define
 decisions from membership, selected household, recipient, lifecycle, account classification,
-recent authentication, integrity, and purpose. A fail-closed registry classifies all 70 named
+recent authentication, integrity, and purpose. A fail-closed registry classifies all 77 named
 routes across nine namespaces, verifies every member login guard and all five recent-auth checks,
 and pins recipient, household, export, and denial-logging contracts. See
 `docs/AUTHORIZATION_POLICY.md` and `docs/authorization-policy.json`.

@@ -25,7 +25,7 @@
     {
       "id": "script-readable-storage-minimization",
       "objective": "Keep credentials and household data out of Web Storage while allowing only the non-sensitive fixed theme preference.",
-      "evidence": ["core/static/core/app.js", "core/static/core/passkeys.js", "browser-tests/security-accessibility.spec.mjs"],
+      "evidence": ["core/static/core/app.js", "core/static/core/passkey_authentication.js", "core/static/core/passkeys.js", "browser-tests/security-accessibility.spec.mjs"],
       "test_refs": ["tests/test_browser_harness.py::test_browser_specs_cover_real_mfa_security_accessibility_and_workflows"],
       "repository_status": "implemented"
     },

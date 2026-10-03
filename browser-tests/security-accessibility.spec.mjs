@@ -89,3 +89,19 @@ test("public password recovery is accessible and responsive without authenticati
   expect(results.violations, formatAxeViolations(results.violations)).toEqual([]);
   expectCleanPage(signals);
 });
+
+test("public login offers an accessible optional passkey path", async ({ page, context }) => {
+  await context.clearCookies();
+  const signals = monitorPage(page);
+  const response = await page.goto("/accounts/login/");
+  expect(response?.status()).toBe(200);
+  expect(response?.headers()["cache-control"]).toContain("no-store");
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in with a passkey" })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(results.violations, formatAxeViolations(results.violations)).toEqual([]);
+  expectCleanPage(signals);
+});

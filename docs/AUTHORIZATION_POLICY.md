@@ -56,7 +56,7 @@ selected household may review and complete its staged batch, subject to current 
 confirmation token.
 
 Audit history is readable by active household members. Transaction and audit CSV exports require
-recent password-plus-MFA proof, and audit export also requires a valid chain. Password changes,
+recent password-plus-MFA or user-verified passkey proof, and audit export also requires a valid chain. Password changes,
 individual session revocation, and all-device revocation require the same recent-auth elevation.
 The application exposes no generic record API or generic model serializer.
 

@@ -49,6 +49,9 @@ from identity.services.mfa import (
     verify_and_consume_totp,
 )
 from identity.services.passkeys import (
+    authenticate_passkey,
+    authentication_options,
+    parse_authentication_body,
     parse_registration_body,
     register_passkey,
     registration_options,
@@ -306,6 +309,58 @@ def login_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+@never_cache
+@require_POST
+def passkey_login_options_view(request: HttpRequest) -> JsonResponse:
+    if request.user.is_authenticated:
+        return _passkey_error("Passkey sign-in is unavailable.", status=400)
+    keys = throttle_keys(request, "discoverable", scope="passkey")
+    if is_login_blocked(keys):
+        return _passkey_error("Passkey sign-in is temporarily unavailable.", status=429)
+    try:
+        options = authentication_options(
+            request,
+            mode="login",
+            next_url=_safe_next_url(request),
+        )
+    except ValidationError:
+        return _passkey_error("Passkey sign-in could not start.")
+    return JsonResponse(options)
+
+
+@never_cache
+@require_POST
+def passkey_login_complete_view(request: HttpRequest) -> JsonResponse:
+    if request.user.is_authenticated:
+        return _passkey_error("Passkey sign-in is unavailable.", status=400)
+    keys = throttle_keys(request, "discoverable", scope="passkey")
+    blocked = is_login_blocked(keys)
+    try:
+        if blocked:
+            raise ValidationError("Passkey sign-in is temporarily unavailable.")
+        credential = parse_authentication_body(request.body)
+        with transaction.atomic():
+            result = authenticate_passkey(request, mode="login", credential=credential)
+            _complete_login(request, result.user, method="passkey")
+    except (ValidationError, WebAuthnException):
+        if not blocked:
+            blocked = register_login_failure(keys)
+        security_logger.warning(
+            "Passkey sign-in failed.",
+            extra={"event": "auth.passkey_login_failed", "rate_limited": blocked},
+        )
+        return _passkey_error(
+            "Passkey sign-in was not accepted.",
+            status=429 if blocked else 400,
+        )
+    clear_login_failures(keys)
+    security_logger.info(
+        "Passkey sign-in succeeded.",
+        extra={"event": "auth.passkey_login_succeeded"},
+    )
+    return JsonResponse({"status": "ok", "redirect": result.next_url})
+
+
 @sensitive_post_parameters("code")
 @never_cache
 @require_http_methods(["GET", "POST"])
@@ -557,6 +612,82 @@ def reauthenticate_view(request: HttpRequest) -> HttpResponse:
         {"form": form, "next": _safe_next_url(request)},
         status=status,
     )
+
+
+@login_required
+@never_cache
+@require_POST
+def passkey_reauthentication_options_view(request: HttpRequest) -> JsonResponse:
+    user = _authenticated_user(request)
+    keys = throttle_keys(request, str(user.pk), scope="reauthentication")
+    if is_login_blocked(keys):
+        return _passkey_error("Passkey confirmation is temporarily unavailable.", status=429)
+    try:
+        options = authentication_options(
+            request,
+            mode="reauthentication",
+            next_url=_safe_next_url(request),
+            user=user,
+        )
+    except ValidationError:
+        return _passkey_error("Passkey confirmation could not start.")
+    return JsonResponse(options)
+
+
+@login_required
+@never_cache
+@require_POST
+def passkey_reauthentication_complete_view(request: HttpRequest) -> JsonResponse:
+    user = _authenticated_user(request)
+    household = get_active_household(request)
+    keys = throttle_keys(request, str(user.pk), scope="reauthentication")
+    blocked = is_login_blocked(keys)
+    try:
+        if blocked:
+            raise ValidationError("Passkey confirmation is temporarily unavailable.")
+        credential = parse_authentication_body(request.body)
+        with transaction.atomic():
+            result = authenticate_passkey(
+                request,
+                mode="reauthentication",
+                credential=credential,
+                user=user,
+            )
+            append_event(
+                household=household,
+                actor=user,
+                action="auth.reauthentication_succeeded",
+                entity_type="identity.user",
+                entity_id=user.pk,
+                request_id=current_request_id(),
+                after={"method": "passkey"},
+            )
+    except (ValidationError, WebAuthnException):
+        if not blocked:
+            blocked = register_login_failure(keys)
+        append_event(
+            household=household,
+            actor=user,
+            action="auth.reauthentication_failed",
+            entity_type="identity.user",
+            entity_id=user.pk,
+            request_id=current_request_id(),
+        )
+        security_logger.warning(
+            "Passkey reauthentication failed.",
+            extra={"event": "auth.reauthentication_failed", "rate_limited": blocked},
+        )
+        return _passkey_error(
+            "Passkey confirmation was not accepted.",
+            status=429 if blocked else 400,
+        )
+    clear_login_failures(keys)
+    mark_recent_authentication(request)
+    security_logger.info(
+        "Passkey reauthentication succeeded.",
+        extra={"event": "auth.reauthentication_succeeded", "method": "passkey"},
+    )
+    return JsonResponse({"status": "ok", "redirect": result.next_url})
 
 
 @login_required

@@ -74,7 +74,12 @@ EXPECTED_ROUTE_ACCESS = {
         }
     },
     "identity/urls.py": {
-        "public": {"login", "password-recovery"},
+        "public": {
+            "login",
+            "passkey-login-complete",
+            "passkey-login-options",
+            "password-recovery",
+        },
         "pending_auth": {"mfa-verify"},
         "member": {
             "account-security",
@@ -82,6 +87,8 @@ EXPECTED_ROUTE_ACCESS = {
             "mfa-enroll",
             "mfa-enrollment-restart",
             "mfa-recovery-confirm",
+            "passkey-reauthentication-complete",
+            "passkey-reauthentication-options",
             "reauthenticate",
         },
         "recent_auth": {
