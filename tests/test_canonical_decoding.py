@@ -20,8 +20,8 @@ def test_canonical_decoding_accepts_the_reviewed_production_boundary() -> None:
     runtime_count, file_count, operation_count = validate_canonical_decoding()
 
     assert runtime_count > 0
-    assert file_count == 7
-    assert operation_count == 16
+    assert file_count == 8
+    assert operation_count == 18
 
 
 def test_canonical_decoding_tracks_the_complete_runtime() -> None:

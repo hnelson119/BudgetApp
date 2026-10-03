@@ -2,7 +2,7 @@
   "$schema": "https://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:ba78ec8b-75c3-53ff-ab05-40385fab954c",
+  "serialNumber": "urn:uuid:032b84ac-7794-576c-8a6a-1e3d7cbc05ef",
   "version": 1,
   "metadata": {
     "component": {
@@ -15,7 +15,7 @@
     "properties": [
       {
         "name": "budget:inventory-fingerprint-sha256",
-        "value": "f87604f4cf3ad9124400d88307ad93117a489c5da76c7a51a91f6ead23b28c0c"
+        "value": "7fd59dffb2810c44dd610e3e4ee77102c815bb20a66510b3f7fd18db68b18e73"
       },
       {
         "name": "budget:maintenance-procedure",
@@ -727,6 +727,27 @@
         {
           "name": "budget:usage-scope",
           "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/cbor2@6.1.5",
+      "name": "cbor2",
+      "version": "6.1.5",
+      "purl": "pkg:pypi/cbor2@6.1.5",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
         }
       ]
     },
@@ -1496,6 +1517,48 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:pypi/pyasn1-modules@0.4.2",
+      "name": "pyasn1-modules",
+      "version": "0.4.2",
+      "purl": "pkg:pypi/pyasn1-modules@0.4.2",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyasn1@0.6.4",
+      "name": "pyasn1",
+      "version": "0.6.4",
+      "purl": "pkg:pypi/pyasn1@0.6.4",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:pypi/pycparser@3.0",
       "name": "pycparser",
       "version": "3.0",
@@ -1533,6 +1596,27 @@
         {
           "name": "budget:usage-scope",
           "value": "development"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyopenssl@26.4.0",
+      "name": "pyopenssl",
+      "version": "26.4.0",
+      "purl": "pkg:pypi/pyopenssl@26.4.0",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
         }
       ]
     },
@@ -1920,6 +2004,27 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:pypi/webauthn@3.0.1",
+      "name": "webauthn",
+      "version": "3.0.1",
+      "purl": "pkg:pypi/webauthn@3.0.1",
+      "properties": [
+        {
+          "name": "budget:source-files",
+          "value": "requirements-dev.lock,requirements-prod.lock"
+        },
+        {
+          "name": "budget:source-repository",
+          "value": "pypi.org"
+        },
+        {
+          "name": "budget:usage-scope",
+          "value": "production"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:pypi/whitenoise@6.12.0",
       "name": "whitenoise",
       "version": "6.12.0",
@@ -1970,6 +2075,7 @@
         "pkg:pypi/bandit@1.9.4",
         "pkg:pypi/boolean-py@5.0",
         "pkg:pypi/cachecontrol@0.14.4",
+        "pkg:pypi/cbor2@6.1.5",
         "pkg:pypi/certifi@2026.7.22",
         "pkg:pypi/cffi@2.1.1",
         "pkg:pypi/charset-normalizer@3.5.1",
@@ -2006,8 +2112,11 @@
         "pkg:pypi/psycopg-binary@3.3.4",
         "pkg:pypi/psycopg@3.3.4",
         "pkg:pypi/py-serializable@2.1.0",
+        "pkg:pypi/pyasn1-modules@0.4.2",
+        "pkg:pypi/pyasn1@0.6.4",
         "pkg:pypi/pycparser@3.0",
         "pkg:pypi/pygments@2.21.0",
+        "pkg:pypi/pyopenssl@26.4.0",
         "pkg:pypi/pyparsing@3.3.2",
         "pkg:pypi/pytest-django@4.14.0",
         "pkg:pypi/pytest@9.1.1",
@@ -2026,6 +2135,7 @@
         "pkg:pypi/typing-extensions@4.16.0",
         "pkg:pypi/tzdata@2026.3",
         "pkg:pypi/urllib3@2.8.0",
+        "pkg:pypi/webauthn@3.0.1",
         "pkg:pypi/whitenoise@6.12.0"
       ]
     }

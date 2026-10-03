@@ -117,3 +117,31 @@ class RecoveryCode(models.Model):
     def __str__(self) -> str:
         state = "used" if self.used_at else "unused"
         return f"Recovery code {self.identifier} ({state})"
+
+
+class PasskeyCredential(models.Model):
+    """A user-verified WebAuthn credential; private key material never reaches the server."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="passkeys")
+    name = models.CharField(max_length=80)
+    credential_id = models.CharField(max_length=1024, unique=True, editable=False)
+    public_key = models.BinaryField(max_length=2048, editable=False)
+    sign_count = models.PositiveBigIntegerField(default=0, editable=False)
+    device_type = models.CharField(max_length=32, editable=False)
+    backed_up = models.BooleanField(default=False, editable=False)
+    transports = models.JSONField(default=list, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        ordering = ("created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "name"),
+                name="identity_passkey_user_name_unique",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"Passkey {self.name} for {self.user_id}"

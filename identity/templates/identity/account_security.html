@@ -28,6 +28,55 @@
     </article>
   </section>
 
+  <section class="session-panel" aria-labelledby="passkey-title">
+    <div class="section-title">
+      <div>
+        <p class="eyebrow">Phishing-resistant credential</p>
+        <h3 id="passkey-title">Passkeys</h3>
+      </div>
+      <span class="status-pill status-neutral">{{ passkeys|length }} of {{ passkey_limit }}</span>
+    </div>
+    <p class="muted">Add a device passkey after recent password-plus-MFA confirmation. Your private key remains in your authenticator.</p>
+
+    {% if not recent_authentication %}
+      <div class="notice-card">Confirm your password and MFA before changing passkeys. <a class="text-link" href="{% url 'identity:reauthenticate' %}?next={% url 'identity:account-security' %}">Confirm identity</a></div>
+    {% elif passkeys|length < passkey_limit %}
+      <form
+        class="auth-form"
+        data-passkey-registration
+        data-options-url="{% url 'identity:passkey-registration-options' %}"
+        data-complete-url="{% url 'identity:passkey-registration-complete' %}"
+      >
+        {% csrf_token %}
+        <div class="form-field">
+          <label for="passkey-name">Passkey name</label>
+          <input id="passkey-name" name="name" maxlength="80" required autocomplete="off" placeholder="Personal phone or laptop">
+        </div>
+        <button class="primary-button" type="submit">Add passkey</button>
+        <p class="form-alert" data-passkey-error role="alert" hidden></p>
+      </form>
+    {% endif %}
+
+    {% if passkeys %}
+      <ul class="session-list">
+        {% for passkey in passkeys %}
+          <li>
+            <div>
+              <strong>{{ passkey.name }}</strong>
+              <p class="muted">Added {{ passkey.created_at|date:'M j, Y' }}{% if passkey.backed_up %} · Synced or backed up{% endif %}</p>
+            </div>
+            <form method="post" action="{% url 'identity:passkey-delete' passkey.pk %}">
+              {% csrf_token %}
+              <button class="danger-button" type="submit">Remove</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty-panel"><strong>No passkeys registered</strong><span>Your password, authenticator, and recovery codes remain active.</span></div>
+    {% endif %}
+  </section>
+
   <section class="session-panel" aria-labelledby="active-session-title">
     <div class="section-title">
       <div>
@@ -80,4 +129,9 @@
       </form>
     </div>
   </section>
+{% endblock %}
+
+{% block scripts %}
+  {% load static %}
+  <script src="{% static 'core/passkeys.js' %}" defer></script>
 {% endblock %}

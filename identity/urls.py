@@ -22,6 +22,21 @@ urlpatterns = [
     path("reauthenticate/", views.reauthenticate_view, name="reauthenticate"),
     path("security/", views.account_security_view, name="account-security"),
     path("security/password/", views.password_change_view, name="password-change"),
+    path(
+        "security/passkeys/options/",
+        views.passkey_registration_options_view,
+        name="passkey-registration-options",
+    ),
+    path(
+        "security/passkeys/complete/",
+        views.passkey_registration_complete_view,
+        name="passkey-registration-complete",
+    ),
+    path(
+        "security/passkeys/<uuid:passkey_id>/delete/",
+        views.passkey_delete_view,
+        name="passkey-delete",
+    ),
     path("security/sessions/revoke/", views.session_revoke_view, name="session-revoke"),
     path("logout/", views.logout_view, name="logout"),
     path("logout-all/", views.logout_all_devices_view, name="logout-all"),

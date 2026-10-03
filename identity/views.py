@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -8,16 +9,17 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.password_validation import password_changed
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect, render
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods, require_POST
+from webauthn.helpers.exceptions import WebAuthnException
 
 from audit.services import append_event
 from core.logging import current_request_id
@@ -34,7 +36,7 @@ from identity.forms import (
     SessionRevocationForm,
     TotpEnrollmentForm,
 )
-from identity.models import MfaCredential, User
+from identity.models import MfaCredential, PasskeyCredential, User
 from identity.services.mfa import (
     begin_enrollment,
     confirm_enrollment,
@@ -45,6 +47,11 @@ from identity.services.mfa import (
     reset_mfa,
     verify_and_consume_recovery_code,
     verify_and_consume_totp,
+)
+from identity.services.passkeys import (
+    parse_registration_body,
+    register_passkey,
+    registration_options,
 )
 from identity.services.recovery import recover_forgotten_password
 from identity.services.sessions import (
@@ -568,9 +575,81 @@ def account_security_view(request: HttpRequest) -> HttpResponse:
                 current_session_key=request.session.session_key,
             ),
             "recent_authentication": recent_authentication_is_valid(request),
+            "passkeys": user.passkeys.all(),
+            "passkey_limit": settings.PASSKEY_MAX_CREDENTIALS,
             "current_nav": "account",
         },
     )
+
+
+def _passkey_error(message: str, *, status: int = 400) -> JsonResponse:
+    return JsonResponse({"error": message}, status=status)
+
+
+@login_required
+@never_cache
+@require_POST
+def passkey_registration_options_view(request: HttpRequest) -> HttpResponse:
+    user = _authenticated_user(request)
+    if not recent_authentication_is_valid(request):
+        return _passkey_error("Recent authentication is required.", status=403)
+    try:
+        return JsonResponse(registration_options(request, user))
+    except ValidationError as error:
+        return _passkey_error(str(error.message))
+
+
+@login_required
+@never_cache
+@require_POST
+def passkey_registration_complete_view(request: HttpRequest) -> JsonResponse:
+    user = _authenticated_user(request)
+    if not recent_authentication_is_valid(request):
+        return _passkey_error("Recent authentication is required.", status=403)
+    try:
+        name, credential = parse_registration_body(request.body)
+        with transaction.atomic():
+            result = register_passkey(request, user, name=name, credential=credential)
+            _record_account_security_event(
+                user=user,
+                action="auth.passkey_registered",
+                after={"passkey_count": result.total},
+            )
+    except (ValidationError, WebAuthnException):
+        security_logger.warning(
+            "Passkey enrollment failed.",
+            extra={"event": "auth.passkey_registration_failed"},
+        )
+        return _passkey_error("The passkey could not be registered.")
+    security_logger.info(
+        "Passkey enrollment succeeded.",
+        extra={"event": "auth.passkey_registered"},
+    )
+    return JsonResponse({"status": "ok"})
+
+
+@login_required
+@never_cache
+@require_POST
+def passkey_delete_view(request: HttpRequest, passkey_id: uuid.UUID) -> HttpResponse:
+    user = _authenticated_user(request)
+    if not recent_authentication_is_valid(request):
+        return _reauthentication_redirect(reverse("identity:account-security"))
+    with transaction.atomic():
+        credential = get_object_or_404(
+            PasskeyCredential.objects.select_for_update(),
+            pk=passkey_id,
+            user=user,
+        )
+        credential.delete()
+        remaining = user.passkeys.count()
+        _record_account_security_event(
+            user=user,
+            action="auth.passkey_removed",
+            after={"passkey_count": remaining},
+        )
+    messages.success(request, "Passkey removed.")
+    return redirect(reverse("identity:account-security"))
 
 
 @login_required

@@ -14,6 +14,7 @@ dependencies = [
   "gunicorn>=23,<24",
   "psycopg[binary]>=3.2,<4",
   "qrcode==8.2",
+  "webauthn==3.0.1",
   "whitenoise>=6.9,<7",
 ]
 

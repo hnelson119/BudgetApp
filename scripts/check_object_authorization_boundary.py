@@ -36,6 +36,7 @@ ROUTE_PARAMETER_KEYS = {
     ("goals", "occurrence_id"): "occurrence_id",
     ("goals", "period_id"): "pay_period_id",
     ("imports", "batch_id"): "import_batch_id",
+    ("identity", "passkey_id"): "passkey_id",
     ("notifications", "notification_id"): "notification_id",
     ("spending", "account_id"): "financial_account_id",
     ("spending", "entry_id"): "journal_entry_id",

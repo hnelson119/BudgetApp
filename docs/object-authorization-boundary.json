@@ -81,6 +81,7 @@
     {"id": "imports:batch-preview", "template": "/imports/{import_batch_id}/", "methods": ["GET"]},
     {"id": "imports:batch-commit", "template": "/imports/{import_batch_id}/commit/", "methods": ["POST"]},
     {"id": "imports:batch-abandon", "template": "/imports/{import_batch_id}/abandon/", "methods": ["POST"]},
+    {"id": "identity:passkey-delete", "template": "/accounts/security/passkeys/{passkey_id}/delete/", "methods": ["POST"]},
     {"id": "notifications:read", "template": "/notifications/{notification_id}/read/", "methods": ["POST"]},
     {"id": "notifications:dismiss", "template": "/notifications/{notification_id}/dismiss/", "methods": ["POST"]},
     {"id": "spending:card-payment-create", "template": "/spending/cards/{financial_account_id}/payments/add/", "methods": ["GET", "POST"]},
@@ -99,13 +100,13 @@
     "evidence_location": "docs/release-evidence.json"
   },
   "summary": {
-    "identifier_routes": 38,
-    "route_operations": 66,
+    "identifier_routes": 39,
+    "route_operations": 67,
     "relationship_operations": 6,
-    "probe_operations": 72,
-    "household_direction_checks": 144,
+    "probe_operations": 73,
+    "household_direction_checks": 146,
     "recipient_checks": 2,
-    "bounded_checks": 146,
+    "bounded_checks": 148,
     "release_pending": 1
   }
 }

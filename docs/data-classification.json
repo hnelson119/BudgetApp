@@ -46,7 +46,7 @@
   "summary": {
     "protection_levels": 4,
     "datasets": 15,
-    "classified_django_models": 46
+    "classified_django_models": 47
   },
   "protection_levels": [
     {
@@ -140,6 +140,7 @@
         "password hashes and password submissions",
         "encrypted TOTP seeds, enrollment QR payloads, and one-time codes",
         "recovery-code hashes and submitted recovery codes",
+        "passkey credential identifiers, public keys, signature counters, device type, backup state, transports, names, and timestamps",
         "opaque session keys, signed server-side session payloads, CSRF values, and recent-authentication timestamps",
         "keyed login-throttle pseudonyms, failure counts, and lockout times",
         "per-user application-throttle scopes, request counts, and fixed-window timestamps"
@@ -149,11 +150,12 @@
         "identity.User",
         "identity.LoginThrottle",
         "identity.MfaCredential",
+        "identity.PasskeyCredential",
         "identity.RecoveryCode",
         "sessions.Session"
       ],
       "created_or_processed": "Created during bootstrap, login, MFA enrollment, recovery, reauthentication, password change, session rotation, and throttling; raw secrets are processed only for the immediate operation.",
-      "storage": "Password and recovery values are one-way hashed, TOTP seeds are authenticated-encrypted with a separate mounted key, and sessions are server-side database records with only opaque browser cookies.",
+      "storage": "Password and recovery values are one-way hashed, TOTP seeds are authenticated-encrypted with a separate mounted key, passkey private keys remain in authenticators while verified public material is stored in PostgreSQL, and sessions are server-side database records with only opaque browser cookies.",
       "transit": "Submitted only in HTTPS bodies and protected cookies over the exact private hostname; no email, SMS, analytics, or third-party authentication transport exists.",
       "integrity": "Django hash verification, authenticated seed encryption, atomic key rotation, single-use recovery records, session versioning, and protected audit events cover security changes.",
       "retention": "Raw submissions and displayed recovery values are not retained; sessions expire within 12 hours and on browser close or revocation; hashes and encrypted seeds remain until reset, rotation, account removal, or deployment retirement.",
@@ -165,6 +167,7 @@
       "evidence": [
         "identity/models.py",
         "identity/services/mfa.py",
+        "identity/services/passkeys.py",
         "identity/services/sessions.py",
         "identity/services/throttling.py",
         "identity/services/application_throttling.py",

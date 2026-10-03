@@ -72,6 +72,18 @@ ALLOWED_HOSTS = [host.strip() for host in required_environment("DJANGO_ALLOWED_H
 CSRF_TRUSTED_ORIGINS = [
     origin.strip() for origin in required_environment("DJANGO_CSRF_TRUSTED_ORIGINS").split(",")
 ]
+if _SETTINGS_MODULE == "config.settings.production":
+    if len(ALLOWED_HOSTS) != 1 or len(CSRF_TRUSTED_ORIGINS) != 1:
+        raise ImproperlyConfigured(
+            "Passkeys require exactly one hardened hostname and HTTPS origin."
+        )
+    PASSKEY_RP_ID = ALLOWED_HOSTS[0]
+    PASSKEY_ORIGIN = CSRF_TRUSTED_ORIGINS[0]
+    if PASSKEY_ORIGIN != f"https://{PASSKEY_RP_ID}":
+        raise ImproperlyConfigured("The passkey origin must match the exact hardened hostname.")
+else:
+    PASSKEY_RP_ID = "pentest-web"
+    PASSKEY_ORIGIN = "http://pentest-web:8000"
 
 # Hardened processes fail during settings loading rather than silently omitting
 # breached-password protection when the packaged corpus is missing, corrupt, or stale.

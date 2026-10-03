@@ -114,7 +114,14 @@
           "mfa-recovery-confirm",
           "reauthenticate"
         ],
-        "recent_auth": ["logout-all", "password-change", "session-revoke"]
+        "recent_auth": [
+          "logout-all",
+          "passkey-delete",
+          "passkey-registration-complete",
+          "passkey-registration-options",
+          "password-change",
+          "session-revoke"
+        ]
       }
     },
     {
@@ -165,9 +172,9 @@
     },
     {
       "id": "session-and-account-security",
-      "permissions": "Members may view and terminate their own sessions and change their own password. Password change, individual revocation, and all-device revocation require recent password-plus-MFA proof.",
-      "resource_attributes": ["authenticated user identity", "session owner", "recent-auth timestamp", "session version"],
-      "evidence": ["identity/views.py", "identity/services/sessions.py", "docs/SESSION_SECURITY.md", "tests/test_authentication.py"]
+      "permissions": "Members may view and terminate their own sessions, change their own password, and manage only their own passkeys. Password change, passkey enrollment or removal, individual revocation, and all-device revocation require recent password-plus-MFA proof.",
+      "resource_attributes": ["authenticated user identity", "session or passkey owner", "recent-auth timestamp", "session version"],
+      "evidence": ["identity/views.py", "identity/services/sessions.py", "identity/services/passkeys.py", "docs/SESSION_SECURITY.md", "tests/test_authentication.py", "tests/test_passkeys.py"]
     },
     {
       "id": "household-selection-and-categories",
@@ -227,17 +234,17 @@
   "field_rules": [
     {
       "id": "authentication-secret-fields",
-      "read": "Passwords, TOTP secrets, recovery-code hashes, raw recovery codes after enrollment, CSRF secrets, and session payloads are never readable through household pages or exports.",
-      "write": "Only authentication services write hashes, encrypted MFA material, key versions, replay counters, and one-time recovery state.",
-      "resource_attributes": ["credential owner", "enrollment state", "key version", "one-time use state"],
-      "evidence": ["identity/models.py", "identity/services/mfa.py", "identity/services/sessions.py", "tests/test_mfa.py"]
+      "read": "Passwords, TOTP secrets, recovery-code hashes, raw recovery codes after enrollment, CSRF secrets, session payloads, and passkey credential material are never readable through household pages or exports. Passkey private keys remain in the user's authenticator and are never held by the server.",
+      "write": "Only authentication services write hashes, encrypted MFA material, key versions, replay counters, one-time recovery state, and verified passkey public keys and counters.",
+      "resource_attributes": ["credential owner", "enrollment state", "key version", "one-time use state", "verified WebAuthn ceremony"],
+      "evidence": ["identity/models.py", "identity/services/mfa.py", "identity/services/passkeys.py", "identity/services/sessions.py", "tests/test_mfa.py", "tests/test_passkeys.py"]
     },
     {
       "id": "identity-self-fields",
-      "read": "A member sees only their own account-security state and sessions. Operational logs use pseudonymous context rather than email or display name.",
-      "write": "The member can change only their own password through the guarded flow. Email and staff flags require administrator authority; MFA timestamps, last-authenticated time, and session version are service-managed and read-only in administration.",
+      "read": "A member sees only their own account-security state, passkey names and safe metadata, and sessions. Operational logs use pseudonymous context rather than email or display name.",
+      "write": "The member can change only their own password and manage only their own passkeys through guarded flows. Email and staff flags require administrator authority; MFA timestamps, last-authenticated time, passkey verification state, and session version are service-managed and read-only in administration.",
       "resource_attributes": ["same user", "recent authentication", "administrator permission"],
-      "evidence": ["identity/models.py", "identity/views.py", "identity/admin.py", "tests/test_account_security.py"]
+      "evidence": ["identity/models.py", "identity/views.py", "identity/services/passkeys.py", "identity/admin.py", "tests/test_account_security.py", "tests/test_passkeys.py"]
     },
     {
       "id": "household-membership-fields",
@@ -353,7 +360,7 @@
   "summary": {
     "consumer_states": 4,
     "route_namespaces": 9,
-    "routes": 70,
+    "routes": 73,
     "function_rules": 11,
     "field_rules": 10,
     "source_assertions": 8,
