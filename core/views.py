@@ -39,7 +39,13 @@ def home(request: HttpRequest) -> HttpResponse:
             next_start_date__gt=today,
         ).first()
     if period is None:
-        period = PayPeriod.objects.filter(household=household, start_date__gt=today).first()
+        period = (
+            PayPeriod.objects.filter(household=household, start_date__gt=today)
+            .order_by("start_date")
+            .first()
+        )
+    if period is None:
+        period = PayPeriod.objects.filter(household=household).order_by("-start_date").first()
     context: dict[str, object] = {
         "household": household,
         "period": period,

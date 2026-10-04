@@ -29,6 +29,7 @@ EXPECTED_ROUTE_ACCESS = {
             "category-create",
             "detail",
             "fixed-create",
+            "index",
             "occurrence-cancel",
             "occurrence-edit",
             "occurrence-move",

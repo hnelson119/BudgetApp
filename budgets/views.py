@@ -15,6 +15,7 @@ from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_GET
 
 from budgets.forms import (
     CategoryForm,
@@ -120,6 +121,28 @@ def _actor(request: HttpRequest) -> User:
 
 def _add_domain_error(form: Any, error: ValidationError) -> None:
     form.add_error(None, error)
+
+
+@login_required
+@require_GET
+def index(request: HttpRequest) -> HttpResponse:
+    household = get_active_household(request)
+    today = _today(household)
+    periods = PayPeriod.objects.filter(household=household)
+    period = (
+        periods.filter(start_date__lte=today, next_start_date__gt=today)
+        .order_by("start_date")
+        .first()
+        or periods.filter(start_date__gt=today).order_by("start_date").first()
+        or periods.order_by("-start_date").first()
+    )
+    if period is not None:
+        return redirect("budgets:detail", period_id=period.pk)
+    return render(
+        request,
+        "budgets/index.html",
+        {"household": household, "period": None, "current_nav": "budget"},
+    )
 
 
 @login_required

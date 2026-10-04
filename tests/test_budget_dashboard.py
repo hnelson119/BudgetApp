@@ -1074,6 +1074,54 @@ def test_golden_case_c_explicit_reserve_allocations_are_protected_history(
 
 
 @pytest.mark.django_db
+def test_navigation_uses_latest_period_and_links_income(
+    client,
+    budget_context: BudgetContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr("core.views.timezone.localdate", lambda **_: date(2026, 10, 3))
+    budget_context.period.status = PayPeriod.Status.CLOSED
+    budget_context.period.save(update_fields=("status",))
+    _mfa_ready(budget_context.user)
+    client.force_login(budget_context.user)
+
+    home = client.get(reverse("core:home"))
+    landing = client.get(reverse("budgets:index"))
+    income = client.get(reverse("spending:income-create"))
+
+    assert home.status_code == 200
+    assert reverse("budgets:detail", args=(budget_context.period.pk,)).encode() in home.content
+    assert reverse("spending:income-create").encode() in home.content
+    assert landing.status_code == 302
+    assert landing.headers["Location"] == reverse(
+        "budgets:detail", args=(budget_context.period.pk,)
+    )
+    assert income.status_code == 200
+    assert b"Record income" in income.content
+    assert b'href="/spending/income/add/" class="is-active"' not in income.content
+    assert b'class="is-active" aria-current="page" href="/spending/income/add/"' in income.content
+
+
+@pytest.mark.django_db
+def test_budget_landing_remains_available_without_paycheck_periods(
+    client,
+    budget_context: BudgetContext,
+) -> None:  # type: ignore[no-untyped-def]
+    PayPeriod.objects.filter(household=budget_context.household).delete()
+    _mfa_ready(budget_context.user)
+    client.force_login(budget_context.user)
+
+    home = client.get(reverse("core:home"))
+    landing = client.get(reverse("budgets:index"))
+
+    assert home.status_code == 200
+    assert reverse("budgets:index").encode() in home.content
+    assert reverse("spending:income-create").encode() in home.content
+    assert landing.status_code == 200
+    assert b"No paycheck periods are available" in landing.content
+
+
+@pytest.mark.django_db
 def test_budget_dashboard_and_fixed_expense_preview_are_responsive_authenticated_workflows(
     client,
     budget_context: BudgetContext,

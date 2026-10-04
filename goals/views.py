@@ -76,8 +76,19 @@ def _period(household: Household, period_id: str | None, *, on_date: date) -> Pa
     if selected is None:
         selected = available.filter(start_date__gt=on_date).order_by("start_date").first()
     if selected is None:
+        selected = periods.order_by("-start_date").first()
+    if selected is None:
         raise Http404("No paycheck period is available.")
     return selected
+
+
+def _optional_period(
+    household: Household, period_id: str | None, *, on_date: date
+) -> PayPeriod | None:
+    try:
+        return _period(household, period_id, on_date=on_date)
+    except Http404:
+        return None
 
 
 def _spec_from_revision(revision: GoalRevision, *, effective_from: date) -> GoalSpec:
@@ -121,7 +132,7 @@ def _initial_from_revision(revision: GoalRevision, *, effective_from: date) -> d
 def goal_list(request: HttpRequest) -> HttpResponse:
     household = get_active_household(request)
     today = _today(household)
-    period = _period(household, request.GET.get("period"), on_date=today)
+    period = _optional_period(household, request.GET.get("period"), on_date=today)
     rows = goal_progress_rows(household=household, on_date=today)
     return render(
         request,
@@ -149,12 +160,12 @@ def goal_list(request: HttpRequest) -> HttpResponse:
 def goal_create(request: HttpRequest) -> HttpResponse:
     household = get_active_household(request)
     today = _today(household)
-    current_period = _period(household, None, on_date=today)
+    current_period = _optional_period(household, None, on_date=today)
     form = GoalForm(
         request.POST or None,
         household=household,
         initial={
-            "effective_from": current_period.start_date,
+            "effective_from": current_period.start_date if current_period else today,
             "opening_amount": Decimal("0.00"),
             "contribution_per_period": Decimal("0.00"),
             "priority": 1,
@@ -236,7 +247,7 @@ def goal_detail(request: HttpRequest, goal_id: str) -> HttpResponse:
     today = _today(household)
     goal = _goal(household, goal_id)
     progress = _progress_for_goal(household, goal, today)
-    period = _period(household, request.GET.get("period"), on_date=today)
+    period = _optional_period(household, request.GET.get("period"), on_date=today)
     plan = GoalFundingPlan.objects.filter(goal=goal).select_related("source").first()
     occurrences: tuple[Occurrence, ...] = ()
     if plan is not None:

@@ -233,6 +233,24 @@ def test_goal_preview_confirm_dashboard_budget_and_scheduled_actual_flow(
 
 
 @pytest.mark.django_db
+def test_goal_pages_render_without_paycheck_periods(
+    client: Client,
+    goal_ui_context: GoalUiContext,
+) -> None:
+    PayPeriod.objects.filter(household=goal_ui_context.household).delete()
+    _mfa_ready(goal_ui_context.user)
+    client.force_login(goal_ui_context.user)
+
+    goal_list = client.get(reverse("goals:list"))
+    goal_create = client.get(reverse("goals:create"))
+
+    assert goal_list.status_code == 200
+    assert b"Goal overview" in goal_list.content
+    assert goal_create.status_code == 200
+    assert b"Add goal" in goal_create.content
+
+
+@pytest.mark.django_db
 def test_goal_reserve_ui_previews_and_records_non_income_allocation(
     client: Client,
     goal_ui_context: GoalUiContext,

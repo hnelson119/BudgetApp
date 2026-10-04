@@ -33,6 +33,8 @@ test("navigation, theme, and layouts work at the configured viewport", async ({ 
 
   await expectNoHorizontalOverflow(page);
   for (const [name, heading] of [
+    ["Budget", "Budget"],
+    ["Income", "Record income"],
     ["Spending", "Spending & transactions"],
     ["Debts", "Debts & payoff"],
     ["Goals", "Goals"],
@@ -41,7 +43,9 @@ test("navigation, theme, and layouts work at the configured viewport", async ({ 
       ? page.getByRole("navigation", { name: "Mobile navigation" })
       : page.getByRole("complementary", { name: "Primary navigation" });
     await navigation.getByRole("link", { name, exact: true }).click();
-    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: heading, exact: true, level: 1 }),
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   }
   await page.locator(".topbar-actions").getByRole("link", { name: "Account security" }).click();

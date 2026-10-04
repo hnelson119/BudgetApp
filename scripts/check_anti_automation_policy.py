@@ -38,11 +38,11 @@ EXPECTED_FAMILY_COUNTS = {
     "protected-data-exports": 2,
     "csv-import-intake": 1,
     "expensive-calculations": 2,
-    "bounded-authenticated-reads": 14,
+    "bounded-authenticated-reads": 15,
     "operational-health": 2,
 }
 EXPECTED_ROUTE_ASSIGNMENT_SHA256 = (
-    "170879f08b049638ed5e49214775968a04ab46fd03e2d28915dbd773e436431a"  # pragma: allowlist secret
+    "9d87d6ecbf605e4c99c3e2bac0d97703609315743e0a13dd40874f81441ffffa"  # pragma: allowlist secret
 )
 EXPECTED_SOURCE_ASSERTIONS = {
     "configured-budgets": (
@@ -106,7 +106,7 @@ EXPECTED_RUNTIME_TESTS = {
 }
 EXPECTED_SUMMARY = {
     "route_families": 8,
-    "named_routes": 77,
+    "named_routes": 78,
     "source_assertions": 8,
     "runtime_tests": 8,
     "residual_risks": 2,
