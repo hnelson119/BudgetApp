@@ -76,7 +76,26 @@ export async function expectNoHorizontalOverflow(page) {
       })
       .filter(({ left, right }) => left < -1 || right > viewportWidth + 1)
       .slice(0, 8);
-    return { overflow, path: window.location.pathname, viewportWidth, offenders };
+    const layout = ["body", ".app-main", ".budget-group", ".budget-table-scroll"]
+      .map((selector) => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const rectangle = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return {
+          selector,
+          left: Math.round(rectangle.left),
+          right: Math.round(rectangle.right),
+          width: Math.round(rectangle.width),
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+          computedWidth: style.width,
+          maxWidth: style.maxWidth,
+          overflowX: style.overflowX,
+        };
+      })
+      .filter(Boolean);
+    return { overflow, path: window.location.pathname, viewportWidth, layout, offenders };
   });
   expect(details.overflow, JSON.stringify(details, null, 2)).toBeLessThanOrEqual(1);
 }
