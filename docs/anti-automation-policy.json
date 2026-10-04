@@ -117,6 +117,7 @@
         "audit:detail",
         "audit:history",
         "budgets:detail",
+        "budgets:index",
         "core:home",
         "debts:detail",
         "debts:list",
@@ -163,5 +164,5 @@
     "Per-user application budgets do not identify a distributed pre-authentication flood; private ingress, keyed network failure throttles, connection ceilings, worker limits, and timeouts are the independent boundary.",
     "Representative release-host load and false-positive behavior remain release verification work and do not change repository implementation status."
   ],
-  "summary": {"route_families": 8, "named_routes": 77, "source_assertions": 8, "runtime_tests": 8, "residual_risks": 2}
+  "summary": {"route_families": 8, "named_routes": 78, "source_assertions": 8, "runtime_tests": 8, "residual_risks": 2}
 }

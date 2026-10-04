@@ -33,6 +33,8 @@ test("navigation, theme, and layouts work at the configured viewport", async ({ 
 
   await expectNoHorizontalOverflow(page);
   for (const [name, heading] of [
+    ["Budget", "Budget"],
+    ["Income", "Record income"],
     ["Spending", "Spending & transactions"],
     ["Debts", "Debts & payoff"],
     ["Goals", "Goals"],

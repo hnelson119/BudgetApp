@@ -532,7 +532,7 @@ def income_create(request: HttpRequest) -> HttpResponse:
                 "This records actual income without changing the source schedule or future "
                 "paycheck periods."
             ),
-            "current_nav": "spending",
+            "current_nav": "income",
         },
     )
 

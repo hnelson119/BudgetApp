@@ -1,0 +1,13 @@
+{% extends 'core/app_base.html' %}
+
+{% block title %}Budget · Household Budget{% endblock %}
+{% block page_title %}Budget{% endblock %}
+
+{% block content %}
+  <section class="blank-slate">
+    <p class="eyebrow">Paycheck-to-paycheck plan</p>
+    <h2>No paycheck periods are available</h2>
+    <p>A budget will appear here after an anchor income schedule generates paycheck periods.</p>
+    <a class="primary-link" href="{% url 'spending:income-create' %}">Record income</a>
+  </section>
+{% endblock %}

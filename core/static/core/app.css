@@ -620,7 +620,7 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
   .category-budget-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .account-grid, .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .debt-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .mobile-nav { position: fixed; z-index: 20; inset: auto 0 0; display: grid; grid-template-columns: repeat(5, 1fr); min-height: 72px; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 96%, transparent); }
+  .mobile-nav { position: fixed; z-index: 20; inset: auto 0 0; display: grid; grid-template-columns: repeat(6, 1fr); min-height: 72px; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 96%, transparent); }
   .mobile-nav a { display: grid; padding: 9px 4px; place-content: center; gap: 2px; color: var(--muted); font-size: .68rem; text-align: center; text-decoration: none; }
   .mobile-nav a span { font-size: 1.35rem; }
   .mobile-nav a.is-active { color: var(--accent); }

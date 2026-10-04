@@ -5,6 +5,7 @@ from budgets import views
 app_name = "budgets"
 
 urlpatterns = [
+    path("", views.index, name="index"),
     path("<uuid:period_id>/", views.detail, name="detail"),
     path("<uuid:period_id>/variable/add/", views.variable_budget_create, name="variable-create"),
     path("variable/<uuid:budget_id>/edit/", views.variable_budget_edit, name="variable-edit"),
