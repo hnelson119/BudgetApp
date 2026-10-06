@@ -5,7 +5,7 @@
 
 {% block content %}
   <section class="form-page">
-    <a class="back-link" href="{% url 'spending:transaction-list' %}">← Back to transactions</a>
+    {% if income_entry %}<a class="back-link" href="{% url 'spending:income-list' %}">← Back to income</a>{% else %}<a class="back-link" href="{% url 'spending:transaction-list' %}">← Back to transactions</a>{% endif %}
     <div class="form-card">
       <p class="eyebrow">{{ eyebrow }}</p>
       <h2>{{ title }}</h2>
@@ -17,6 +17,7 @@
         {% for field in form.visible_fields %}
           <div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">
             {{ field.label_tag }}{{ field }}
+            {% if income_entry and field.name == 'destination' %}<small><a class="text-link" href="{% url 'spending:account-create' %}?return_to=income-entry">Add a deposit account</a></small>{% endif %}
             {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
             {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
           </div>

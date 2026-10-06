@@ -78,6 +78,7 @@ EXPECTED_FORM_REGISTRY = {
         "FinancialAccountForm",
         "HouseholdForm",
         "IncomeForm",
+        "IncomeScheduleForm",
         "ManualEntryForm",
         "ReversalForm",
         "TransactionFilterForm",

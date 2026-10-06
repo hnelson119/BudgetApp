@@ -31,12 +31,14 @@ from ledger.models import FinancialAccount, JournalEntry
 from ledger.services import create_financial_account, record_expense, reverse_entry
 from periods.models import PayPeriod
 from reserves.models import CardPaymentReserveEntry
+from schedules.models import Occurrence, RecurringSource
 from spending.forms import (
     CardPaymentForm,
     CardPurchaseRefundForm,
     ExpenseForm,
     FinancialAccountForm,
     IncomeForm,
+    IncomeScheduleForm,
     ReversalForm,
 )
 from spending.services import credit_card_payment_reserve, record_spending_expense
@@ -114,6 +116,8 @@ def test_transaction_pages_require_login(client: Client) -> None:
         reverse("spending:transaction-list"),
         reverse("spending:expense-create"),
         reverse("spending:income-create"),
+        reverse("spending:income-list"),
+        reverse("spending:income-schedule-create"),
         reverse("spending:account-create"),
     )
     for url in urls:
@@ -995,3 +999,166 @@ def test_financial_account_form_maps_every_supported_kind() -> None:
         form = FinancialAccountForm(data={"name": "Test", "kind": kind})
         assert form.is_valid(), form.errors
         assert form.account_type_and_classification() == (account_type, classification)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("frequency", ["weekly", "biweekly", "four_weekly", "monthly"])
+def test_first_income_schedule_previews_and_generates_periods(
+    client: Client,
+    spending_context: SpendingContext,
+    frequency: str,
+) -> None:
+    _mfa_ready(spending_context.user)
+    client.force_login(spending_context.user)
+    spending_context.period.delete()
+    payload = {
+        "name": "Main paycheck",
+        "amount": "1800.25",
+        "first_payday": "2027-01-31",
+        "frequency": frequency,
+        "adjustment": "previous",
+        "starts_budget_period": "on",
+        "action": "preview",
+    }
+    url = reverse("spending:income-schedule-create")
+    page = client.get(url)
+    assert page.status_code == 200
+    assert page.context["form"].initial["starts_budget_period"] is True
+    assert b'type="time"' not in page.content
+    assert "destination" not in page.context["form"].fields
+    response = client.post(url, payload)
+    assert response.status_code == 200
+    assert b"Next three paydays" in response.content
+    assert not RecurringSource.objects.exists()
+    assert not PayPeriod.objects.exists()
+    assert response.context["preview"].next_occurrences[0].expected_date == date(2027, 1, 29)
+    payload["preview_fingerprint"] = response.context["preview"].fingerprint
+    payload["action"] = "save"
+    saved = client.post(url, payload)
+    assert saved.status_code == 302, (
+        saved.context["form"].errors if saved.status_code == 200 else ""
+    )
+    assert saved.headers["Location"] == reverse("spending:income-list")
+    source = RecurringSource.objects.get(name="Main paycheck")
+    assert source.income_detail.starts_budget_period
+    assert PayPeriod.objects.filter(start_date=date(2027, 1, 29)).exists()
+    assert Occurrence.objects.filter(source=source, expected_date=date(2027, 1, 29)).exists()
+    assert not JournalEntry.objects.exists()
+    listing = client.get(reverse("spending:income-list"))
+    assert b"Main paycheck" in listing.content
+    assert b"1,800.25" in listing.content
+    duplicate = client.post(url, payload)
+    assert duplicate.status_code == 200
+    assert RecurringSource.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_income_schedule_rejects_changed_preview_and_rolls_back_conflicts(
+    client: Client,
+    spending_context: SpendingContext,
+) -> None:
+    _mfa_ready(spending_context.user)
+    client.force_login(spending_context.user)
+    payload = {
+        "name": "Paycheck",
+        "amount": "1500",
+        "first_payday": "2026-08-21",
+        "frequency": "weekly",
+        "adjustment": "none",
+        "starts_budget_period": "on",
+    }
+    url = reverse("spending:income-schedule-create")
+    preview = client.post(url, payload)
+    payload["preview_fingerprint"] = preview.context["preview"].fingerprint
+    payload["action"] = "save"
+    payload["amount"] = "1600"
+    stale = client.post(url, payload)
+    assert b"preview is stale" in stale.content
+    assert not RecurringSource.objects.exists()
+    payload["amount"] = "1500"
+    conflict = client.post(url, payload)
+    assert conflict.status_code == 200
+    assert conflict.context["form"].non_field_errors()
+    assert not RecurringSource.objects.exists()
+    assert PayPeriod.objects.get().pk == spending_context.period.pk
+
+
+@pytest.mark.django_db
+def test_received_income_needs_only_date_and_links_account_setup(
+    client: Client,
+    spending_context: SpendingContext,
+) -> None:
+    _mfa_ready(spending_context.user)
+    client.force_login(spending_context.user)
+    page = client.get(reverse("spending:income-create"))
+    assert b'type="time"' not in page.content
+    assert b"Add a deposit account" in page.content
+    account = client.post(
+        reverse("spending:account-create") + "?return_to=income-entry",
+        {
+            "name": "New checking",
+            "kind": "checking",
+        },
+    )
+    assert account.headers["Location"] == reverse("spending:income-create")
+    assert b"New checking" in client.get(account.headers["Location"]).content
+    saved = client.post(
+        reverse("spending:income-create"),
+        {
+            "description": "Payday",
+            "amount": "100",
+            "destination": str(spending_context.checking.pk),
+            "effective_date": "2026-08-22",
+            "submission_token": str(uuid.uuid4()),
+        },
+    )
+    assert saved.status_code == 302
+    entry = JournalEntry.objects.get(description="Payday")
+    assert entry.effective_at.astimezone(ZoneInfo(spending_context.household.time_zone)).hour == 12
+    rejected = client.post(
+        reverse("spending:account-create") + "?return_to=income-entry",
+        {
+            "name": "Cannot receive deposits",
+            "kind": "credit_card",
+        },
+    )
+    assert rejected.status_code == 200
+    assert not FinancialAccount.objects.filter(name="Cannot receive deposits").exists()
+
+
+@pytest.mark.django_db
+def test_income_setup_routes_require_login_and_isolate_households(
+    client: Client,
+    spending_context: SpendingContext,
+) -> None:
+    for name in ("income-list", "income-schedule-create"):
+        assert client.get(reverse(f"spending:{name}")).status_code == 302
+    other = Household.objects.create(name="Other household")
+    HouseholdMembership.objects.create(household=other, user=spending_context.outsider)
+    from schedules.services import create_recurring_source, preview_revision
+
+    form = IncomeScheduleForm(
+        {
+            "name": "Private paycheck",
+            "amount": "100",
+            "first_payday": "2027-01-01",
+            "frequency": "weekly",
+            "adjustment": "none",
+        },
+        household=other,
+    )
+    spec = form.revision_spec()
+    create_recurring_source(
+        household=other,
+        actor=spending_context.outsider,
+        kind=RecurringSource.Kind.INCOME,
+        name="Private paycheck",
+        revision_spec=spec,
+        expected_preview_fingerprint=preview_revision(
+            spec, preview_from=spec.effective_from
+        ).fingerprint,
+        request_id="other-income-test",
+    )
+    _mfa_ready(spending_context.user)
+    client.force_login(spending_context.user)
+    assert b"Private paycheck" not in client.get(reverse("spending:income-list")).content

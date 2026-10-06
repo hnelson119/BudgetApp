@@ -119,6 +119,8 @@ EXPECTED_ROUTE_ACCESS = {
             "card-purchase-refund",
             "expense-create",
             "income-create",
+            "income-list",
+            "income-schedule-create",
             "transaction-detail",
             "transaction-list",
             "transaction-reverse",

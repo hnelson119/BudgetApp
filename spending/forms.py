@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any, cast
 from zoneinfo import ZoneInfo
@@ -13,6 +13,8 @@ from django.utils import timezone
 from core.forms import html_date_input, html_time_input
 from households.models import Category, Household
 from ledger.models import FinancialAccount, JournalEntry
+from schedules.recurrence import BusinessDayAdjustment, Frequency, RecurrenceRule
+from schedules.services import RevisionSpec
 
 
 class AccountChoiceField(forms.ModelChoiceField):
@@ -118,6 +120,7 @@ class ExpenseForm(ManualEntryForm):
 
 
 class IncomeForm(ManualEntryForm):
+    effective_time = forms.TimeField(required=False, widget=forms.HiddenInput)
     destination = AccountChoiceField(
         queryset=FinancialAccount.objects.none(),
         label="Deposit account",
@@ -135,6 +138,8 @@ class IncomeForm(ManualEntryForm):
 
     def __init__(self, *args: Any, household: Household, **kwargs: Any) -> None:
         super().__init__(*args, household=household, **kwargs)
+        if not self.is_bound:
+            self.initial["effective_time"] = time(12)
         cast(
             AccountChoiceField, self.fields["destination"]
         ).queryset = FinancialAccount.objects.filter(
@@ -142,6 +147,70 @@ class IncomeForm(ManualEntryForm):
             archived_at__isnull=True,
             classification=FinancialAccount.Classification.ASSET,
         ).order_by("name")
+
+    def clean_effective_time(self) -> time:
+        return self.cleaned_data.get("effective_time") or time(12)
+
+
+class IncomeScheduleForm(HouseholdForm):
+    name = forms.CharField(
+        max_length=120, label="Income source", help_text="For example, your employer or pension."
+    )
+    amount = forms.DecimalField(
+        label="Expected take-home amount",
+        min_value=Decimal("0.01"),
+        max_digits=18,
+        decimal_places=2,
+    )
+    first_payday = forms.DateField(widget=html_date_input())
+    frequency = forms.ChoiceField(
+        choices=(
+            ("weekly", "Every week"),
+            ("biweekly", "Every two weeks"),
+            ("four_weekly", "Every four weeks"),
+            ("monthly", "Every month"),
+        )
+    )
+    adjustment = forms.ChoiceField(
+        label="If payday falls on a weekend",
+        choices=(
+            ("none", "Keep the scheduled date"),
+            ("previous", "Use the previous weekday"),
+            ("next", "Use the next weekday"),
+        ),
+        initial="none",
+    )
+    starts_budget_period = forms.BooleanField(
+        required=False,
+        label="Start a budget period on each payday",
+        help_text="Use your main paycheck to set the household's budget periods.",
+    )
+    note = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={"rows": 3}))
+    preview_fingerprint = forms.CharField(required=False, widget=forms.HiddenInput)
+
+    def revision_spec(self) -> RevisionSpec:
+        if not self.is_valid():
+            raise ValidationError("Correct the income schedule before saving it.")
+        payday = cast(date, self.cleaned_data["first_payday"])
+        frequency = self.cleaned_data["frequency"]
+        monthly = frequency == "monthly"
+        rule = RecurrenceRule(
+            frequency=Frequency.MONTHLY_DAY if monthly else Frequency.WEEKLY,
+            start_date=payday,
+            interval={"biweekly": 2, "four_weekly": 4}.get(frequency, 1),
+            weekdays=() if monthly else (payday.weekday(),),
+            day_of_month=payday.day if monthly else None,
+        )
+        return RevisionSpec(
+            effective_from=(
+                payday - timedelta(days=3)
+                if self.cleaned_data["adjustment"] == "previous"
+                else payday
+            ),
+            expected_amount=self.cleaned_data["amount"],
+            rule=rule,
+            adjustment_policy=BusinessDayAdjustment(self.cleaned_data["adjustment"]),
+        )
 
 
 class CardPaymentForm(ManualEntryForm):
@@ -202,6 +271,16 @@ class FinancialAccountForm(forms.Form):
         max_length=500,
         widget=forms.Textarea(attrs={"rows": 3}),
     )
+
+    def __init__(self, *args: Any, deposit_only: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if deposit_only:
+            kind_field = cast(forms.ChoiceField, self.fields["kind"])
+            kind_field.choices = [
+                choice
+                for choice in cast(list[tuple[str, str]], kind_field.choices)
+                if choice[0] not in (self.Kind.CREDIT_CARD, self.Kind.OTHER_LIABILITY)
+            ]
 
     def account_type_and_classification(self) -> tuple[str, str]:
         if not self.is_valid():
