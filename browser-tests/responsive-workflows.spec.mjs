@@ -39,6 +39,8 @@ test("income schedules can be edited after creation", async ({ page }, testInfo)
   await expect(page.locator(".form-card").filter({
     has: page.getByRole("heading", { name: sourceName, exact: true }),
   })).toContainText("1,500.25");
+  await page.goto("/");
+  await expectNoHorizontalOverflow(page);
   expectCleanPage(signals);
 });
 
