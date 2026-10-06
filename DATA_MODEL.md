@@ -6,7 +6,7 @@ Last updated: 2026-08-21
 This model separates four concerns that must not be conflated:
 
 1. **Schedules** describe what is expected.
-2. **Occurrences and budget periods** describe what is planned for one paycheck cycle.
+2. **Occurrences and budget periods** describe what is planned between consecutive household paydays, combining all enabled income sources.
 3. **The ledger** records actual money movement without double-counting transfers.
 4. **Allocation reserves** describe money intentionally held for later use; they are not bank accounts.
 
@@ -110,6 +110,10 @@ An immutable, effective-dated version of a source schedule.
 - Expected amount
 - Weekend/holiday adjustment policy
 - Source-specific configuration snapshot
+
+Income revisions may record a Boolean `starts_budget_period` override in this snapshot.
+Older revisions without it use the source's original IncomeSourceDetail setting. Boundary-role
+changes are therefore effective-dated without rewriting old revisions or closed periods.
 - Revision number and created-by
 
 Edits create a new revision; they do not mutate the revision that generated historical occurrences.

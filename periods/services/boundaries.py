@@ -39,7 +39,7 @@ def _is_anchor(occurrence: Occurrence) -> bool:
     return (
         occurrence.source.kind == RecurringSource.Kind.INCOME
         and hasattr(occurrence.source, "income_detail")
-        and occurrence.source.income_detail.starts_budget_period
+        and occurrence.source_revision.starts_budget_period
     )
 
 

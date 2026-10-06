@@ -89,6 +89,11 @@ Each income source has a `starts_budget_period` setting.
 - One-time bonus: off by default.
 - The user may change the setting for any source.
 
+Regular income creation enables this setting even when another paycheck already starts periods.
+Editing it applies from the new schedule revision's effective date; older revisions retain their
+original role. Two alternating biweekly sources therefore form weekly household periods, while
+same-day paychecks still form one boundary.
+
 An anchor occurrence has an expected availability date in the household timezone. Future period boundaries are projected from expected occurrences.
 
 ### 6.2 Boundary algorithm

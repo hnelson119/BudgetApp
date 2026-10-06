@@ -72,8 +72,8 @@ def _anchor_dates(
         RecurringSource.objects.filter(
             household=household,
             kind=RecurringSource.Kind.INCOME,
-            income_detail__starts_budget_period=True,
         )
+        .select_related("income_detail")
         .prefetch_related("revisions")
         .order_by("id")
     )
@@ -81,6 +81,8 @@ def _anchor_dates(
     for source in sources:
         revisions = list(source.revisions.order_by("effective_from", "revision_number"))
         for index, revision in enumerate(revisions):
+            if not revision.starts_budget_period:
+                continue
             effective_end = _revision_effective_end(revisions, index)
             if source.archived_from is not None:
                 archive_end = source.archived_from - timedelta(days=1)
@@ -124,14 +126,15 @@ def _desired_ranges(
     actual_boundaries = Occurrence.objects.filter(
         source__household=household,
         source__kind=RecurringSource.Kind.INCOME,
-        source__income_detail__starts_budget_period=True,
         status__in=(Occurrence.Status.COMPLETED, Occurrence.Status.CORRECTED),
         actual_date__isnull=False,
         pay_period__boundary_source=PayPeriod.BoundarySource.ACTUAL,
         pay_period__start_date=models.F("actual_date"),
-    ).values_list("generated_expected_date", "actual_date")
+    ).select_related("source_revision__source__income_detail")
     replacements = {
-        expected: actual for expected, actual in actual_boundaries if actual is not None
+        item.generated_expected_date: item.actual_date
+        for item in actual_boundaries
+        if item.actual_date is not None and item.source_revision.starts_budget_period
     }
     anchors = tuple(sorted({replacements.get(anchor, anchor) for anchor in anchors}))
     if len(anchors) < 2:

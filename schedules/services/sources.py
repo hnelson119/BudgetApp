@@ -96,6 +96,10 @@ def _configuration(value: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(configuration, dict):
         raise ValidationError("Schedule configuration must be an object.")
     _validate_json_value(configuration)
+    if "starts_budget_period" in configuration and not isinstance(
+        configuration["starts_budget_period"], bool
+    ):
+        raise ValidationError("The budget-period setting must be true or false.")
     encoded = json.dumps(configuration, sort_keys=True, separators=(",", ":")).encode()
     if len(encoded) > _MAX_CONFIGURATION_BYTES:
         raise ValidationError("Schedule configuration is too large.")
@@ -415,7 +419,11 @@ def edit_income_schedule(
         raise ValidationError(
             "Choose a change date after recorded or individually adjusted income."
         )
-    before = {"name": locked.name, "notes": locked.notes}
+    before = {
+        "name": locked.name,
+        "notes": locked.notes,
+        "starts_budget_period": latest.starts_budget_period,
+    }
     locked.name = name
     locked.notes = notes
     locked.full_clean()
@@ -437,7 +445,12 @@ def edit_income_schedule(
         entity_id=locked.pk,
         request_id=request_id,
         before=before,
-        after={"name": locked.name, "notes": locked.notes, "revision_id": revision.pk},
+        after={
+            "name": locked.name,
+            "notes": locked.notes,
+            "revision_id": revision.pk,
+            "starts_budget_period": revision.starts_budget_period,
+        },
         reason=reason.strip(),
     )
     return revision

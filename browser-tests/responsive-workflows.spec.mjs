@@ -19,6 +19,9 @@ test("income schedules can be edited after creation", async ({ page }, testInfo)
   await page.getByLabel("Income source").fill(sourceName);
   await page.getByLabel("Expected take-home amount").fill("1250.00");
   await page.getByLabel("Frequency").selectOption("biweekly");
+  const futurePayday = new Date();
+  futurePayday.setUTCDate(futurePayday.getUTCDate() + 28);
+  await page.getByLabel("First payday").fill(futurePayday.toISOString().slice(0, 10));
   await page.getByLabel("Start a budget period on each payday").uncheck();
   await page.getByRole("button", { name: "Preview paydays", exact: true }).click();
   await page.getByRole("button", { name: "Create income schedule", exact: true }).click();
@@ -31,6 +34,7 @@ test("income schedules can be edited after creation", async ({ page }, testInfo)
   await expect(page.getByLabel("Frequency")).toHaveValue("biweekly");
   await page.getByLabel("Expected take-home amount").fill("1500.25");
   await page.getByLabel("Reason for change").fill("Synthetic paycheck correction");
+  await page.getByLabel("Start a budget period on each payday").check();
   await page.getByRole("button", { name: "Preview paydays", exact: true }).click();
   await expect(page.getByText("Next three paydays", { exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
@@ -39,6 +43,9 @@ test("income schedules can be edited after creation", async ({ page }, testInfo)
   await expect(page.locator(".form-card").filter({
     has: page.getByRole("heading", { name: sourceName, exact: true }),
   })).toContainText("1,500.25");
+  await expect(page.locator(".form-card").filter({
+    has: page.getByRole("heading", { name: sourceName, exact: true }),
+  })).toContainText("Starts household budget periods");
   await page.goto("/");
   await expectNoHorizontalOverflow(page);
   expectCleanPage(signals);

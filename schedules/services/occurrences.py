@@ -288,7 +288,7 @@ def complete_occurrence(
     is_anchor = (
         locked.source.kind == RecurringSource.Kind.INCOME
         and hasattr(locked.source, "income_detail")
-        and locked.source.income_detail.starts_budget_period
+        and locked.source_revision.starts_budget_period
     )
     boundary_differs = is_anchor and actual_date != locked.expected_date
     if boundary_differs and boundary_decision not in ("keep", "move"):

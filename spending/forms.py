@@ -194,7 +194,12 @@ class IncomeScheduleForm(HouseholdForm):
     starts_budget_period = forms.BooleanField(
         required=False,
         label="Start a budget period on each payday",
-        help_text="Use your main paycheck to set the household's budget periods.",
+        help_text=(
+            "Enable this for both partners' paychecks to start a period between every payday. "
+            "Leave it off for income that belongs within an existing period. "
+            "Boundary changes apply to future projected periods; "
+            "open and closed periods are protected."
+        ),
     )
     note = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={"rows": 3}))
     preview_fingerprint = forms.CharField(required=False, widget=forms.HiddenInput)
@@ -223,11 +228,7 @@ class IncomeScheduleForm(HouseholdForm):
             for name in ("effective_from", "reason", "revision_id"):
                 self.fields[name].required = True
             self.fields["first_payday"].label = "First payday under the updated schedule"
-            self.fields["starts_budget_period"].disabled = True
-            self.fields[
-                "starts_budget_period"
-            ].help_text = "This schedule's existing budget-period role is retained."
-            self.initial["starts_budget_period"] = source.income_detail.starts_budget_period
+            self.initial["starts_budget_period"] = source.starts_budget_period
 
     def clean(self) -> dict[str, Any]:
         data = super().clean() or {}

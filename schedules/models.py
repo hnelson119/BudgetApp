@@ -102,6 +102,11 @@ class RecurringSource(models.Model):
     def is_archived(self) -> bool:
         return self.archived_at is not None
 
+    @property
+    def starts_budget_period(self) -> bool:
+        latest = max(self.revisions.all(), key=lambda item: item.revision_number, default=None)
+        return latest.starts_budget_period if latest is not None else False
+
     def clean(self) -> None:
         self.name = self.name.strip()
         self.notes = self.notes.strip()
@@ -225,6 +230,16 @@ class SourceRevision(models.Model):
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
         raise ValidationError("Schedule revisions cannot be deleted.")
+
+    @property
+    def starts_budget_period(self) -> bool:
+        if self.source.kind != RecurringSource.Kind.INCOME:
+            return False
+        return bool(
+            self.configuration.get(
+                "starts_budget_period", self.source.income_detail.starts_budget_period
+            )
+        )
 
 
 class Occurrence(models.Model):
