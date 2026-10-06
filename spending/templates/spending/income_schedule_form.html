@@ -1,0 +1,31 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+{% block title %}Add income schedule · Household Budget{% endblock %}
+{% block page_title %}Add income schedule{% endblock %}
+{% block content %}
+<section class="form-page">
+  <a class="back-link" href="{% url 'spending:income-list' %}">← Back to income</a>
+  <div class="form-card">
+    <h2>Recurring income</h2>
+    <p>Plan future paydays using dates. A deposit account is only needed when recording received income.</p>
+    <form class="app-form" method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+      {% for field in form.visible_fields %}
+        <div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">
+          {{ field.label_tag }}{{ field }}
+          {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+          {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+      {% endfor %}
+      {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+      {% if preview %}
+        <div class="item-context"><strong>Next three paydays</strong>{% for payday in preview.next_occurrences %}<span>{{ payday.expected_date|date:'M j, Y' }} · {{ form.cleaned_data.amount|money }}</span>{% endfor %}</div>
+        <p>Saving plans upcoming income for the next year. If selected, each payday starts a budget period.</p>
+        <button class="primary-button" type="submit" name="action" value="save">Create income schedule</button>
+      {% endif %}
+      <button class="secondary-button" type="submit" name="action" value="preview">Preview paydays</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

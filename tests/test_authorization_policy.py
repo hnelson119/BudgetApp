@@ -30,7 +30,7 @@ def test_authorization_policy_accepts_complete_boundary() -> None:
     assert policy["summary"] == {
         "consumer_states": 4,
         "route_namespaces": 9,
-        "routes": 78,
+        "routes": 80,
         "function_rules": 11,
         "field_rules": 10,
         "source_assertions": 8,

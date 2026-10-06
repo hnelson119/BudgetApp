@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 from urllib.parse import urlencode
@@ -15,6 +15,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Exists, OuterRef, Q, QuerySet
 from django.http import Http404, HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -31,13 +32,17 @@ from identity.services.sessions import recent_authentication_is_valid
 from ledger.models import FinancialAccount, JournalEntry, JournalPosting
 from ledger.services import create_financial_account, record_income
 from periods.models import PayPeriod
+from periods.services import apply_period_sync, preview_period_sync
 from reserves.models import CardPaymentReserveEntry
+from schedules.models import RecurringSource
+from schedules.services import create_recurring_source, preview_revision, synchronize_occurrences
 from spending.forms import (
     CardPaymentForm,
     CardPurchaseRefundForm,
     ExpenseForm,
     FinancialAccountForm,
     IncomeForm,
+    IncomeScheduleForm,
     ReversalForm,
     TransactionFilterForm,
 )
@@ -533,6 +538,7 @@ def income_create(request: HttpRequest) -> HttpResponse:
                 "paycheck periods."
             ),
             "current_nav": "income",
+            "income_entry": True,
         },
     )
 
@@ -541,7 +547,11 @@ def income_create(request: HttpRequest) -> HttpResponse:
 @require_http_methods(("GET", "POST"))
 def account_create(request: HttpRequest) -> HttpResponse:
     household = get_active_household(request)
-    form = FinancialAccountForm(request.POST or None)
+    return_to = request.GET.get("return_to", "")
+    form = FinancialAccountForm(
+        request.POST or None,
+        deposit_only=return_to in ("income", "income-entry"),
+    )
     if request.method == "POST" and form.is_valid():
         account_type, classification = form.account_type_and_classification()
         try:
@@ -567,6 +577,10 @@ def account_create(request: HttpRequest) -> HttpResponse:
             form.add_error(None, error)
         else:
             messages.success(request, "Financial account added.")
+            if return_to == "income":
+                return redirect("spending:income-list")
+            if return_to == "income-entry":
+                return redirect("spending:income-create")
             return redirect("spending:transaction-list")
     elif request.method == "POST":
         security_logger.warning(
@@ -846,5 +860,113 @@ def card_purchase_refund(request: HttpRequest, entry_id: str) -> HttpResponse:
             "remaining": remaining,
             "form": form,
             "current_nav": "spending",
+        },
+    )
+
+
+@login_required
+@require_GET
+def income_list(request: HttpRequest) -> HttpResponse:
+    household = get_active_household(request)
+    sources = (
+        RecurringSource.objects.filter(
+            household=household,
+            kind=RecurringSource.Kind.INCOME,
+            archived_at__isnull=True,
+        )
+        .select_related("income_detail")
+        .prefetch_related("revisions")
+    )
+    return render(
+        request,
+        "spending/income_list.html",
+        {
+            "household": household,
+            "sources": sources,
+            "current_nav": "income",
+        },
+    )
+
+
+@login_required
+@require_http_methods(("GET", "POST"))
+def income_schedule_create(request: HttpRequest) -> HttpResponse:
+    household = get_active_household(request)
+    has_anchor = RecurringSource.objects.filter(
+        household=household,
+        kind=RecurringSource.Kind.INCOME,
+        archived_at__isnull=True,
+        income_detail__starts_budget_period=True,
+    ).exists()
+    form = IncomeScheduleForm(
+        request.POST or None,
+        household=household,
+        initial={
+            "first_payday": timezone.localdate(timezone=ZoneInfo(household.time_zone)),
+            "starts_budget_period": not has_anchor,
+        },
+    )
+    preview = None
+    if request.method == "POST" and form.is_valid():
+        try:
+            spec = form.revision_spec()
+            preview = preview_revision(spec, preview_from=spec.effective_from)
+            if request.POST.get("action") == "save":
+                with transaction.atomic():
+                    source, _ = create_recurring_source(
+                        household=household,
+                        actor=_actor(request),
+                        kind=RecurringSource.Kind.INCOME,
+                        name=form.cleaned_data["name"],
+                        revision_spec=spec,
+                        expected_preview_fingerprint=form.cleaned_data["preview_fingerprint"],
+                        request_id=_request_id(request),
+                        notes=form.cleaned_data["note"],
+                        starts_budget_period=form.cleaned_data["starts_budget_period"],
+                    )
+                    window_start = preview.next_occurrences[0].expected_date
+                    window_end = window_start + timedelta(days=365)
+                    if source.income_detail.starts_budget_period or has_anchor:
+                        period_preview = preview_period_sync(
+                            household=household,
+                            window_start=window_start,
+                            window_end=window_end,
+                        )
+                        apply_period_sync(
+                            household=household,
+                            actor=_actor(request),
+                            window_start=window_start,
+                            window_end=window_end,
+                            expected_preview_fingerprint=period_preview.fingerprint,
+                            request_id=_request_id(request),
+                        )
+                        synchronize_occurrences(
+                            household=household,
+                            actor=_actor(request),
+                            window_start=window_start,
+                            window_end=window_end,
+                            request_id=_request_id(request),
+                        )
+                messages.success(
+                    request,
+                    "Income schedule created. Upcoming paydays are planned; "
+                    "record deposits when received.",
+                )
+                return redirect("spending:income-list")
+            data = request.POST.copy()
+            data["preview_fingerprint"] = preview.fingerprint
+            form = IncomeScheduleForm(data, household=household)
+            form.is_valid()
+        except ValidationError as error:
+            form.add_error(None, error.messages)
+            preview = None
+    return render(
+        request,
+        "spending/income_schedule_form.html",
+        {
+            "household": household,
+            "form": form,
+            "preview": preview,
+            "current_nav": "income",
         },
     )

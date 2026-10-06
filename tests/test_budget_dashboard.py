@@ -1091,7 +1091,7 @@ def test_navigation_uses_latest_period_and_links_income(
 
     assert home.status_code == 200
     assert reverse("budgets:detail", args=(budget_context.period.pk,)).encode() in home.content
-    assert reverse("spending:income-create").encode() in home.content
+    assert reverse("spending:income-list").encode() in home.content
     assert landing.status_code == 302
     assert landing.headers["Location"] == reverse(
         "budgets:detail", args=(budget_context.period.pk,)
@@ -1099,7 +1099,7 @@ def test_navigation_uses_latest_period_and_links_income(
     assert income.status_code == 200
     assert b"Record income" in income.content
     assert b'href="/spending/income/add/" class="is-active"' not in income.content
-    assert b'class="is-active" aria-current="page" href="/spending/income/add/"' in income.content
+    assert b'class="is-active" aria-current="page" href="/spending/income/"' in income.content
 
 
 @pytest.mark.django_db
@@ -1116,7 +1116,7 @@ def test_budget_landing_remains_available_without_paycheck_periods(
 
     assert home.status_code == 200
     assert reverse("budgets:index").encode() in home.content
-    assert reverse("spending:income-create").encode() in home.content
+    assert reverse("spending:income-list").encode() in home.content
     assert landing.status_code == 200
     assert b"No paycheck periods are available" in landing.content
 

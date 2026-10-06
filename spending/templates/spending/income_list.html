@@ -1,0 +1,26 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+{% block title %}Income · Household Budget{% endblock %}
+{% block page_title %}Income{% endblock %}
+{% block content %}
+  <div class="dashboard-heading budget-heading">
+    <div><p class="eyebrow">Payday planning</p><h2>Income schedules</h2><p class="muted">Plan recurring income and record deposits when they arrive.</p></div>
+    <div class="action-row">
+      <a class="primary-link" href="{% url 'spending:income-schedule-create' %}">Add income schedule</a>
+      <a class="secondary-button" href="{% url 'spending:income-create' %}">Record received income</a>
+      <a class="secondary-button" href="{% url 'spending:account-create' %}?return_to=income">Add account</a>
+    </div>
+  </div>
+  {% for source in sources %}
+    <section class="form-card">
+      <h2>{{ source.name }}</h2>
+      {% with revision=source.revisions.last %}
+        <p>{{ revision.expected_amount|money }} · {% if revision.frequency == 'weekly' %}Every {{ revision.interval }} week{{ revision.interval|pluralize }}{% else %}Monthly on day {{ revision.day_of_month }}{% endif %}</p>
+        <p>First payday: {{ revision.start_date|date:'M j, Y' }}</p>
+      {% endwith %}
+      {% if source.income_detail.starts_budget_period %}<p class="muted">Starts household budget periods.</p>{% endif %}
+    </section>
+  {% empty %}
+    <section class="blank-slate"><h2>Add your first income schedule</h2><p>Choose your take-home amount, first payday, and how often you are paid. Your main paycheck will create budget periods automatically.</p><a class="primary-link" href="{% url 'spending:income-schedule-create' %}">Add income schedule</a></section>
+  {% endfor %}
+{% endblock %}

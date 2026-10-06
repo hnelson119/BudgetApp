@@ -9,6 +9,8 @@ urlpatterns = [
     path("export.csv", views.transaction_export, name="transaction-export"),
     path("expenses/add/", views.expense_create, name="expense-create"),
     path("income/add/", views.income_create, name="income-create"),
+    path("income/", views.income_list, name="income-list"),
+    path("income/schedules/add/", views.income_schedule_create, name="income-schedule-create"),
     path("accounts/add/", views.account_create, name="account-create"),
     path(
         "cards/<uuid:account_id>/payments/add/",

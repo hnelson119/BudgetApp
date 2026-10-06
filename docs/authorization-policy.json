@@ -163,6 +163,8 @@
           "card-purchase-refund",
           "expense-create",
           "income-create",
+          "income-list",
+          "income-schedule-create",
           "transaction-detail",
           "transaction-list",
           "transaction-reverse"
@@ -368,7 +370,7 @@
   "summary": {
     "consumer_states": 4,
     "route_namespaces": 9,
-    "routes": 78,
+    "routes": 80,
     "function_rules": 11,
     "field_rules": 10,
     "source_assertions": 8,
