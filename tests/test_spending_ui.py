@@ -1206,7 +1206,111 @@ def _edit_payload(client: Client, source: RecurringSource) -> dict[str, str]:
         "monthly_day": str(form.initial["monthly_day"] or ""),
         "revision_id": str(form.initial["revision_id"]),
         "reason": "Updated paycheck details",
+        "starts_budget_period": "on" if form.initial["starts_budget_period"] else "",
     }
+
+
+def _partner_income(client: Client, *, starts_period: bool) -> RecurringSource:
+    url = reverse("spending:income-schedule-create")
+    page = client.get(url)
+    assert page.context["form"].initial["starts_budget_period"] is True
+    data = {
+        "name": "Partner paycheck",
+        "amount": "900.00",
+        "first_payday": "2030-01-08",
+        "frequency": "biweekly",
+        "adjustment": "none",
+        "starts_budget_period": "on" if starts_period else "",
+    }
+    preview = client.post(url, data)
+    data.update(preview_fingerprint=preview.context["preview"].fingerprint, action="save")
+    saved = client.post(url, data)
+    assert saved.status_code == 302, saved.context["form"].errors
+    return RecurringSource.objects.get(name="Partner paycheck")
+
+
+@pytest.mark.django_db
+def test_alternating_biweekly_paychecks_form_weekly_household_periods(
+    client: Client, spending_context: SpendingContext
+) -> None:
+    primary = _editable_income(client, spending_context, frequency="biweekly")
+    partner = _partner_income(client, starts_period=True)
+    periods = list(PayPeriod.objects.order_by("start_date")[:5])
+    assert [item.start_date for item in periods] == [
+        date(2030, 1, 1),
+        date(2030, 1, 8),
+        date(2030, 1, 15),
+        date(2030, 1, 22),
+        date(2030, 1, 29),
+    ]
+    assert all((item.next_start_date - item.start_date).days == 7 for item in periods)
+    for period, source in zip(periods, (primary, partner, primary, partner, primary), strict=True):
+        assert list(
+            period.occurrences.filter(status=Occurrence.Status.SCHEDULED).values_list(
+                "source_id", flat=True
+            )
+        ) == [source.pk]
+
+
+@pytest.mark.django_db
+def test_existing_partner_can_start_periods_without_rewriting_closed_history(
+    client: Client, spending_context: SpendingContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _editable_income(client, spending_context, frequency="biweekly")
+    partner = _partner_income(client, starts_period=False)
+    old_revision = partner.revisions.get()
+    received = partner.occurrences.get(nominal_date=date(2030, 1, 8))
+    complete_occurrence(
+        occurrence=received,
+        actor=spending_context.user,
+        actual_amount=Decimal("900"),
+        actual_date=date(2030, 1, 8),
+        request_id="partner-income-received",
+    )
+    historical = PayPeriod.objects.get(start_date=date(2030, 1, 1))
+    PayPeriod.objects.filter(pk=historical.pk).update(status=PayPeriod.Status.CLOSED)
+    monkeypatch.setattr("spending.views.timezone.localdate", lambda **_: date(2030, 1, 15))
+    data = _edit_payload(client, partner)
+    assert data["starts_budget_period"] == ""
+    data["starts_budget_period"] = "on"
+    url = reverse("spending:income-schedule-edit", args=(partner.pk,))
+    preview = client.post(url, data)
+    data.update(preview_fingerprint=preview.context["preview"].fingerprint, action="save")
+    saved = client.post(url, data)
+    assert saved.status_code == 302, saved.context["form"].errors
+    partner.refresh_from_db()
+    historical.refresh_from_db()
+    received.refresh_from_db()
+    assert historical.status == PayPeriod.Status.CLOSED
+    assert historical.next_start_date == date(2030, 1, 15)
+    assert received.pay_period_id == historical.pk
+    assert received.status == Occurrence.Status.COMPLETED
+    assert received.source_revision_id == old_revision.pk
+    assert not old_revision.starts_budget_period
+    assert partner.starts_budget_period
+    assert not partner.income_detail.starts_budget_period
+    assert list(
+        PayPeriod.objects.filter(start_date__gte=date(2030, 1, 15))
+        .order_by("start_date")
+        .values_list("start_date", flat=True)[:4]
+    ) == [
+        date(2030, 1, 15),
+        date(2030, 1, 22),
+        date(2030, 1, 29),
+        date(2030, 2, 5),
+    ]
+    updated = partner.occurrences.get(
+        nominal_date=date(2030, 1, 22), status=Occurrence.Status.SCHEDULED
+    )
+    assert updated.source_revision.starts_budget_period
+    with pytest.raises(ValidationError, match="Choose whether"):
+        complete_occurrence(
+            occurrence=updated,
+            actor=spending_context.user,
+            actual_amount=Decimal("900"),
+            actual_date=date(2030, 1, 23),
+            request_id="partner-anchor-boundary",
+        )
 
 
 @pytest.mark.django_db
@@ -1395,3 +1499,49 @@ def test_income_edit_is_scoped_and_requires_csrf(
         assert foreign.status_code == missing.status_code == 404
         assert foreign.content == missing.content
     assert source.revisions.count() == 1
+
+
+@pytest.mark.django_db
+def test_disabling_partner_periods_keeps_earlier_anchors_and_receives_extra_income(
+    client: Client, spending_context: SpendingContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _editable_income(client, spending_context, frequency="biweekly")
+    partner = _partner_income(client, starts_period=True)
+    old_revision = partner.revisions.get()
+    before = list(
+        PayPeriod.objects.filter(start_date__lt=date(2030, 1, 29))
+        .order_by("start_date")
+        .values_list("pk", "start_date", "next_start_date")
+    )
+    monkeypatch.setattr("spending.views.timezone.localdate", lambda **_: date(2030, 1, 29))
+    data = _edit_payload(client, partner)
+    data["starts_budget_period"] = ""
+    url = reverse("spending:income-schedule-edit", args=(partner.pk,))
+    preview = client.post(url, data)
+    data.update(preview_fingerprint=preview.context["preview"].fingerprint, action="save")
+    saved = client.post(url, data)
+    assert saved.status_code == 302, saved.context["form"].errors
+    partner.refresh_from_db()
+    assert not partner.starts_budget_period
+    assert old_revision.starts_budget_period
+    assert before == list(
+        PayPeriod.objects.filter(start_date__lt=date(2030, 1, 29))
+        .order_by("start_date")
+        .values_list("pk", "start_date", "next_start_date")
+    )
+    period = PayPeriod.objects.get(start_date=date(2030, 1, 29))
+    assert period.next_start_date == date(2030, 2, 12)
+    occurrence = partner.occurrences.get(
+        nominal_date=date(2030, 2, 5), status=Occurrence.Status.SCHEDULED
+    )
+    assert occurrence.pay_period_id == period.pk
+    assert not occurrence.source_revision.starts_budget_period
+    complete_occurrence(
+        occurrence=occurrence,
+        actor=spending_context.user,
+        actual_amount=Decimal("900"),
+        actual_date=date(2030, 2, 6),
+        request_id="partner-extra-received",
+    )
+    occurrence.refresh_from_db()
+    assert occurrence.status == Occurrence.Status.COMPLETED

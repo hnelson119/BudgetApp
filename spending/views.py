@@ -899,18 +899,22 @@ def income_list(request: HttpRequest) -> HttpResponse:
 @require_http_methods(("GET", "POST"))
 def income_schedule_create(request: HttpRequest) -> HttpResponse:
     household = get_active_household(request)
-    has_anchor = RecurringSource.objects.filter(
-        household=household,
-        kind=RecurringSource.Kind.INCOME,
-        archived_at__isnull=True,
-        income_detail__starts_budget_period=True,
-    ).exists()
+    has_anchor = any(
+        source.starts_budget_period
+        for source in RecurringSource.objects.filter(
+            household=household,
+            kind=RecurringSource.Kind.INCOME,
+            archived_at__isnull=True,
+        )
+        .select_related("income_detail")
+        .prefetch_related("revisions")
+    )
     form = IncomeScheduleForm(
         request.POST or None,
         household=household,
         initial={
             "first_payday": timezone.localdate(timezone=ZoneInfo(household.time_zone)),
-            "starts_budget_period": not has_anchor,
+            "starts_budget_period": True,
         },
     )
     preview = None
@@ -933,6 +937,11 @@ def income_schedule_create(request: HttpRequest) -> HttpResponse:
                     )
                     window_start = preview.next_occurrences[0].expected_date
                     window_end = window_start + timedelta(days=365)
+                    periods = PayPeriod.objects.filter(household=household).order_by("start_date")
+                    first_period, last_period = periods.first(), periods.last()
+                    if first_period is not None and last_period is not None:
+                        window_start = min(window_start, first_period.start_date)
+                        window_end = max(window_end, last_period.display_end_date)
                     if source.income_detail.starts_budget_period or has_anchor:
                         period_preview = preview_period_sync(
                             household=household,
@@ -1041,7 +1050,10 @@ def income_schedule_edit(request: HttpRequest, source_id: UUID) -> HttpResponse:
             spec = replace(
                 form.revision_spec(),
                 holiday_dates=tuple(holidays_from_revision(latest)),
-                configuration=latest.configuration,
+                configuration={
+                    **latest.configuration,
+                    "starts_budget_period": form.cleaned_data["starts_budget_period"],
+                },
             )
             preview = preview_revision(spec, preview_from=spec.effective_from)
             if request.POST.get("action") == "save":
@@ -1059,12 +1071,16 @@ def income_schedule_edit(request: HttpRequest, source_id: UUID) -> HttpResponse:
                     )
                     periods = PayPeriod.objects.filter(household=household).order_by("start_date")
                     first_period, last_period = periods.first(), periods.last()
-                    has_anchor = RecurringSource.objects.filter(
-                        household=household,
-                        kind=RecurringSource.Kind.INCOME,
-                        archived_at__isnull=True,
-                        income_detail__starts_budget_period=True,
-                    ).exists()
+                    has_anchor = first_period is not None or any(
+                        item.starts_budget_period
+                        for item in RecurringSource.objects.filter(
+                            household=household,
+                            kind=RecurringSource.Kind.INCOME,
+                            archived_at__isnull=True,
+                        )
+                        .select_related("income_detail")
+                        .prefetch_related("revisions")
+                    )
                     window_start = min(
                         spec.effective_from, preview.next_occurrences[0].expected_date
                     )
