@@ -122,6 +122,7 @@
     {"id": "spending:card-purchase-refund", "probe_path": "/spending/00000000-0000-4000-8000-000000000001/refund/"},
     {"id": "spending:expense-create", "probe_path": "/spending/expenses/add/"},
     {"id": "spending:income-create", "probe_path": "/spending/income/add/"},
+    {"id": "spending:income-schedule-create", "probe_path": "/spending/income/schedules/add/"},
     {"id": "spending:transaction-reverse", "probe_path": "/spending/00000000-0000-4000-8000-000000000001/reverse/"}
   ],
   "release_boundary": {
@@ -129,5 +130,5 @@
     "required_observation": "Run the guarded AUTHZ-04 probe and manual adversarial review against the selected release candidate, inspect the rejection and security logs, and record that all four attack variants fail without protected-data mutation.",
     "evidence_location": "docs/release-evidence.json"
   },
-  "summary": {"mutation_routes": 58, "probe_paths": 59, "attack_variants": 4, "bounded_checks": 236, "post_forms": 40, "release_pending": 1}
+  "summary": {"mutation_routes": 59, "probe_paths": 60, "attack_variants": 4, "bounded_checks": 240, "post_forms": 41, "release_pending": 1}
 }

@@ -27,14 +27,14 @@ def test_csrf_inventory_is_complete_and_gate_wired() -> None:
     validate_csrf_boundary(inventory, today=date(2026, 9, 29))
 
     assert {item["id"] for item in inventory["controls"]} == EXPECTED_CONTROL_IDS
-    assert len(discover_mutation_routes()) == 58
-    assert len(discover_probe_paths()) == 59
+    assert len(discover_mutation_routes()) == 59
+    assert len(discover_probe_paths()) == 60
     assert inventory["summary"] == {
-        "mutation_routes": 58,
-        "probe_paths": 59,
+        "mutation_routes": 59,
+        "probe_paths": 60,
         "attack_variants": 4,
-        "bounded_checks": 236,
-        "post_forms": 40,
+        "bounded_checks": 240,
+        "post_forms": 41,
         "release_pending": 1,
     }
 
