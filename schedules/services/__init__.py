@@ -9,6 +9,7 @@ from .sources import (
     RevisionPreview,
     RevisionSpec,
     create_recurring_source,
+    edit_income_schedule,
     preview_revision,
     revise_recurring_source,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "cancel_occurrence_and_future",
     "complete_occurrence",
     "create_recurring_source",
+    "edit_income_schedule",
     "move_occurrence",
     "override_occurrence",
     "preview_revision",

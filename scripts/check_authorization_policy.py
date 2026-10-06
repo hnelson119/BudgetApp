@@ -121,6 +121,7 @@ EXPECTED_ROUTE_ACCESS = {
             "income-create",
             "income-list",
             "income-schedule-create",
+            "income-schedule-edit",
             "transaction-detail",
             "transaction-list",
             "transaction-reverse",

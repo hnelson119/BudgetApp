@@ -14,6 +14,7 @@
   {% for source in sources %}
     <section class="form-card">
       <h2>{{ source.name }}</h2>
+      <a class="secondary-button" href="{% url 'spending:income-schedule-edit' source.pk %}">Edit schedule</a>
       {% with revision=source.revisions.last %}
         <p>{{ revision.expected_amount|money }} · {% if revision.frequency == 'weekly' %}Every {{ revision.interval }} week{{ revision.interval|pluralize }}{% else %}Monthly on day {{ revision.day_of_month }}{% endif %}</p>
         <p>First payday: {{ revision.start_date|date:'M j, Y' }}</p>

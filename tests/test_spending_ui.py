@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from django import forms
 from django.core.exceptions import ValidationError
-from django.test import Client
+from django.test import Client, override_settings
 from django.urls import reverse
 
 from audit.models import AuditEvent
@@ -32,6 +32,7 @@ from ledger.services import create_financial_account, record_expense, reverse_en
 from periods.models import PayPeriod
 from reserves.models import CardPaymentReserveEntry
 from schedules.models import Occurrence, RecurringSource
+from schedules.services import complete_occurrence
 from spending.forms import (
     CardPaymentForm,
     CardPurchaseRefundForm,
@@ -1162,3 +1163,235 @@ def test_income_setup_routes_require_login_and_isolate_households(
     _mfa_ready(spending_context.user)
     client.force_login(spending_context.user)
     assert b"Private paycheck" not in client.get(reverse("spending:income-list")).content
+
+
+def _editable_income(
+    client: Client,
+    context: SpendingContext,
+    *,
+    first_payday: str = "2030-01-01",
+    frequency: str = "weekly",
+) -> RecurringSource:
+    _mfa_ready(context.user)
+    client.force_login(context.user)
+    context.period.delete()
+    data = {
+        "name": "Paycheck",
+        "amount": "1200.00",
+        "first_payday": first_payday,
+        "frequency": frequency,
+        "adjustment": "none",
+        "starts_budget_period": "on",
+    }
+    url = reverse("spending:income-schedule-create")
+    preview = client.post(url, data)
+    data["preview_fingerprint"] = preview.context["preview"].fingerprint
+    data["action"] = "save"
+    assert client.post(url, data).status_code == 302
+    return RecurringSource.objects.get(name="Paycheck")
+
+
+def _edit_payload(client: Client, source: RecurringSource) -> dict[str, str]:
+    response = client.get(reverse("spending:income-schedule-edit", args=(source.pk,)))
+    assert response.status_code == 200
+    form = response.context["form"]
+    return {
+        "name": form.initial["name"],
+        "note": form.initial["note"],
+        "amount": str(form.initial["amount"]),
+        "first_payday": form.initial["first_payday"].isoformat(),
+        "effective_from": form.initial["effective_from"].isoformat(),
+        "frequency": form.initial["frequency"],
+        "adjustment": form.initial["adjustment"],
+        "monthly_day": str(form.initial["monthly_day"] or ""),
+        "revision_id": str(form.initial["revision_id"]),
+        "reason": "Updated paycheck details",
+    }
+
+
+@pytest.mark.django_db
+def test_income_schedule_can_be_edited_immediately_with_immutable_history(
+    client: Client,
+    spending_context: SpendingContext,
+) -> None:
+    source = _editable_income(client, spending_context)
+    original_revision = source.revisions.get()
+    original_payday = source.occurrences.order_by("expected_date").first()
+    assert original_payday is not None
+    listing = client.get(reverse("spending:income-list"))
+    assert reverse("spending:income-schedule-edit", args=(source.pk,)).encode() in listing.content
+    data = _edit_payload(client, source)
+    data.update(name="Updated employer", amount="2250.75", note="New take-home pay")
+    url = reverse("spending:income-schedule-edit", args=(source.pk,))
+    preview = client.post(url, data)
+    assert preview.context["preview"] is not None, preview.context["form"].errors
+    source.refresh_from_db()
+    assert source.name == "Paycheck"
+    assert source.revisions.count() == 1
+    data.update(preview_fingerprint=preview.context["preview"].fingerprint, action="save")
+    saved = client.post(url, data)
+    assert saved.status_code == 302, (
+        saved.context["form"].errors if saved.status_code == 200 else ""
+    )
+    source.refresh_from_db()
+    assert source.name == "Updated employer"
+    assert source.notes == "New take-home pay"
+    revisions = list(source.revisions.all())
+    assert len(revisions) == 2
+    assert revisions[0].effective_from == revisions[1].effective_from
+    original_revision.refresh_from_db()
+    assert original_revision.expected_amount == Decimal("1200.00")
+    original_payday.refresh_from_db()
+    assert original_payday.status == Occurrence.Status.SUPERSEDED
+    assert source.occurrences.get(
+        source_revision=revisions[1],
+        expected_date=original_payday.expected_date,
+    ).planned_amount == Decimal("2250.75")
+    assert AuditEvent.objects.filter(
+        action="schedule.income_edited", entity_id=str(source.pk)
+    ).exists()
+    assert not JournalEntry.objects.exists()
+    repeated = client.post(url, data)
+    assert repeated.status_code == 200
+    assert b"changed since you opened" in repeated.content
+    assert source.revisions.count() == 2
+
+
+@pytest.mark.django_db
+def test_income_edit_preserves_month_end_cadence(
+    client: Client,
+    spending_context: SpendingContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _editable_income(
+        client, spending_context, first_payday="2030-01-31", frequency="monthly"
+    )
+    monkeypatch.setattr("spending.views.timezone.localdate", lambda **_: date(2030, 2, 1))
+    data = _edit_payload(client, source)
+    assert data["first_payday"] == "2030-02-28"
+    assert data["monthly_day"] == "31"
+    data["amount"] = "1800"
+    url = reverse("spending:income-schedule-edit", args=(source.pk,))
+    preview = client.post(url, data)
+    assert [item.expected_date for item in preview.context["preview"].next_occurrences][:2] == [
+        date(2030, 2, 28),
+        date(2030, 3, 31),
+    ]
+    data.update(preview_fingerprint=preview.context["preview"].fingerprint, action="save")
+    result = client.post(url, data)
+    assert result.status_code == 302, (
+        result.context["form"].errors if result.status_code == 200 else ""
+    )
+    assert source.revisions.last().day_of_month == 31
+
+
+@pytest.mark.django_db
+def test_income_edit_preserves_received_income_and_earlier_paydays(
+    client: Client,
+    spending_context: SpendingContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = _editable_income(client, spending_context)
+    occurrence = source.occurrences.order_by("expected_date").first()
+    assert occurrence is not None
+    complete_occurrence(
+        occurrence=occurrence,
+        actor=spending_context.user,
+        actual_amount=Decimal("1199.50"),
+        actual_date=occurrence.expected_date,
+        request_id="received-income-edit-test",
+    )
+    receipt = client.post(
+        reverse("spending:income-create"),
+        {
+            "description": "Received paycheck",
+            "amount": "1199.50",
+            "destination": str(spending_context.checking.pk),
+            "effective_date": "2030-01-01",
+            "submission_token": str(uuid.uuid4()),
+        },
+    )
+    assert receipt.status_code == 302
+    journal = JournalEntry.objects.get(description="Received paycheck")
+    original_postings = list(journal.postings.values_list("financial_account_id", "amount"))
+    monkeypatch.setattr("spending.views.timezone.localdate", lambda **_: date(2030, 1, 15))
+    data = _edit_payload(client, source)
+    data["amount"] = "1400"
+    url = reverse("spending:income-schedule-edit", args=(source.pk,))
+    preview = client.post(url, data)
+    data.update(preview_fingerprint=preview.context["preview"].fingerprint, action="save")
+    response = client.post(url, data)
+    assert response.status_code == 302, (
+        response.context["form"].errors if response.status_code == 200 else ""
+    )
+    occurrence.refresh_from_db()
+    assert occurrence.status == Occurrence.Status.COMPLETED
+    assert occurrence.actual_amount == Decimal("1199.50")
+    assert list(journal.postings.values_list("financial_account_id", "amount")) == original_postings
+    assert source.occurrences.get(
+        expected_date=date(2030, 1, 8),
+        status=Occurrence.Status.SCHEDULED,
+    ).planned_amount == Decimal("1200.00")
+    assert source.occurrences.get(
+        expected_date=date(2030, 1, 15),
+        status=Occurrence.Status.SCHEDULED,
+    ).planned_amount == Decimal("1400.00")
+
+
+@pytest.mark.django_db
+def test_income_edit_rejects_stale_preview_and_rolls_back_period_conflicts(
+    client: Client,
+    spending_context: SpendingContext,
+) -> None:
+    source = _editable_income(client, spending_context)
+    data = _edit_payload(client, source)
+    url = reverse("spending:income-schedule-edit", args=(source.pk,))
+    preview = client.post(url, data)
+    data.update(
+        preview_fingerprint=preview.context["preview"].fingerprint, action="save", amount="1300"
+    )
+    stale = client.post(url, data)
+    assert b"preview is stale" in stale.content
+    assert source.revisions.count() == 1
+    period = PayPeriod.objects.filter(household=source.household).order_by("start_date").first()
+    assert period is not None
+    period.status = PayPeriod.Status.OPEN
+    period.save()
+    data.update(name="Rejected rename", first_payday="2030-01-02", action="preview")
+    preview = client.post(url, data)
+    data.update(preview_fingerprint=preview.context["preview"].fingerprint, action="save")
+    rejected = client.post(url, data)
+    assert rejected.status_code == 200
+    assert rejected.context["form"].non_field_errors()
+    source.refresh_from_db()
+    assert source.name == "Paycheck"
+    assert source.revisions.count() == 1
+    period.refresh_from_db()
+    assert period.status == PayPeriod.Status.OPEN
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=False)
+def test_income_edit_is_scoped_and_requires_csrf(
+    client: Client,
+    spending_context: SpendingContext,
+) -> None:
+    source = _editable_income(client, spending_context)
+    url = reverse("spending:income-schedule-edit", args=(source.pk,))
+    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client.force_login(spending_context.user)
+    assert csrf_client.post(url, {}).status_code == 403
+    assert client.put(url, {}).status_code == 405
+    client.logout()
+    assert client.get(url).status_code == 302
+    other = Household.objects.create(name="Other income household")
+    HouseholdMembership.objects.create(household=other, user=spending_context.outsider)
+    _mfa_ready(spending_context.outsider)
+    client.force_login(spending_context.outsider)
+    missing_url = reverse("spending:income-schedule-edit", args=(uuid.uuid4(),))
+    for method in (client.get, client.post):
+        foreign = method(url, HTTP_X_REQUEST_ID="income-edit-boundary-test")
+        missing = method(missing_url, HTTP_X_REQUEST_ID="income-edit-boundary-test")
+        assert foreign.status_code == missing.status_code == 404
+        assert foreign.content == missing.content
+    assert source.revisions.count() == 1

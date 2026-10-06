@@ -165,6 +165,7 @@
           "income-create",
           "income-list",
           "income-schedule-create",
+          "income-schedule-edit",
           "transaction-detail",
           "transaction-list",
           "transaction-reverse"
@@ -370,7 +371,7 @@
   "summary": {
     "consumer_states": 4,
     "route_namespaces": 9,
-    "routes": 80,
+    "routes": 81,
     "function_rules": 11,
     "field_rules": 10,
     "source_assertions": 8,

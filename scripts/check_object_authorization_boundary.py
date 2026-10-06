@@ -40,6 +40,7 @@ ROUTE_PARAMETER_KEYS = {
     ("notifications", "notification_id"): "notification_id",
     ("spending", "account_id"): "financial_account_id",
     ("spending", "entry_id"): "journal_entry_id",
+    ("spending", "source_id"): "recurring_source_id",
 }
 RELATIONSHIP_PROBES = {
     "debt-statement-relationship": {
