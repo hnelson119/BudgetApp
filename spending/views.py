@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
@@ -35,7 +35,14 @@ from periods.models import PayPeriod
 from periods.services import apply_period_sync, preview_period_sync
 from reserves.models import CardPaymentReserveEntry
 from schedules.models import RecurringSource
-from schedules.services import create_recurring_source, preview_revision, synchronize_occurrences
+from schedules.recurrence import BusinessDayAdjustment, project_occurrences
+from schedules.services import (
+    create_recurring_source,
+    edit_income_schedule,
+    preview_revision,
+    synchronize_occurrences,
+)
+from schedules.services.sources import holidays_from_revision, rule_from_revision
 from spending.forms import (
     CardPaymentForm,
     CardPurchaseRefundForm,
@@ -968,5 +975,141 @@ def income_schedule_create(request: HttpRequest) -> HttpResponse:
             "form": form,
             "preview": preview,
             "current_nav": "income",
+        },
+    )
+
+
+@login_required
+@require_http_methods(("GET", "POST"))
+def income_schedule_edit(request: HttpRequest, source_id: UUID) -> HttpResponse:
+    household = get_active_household(request)
+    source = get_object_or_404(
+        RecurringSource.objects.select_related("income_detail"),
+        pk=source_id,
+        household=household,
+        kind=RecurringSource.Kind.INCOME,
+        archived_at__isnull=True,
+    )
+    latest = source.revisions.order_by("-revision_number").first()
+    if latest is None:
+        raise Http404
+    today = timezone.localdate(timezone=ZoneInfo(household.time_zone))
+    cutoff = max(today, latest.effective_from)
+    projected = project_occurrences(
+        rule_from_revision(latest),
+        window_start=cutoff,
+        window_end=cutoff + timedelta(days=366),
+        adjustment=BusinessDayAdjustment(latest.adjustment_policy),
+        holidays=holidays_from_revision(latest),
+    )
+    next_payday = next(
+        (item.nominal_date for item in projected if item.expected_date >= cutoff), cutoff
+    )
+    frequency = (
+        "monthly"
+        if latest.frequency == "monthly_day"
+        else {
+            1: "weekly",
+            2: "biweekly",
+            4: "four_weekly",
+        }.get(latest.interval, "")
+    )
+    initial = {
+        "name": source.name,
+        "note": source.notes,
+        "amount": latest.expected_amount,
+        "monthly_day": latest.day_of_month,
+        "first_payday": next_payday,
+        "frequency": frequency,
+        "adjustment": latest.adjustment_policy,
+        "effective_from": cutoff,
+        "revision_id": latest.pk,
+    }
+    form = IncomeScheduleForm(
+        request.POST or None,
+        household=household,
+        source=source,
+        initial=initial,
+    )
+    preview = None
+    if request.method == "POST" and form.is_valid():
+        try:
+            if form.cleaned_data["revision_id"] != latest.pk:
+                raise ValidationError(
+                    "This schedule changed since you opened it. Reload it before editing."
+                )
+            spec = replace(
+                form.revision_spec(),
+                holiday_dates=tuple(holidays_from_revision(latest)),
+                configuration=latest.configuration,
+            )
+            preview = preview_revision(spec, preview_from=spec.effective_from)
+            if request.POST.get("action") == "save":
+                with transaction.atomic():
+                    edit_income_schedule(
+                        source=source,
+                        actor=_actor(request),
+                        name=form.cleaned_data["name"],
+                        notes=form.cleaned_data["note"],
+                        revision_spec=spec,
+                        expected_preview_fingerprint=form.cleaned_data["preview_fingerprint"],
+                        expected_revision_id=form.cleaned_data["revision_id"],
+                        reason=form.cleaned_data["reason"],
+                        request_id=_request_id(request),
+                    )
+                    periods = PayPeriod.objects.filter(household=household).order_by("start_date")
+                    first_period, last_period = periods.first(), periods.last()
+                    has_anchor = RecurringSource.objects.filter(
+                        household=household,
+                        kind=RecurringSource.Kind.INCOME,
+                        archived_at__isnull=True,
+                        income_detail__starts_budget_period=True,
+                    ).exists()
+                    window_start = min(
+                        spec.effective_from, preview.next_occurrences[0].expected_date
+                    )
+                    window_end = window_start + timedelta(days=365)
+                    if first_period is not None and last_period is not None:
+                        window_start = min(window_start, first_period.start_date)
+                        window_end = max(window_end, last_period.display_end_date)
+                    if has_anchor:
+                        period_preview = preview_period_sync(
+                            household=household,
+                            window_start=window_start,
+                            window_end=window_end,
+                        )
+                        apply_period_sync(
+                            household=household,
+                            actor=_actor(request),
+                            window_start=window_start,
+                            window_end=window_end,
+                            expected_preview_fingerprint=period_preview.fingerprint,
+                            request_id=_request_id(request),
+                        )
+                        synchronize_occurrences(
+                            household=household,
+                            actor=_actor(request),
+                            window_start=window_start,
+                            window_end=window_end,
+                            request_id=_request_id(request),
+                        )
+                messages.success(request, "Income schedule updated. Recorded income was preserved.")
+                return redirect("spending:income-list")
+            data = request.POST.copy()
+            data["preview_fingerprint"] = preview.fingerprint
+            form = IncomeScheduleForm(data, household=household, source=source, initial=initial)
+            form.is_valid()
+        except ValidationError as error:
+            form.add_error(None, error.messages)
+            preview = None
+    return render(
+        request,
+        "spending/income_schedule_form.html",
+        {
+            "household": household,
+            "form": form,
+            "preview": preview,
+            "current_nav": "income",
+            "editing": True,
         },
     )

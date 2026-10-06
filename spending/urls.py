@@ -11,6 +11,11 @@ urlpatterns = [
     path("income/add/", views.income_create, name="income-create"),
     path("income/", views.income_list, name="income-list"),
     path("income/schedules/add/", views.income_schedule_create, name="income-schedule-create"),
+    path(
+        "income/schedules/<uuid:source_id>/edit/",
+        views.income_schedule_edit,
+        name="income-schedule-edit",
+    ),
     path("accounts/add/", views.account_create, name="account-create"),
     path(
         "cards/<uuid:account_id>/payments/add/",

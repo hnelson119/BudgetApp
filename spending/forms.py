@@ -13,6 +13,7 @@ from django.utils import timezone
 from core.forms import html_date_input, html_time_input
 from households.models import Category, Household
 from ledger.models import FinancialAccount, JournalEntry
+from schedules.models import RecurringSource
 from schedules.recurrence import BusinessDayAdjustment, Frequency, RecurrenceRule
 from schedules.services import RevisionSpec
 
@@ -171,6 +172,16 @@ class IncomeScheduleForm(HouseholdForm):
             ("monthly", "Every month"),
         )
     )
+    monthly_day = forms.IntegerField(
+        required=False,
+        min_value=1,
+        max_value=31,
+        label="Monthly payday (day of month)",
+        help_text=(
+            "For monthly schedules only. Leave blank to use the first payday's day. "
+            "Short months use their last day."
+        ),
+    )
     adjustment = forms.ChoiceField(
         label="If payday falls on a weekend",
         choices=(
@@ -187,6 +198,50 @@ class IncomeScheduleForm(HouseholdForm):
     )
     note = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={"rows": 3}))
     preview_fingerprint = forms.CharField(required=False, widget=forms.HiddenInput)
+    effective_from = forms.DateField(
+        required=False,
+        label="Changes take effect on",
+        widget=html_date_input(),
+        help_text="Earlier paydays and received income keep their existing schedule history.",
+    )
+    reason = forms.CharField(required=False, max_length=500, label="Reason for change")
+    revision_id = forms.UUIDField(required=False, widget=forms.HiddenInput)
+
+    def __init__(
+        self,
+        *args: Any,
+        household: Household,
+        source: RecurringSource | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.source = source
+        super().__init__(*args, household=household, **kwargs)
+        if source is None:
+            for name in ("effective_from", "reason", "revision_id"):
+                self.fields.pop(name)
+        else:
+            for name in ("effective_from", "reason", "revision_id"):
+                self.fields[name].required = True
+            self.fields["first_payday"].label = "First payday under the updated schedule"
+            self.fields["starts_budget_period"].disabled = True
+            self.fields[
+                "starts_budget_period"
+            ].help_text = "This schedule's existing budget-period role is retained."
+            self.initial["starts_budget_period"] = source.income_detail.starts_budget_period
+
+    def clean(self) -> dict[str, Any]:
+        data = super().clean() or {}
+        if self.source is not None:
+            cutoff = data.get("effective_from")
+            payday = data.get("first_payday")
+            today = timezone.localdate(timezone=ZoneInfo(self.household.time_zone))
+            if cutoff and cutoff < today:
+                self.add_error("effective_from", "Choose today or a future date.")
+            if cutoff and payday and payday < cutoff:
+                self.add_error(
+                    "first_payday", "The first updated payday cannot precede the change date."
+                )
+        return data
 
     def revision_spec(self) -> RevisionSpec:
         if not self.is_valid():
@@ -199,11 +254,13 @@ class IncomeScheduleForm(HouseholdForm):
             start_date=payday,
             interval={"biweekly": 2, "four_weekly": 4}.get(frequency, 1),
             weekdays=() if monthly else (payday.weekday(),),
-            day_of_month=payday.day if monthly else None,
+            day_of_month=(self.cleaned_data.get("monthly_day") or payday.day) if monthly else None,
         )
         return RevisionSpec(
             effective_from=(
-                payday - timedelta(days=3)
+                self.cleaned_data["effective_from"]
+                if self.source is not None
+                else payday - timedelta(days=3)
                 if self.cleaned_data["adjustment"] == "previous"
                 else payday
             ),

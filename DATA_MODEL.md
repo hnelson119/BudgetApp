@@ -447,7 +447,7 @@ Audit entities live in a separately owned schema and follow the controls in `PRO
 1. Monetary values use fixed-precision decimal columns and one household currency.
 2. Journal postings for a committed entry balance exactly.
 3. Pay periods for a household never overlap.
-4. Source revisions for one source do not have overlapping effective ranges.
+4. Source revisions for one source do not have overlapping effective ranges. When unreceived income is corrected on the same effective date, the higher revision number applies and the earlier immutable revision remains as history.
 5. An occurrence references exactly one source revision and one assigned period.
 6. An override never mutates its source revision.
 7. Reserve balances derive from append-only ReserveEntries.

@@ -6,9 +6,13 @@ from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
+from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 
 from audit.services import append_event
 from households.models import Category, Household
@@ -17,6 +21,7 @@ from identity.models import User
 from schedules.models import (
     ExpenseSourceDetail,
     IncomeSourceDetail,
+    Occurrence,
     RecurringSource,
     SourceRevision,
 )
@@ -303,6 +308,7 @@ def revise_recurring_source(
     expected_preview_fingerprint: str,
     request_id: str,
     reason: str,
+    allow_same_income_date: bool = False,
 ) -> SourceRevision:
     locked = (
         RecurringSource.objects.select_for_update().select_related("household").get(pk=source.pk)
@@ -318,8 +324,27 @@ def revise_recurring_source(
     latest = locked.revisions.order_by("-revision_number").first()
     if latest is None:
         raise ValidationError("The recurring source has no initial revision.")
-    if revision_spec.effective_from <= latest.effective_from:
+    same_income_date = (
+        allow_same_income_date
+        and locked.kind == RecurringSource.Kind.INCOME
+        and revision_spec.effective_from == latest.effective_from
+        and revision_spec.effective_from
+        >= timezone.localdate(timezone=ZoneInfo(locked.household.time_zone))
+    )
+    if revision_spec.effective_from <= latest.effective_from and not same_income_date:
         raise ValidationError("A new revision must take effect after the latest revision.")
+    if (
+        same_income_date
+        and locked.occurrences.exclude(
+            status__in=(Occurrence.Status.SCHEDULED, Occurrence.Status.SUPERSEDED)
+        )
+        .filter(
+            Q(nominal_date__gte=revision_spec.effective_from)
+            | Q(expected_date__gte=revision_spec.effective_from)
+        )
+        .exists()
+    ):
+        raise ValidationError("Choose a change date after protected income occurrences.")
     revision = _create_revision(
         source=locked,
         actor=actor,
@@ -342,6 +367,77 @@ def revise_recurring_source(
             "effective_from": revision.effective_from,
             "frequency": revision.frequency,
         },
+        reason=reason.strip(),
+    )
+    return revision
+
+
+@transaction.atomic
+def edit_income_schedule(
+    *,
+    source: RecurringSource,
+    actor: User,
+    name: str,
+    notes: str,
+    revision_spec: RevisionSpec,
+    expected_preview_fingerprint: str,
+    expected_revision_id: UUID,
+    reason: str,
+    request_id: str,
+) -> SourceRevision:
+    require_household_membership(actor, source.household)
+    Household.objects.select_for_update().get(pk=source.household_id)
+    locked = (
+        RecurringSource.objects.select_for_update().select_related("household").get(pk=source.pk)
+    )
+    if locked.kind != RecurringSource.Kind.INCOME or locked.is_archived:
+        raise ValidationError("Only active income schedules can be edited.")
+    latest = locked.revisions.order_by("-revision_number").first()
+    if latest is None or latest.pk != expected_revision_id:
+        raise ValidationError(
+            "This schedule changed since you opened it. Reload it before editing."
+        )
+    today = timezone.localdate(timezone=ZoneInfo(locked.household.time_zone))
+    if revision_spec.effective_from < max(today, latest.effective_from):
+        raise ValidationError(
+            "Changes cannot take effect before today or the latest schedule revision."
+        )
+    if (
+        locked.occurrences.exclude(
+            status__in=(Occurrence.Status.SCHEDULED, Occurrence.Status.SUPERSEDED)
+        )
+        .filter(
+            Q(nominal_date__gte=revision_spec.effective_from)
+            | Q(expected_date__gte=revision_spec.effective_from)
+        )
+        .exists()
+    ):
+        raise ValidationError(
+            "Choose a change date after recorded or individually adjusted income."
+        )
+    before = {"name": locked.name, "notes": locked.notes}
+    locked.name = name
+    locked.notes = notes
+    locked.full_clean()
+    locked.save(update_fields=("name", "notes", "updated_at"))
+    revision = revise_recurring_source(
+        source=locked,
+        actor=actor,
+        revision_spec=revision_spec,
+        expected_preview_fingerprint=expected_preview_fingerprint,
+        request_id=request_id,
+        reason=reason,
+        allow_same_income_date=True,
+    )
+    append_event(
+        household=locked.household,
+        actor=actor,
+        action="schedule.income_edited",
+        entity_type="recurring_source",
+        entity_id=locked.pk,
+        request_id=request_id,
+        before=before,
+        after={"name": locked.name, "notes": locked.notes, "revision_id": revision.pk},
         reason=reason.strip(),
     )
     return revision

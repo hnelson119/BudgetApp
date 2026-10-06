@@ -11,6 +11,36 @@ async function selectOptionContaining(control, visibleText) {
   await control.selectOption(value);
 }
 
+test("income schedules can be edited after creation", async ({ page }, testInfo) => {
+  const signals = monitorPage(page);
+  const sourceName = `Editable paycheck ${testInfo.project.name}`;
+  await page.goto("/spending/income/schedules/add/");
+  await page.getByLabel("Income source", { exact: true }).fill(sourceName);
+  await page.getByLabel("Expected take-home amount", { exact: true }).fill("1250.00");
+  await page.getByLabel("Frequency", { exact: true }).selectOption("biweekly");
+  await page.getByLabel("Start a budget period on each payday", { exact: true }).uncheck();
+  await page.getByRole("button", { name: "Preview paydays", exact: true }).click();
+  await page.getByRole("button", { name: "Create income schedule", exact: true }).click();
+  const schedule = page.locator(".form-card").filter({
+    has: page.getByRole("heading", { name: sourceName, exact: true }),
+  });
+  await schedule.getByRole("link", { name: "Edit schedule", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Edit income schedule", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Income source", { exact: true })).toHaveValue(sourceName);
+  await expect(page.getByLabel("Frequency", { exact: true })).toHaveValue("biweekly");
+  await page.getByLabel("Expected take-home amount", { exact: true }).fill("1500.25");
+  await page.getByLabel("Reason for change", { exact: true }).fill("Synthetic paycheck correction");
+  await page.getByRole("button", { name: "Preview paydays", exact: true }).click();
+  await expect(page.getByText("Next three paydays", { exact: true })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole("button", { name: "Save schedule changes", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Income schedules", exact: true })).toBeVisible();
+  await expect(page.locator(".form-card").filter({
+    has: page.getByRole("heading", { name: sourceName, exact: true }),
+  })).toContainText("1,500.25");
+  expectCleanPage(signals);
+});
+
 test("navigation, theme, and layouts work at the configured viewport", async ({ page }, testInfo) => {
   const signals = monitorPage(page);
   await page.goto("/");

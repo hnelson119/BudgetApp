@@ -197,10 +197,6 @@ class SourceRevision(models.Model):
                 fields=("source", "revision_number"),
                 name="schedules_revision_source_number_unique",
             ),
-            models.UniqueConstraint(
-                fields=("source", "effective_from"),
-                name="schedules_revision_source_effective_unique",
-            ),
             models.CheckConstraint(
                 condition=models.Q(expected_amount__gte=Decimal("0")),
                 name="schedules_revision_amount_nonnegative",

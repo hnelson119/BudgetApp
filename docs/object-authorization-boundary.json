@@ -49,6 +49,7 @@
     }
   ],
   "identifier_routes": [
+    {"id": "spending:income-schedule-edit", "template": "/spending/income/schedules/{recurring_source_id}/edit/", "methods": ["GET", "POST"]},
     {"id": "audit:detail", "template": "/audit/{audit_event_id}/", "methods": ["GET"]},
     {"id": "budgets:detail", "template": "/budget/{pay_period_id}/", "methods": ["GET"]},
     {"id": "budgets:variable-create", "template": "/budget/{pay_period_id}/variable/add/", "methods": ["GET", "POST"]},
@@ -100,13 +101,13 @@
     "evidence_location": "docs/release-evidence.json"
   },
   "summary": {
-    "identifier_routes": 39,
-    "route_operations": 67,
+    "identifier_routes": 40,
+    "route_operations": 69,
     "relationship_operations": 6,
-    "probe_operations": 73,
-    "household_direction_checks": 146,
+    "probe_operations": 75,
+    "household_direction_checks": 150,
     "recipient_checks": 2,
-    "bounded_checks": 148,
+    "bounded_checks": 152,
     "release_pending": 1
   }
 }

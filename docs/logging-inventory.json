@@ -28,7 +28,7 @@
   "summary": {
     "layers": 14,
     "event_groups": 5,
-    "event_entries": 191,
+    "event_entries": 192,
     "known_gaps": 2
   },
   "layers": [
@@ -639,6 +639,7 @@
         "periods.states_refreshed",
         "reserve.explicit_allocation_recorded",
         "reserve.period_delta_recorded",
+        "schedule.income_edited",
         "schedule.occurrence_cancelled",
         "schedule.occurrence_completed",
         "schedule.occurrence_moved",
