@@ -1116,7 +1116,7 @@ def test_budget_landing_remains_available_without_paycheck_periods(
 
     assert home.status_code == 200
     assert reverse("budgets:index").encode() in home.content
-    assert reverse("spending:income-create").encode() in home.content
+    assert reverse("spending:income-list").encode() in home.content
     assert landing.status_code == 200
     assert b"No paycheck periods are available" in landing.content
 
