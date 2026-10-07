@@ -63,6 +63,7 @@ EXPECTED_SQL_CALLS = {
     "debts/migrations/0006_postgresql_protect_payoff_history.py": Counter(
         {"schema_editor.execute": 2}
     ),
+    "debts/migrations/0008_postgresql_protect_promotions.py": Counter({"schema_editor.execute": 2}),
     "goals/migrations/0002_postgresql_protect_history.py": Counter({"schema_editor.execute": 2}),
     "ledger/migrations/0002_postgresql_protect_history.py": Counter({"schema_editor.execute": 2}),
     "periods/migrations/0002_postgresql_period_guards.py": Counter({"schema_editor.execute": 2}),

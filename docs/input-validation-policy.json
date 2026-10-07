@@ -45,6 +45,7 @@
         "DebtAccountCreateForm",
         "DebtIdentityFields",
         "DebtMetadataForm",
+        "DebtPromotionForm",
         "DebtStatementCorrectionForm",
         "DebtStatementForm",
         "DebtStatusConfirmationForm",
@@ -393,7 +394,7 @@
     {
       "id": "amount-field-contract",
       "path": "scripts/check_managed_runtime_safety.py",
-      "contains": ["ALLOWED_DECIMAL_SPECS = {(7, 4), (18, 2)}", "if len(decimal_fields) != 41"]
+      "contains": ["ALLOWED_DECIMAL_SPECS = {(7, 4), (18, 2)}", "if len(decimal_fields) != 44"]
     },
     {
       "id": "household-membership-contract",
@@ -466,7 +467,7 @@
   ],
   "summary": {
     "form_modules": 8,
-    "form_classes": 52,
+    "form_classes": 53,
     "structure_rules": 10,
     "context_rules": 10,
     "business_limits": 11,

@@ -55,6 +55,16 @@ payments from debts reconciled to zero. Applying adds one planned extra row; it 
 posts a ledger transaction, or changes a debt balance. Plans and allocations retain immutable audit
 history. Forecasts assume stable paycheck cadence, the full planned extra, and no new borrowing;
 refresh a stale forecast after balances, terms, or periods change.
+Debt details also track immutable whole-balance promotional APR or deferred-interest revisions.
+The deadline panel estimates required payments over remaining household paycheck periods and
+accounts for payments already planned before expiration. Copy lender-reported accrued deferred
+interest and confirm the full-balance scope; mixed promotional purchases must be tracked separately.
+Forecasts split interest at effective rate dates and apply one-off extras on their dated events.
+Deferred charges combine recorded accrued interest and estimated simple accrual, are waived for
+modeled full payoff by the deadline, and are not added again for already-expired promotions.
+Reconcile expired promotions with the lender and refresh stored plans when promotional terms change.
+Daily compounding, lender payment allocation, future fees, and changing minimum formulas remain
+outside this estimate; recorded lender statements continue to control actual balances.
 Its completed split-mortgage
 workflow stores protected effective-dated payment components, enforces exactly two monthly
 installments, assigns each installment to the paycheck period containing its due date, and supports

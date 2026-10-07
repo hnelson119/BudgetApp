@@ -141,11 +141,12 @@ def test_effective_dated_terms_change_future_projection_cycles() -> None:
         strategy=PayoffStrategy.MINIMUM_ONLY,
         monthly_extra=Decimal("0.00"),
         start_date=date(2026, 1, 1),
-        max_months=2,
+        max_months=3,
     )
 
     assert projection.cycles[0].payments[0].interest == Decimal("0.00")
-    assert projection.cycles[1].payments[0].interest == Decimal("10.00")
+    assert projection.cycles[1].payments[0].interest == Decimal("0.00")
+    assert projection.cycles[2].payments[0].interest == Decimal("10.00")
 
 
 def test_snowball_and_avalanche_direct_extra_to_different_debts() -> None:

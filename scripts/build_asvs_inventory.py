@@ -474,7 +474,7 @@ IMPLEMENTED_ASSESSMENT_OVERRIDES: dict[str, str] = {
     "V1.4.2": (
         "Python integer arithmetic cannot wrap, financial code cannot convert through binary "
         "float, and fixed-width TOTP operations are explicitly bounded. The model registry pins "
-        "41 DecimalFields to reviewed money or rate shapes and 40 non-automatic IntegerFields to "
+        "44 DecimalFields to reviewed money or rate shapes and 41 non-automatic IntegerFields to "
         "bounded big or positive types; forms, services, models, and database constraints enforce "
         "finiteness, scale, sign, rate, amount, calendar, upload, and projection limits."
     ),

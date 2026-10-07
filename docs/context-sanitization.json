@@ -96,6 +96,7 @@
     }
   ],
   "sql_calls": [
+    {"path": "debts/migrations/0008_postgresql_protect_promotions.py", "operation": "schema_editor.execute", "count": 2, "parameterization": "module-level fixed literal migration SQL with no untrusted data"},
     {"path": "debts/migrations/0006_postgresql_protect_payoff_history.py", "operation": "schema_editor.execute", "count": 2, "parameterization": "module-level fixed literal migration SQL with no untrusted data"},
     {
       "path": "audit/checkpoints.py",
@@ -239,7 +240,7 @@
   ],
   "summary": {
     "contexts": 11,
-    "sql_calls": 43,
+    "sql_calls": 45,
     "required_boundary_checks": 9,
     "source_assertions": 6
   }

@@ -22,6 +22,7 @@ from debts.services.projections import (
     project_debt_payoff,
     projection_debts_from_accounts,
 )
+from debts.services.promotions import effective_apr
 from households.models import Household
 from households.services.access import require_household_membership
 from identity.models import User
@@ -70,7 +71,7 @@ def payoff_target(
             return debt.current_balance, ZERO, debt.name.casefold()
         if strategy == DebtPayoffPlan.Strategy.CUSTOM:
             return terms.custom_priority, ZERO, debt.name.casefold()
-        return -terms.annual_percentage_rate, debt.current_balance, debt.name.casefold()
+        return -effective_apr(debt, on_date=target_date), debt.current_balance, debt.name.casefold()
 
     return min(debts, key=key)
 
@@ -97,7 +98,7 @@ def planner_snapshot(household: Household) -> tuple[str, Decimal]:
     ) / max(len(periods), 1)
     return _fingerprint(
         {
-            "format": "debt-payoff-preview-v1",
+            "format": "debt-payoff-preview-v2",
             "debts": repr(debts),
             "periods": [
                 (item.pk, item.start_date, item.next_start_date, item.status) for item in periods

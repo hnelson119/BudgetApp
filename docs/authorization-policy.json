@@ -79,7 +79,8 @@
           "payoff-comparison",
             "payoff-plan",
             "payoff-period",
-          "statement-correct",
+          "promotion",
+            "statement-correct",
           "statement-create",
           "status",
           "terms-create"
@@ -373,7 +374,7 @@
   "summary": {
     "consumer_states": 4,
     "route_namespaces": 9,
-    "routes": 83,
+    "routes": 84,
     "function_rules": 11,
     "field_rules": 10,
     "source_assertions": 8,

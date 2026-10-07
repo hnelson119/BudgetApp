@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import calendar
-from dataclasses import dataclass
-from datetime import date
+from dataclasses import dataclass, replace
+from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
 
@@ -12,6 +12,7 @@ from django.db.models import F
 from budgets.services.calculations import money
 from debts.models import (
     DebtAccount,
+    DebtPromotionRevision,
     DebtTermsRevision,
     MortgagePaymentComponent,
     MortgagePaymentPlan,
@@ -47,12 +48,23 @@ class ProjectionExtraPayment:
 
 
 @dataclass(frozen=True, slots=True)
+class ProjectionPromotion:
+    kind: str
+    as_of: date
+    expires_on: date
+    promotional_apr: Decimal
+    regular_apr: Decimal
+    accrued_interest: Decimal = Decimal("0.00")
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectionDebt:
     identifier: str
     name: str
     opening_balance: Decimal
     terms: tuple[ProjectionTerms, ...]
     one_time_extra_payments: tuple[ProjectionExtraPayment, ...] = ()
+    promotion: ProjectionPromotion | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +77,7 @@ class ProjectionPayment:
     one_time_extra_payment: Decimal
     strategy_extra_payment: Decimal
     closing_balance: Decimal
+    deferred_interest: Decimal = Decimal("0.00")
 
     @property
     def total_payment(self) -> Decimal:
@@ -95,6 +108,7 @@ class DebtProjectionResult:
     total_interest: Decimal
     total_paid: Decimal
     remaining_balance: Decimal
+    deferred_interest: Decimal = Decimal("0.00")
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +145,9 @@ class _DebtState:
     total_interest: Decimal = Decimal("0.00")
     total_paid: Decimal = Decimal("0.00")
     payoff_date: date | None = None
+    deferred_carry: Decimal = Decimal("0.00")
+    deferred_charged: bool = False
+    total_deferred_interest: Decimal = Decimal("0.00")
 
 
 @dataclass(slots=True)
@@ -141,6 +158,7 @@ class _CyclePayment:
     scheduled_extra_payment: Decimal = Decimal("0.00")
     one_time_extra_payment: Decimal = Decimal("0.00")
     strategy_extra_payment: Decimal = Decimal("0.00")
+    deferred_interest: Decimal = Decimal("0.00")
 
 
 def _add_months(value: date, months: int) -> date:
@@ -201,6 +219,28 @@ def _validate_debts(
         if not name:
             raise ValidationError("Projection debt names are required.")
         identifiers.add(identifier)
+        promotion = debt.promotion
+        if promotion is not None:
+            if promotion.kind not in (
+                DebtPromotionRevision.Kind.INTRODUCTORY,
+                DebtPromotionRevision.Kind.DEFERRED,
+            ):
+                raise ValidationError("Projection promotion type is invalid.")
+            if promotion.expires_on < promotion.as_of or promotion.as_of > start_date:
+                raise ValidationError(
+                    "Start the forecast on or after the promotion statement date."
+                )
+            for rate in (promotion.promotional_apr, promotion.regular_apr):
+                if not isinstance(rate, Decimal) or not rate.is_finite() or not 0 <= rate < 1000:
+                    raise ValidationError("Projection promotion APR is invalid.")
+            _validated_money(promotion.accrued_interest, "Accrued deferred interest")
+            if (
+                promotion.kind == DebtPromotionRevision.Kind.DEFERRED
+                and promotion.promotional_apr != 0
+            ):
+                raise ValidationError(
+                    "Deferred-interest promotions require a zero promotional APR."
+                )
         terms = tuple(
             sorted((_validate_terms(value) for value in debt.terms), key=lambda x: x.effective_from)
         )
@@ -229,6 +269,7 @@ def _validate_debts(
                 ),
                 terms=terms,
                 one_time_extra_payments=one_time_extras,
+                promotion=promotion,
             )
         )
     return tuple(normalized)
@@ -238,25 +279,131 @@ def _terms_on(debt: ProjectionDebt, on_date: date) -> ProjectionTerms:
     applicable = tuple(terms for terms in debt.terms if terms.effective_from <= on_date)
     if not applicable:
         raise ValidationError("The debt has no terms effective for this projection cycle.")
-    return applicable[-1]
+    terms = applicable[-1]
+    promotion = debt.promotion
+    if promotion is not None and on_date >= promotion.as_of:
+        if on_date <= promotion.expires_on:
+            return replace(terms, annual_percentage_rate=promotion.promotional_apr)
+        if terms.effective_from <= promotion.expires_on:
+            return replace(terms, annual_percentage_rate=promotion.regular_apr)
+    return terms
 
 
-def _cycle_interest(
-    balance: Decimal,
-    terms: ProjectionTerms,
-    *,
-    previous_date: date,
-    payment_date: date,
+def _raw_interest(
+    balance: Decimal, terms: ProjectionTerms, *, days: int, cycle_days: int
 ) -> Decimal:
     if terms.interest_method == DebtTermsRevision.InterestMethod.MONTHLY:
-        return money(balance * terms.annual_percentage_rate / Decimal("1200"))
+        return balance * terms.annual_percentage_rate / Decimal("1200") * days / cycle_days
     basis = (
         Decimal("360")
         if terms.day_count_basis == DebtTermsRevision.DayCountBasis.ACTUAL_360
         else Decimal("365")
     )
-    days = Decimal((payment_date - previous_date).days)
-    return money(balance * terms.annual_percentage_rate / Decimal("100") * days / basis)
+    return balance * terms.annual_percentage_rate / Decimal("100") * days / basis
+
+
+def _initialize_deferred(state: _DebtState, start_date: date) -> None:
+    promotion = state.debt.promotion
+    if promotion is None or promotion.kind != DebtPromotionRevision.Kind.DEFERRED:
+        return
+    # An already-expired promotion needs lender reconciliation; never add a historical charge twice.
+    if promotion.expires_on < start_date:
+        state.deferred_charged = True
+        return
+    terms = _terms_on(state.debt, start_date)
+    basis = (
+        Decimal("360")
+        if terms.day_count_basis == DebtTermsRevision.DayCountBasis.ACTUAL_360
+        else Decimal("365")
+    )
+    state.deferred_carry = promotion.accrued_interest + (
+        state.balance
+        * promotion.regular_apr
+        / Decimal("100")
+        * (start_date - promotion.as_of).days
+        / basis
+    )
+
+
+def _dated_cycle(state: _DebtState, *, previous_date: date, payment_date: date) -> _CyclePayment:
+    """Accrue across rate boundaries and apply one-off payments on their recorded dates."""
+    opening = state.balance
+    promotion = state.debt.promotion
+    expiry = (
+        promotion.expires_on + timedelta(days=1)
+        if promotion and promotion.expires_on < date.max
+        else None
+    )
+    extras: dict[date, Decimal] = {}
+    for extra in state.debt.one_time_extra_payments:
+        if previous_date < extra.effective_date <= payment_date:
+            extras[extra.effective_date] = (
+                extras.get(extra.effective_date, Decimal("0.00")) + extra.amount
+            )
+    boundaries = {payment_date, *extras}
+    boundaries.update(
+        terms.effective_from
+        for terms in state.debt.terms
+        if previous_date < terms.effective_from <= payment_date
+    )
+    if expiry and previous_date < expiry <= payment_date:
+        boundaries.add(expiry)
+    cursor = previous_date
+    pending_interest = Decimal("0.00")
+    total_interest = Decimal("0.00")
+    paid_extra = Decimal("0.00")
+    deferred = Decimal("0.00")
+    for boundary in sorted(boundaries):
+        terms = _terms_on(state.debt, cursor)
+        days = (boundary - cursor).days
+        pending_interest += _raw_interest(
+            state.balance, terms, days=days, cycle_days=(payment_date - previous_date).days
+        )
+        if (
+            promotion
+            and promotion.kind == DebtPromotionRevision.Kind.DEFERRED
+            and not state.deferred_charged
+            and cursor <= promotion.expires_on
+        ):
+            basis = (
+                Decimal("360")
+                if terms.day_count_basis == DebtTermsRevision.DayCountBasis.ACTUAL_360
+                else Decimal("365")
+            )
+            state.deferred_carry += (
+                state.balance * promotion.regular_apr / Decimal("100") * days / basis
+            )
+        if (
+            expiry == boundary
+            and promotion
+            and promotion.kind == DebtPromotionRevision.Kind.DEFERRED
+            and not state.deferred_charged
+        ):
+            if state.balance > 0:
+                deferred = money(state.deferred_carry)
+                state.balance = money(state.balance + deferred)
+                total_interest += deferred
+            state.deferred_charged = True
+        if boundary in extras or boundary == payment_date:
+            charged = money(pending_interest)
+            state.balance = money(state.balance + charged)
+            total_interest += charged
+            pending_interest = Decimal("0.00")
+            paid = min(money(extras.get(boundary, Decimal("0.00"))), state.balance)
+            state.balance = money(state.balance - paid)
+            paid_extra += paid
+            if paid > 0 and state.balance == 0:
+                state.payoff_date = boundary
+        cursor = boundary
+    state.total_interest = money(state.total_interest + total_interest)
+    state.total_deferred_interest = money(state.total_deferred_interest + deferred)
+    state.total_paid = money(state.total_paid + paid_extra)
+    return _CyclePayment(
+        opening_balance=opening,
+        interest=money(total_interest),
+        one_time_extra_payment=money(paid_extra),
+        deferred_interest=deferred,
+    )
 
 
 def _strategy_order(
@@ -306,6 +453,8 @@ def project_debt_payoff(
     normalized_extra = _validated_money(monthly_extra, "Projection monthly extra payment")
     normalized_debts = _validate_debts(debts, start_date=start_date)
     states = tuple(_DebtState(debt=debt, balance=debt.opening_balance) for debt in normalized_debts)
+    for state in states:
+        _initialize_deferred(state, start_date)
     cycles: list[ProjectionCycle] = []
     rollover = Decimal("0.00")
 
@@ -321,39 +470,17 @@ def project_debt_payoff(
             if state.balance == 0:
                 continue
             terms = _terms_on(state.debt, payment_date)
-            opening_balance = state.balance
-            interest = _cycle_interest(
-                opening_balance,
-                terms,
-                previous_date=previous_date,
-                payment_date=payment_date,
+            cycle_payment = _dated_cycle(
+                state, previous_date=previous_date, payment_date=payment_date
             )
-            state.balance = money(state.balance + interest)
-            state.total_interest = money(state.total_interest + interest)
             minimum = min(terms.minimum_payment, state.balance)
             state.balance = money(state.balance - minimum)
             scheduled_extra = min(terms.recurring_extra_payment, state.balance)
             state.balance = money(state.balance - scheduled_extra)
-            requested_one_time_extra = money(
-                sum(
-                    (
-                        extra.amount
-                        for extra in state.debt.one_time_extra_payments
-                        if previous_date < extra.effective_date <= payment_date
-                    ),
-                    Decimal("0.00"),
-                )
-            )
-            one_time_extra = min(requested_one_time_extra, state.balance)
-            state.balance = money(state.balance - one_time_extra)
-            state.total_paid = money(state.total_paid + minimum + scheduled_extra + one_time_extra)
-            payments[state.debt.identifier] = _CyclePayment(
-                opening_balance=opening_balance,
-                interest=interest,
-                minimum_payment=minimum,
-                scheduled_extra_payment=scheduled_extra,
-                one_time_extra_payment=one_time_extra,
-            )
+            state.total_paid = money(state.total_paid + minimum + scheduled_extra)
+            cycle_payment.minimum_payment = minimum
+            cycle_payment.scheduled_extra_payment = scheduled_extra
+            payments[state.debt.identifier] = cycle_payment
             if state.balance == 0:
                 payoff_candidates.append((state, terms))
 
@@ -372,8 +499,8 @@ def project_debt_payoff(
 
         newly_paid: set[str] = set()
         for state, terms in payoff_candidates:
-            if state.payoff_date is None and state.balance == 0:
-                state.payoff_date = payment_date
+            if state.debt.identifier not in newly_paid and state.balance == 0:
+                state.payoff_date = state.payoff_date or payment_date
                 newly_paid.add(state.debt.identifier)
                 if strategy != PayoffStrategy.MINIMUM_ONLY:
                     rollover = money(
@@ -390,6 +517,7 @@ def project_debt_payoff(
                 one_time_extra_payment=payments[state.debt.identifier].one_time_extra_payment,
                 strategy_extra_payment=payments[state.debt.identifier].strategy_extra_payment,
                 closing_balance=state.balance,
+                deferred_interest=payments[state.debt.identifier].deferred_interest,
             )
             for state in states
             if state.debt.identifier in payments
@@ -410,6 +538,7 @@ def project_debt_payoff(
             total_interest=state.total_interest,
             total_paid=state.total_paid,
             remaining_balance=state.balance,
+            deferred_interest=state.total_deferred_interest,
         )
         for state in states
     )
@@ -569,6 +698,26 @@ def projection_debts_from_accounts(
                 )
                 for occurrence in occurrences
             )
+        current_promotion = debt.promotion_revisions.order_by("-revision_number").first()
+        promotion = None
+        if (
+            current_promotion is not None
+            and current_promotion.kind != DebtPromotionRevision.Kind.NONE
+        ):
+            if (
+                current_promotion.expires_on is None
+                or current_promotion.promotional_apr is None
+                or current_promotion.regular_apr is None
+            ):
+                raise ValidationError("Promotional terms are incomplete. Review the lender terms.")
+            promotion = ProjectionPromotion(
+                current_promotion.kind,
+                current_promotion.as_of,
+                current_promotion.expires_on,
+                current_promotion.promotional_apr,
+                current_promotion.regular_apr,
+                current_promotion.accrued_interest or Decimal("0.00"),
+            )
         projected.append(
             ProjectionDebt(
                 identifier=str(debt.pk),
@@ -576,6 +725,7 @@ def projection_debts_from_accounts(
                 opening_balance=debt.current_balance,
                 terms=projection_terms,
                 one_time_extra_payments=one_time_extras,
+                promotion=promotion,
             )
         )
     return tuple(projected)

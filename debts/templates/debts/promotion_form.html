@@ -1,0 +1,20 @@
+{% extends 'core/app_base.html' %}
+{% block title %}Promotion · {{ debt.name }}{% endblock %}
+{% block page_title %}Promotional debt terms{% endblock %}
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% url 'debts:detail' debt.pk %}">← Back to debt</a>
+    <div class="form-card">
+      <h2>{{ debt.name }}</h2>
+      <p>Copy the dates and rates from your lender. Temporary APR offers charge the remaining balance at the new rate after expiration. Deferred-interest offers can add accrued interest if the balance is not paid in full by the deadline.</p>
+      <p class="form-alert">This forecast applies one promotion to the entire tracked balance. If your card mixes promotional purchases and regular purchases, track each balance separately and confirm how your lender allocates payments. Saving terms changes estimates, not your recorded balance or payment schedule.</p>
+      <form method="post" class="stacked-form">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form %}{% if field.is_hidden %}{{ field }}{% else %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label>{% endif %}{% endfor %}
+        <button class="primary-button">Save promotional terms</button>
+      </form>
+      <p class="muted">To end tracking, select “No promotion / end tracking.” Earlier revisions remain in your debt history.</p>
+    </div>
+  </section>
+{% endblock %}

@@ -18,6 +18,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 from debts.forms import (
     DebtAccountCreateForm,
     DebtMetadataForm,
+    DebtPromotionForm,
     DebtStatementCorrectionForm,
     DebtStatementForm,
     DebtStatusConfirmationForm,
@@ -65,6 +66,12 @@ from debts.services.planner import (
     rollover_extra,
     save_payoff_plan,
 )
+from debts.services.promotions import (
+    effective_apr,
+    latest_promotion,
+    promotion_summary,
+    save_promotion,
+)
 from households.models import Household
 from households.services.access import get_active_household
 from identity.models import User
@@ -78,6 +85,10 @@ class DebtRow:
     debt: DebtAccount
     terms: DebtTermsRevision
     scheduled_payment: Decimal
+
+    @property
+    def effective_apr(self) -> Decimal:
+        return effective_apr(self.debt, on_date=_today(self.debt.household))
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,7 +230,9 @@ def debt_list(request: HttpRequest) -> HttpResponse:
             "active_count": len(active_rows),
             "estimated_monthly_interest": sum(
                 (
-                    row.debt.current_balance * row.terms.annual_percentage_rate / Decimal("1200")
+                    row.debt.current_balance
+                    * effective_apr(row.debt, on_date=today)
+                    / Decimal("1200")
                     for row in active_rows
                 ),
                 Decimal("0.00"),
@@ -231,6 +244,11 @@ def debt_list(request: HttpRequest) -> HttpResponse:
             "forecast_stale": forecast_stale,
             "target_debt": payoff_target(household, plan.strategy) if plan else None,
             "payoff_periods": periods,
+            "promotions": tuple(
+                summary
+                for row in active_rows
+                if (summary := promotion_summary(row.debt, today=today)) is not None
+            ),
             "current_nav": "debts",
         },
     )
@@ -337,6 +355,9 @@ def debt_detail(request: HttpRequest, debt_id: str) -> HttpResponse:
             "household": household,
             "debt": debt,
             "current_terms": current_terms,
+            "effective_apr": effective_apr(debt, on_date=_today(household)),
+            "promotion": promotion_summary(debt, today=_today(household)),
+            "promotion_history": debt.promotion_revisions.order_by("-revision_number"),
             "scheduled_payment": scheduled_payment,
             "terms_revisions": terms,
             "statements": statements,
@@ -1041,6 +1062,56 @@ def payoff_period(request: HttpRequest, period_id: str) -> HttpResponse:
             "error_message": error_message,
             "current_nav": "debts",
         },
+    )
+
+
+@login_required
+@require_http_methods(("GET", "POST"))
+def debt_promotion(request: HttpRequest, debt_id: str) -> HttpResponse:
+    household = get_active_household(request)
+    debt = _debt(household, debt_id)
+    if not debt.is_active or debt.current_balance <= 0:
+        raise Http404
+    previous = latest_promotion(debt)
+    initial = {
+        "kind": previous.kind if previous else "introductory",
+        "as_of": previous.as_of if previous else _today(household),
+        "expected_revision": previous.revision_number if previous else 0,
+        "expected_balance": debt.current_balance,
+    }
+    if previous is not None:
+        initial.update(
+            {
+                field: getattr(previous, field)
+                for field in ("expires_on", "promotional_apr", "regular_apr", "accrued_interest")
+            }
+        )
+    form = DebtPromotionForm(request.POST or None, household=household, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        try:
+            save_promotion(
+                debt=debt,
+                actor=_actor(request),
+                spec=form.promotion_spec(),
+                expected_revision=form.cleaned_data["expected_revision"],
+                expected_balance=form.cleaned_data["expected_balance"],
+                confirm_entire_balance=form.cleaned_data["confirm_entire_balance"],
+                request_id=_request_id(request),
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+            security_logger.warning(
+                "Debt promotion rejected.", extra={"event": "debt.promotion_rejected"}
+            )
+        else:
+            messages.success(
+                request, "Promotional terms saved. Refresh your payoff plan for a new forecast."
+            )
+            return redirect("debts:detail", debt_id=debt.pk)
+    return render(
+        request,
+        "debts/promotion_form.html",
+        {"household": household, "debt": debt, "form": form, "current_nav": "debts"},
     )
 
 
