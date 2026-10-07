@@ -34,7 +34,7 @@
                 <td>{{ row.scheduled_payment|money }}</td>
                 <td>Day {{ row.terms.due_day }}</td>
                 <td><span class="row-status status-{{ row.debt.status|slugify }}">{{ row.debt.get_status_display }}</span></td>
-                <td class="row-actions"><a href="{% url 'debts:detail' row.debt.pk %}">View</a></td>
+                <td><div class="row-actions"><a href="{% url 'debts:detail' row.debt.pk %}">View</a></div></td>
               </tr>
             {% endfor %}
           </tbody>
