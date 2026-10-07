@@ -1,0 +1,33 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+{% block title %}Compare offer · {{ debt.name }}{% endblock %}
+{% block page_title %}Refinancing &amp; balance-transfer comparison{% endblock %}
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% url 'debts:detail' debt.pk %}">← Back to debt</a>
+    <div class="form-card">
+      <h2>Compare an offer for {{ debt.name }}</h2>
+      <p>Compare the whole current balance with an offer paid at the monthly amount you enter. Copy the contractual interest rate and fees from the lender. A loan's disclosed APR may already include fees; use its interest rate here so fees entered below are counted once. Include origination, transfer, closing, and early-payoff costs; select whether fees are financed or paid upfront.</p>
+      <p class="muted">The current path keeps configured minimums, recurring extras, promotions, and dated one-off extras. The offer starts today, uses monthly simple-interest estimates, and assumes no new purchases or future fees. Promotional offers here are temporary APR offers, not deferred-interest offers. Mortgage comparisons cover principal and interest; escrow, insurance, PMI, and taxes require separate review. Refinancing federal student loans can remove federal protections.</p>
+      <form method="get" class="stacked-form">
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label>{% endfor %}
+        <button class="primary-button">Compare offer</button>
+      </form>
+    </div>
+    {% if result %}
+      <section class="transaction-panel debt-panel" aria-label="Offer comparison">
+        <div class="section-title"><h2>Estimated results</h2></div>
+        <div class="budget-table-scroll"><table class="budget-table"><thead><tr><th>Path</th><th>Payoff</th><th>Future interest</th><th>Fees</th><th>Financing cost</th><th>Balance at horizon</th></tr></thead><tbody>
+          <tr><td>Keep current debt</td><td>{{ result.baseline.payoff_date|date:'M j, Y'|default:'Beyond horizon' }}</td><td>{{ result.baseline.total_interest|money }}</td><td>—</td><td>{{ result.baseline.total_interest|money }}</td><td>{{ result.baseline.debts.0.remaining_balance|money }}</td></tr>
+          <tr><td>New offer</td><td>{{ result.offer.payoff_date|date:'M j, Y'|default:'Beyond horizon' }}</td><td>{{ result.offer.total_interest|money }}</td><td>{{ result.fees|money }}</td><td>{{ result.offer_cost|money }}</td><td>{{ result.offer.debts.0.remaining_balance|money }}</td></tr>
+        </tbody></table></div>
+        <dl class="detail-grid"><div><dt>New financed balance</dt><dd>{{ result.financed_balance|money }}</dd></div><div><dt>Net cost savings after fees</dt><dd>{% if result.savings != None %}{{ result.savings|money }}{% else %}Unavailable — a path extends beyond the horizon{% endif %}</dd></div><div><dt>Sustained modeled cost break-even</dt><dd>{{ result.break_even_date|date:'M j, Y'|default:'Not reached' }}</dd></div></dl>
+        {% if result.longer_payoff %}<p class="form-alert">This offer extends the payoff date. Compare total cost as well as the monthly payment.</p>{% endif %}
+        {% if result.savings != None and result.savings < 0 %}<p class="form-alert">The offer costs more after fees in this estimate.</p>{% endif %}
+        <p class="table-note">Costs include future interest and the offer's fees once. Interest on financed fees is included. Break-even is the first modeled date after which cumulative cost savings stay nonnegative through both payoffs. An unfinished path's totals are partial, so no lifetime savings or break-even is claimed. Comparing does not change your debt or accept an offer.</p>
+      </section>
+    {% endif %}
+    <p class="muted">Review <a href="https://www.consumerfinance.gov/ask-cfpb/what-is-a-balance-transfer-fee-can-a-balance-transfer-fee-be-charged-on-a-zero-percent-interest-rate-offer-en-53/" rel="noreferrer">balance-transfer fees</a> and <a href="https://www.consumerfinance.gov/ask-cfpb/should-i-consolidate-refinance-student-loans-en-561/" rel="noreferrer">student-loan refinancing protections</a> before acting.</p>
+  </section>
+{% endblock %}

@@ -58,6 +58,8 @@ EXPECTED_ROUTE_ACCESS = {
             "payoff-plan",
             "payoff-period",
             "promotion",
+            "offer",
+            "payoff-target",
             "statement-correct",
             "statement-create",
             "status",

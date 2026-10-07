@@ -26,6 +26,7 @@
         {% if debt.status == 'active' %}
           <a class="secondary-button" href="{% url 'debts:terms-create' debt.pk %}">Revise terms</a>
           {% if debt.current_balance > 0 %}<a class="secondary-button" href="{% url 'debts:promotion' debt.pk %}">Track promotional terms</a>{% endif %}
+          {% if debt.current_balance > 0 %}<a class="secondary-button" href="{% url 'debts:offer' debt.pk %}">Compare refinancing / transfer</a>{% endif %}
           {% if debt.debt_type == 'mortgage' %}{% if mortgage_plan %}<a class="secondary-button" href="{% url 'debts:mortgage-plan-revise' debt.pk %}">Revise payment plan</a>{% else %}<a class="secondary-button" href="{% url 'debts:mortgage-plan-create' debt.pk %}">Set up split payments</a>{% endif %}{% endif %}
           <a class="primary-link" href="{% url 'debts:statement-create' debt.pk %}">Reconcile statement</a>
           <a class="danger-button" href="{% url 'debts:status' debt.pk 'archive' %}">Archive</a>

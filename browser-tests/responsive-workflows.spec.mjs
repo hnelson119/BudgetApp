@@ -64,6 +64,42 @@ test("promotional lender terms can be saved with a visible deadline", async ({ p
   expectCleanPage(signals);
 });
 
+test("target and offer calculators show estimates without changing debts", async ({ page }, testInfo) => {
+  const signals = monitorPage(page);
+  await page.goto("/debts/");
+  await expect(page.getByRole("region", { name: "Debt progress", exact: true })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole("link", { name: "Calculate debt-free target", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Debt-free target calculator", exact: true })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  if (testInfo.project.name.endsWith("-desktop")) {
+    await page.getByLabel("Strategy").selectOption("avalanche");
+    const target = new Date();
+    target.setUTCDate(target.getUTCDate() + 365);
+    await page.getByLabel("Debt-free target date").fill(target.toISOString().slice(0, 10));
+    await page.getByLabel("Maximum extra per household paycheck period").fill("5000.00");
+    await page.getByRole("button", { name: "Calculate target", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Target result", exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  }
+  await page.goto("/debts/");
+  await page.locator(".debt-table").getByRole("link", { name: "View", exact: true }).first().click();
+  await page.getByRole("link", { name: "Compare refinancing / transfer", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Refinancing & balance-transfer comparison", exact: true })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  if (testInfo.project.name.endsWith("-desktop")) {
+    await page.getByLabel("Offer annual interest rate (%)").fill("0.00");
+    await page.getByLabel("Offer monthly payment toward principal and interest").fill("500.00");
+    await page.getByLabel("Transfer / origination fee (%)").fill("3.00");
+    await page.getByLabel("Other upfront fees / closing costs").fill("25.00");
+    await page.getByLabel("Add fees to the new balance").check();
+    await page.getByRole("button", { name: "Compare offer", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Offer comparison", exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  }
+  expectCleanPage(signals);
+});
+
 test("income schedules can be edited after creation", async ({ page }, testInfo) => {
   const signals = monitorPage(page);
   const sourceName = `Editable paycheck ${testInfo.project.name}`;

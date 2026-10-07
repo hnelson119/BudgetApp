@@ -1,0 +1,33 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+{% block title %}Debt-free target · Household Budget{% endblock %}
+{% block page_title %}Debt-free target calculator{% endblock %}
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% url 'debts:list' %}">← Back to debts</a>
+    <div class="form-card">
+      <h2>Work backward from your debt-free date</h2>
+      <p>Find the estimated extra needed per household paycheck period, on top of current scheduled payments. The model uses your next eight periods' average cadence, monthly payments, current balances, effective APRs, promotions, and payment rollover.</p>
+      <form method="get" class="stacked-form">
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label>{% endfor %}
+        <button class="primary-button">Calculate target</button>
+      </form>
+    </div>
+    {% if result %}
+      <section class="form-card" aria-label="Target result">
+        <h2>Target: {{ result.target_date|date:'M j, Y' }}</h2>
+        {% if result.required_extra != None %}
+          <dl class="detail-grid"><div><dt>Estimated extra per paycheck period</dt><dd>{{ result.required_extra|money }}</dd></div><div><dt>Monthly equivalent</dt><dd>{{ result.monthly_extra|money }}</dd></div><div><dt>Modeled payoff</dt><dd>{{ result.projection.payoff_date|date:'M j, Y' }}</dd></div><div><dt>Estimated future interest</dt><dd>{{ result.projection.total_interest|money }}</dd></div></dl>
+          <p>The search finds the lowest cent amount that reaches the target in this model. A zero result means current scheduled payments are sufficient.</p>
+          <a class="secondary-button" href="{% url 'debts:payoff-plan' %}">Review and save a payoff plan</a>
+          <p class="muted">Enter this extra amount in the plan, keep a cash cushion, and review your period's available cash before applying any payment.</p>
+        {% else %}
+          <p class="form-alert">The target is beyond the maximum extra you entered. Increase the search ceiling or choose a later date.</p>
+          <p>Remaining balance at that ceiling: {% for debt in result.projection.debts %}{{ debt.name }} {{ debt.remaining_balance|money }}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>
+        {% endif %}
+        <p class="muted">Calculations do not allocate money or save a plan. Actual lender compounding, changing minimums, fees, and payment timing can differ. A monthly model cannot promise payoff between its modeled payment dates.</p>
+      </section>
+    {% endif %}
+  </section>
+{% endblock %}

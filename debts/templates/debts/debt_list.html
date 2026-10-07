@@ -10,6 +10,7 @@
     <div class="action-row">
       <a class="primary-link" href="{% url 'debts:create' %}">Add debt</a>
       <a class="secondary-button" href="{% url 'debts:payoff-comparison' %}">Compare payoff strategies</a>
+      <a class="secondary-button" href="{% url 'debts:payoff-target' %}">Calculate debt-free target</a>
       <a class="secondary-button" href="{% url 'debts:payoff-plan' %}">{% if payoff_plan %}Review payoff plan{% else %}Build payoff plan{% endif %}</a>
     </div>
   </div>
@@ -40,6 +41,13 @@
     {% endif %}
   </section>
 
+  {% if progress_rows %}
+    <section class="transaction-panel debt-panel" aria-label="Debt progress">
+      <div class="section-title"><h2>Progress &amp; statement alerts</h2></div>
+      <div class="budget-table-scroll"><table class="budget-table"><thead><tr><th>Debt</th><th>Net balance reduction</th><th>Recorded principal paid</th><th>Recorded interest</th><th>Recorded fees</th><th>Progress / action</th></tr></thead><tbody>{% for row in progress_rows %}<tr><td>{{ row.debt.name }}<small>{{ row.statement_count }} current statement records</small></td><td>{% if row.net_reduction != None %}{{ row.net_reduction|money }}{% else %}Opening balance unavailable{% endif %}<small>Since added; negative means increase</small></td><td>{{ row.principal_paid|money }}</td><td>{{ row.interest_charged|money }}</td><td>{{ row.fees_charged|money }}</td><td><strong>{{ row.milestone }}</strong>{% if row.stale_statement %}<small>Statement needs updating: no reconciliation, or more than 45 days old</small>{% endif %}{% if row.payment_warning %}<small>Scheduled payment may not reduce balance. Recheck terms and lender minimum.</small>{% endif %}{% if row.debt.status == 'archived' and not row.paid_off %}<small>Archived — balance retained</small>{% endif %}<div class="row-actions"><a href="{% url 'debts:detail' row.debt.pk %}">Review debt</a></div></td></tr>{% endfor %}</tbody></table></div>
+      <p class="table-note">Totals use lender statement components you recorded; corrections replace earlier figures. Principal paid includes extra principal. Net reduction compares the added balance with today's balance and can differ from principal paid after borrowing or fees. Payment warnings compare configured payments with current balance × APR ÷ 12, an estimate. Planned budget payments are not treated as actual progress. Archiving an outstanding debt does not count as payoff.</p>
+    </section>
+  {% endif %}
   {% if promotions %}
     <section class="transaction-panel debt-panel" aria-label="Promotion deadlines">
       <div class="section-title"><h2>Promotion deadlines</h2></div>
