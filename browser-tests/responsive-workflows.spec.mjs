@@ -100,6 +100,25 @@ test("target and offer calculators show estimates without changing debts", async
   expectCleanPage(signals);
 });
 
+test("payoff comparisons can focus on a selected debt", async ({ page }, testInfo) => {
+  const signals = monitorPage(page);
+  await page.goto("/debts/projections/");
+  const choices = page.locator("#id_debts input[type=checkbox]");
+  expect(await choices.count()).toBeGreaterThan(0);
+  await expect(choices.first()).toBeChecked();
+  await expectNoHorizontalOverflow(page);
+  if (testInfo.project.name.endsWith("-desktop")) {
+    const count = await choices.count();
+    for (let index = 1; index < count; index += 1) await choices.nth(index).uncheck();
+    await page.getByLabel("Monthly strategy extra").fill("200.00");
+    await page.getByRole("button", { name: "Run comparison", exact: true }).click();
+    await expect(page.getByText(/^Comparing 1 selected debt:/u)).toBeVisible();
+    await expect(page.locator("#id_debts input[type=checkbox]:checked")).toHaveCount(1);
+    await expectNoHorizontalOverflow(page);
+  }
+  expectCleanPage(signals);
+});
+
 test("income schedules can be edited after creation", async ({ page }, testInfo) => {
   const signals = monitorPage(page);
   const sourceName = `Editable paycheck ${testInfo.project.name}`;

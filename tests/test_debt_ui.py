@@ -562,3 +562,103 @@ def test_payoff_comparison_renders_all_strategies_for_active_household_debts(
         assert label in response.content
     assert len(response.context["comparison_rows"]) == 4
     assert b"Recorded lender statements control historical actuals" in response.content
+
+
+@pytest.mark.django_db
+def test_comparison_selection_excludes_mortgage_and_preserves_selected_scope(
+    client, debt_ui_context
+):
+    context = debt_ui_context
+    mortgage, _ = create_debt_account(
+        household=context.household,
+        actor=context.user,
+        name="House",
+        debt_type=DebtAccount.DebtType.MORTGAGE,
+        opening_balance=Decimal("300000.00"),
+        terms=DebtTermsSpec(
+            date(2020, 1, 1),
+            Decimal("6.00"),
+            DebtTermsRevision.InterestMethod.MONTHLY,
+            DebtTermsRevision.DayCountBasis.ACTUAL_365,
+            Decimal("1800.00"),
+        ),
+        request_id="selection-mortgage",
+    )
+    _mfa_ready(context.user)
+    client.force_login(context.user)
+    path = reverse("debts:payoff-comparison")
+    initial = client.get(path)
+    assert set(initial.context["form"].initial["debts"]) == {context.debt.pk, mortgage.pk}
+    query = {
+        "monthly_extra": "200.00",
+        "start_date": "2026-08-23",
+        "maximum_years": "40",
+        "debt_selection": "1",
+        "debts": [str(context.debt.pk)],
+    }
+    response = client.get(path, query)
+    assert response.context["total_balance"] == Decimal("18400.00")
+    assert len(response.context["selected_debts"]) == 1
+    for row in response.context["comparison_rows"]:
+        assert [debt.debt_identifier for debt in row.comparison.projection.debts] == [
+            str(context.debt.pk)
+        ]
+    assert response.context["form"]["debts"].value() == [str(context.debt.pk)]
+    assert b"Comparing 1 selected debt" in response.content
+    query["debts"].append(str(mortgage.pk))
+    combined = client.get(path, query)
+    assert combined.context["total_balance"] == Decimal("318400.00")
+    assert len(combined.context["selected_debts"]) == 2
+    context.debt.refresh_from_db()
+    mortgage.refresh_from_db()
+    assert context.debt.current_balance == Decimal("18400.00")
+    assert mortgage.current_balance == Decimal("300000.00")
+
+
+@pytest.mark.django_db
+def test_comparison_rejects_empty_foreign_missing_and_archived_selection(client, debt_ui_context):
+    from debts.services import change_debt_status
+
+    context = debt_ui_context
+    _mfa_ready(context.user)
+    client.force_login(context.user)
+    other = Household.objects.create(name="Other household")
+    HouseholdMembership.objects.create(household=other, user=context.outsider)
+    foreign, _ = create_debt_account(
+        household=other,
+        actor=context.outsider,
+        name="Private debt",
+        debt_type=DebtAccount.DebtType.CREDIT_CARD,
+        opening_balance=Decimal("1000.00"),
+        terms=_terms(),
+        request_id="selection-foreign",
+    )
+    base = {
+        "monthly_extra": "200.00",
+        "start_date": "2026-08-23",
+        "maximum_years": "40",
+        "debt_selection": "1",
+    }
+    path = reverse("debts:payoff-comparison")
+    for debt_ids in (
+        [],
+        [str(foreign.pk)],
+        [str(context.debt.pk), str(foreign.pk)],
+        ["00000000-0000-4000-8000-000000000001"],
+        ["not-a-uuid"],
+    ):
+        response = client.get(path, {**base, "debts": debt_ids})
+        assert response.context["comparison"] is None
+        assert response.context["form"].errors.get("debts")
+        assert b"Private debt" not in response.content
+    change_debt_status(
+        debt=context.debt,
+        actor=context.user,
+        status=DebtAccount.Status.ARCHIVED,
+        reason="Archive selection",
+        request_id="selection-archive",
+    )
+    archived = client.get(path, {**base, "debts": [str(context.debt.pk)]})
+    assert archived.context["comparison"] is None
+    assert archived.context["form"].errors.get("debts")
+    assert b"Select at least one debt" in client.get(path, base).content
