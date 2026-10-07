@@ -11,6 +11,41 @@ async function selectOptionContaining(control, visibleText) {
   await control.selectOption(value);
 }
 
+async function expectDebtSpacing(page) {
+  const collisions = await page.locator(".debt-workspace").evaluate((workspace) => {
+    const problems = [];
+    const panels = [...workspace.querySelectorAll(":scope > .summary-grid, :scope > .form-card, :scope > .transaction-panel")];
+    for (let index = 1; index < panels.length; index += 1) {
+      if (panels[index].getBoundingClientRect().top - panels[index - 1].getBoundingClientRect().bottom < 20) {
+        problems.push("Page sections need at least 20px of separation");
+      }
+    }
+    for (const card of workspace.querySelectorAll(".form-page > .form-card + .form-card")) {
+      if (card.getBoundingClientRect().top - card.previousElementSibling.getBoundingClientRect().bottom < 20) {
+        problems.push("Calculator result cards touch the input card");
+      }
+    }
+    for (const helper of workspace.querySelectorAll("td > small")) {
+      const previous = helper.previousSibling;
+      if (!previous || !previous.textContent.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(previous);
+      if (helper.getBoundingClientRect().top - range.getBoundingClientRect().bottom < 3) {
+        problems.push("Table helper text collides with the value or preceding message");
+      }
+    }
+    for (const heading of workspace.querySelectorAll(".debt-panel > .section-title")) {
+      const panel = heading.parentElement.getBoundingClientRect();
+      const title = heading.firstElementChild.getBoundingClientRect();
+      if (title.left - panel.left < 16 || title.top - panel.top < 16) {
+        problems.push("Panel heading lacks border padding");
+      }
+    }
+    return problems;
+  });
+  expect(collisions).toEqual([]);
+}
+
 test("household payoff plans preview before saving and fit the viewport", async ({ page }, testInfo) => {
   const signals = monitorPage(page);
   const response = await page.goto("/debts/plan/");
@@ -68,6 +103,7 @@ test("target and offer calculators show estimates without changing debts", async
   const signals = monitorPage(page);
   await page.goto("/debts/");
   await expect(page.getByRole("region", { name: "Debt progress", exact: true })).toBeVisible();
+  await expectDebtSpacing(page);
   await expectNoHorizontalOverflow(page);
   await page.getByRole("link", { name: "Calculate debt-free target", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Debt-free target calculator", exact: true })).toBeVisible();
@@ -80,6 +116,7 @@ test("target and offer calculators show estimates without changing debts", async
     await page.getByLabel("Maximum extra per household paycheck period").fill("5000.00");
     await page.getByRole("button", { name: "Calculate target", exact: true }).click();
     await expect(page.getByRole("region", { name: "Target result", exact: true })).toBeVisible();
+    await expectDebtSpacing(page);
     await expectNoHorizontalOverflow(page);
   }
   await page.goto("/debts/");
@@ -95,6 +132,7 @@ test("target and offer calculators show estimates without changing debts", async
     await page.getByLabel("Add fees to the new balance").check();
     await page.getByRole("button", { name: "Compare offer", exact: true }).click();
     await expect(page.getByRole("region", { name: "Offer comparison", exact: true })).toBeVisible();
+    await expectDebtSpacing(page);
     await expectNoHorizontalOverflow(page);
   }
   expectCleanPage(signals);
@@ -114,6 +152,7 @@ test("payoff comparisons can focus on a selected debt", async ({ page }, testInf
     await page.getByRole("button", { name: "Run comparison", exact: true }).click();
     await expect(page.getByText(/^Comparing 1 selected debt:/u)).toBeVisible();
     await expect(page.locator("#id_debts input[type=checkbox]:checked")).toHaveCount(1);
+    await expectDebtSpacing(page);
     await expectNoHorizontalOverflow(page);
   }
   expectCleanPage(signals);
