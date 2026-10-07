@@ -47,6 +47,14 @@ closed periods and recorded or overridden payments remain protected. Existing de
 with `python manage.py sync_debt_payments` (read-only preview), followed by
 `python manage.py sync_debt_payments --apply` after a protected backup. The repair is idempotent,
 prints counts only, and requires active household membership for each debt's original creator.
+The debt dashboard includes an estimated monthly interest cost, a saved household payoff strategy,
+and payoff milestones with the first twelve monthly payment cycles. Preview and save a plan with
+an extra amount per household paycheck period and a cash cushion. Each period's extra-payment
+preview reserves future budget deficits, caps payments against remaining balances, and rolls over
+payments from debts reconciled to zero. Applying adds one planned extra row; it never pays a lender,
+posts a ledger transaction, or changes a debt balance. Plans and allocations retain immutable audit
+history. Forecasts assume stable paycheck cadence, the full planned extra, and no new borrowing;
+refresh a stale forecast after balances, terms, or periods change.
 Its completed split-mortgage
 workflow stores protected effective-dated payment components, enforces exactly two monthly
 installments, assigns each installment to the paycheck period containing its due date, and supports

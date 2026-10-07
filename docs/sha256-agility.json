@@ -5,6 +5,18 @@
   "next_review_due": "2026-12-26",
   "entries": [
     {
+      "id": "payoff-planner-fingerprint",
+      "path": "debts/services/planner.py",
+      "operations": {
+        "hashlib.sha256": 1
+      },
+      "artifact_class": "persisted_versioned",
+      "artifact": "Saved forecast snapshots and ephemeral payoff confirmation previews",
+      "format_marker": "sha256$ stored-value prefix and debt-payoff-preview-v1 canonical format",
+      "reader_or_verifier": "Planner recomputes snapshots to mark saved forecasts stale and verifies previews before writes",
+      "replacement_boundary": "Introduce a new prefix and invalidate previews; mark historical forecasts stale without rewriting immutable plans"
+    },
+    {
       "id": "historical-checkpoint-mac",
       "path": "audit/checkpoints.py",
       "operations": {"hmac.new:sha256": 1},
@@ -266,9 +278,9 @@
     }
   ],
   "summary": {
-    "files": 25,
-    "entries": 26,
-    "operations": 31,
+    "files": 26,
+    "entries": 27,
+    "operations": 32,
     "persisted_unversioned_entries": 0
   }
 }

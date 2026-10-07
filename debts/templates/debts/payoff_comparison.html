@@ -48,5 +48,14 @@
       </div>
       <p class="table-note">Snowball targets the lowest balance, avalanche targets the highest APR, and custom uses the configured priority. A paid-off debt's scheduled payment rolls into the next target beginning the following modeled month.</p>
     </section>
+    <a class="secondary-button" href="{% url 'debts:payoff-plan' %}">Build a saved paycheck payoff plan</a>
+    {% for row in comparison_rows %}
+      <section class="transaction-panel debt-panel">
+        <details><summary>{{ row.label }} — payoff milestones and first 12 modeled months</summary>
+          <div class="budget-table-scroll"><table class="budget-table"><thead><tr><th>Payoff order</th><th>Debt</th><th>Payoff estimate</th><th>Interest</th><th>Total paid</th></tr></thead><tbody>{% for debt in row.milestones %}<tr><td>{{ forloop.counter }}</td><td>{{ debt.name }}</td><td>{{ debt.payoff_date|date:'M Y'|default:'Beyond horizon' }}</td><td>{{ debt.total_interest|money }}</td><td>{{ debt.total_paid|money }}</td></tr>{% endfor %}</tbody></table></div>
+          <div class="budget-table-scroll"><table class="budget-table"><thead><tr><th>Modeled month</th><th>Debt</th><th>Payment</th><th>Interest</th><th>Strategy extra</th><th>Closing balance</th></tr></thead><tbody>{% for cycle in row.schedule %}{% for item in cycle.payments %}<tr><td>{{ cycle.payment_date|date:'M Y' }}</td><td>{{ item.name }}</td><td>{{ item.payment.total_payment|money }}</td><td>{{ item.payment.interest|money }}</td><td>{{ item.payment.strategy_extra_payment|money }}</td><td>{{ item.payment.closing_balance|money }}</td></tr>{% endfor %}{% endfor %}</tbody></table></div>
+        </details>
+      </section>
+    {% endfor %}
   {% endif %}
 {% endblock %}

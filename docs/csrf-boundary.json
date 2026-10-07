@@ -65,6 +65,8 @@
     }
   ],
   "mutation_routes": [
+    {"id": "debts:payoff-plan", "probe_path": "/debts/plan/"},
+    {"id": "debts:payoff-period", "probe_path": "/debts/period/00000000-0000-4000-8000-000000000001/payoff/"},
     {"id": "budgets:category-create", "probe_path": "/budget/00000000-0000-4000-8000-000000000001/categories/add/"},
     {"id": "budgets:fixed-create", "probe_path": "/budget/00000000-0000-4000-8000-000000000001/fixed-expenses/add/"},
     {"id": "budgets:occurrence-cancel", "probe_path": "/budget/occurrence/00000000-0000-4000-8000-000000000001/cancel/"},
@@ -131,5 +133,5 @@
     "required_observation": "Run the guarded AUTHZ-04 probe and manual adversarial review against the selected release candidate, inspect the rejection and security logs, and record that all four attack variants fail without protected-data mutation.",
     "evidence_location": "docs/release-evidence.json"
   },
-  "summary": {"mutation_routes": 60, "probe_paths": 61, "attack_variants": 4, "bounded_checks": 244, "post_forms": 41, "release_pending": 1}
+  "summary": {"mutation_routes": 62, "probe_paths": 63, "attack_variants": 4, "bounded_checks": 252, "post_forms": 43, "release_pending": 1}
 }

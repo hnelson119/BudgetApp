@@ -55,6 +55,8 @@ EXPECTED_ROUTE_ACCESS = {
             "mortgage-plan-create",
             "mortgage-plan-revise",
             "payoff-comparison",
+            "payoff-plan",
+            "payoff-period",
             "statement-correct",
             "statement-create",
             "status",

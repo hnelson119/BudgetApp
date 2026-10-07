@@ -24,6 +24,8 @@ from debts.forms import (
     DebtTermsForm,
     ExtraPrincipalForm,
     MortgagePlanForm,
+    PayoffPaymentForm,
+    PayoffPlanForm,
     PayoffScenarioForm,
 )
 from debts.models import (
@@ -35,7 +37,9 @@ from debts.models import (
     MortgagePlanRevision,
 )
 from debts.services import (
+    DebtProjectionResult,
     PayoffComparison,
+    ProjectionPayment,
     StrategyComparison,
     change_debt_status,
     compare_payoff_strategies,
@@ -51,10 +55,21 @@ from debts.services import (
     set_one_off_extra_principal,
     update_debt_account,
 )
+from debts.services.planner import (
+    apply_payoff_payment,
+    latest_payoff_plan,
+    payoff_target,
+    planner_snapshot,
+    preview_payoff_payment,
+    preview_payoff_plan,
+    rollover_extra,
+    save_payoff_plan,
+)
 from households.models import Household
 from households.services.access import get_active_household
 from identity.models import User
 from identity.services.application_throttling import enforce_application_budget
+from periods.models import PayPeriod
 from schedules.models import Occurrence
 
 
@@ -66,9 +81,44 @@ class DebtRow:
 
 
 @dataclass(frozen=True, slots=True)
+class PaymentRow:
+    name: str
+    payment: ProjectionPayment
+
+
+@dataclass(frozen=True, slots=True)
+class CycleRow:
+    payment_date: date
+    payments: tuple[PaymentRow, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ComparisonRow:
     comparison: StrategyComparison
     label: str
+
+    @property
+    def milestones(self) -> tuple[DebtProjectionResult, ...]:
+        return tuple(
+            sorted(
+                self.comparison.projection.debts,
+                key=lambda debt: (debt.payoff_date or date.max, debt.name.casefold()),
+            )
+        )
+
+    @property
+    def schedule(self) -> tuple[CycleRow, ...]:
+        names = {debt.debt_identifier: debt.name for debt in self.comparison.projection.debts}
+        return tuple(
+            CycleRow(
+                cycle.payment_date,
+                tuple(
+                    PaymentRow(names[payment.debt_identifier], payment)
+                    for payment in cycle.payments
+                ),
+            )
+            for cycle in self.comparison.projection.cycles[:12]
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,6 +201,13 @@ def debt_list(request: HttpRequest) -> HttpResponse:
         (row.scheduled_payment for row in active_rows),
         Decimal("0.00"),
     )
+    plan = latest_payoff_plan(household)
+    forecast_stale = (
+        plan is not None and planner_snapshot(household)[0] != plan.snapshot_fingerprint
+    )
+    periods = PayPeriod.objects.filter(household=household, next_start_date__gt=today).order_by(
+        "start_date"
+    )[:6]
     return render(
         request,
         "debts/debt_list.html",
@@ -160,6 +217,20 @@ def debt_list(request: HttpRequest) -> HttpResponse:
             "total_balance": total_balance,
             "scheduled_payment": scheduled_payment,
             "active_count": len(active_rows),
+            "estimated_monthly_interest": sum(
+                (
+                    row.debt.current_balance * row.terms.annual_percentage_rate / Decimal("1200")
+                    for row in active_rows
+                ),
+                Decimal("0.00"),
+            ),
+            "payoff_plan": plan,
+            "plan_payoff_date": date.fromisoformat(plan.forecast["payoff_date"])
+            if plan and plan.forecast.get("payoff_date")
+            else None,
+            "forecast_stale": forecast_stale,
+            "target_debt": payoff_target(household, plan.strategy) if plan else None,
+            "payoff_periods": periods,
             "current_nav": "debts",
         },
     )
@@ -846,6 +917,128 @@ def debt_status(request: HttpRequest, debt_id: str, action: str) -> HttpResponse
             "form": form,
             "verb": verb,
             "target_label": DebtAccount.Status(target).label,
+            "current_nav": "debts",
+        },
+    )
+
+
+def _planner_limit(request: HttpRequest) -> HttpResponse | None:
+    return enforce_application_budget(
+        request,
+        user=_actor(request),
+        scope="expensive-calculation",
+        maximum=settings.EXPENSIVE_CALCULATION_RATE_LIMIT,
+        window_seconds=settings.EXPENSIVE_CALCULATION_RATE_WINDOW_SECONDS,
+    )
+
+
+@login_required
+@require_http_methods(("GET", "POST"))
+def payoff_plan(request: HttpRequest) -> HttpResponse:
+    household = get_active_household(request)
+    current = latest_payoff_plan(household)
+    initial = (
+        {
+            "strategy": current.strategy,
+            "extra_per_period": current.extra_per_period + rollover_extra(current),
+            "cash_cushion": current.cash_cushion,
+        }
+        if current
+        else {}
+    )
+    form = PayoffPlanForm(request.POST or None, initial=initial)
+    preview = None
+    if request.method == "POST":
+        limited = _planner_limit(request)
+        if limited is not None:
+            return limited
+        if form.is_valid():
+            try:
+                values = {
+                    "household": household,
+                    "strategy": form.cleaned_data["strategy"],
+                    "extra_per_period": form.cleaned_data["extra_per_period"],
+                    "cash_cushion": form.cleaned_data["cash_cushion"],
+                }
+                if request.POST.get("action") == "save":
+                    save_payoff_plan(
+                        **values,
+                        actor=_actor(request),
+                        expected_fingerprint=form.cleaned_data["preview_fingerprint"],
+                        request_id=_request_id(request),
+                    )
+                    messages.success(
+                        request,
+                        "Household payoff plan saved. "
+                        "Preview a paycheck period to add an extra payment.",
+                    )
+                    return redirect("debts:list")
+                preview = preview_payoff_plan(**values)
+                preview_data = request.POST.copy()
+                preview_data["preview_fingerprint"] = preview.fingerprint
+                form = PayoffPlanForm(preview_data)
+            except ValidationError as error:
+                form.add_error(None, error)
+                security_logger.warning(
+                    "Debt payoff plan rejected.", extra={"event": "debt.payoff_plan_rejected"}
+                )
+    return render(
+        request,
+        "debts/payoff_plan.html",
+        {
+            "household": household,
+            "form": form,
+            "preview": preview,
+            "current_plan": current,
+            "current_nav": "debts",
+        },
+    )
+
+
+@login_required
+@require_http_methods(("GET", "POST"))
+def payoff_period(request: HttpRequest, period_id: str) -> HttpResponse:
+    household = get_active_household(request)
+    period = get_object_or_404(PayPeriod.objects.filter(household=household), pk=period_id)
+    preview = None
+    form = PayoffPaymentForm(request.POST or None)
+    error_message = ""
+    limited = _planner_limit(request)
+    if limited is not None:
+        return limited
+    try:
+        if request.method == "POST" and form.is_valid():
+            apply_payoff_payment(
+                household=household,
+                period=period,
+                actor=_actor(request),
+                expected_fingerprint=form.cleaned_data["preview_fingerprint"],
+                request_id=_request_id(request),
+            )
+            messages.success(
+                request,
+                "Extra debt payment added to this period's Budget. No transaction was posted.",
+            )
+            return redirect("budgets:detail", period_id=period.pk)
+        preview = preview_payoff_payment(household=household, period=period)
+        if request.method != "POST":
+            form = PayoffPaymentForm(initial={"preview_fingerprint": preview.fingerprint})
+    except ValidationError as error:
+        error_message = " ".join(error.messages)
+        if request.method == "POST":
+            form.add_error(None, error)
+            security_logger.warning(
+                "Debt payoff payment rejected.", extra={"event": "debt.payoff_payment_rejected"}
+            )
+    return render(
+        request,
+        "debts/payoff_period.html",
+        {
+            "household": household,
+            "period": period,
+            "preview": preview,
+            "form": form,
+            "error_message": error_message,
             "current_nav": "debts",
         },
     )

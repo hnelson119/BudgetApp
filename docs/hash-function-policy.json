@@ -246,6 +246,7 @@
     ]
   },
   "python_operation_inventory": [
+    {"path": "debts/services/planner.py", "operations": {"hashlib.sha256": 1}, "purpose": "Fingerprint payoff plan and budget previews", "status": "approved"},
     {"path": "audit/checkpoints.py", "operations": {"hmac.new:sha256": 1, "hmac.new:sha512": 1}, "purpose": "Authenticate versioned audit checkpoints with current and historical approved profiles", "status": "approved"},
     {"path": "audit/services.py", "operations": {"hashlib.sha256": 1}, "purpose": "Chain canonical audit-event integrity digests", "status": "approved"},
     {"path": "budgets/views.py", "operations": {"django.signing.dumps:sha256": 1, "django.signing.loads:sha256": 1}, "purpose": "Sign and verify variable-budget optimistic-concurrency state", "status": "approved"},
@@ -300,8 +301,8 @@
   "summary": {
     "approved_hash_functions": 2,
     "managed_profiles": 6,
-    "operation_files": 28,
-    "operations": 38,
+    "operation_files": 29,
+    "operations": 39,
     "compatibility_exceptions": 2,
     "compatibility_operations": 6,
     "test_only_exceptions": 1,

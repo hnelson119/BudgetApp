@@ -42,6 +42,8 @@ EXPECTED_FORM_REGISTRY = {
         "ExtraPrincipalForm",
         "HouseholdForm",
         "MortgagePlanForm",
+        "PayoffPaymentForm",
+        "PayoffPlanForm",
         "PayoffScenarioForm",
     },
     "goals/forms.py": {
@@ -177,7 +179,7 @@ EXPECTED_GAP_IDS = {
 EXPECTED_SOURCE_ASSERTIONS = {
     "amount-field-contract": (
         "scripts/check_managed_runtime_safety.py",
-        ("ALLOWED_DECIMAL_SPECS = {(7, 4), (18, 2)}", "if len(decimal_fields) != 38"),
+        ("ALLOWED_DECIMAL_SPECS = {(7, 4), (18, 2)}", "if len(decimal_fields) != 41"),
     ),
     "household-membership-contract": (
         "households/services/access.py",

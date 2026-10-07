@@ -11,7 +11,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from core.forms import html_date_input
-from debts.models import DebtAccount, DebtTermsRevision
+from debts.models import DebtAccount, DebtPayoffPlan, DebtTermsRevision
 from debts.services.accounts import DebtStatementSpec, DebtTermsSpec
 from debts.services.mortgages import MortgageInstallmentSpec, MortgagePlanSpec
 from households.models import Household
@@ -304,6 +304,31 @@ class DebtStatementCorrectionForm(DebtStatementForm):
     confirm = forms.BooleanField(
         label="I understand this appends a correction and does not edit the original statement.",
     )
+
+
+class PayoffPlanForm(forms.Form):
+    strategy = forms.ChoiceField(choices=DebtPayoffPlan.Strategy.choices, initial="avalanche")
+    extra_per_period = forms.DecimalField(
+        label="Extra per household paycheck period",
+        min_value=Decimal("0.00"),
+        max_digits=18,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+    )
+    cash_cushion = forms.DecimalField(
+        label="Cash cushion to keep unallocated",
+        min_value=Decimal("0.00"),
+        max_digits=18,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+        help_text="Extra payment recommendations leave this amount in the period's budget.",
+    )
+    preview_fingerprint = forms.CharField(required=False, widget=forms.HiddenInput())
+
+
+class PayoffPaymentForm(forms.Form):
+    preview_fingerprint = forms.CharField(widget=forms.HiddenInput())
+    confirm = forms.BooleanField(label="Add this extra payment to Budget for this period only.")
 
 
 class PayoffScenarioForm(forms.Form):

@@ -530,7 +530,7 @@
       "description": "Verify that sign, range, and input validation techniques are used to prevent integer overflows.",
       "applicability": "applicable",
       "status": "implemented",
-      "assessment": "Python integer arithmetic cannot wrap, financial code cannot convert through binary float, and fixed-width TOTP operations are explicitly bounded. The model registry pins 38 DecimalFields to reviewed money or rate shapes and 38 non-automatic IntegerFields to bounded big or positive types; forms, services, models, and database constraints enforce finiteness, scale, sign, rate, amount, calendar, upload, and projection limits.",
+      "assessment": "Python integer arithmetic cannot wrap, financial code cannot convert through binary float, and fixed-width TOTP operations are explicitly bounded. The model registry pins 41 DecimalFields to reviewed money or rate shapes and 40 non-automatic IntegerFields to bounded big or positive types; forms, services, models, and database constraints enforce finiteness, scale, sign, rate, amount, calendar, upload, and projection limits.",
       "evidence": [
         "docs/MANAGED_RUNTIME_SAFETY.md",
         "scripts/check_managed_runtime_safety.py",

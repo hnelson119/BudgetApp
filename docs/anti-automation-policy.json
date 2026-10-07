@@ -107,8 +107,8 @@
     {
       "id": "expensive-calculations",
       "risk": "Repeated debt projection and household-wide notification recalculation that overuses CPU or database work.",
-      "control": "The projection GET and notification refresh POST share a per-user calculation budget; projection horizons, record counts, worker timeouts, and notification query windows also remain bounded.",
-      "routes": ["debts:payoff-comparison", "notifications:refresh"],
+      "control": "Projection GET, payoff-plan preview/save POST, paycheck-payment preview/apply, and notification refresh POST share a per-user calculation budget; projection horizons, record counts, worker timeouts, and notification query windows also remain bounded.",
+      "routes": ["debts:payoff-comparison", "debts:payoff-period", "debts:payoff-plan", "notifications:refresh"],
       "evidence": ["debts/views.py", "debts/services/projections.py", "notifications/views.py", "notifications/services.py", "tests/test_anti_automation.py", "tests/test_debt_projections.py", "tests/test_notifications.py"]
     },
     {
@@ -167,5 +167,5 @@
     "Per-user application budgets do not identify a distributed pre-authentication flood; private ingress, keyed network failure throttles, connection ceilings, worker limits, and timeouts are the independent boundary.",
     "Representative release-host load and false-positive behavior remain release verification work and do not change repository implementation status."
   ],
-  "summary": {"route_families": 8, "named_routes": 81, "source_assertions": 8, "runtime_tests": 8, "residual_risks": 2}
+  "summary": {"route_families": 8, "named_routes": 83, "source_assertions": 8, "runtime_tests": 8, "residual_risks": 2}
 }

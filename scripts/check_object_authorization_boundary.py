@@ -29,6 +29,7 @@ ROUTE_PARAMETER_KEYS = {
     ("budgets", "budget_id"): "variable_budget_id",
     ("budgets", "occurrence_id"): "occurrence_id",
     ("budgets", "period_id"): "pay_period_id",
+    ("debts", "period_id"): "pay_period_id",
     ("debts", "debt_id"): "debt_id",
     ("debts", "occurrence_id"): "occurrence_id",
     ("debts", "statement_id"): "debt_statement_id",

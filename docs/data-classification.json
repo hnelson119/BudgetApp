@@ -46,7 +46,7 @@
   "summary": {
     "protection_levels": 4,
     "datasets": 15,
-    "classified_django_models": 47
+    "classified_django_models": 49
   },
   "protection_levels": [
     {
@@ -272,6 +272,8 @@
         "imports.ImportBatch",
         "imports.ImportRow",
         "debts.DebtAccount",
+        "debts.DebtPayoffPlan",
+        "debts.DebtPayoffAllocation",
         "debts.DebtTermsRevision",
         "debts.DebtStatement",
         "debts.MortgagePaymentPlan",

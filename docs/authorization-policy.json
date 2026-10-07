@@ -77,6 +77,8 @@
           "mortgage-plan-create",
           "mortgage-plan-revise",
           "payoff-comparison",
+            "payoff-plan",
+            "payoff-period",
           "statement-correct",
           "statement-create",
           "status",
@@ -371,7 +373,7 @@
   "summary": {
     "consumer_states": 4,
     "route_namespaces": 9,
-    "routes": 81,
+    "routes": 83,
     "function_rules": 11,
     "field_rules": 10,
     "source_assertions": 8,

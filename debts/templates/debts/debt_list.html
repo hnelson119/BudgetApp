@@ -10,6 +10,7 @@
     <div class="action-row">
       <a class="primary-link" href="{% url 'debts:create' %}">Add debt</a>
       <a class="secondary-button" href="{% url 'debts:payoff-comparison' %}">Compare payoff strategies</a>
+      <a class="secondary-button" href="{% url 'debts:payoff-plan' %}">{% if payoff_plan %}Review payoff plan{% else %}Build payoff plan{% endif %}</a>
     </div>
   </div>
 
@@ -17,6 +18,26 @@
     <article><span class="metric-icon bills-icon" aria-hidden="true">$</span><div><p>Active balance</p><strong>{{ total_balance|money }}</strong><small>Manual reconciled principal or statement balances</small></div></article>
     <article><span class="metric-icon spend-icon" aria-hidden="true">↧</span><div><p>Scheduled monthly</p><strong>{{ scheduled_payment|money }}</strong><small>Minimums plus configured recurring extras</small></div></article>
     <article><span class="metric-icon goals-icon" aria-hidden="true">#</span><div><p>Active debts</p><strong>{{ active_count }}</strong><small>Archived and paid-off accounts remain in history</small></div></article>
+    <article><span class="metric-icon bills-icon" aria-hidden="true">≈</span><div><p>Estimated monthly interest</p><strong>{{ estimated_monthly_interest|money }}</strong><small>Current balances × APR ÷ 12; lender statements provide actual interest</small></div></article>
+  </section>
+
+  <section class="form-card" aria-label="Household payoff plan">
+    <div class="section-title"><div><p class="eyebrow">Paycheck-by-paycheck progress</p><h2>Your payoff plan</h2></div></div>
+    {% if payoff_plan %}
+      <dl class="detail-grid">
+        <div><dt>Strategy</dt><dd>{{ payoff_plan.get_strategy_display }}</dd></div>
+        <div><dt>Current target</dt><dd>{{ target_debt.name|default:'No active balance remaining' }}</dd></div>
+        <div><dt>Extra per paycheck period</dt><dd>{{ payoff_plan.extra_per_period|money }}</dd></div>
+        <div><dt>Cash cushion</dt><dd>{{ payoff_plan.cash_cushion|money }}</dd></div>
+        <div><dt>Estimated debt-free date</dt><dd>{{ plan_payoff_date|date:'M Y'|default:'Beyond 40-year projection' }}</dd></div>
+      </dl>
+      <p class="muted">Forecast saved {{ payoff_plan.created_at|date:'M j, Y' }}. The monthly model assumes the full extra amount each period, stable paycheck cadence, and no new borrowing.</p>
+      {% if forecast_stale %}<p class="form-alert">Your balances or paycheck periods have changed. Preview and save an updated plan for a fresh payoff estimate.</p>{% endif %}
+      <div class="action-row">{% for period in payoff_periods %}<a class="secondary-button" href="{% url 'debts:payoff-period' period.pk %}">Plan extra: {{ period.start_date|date:'M j' }}–{{ period.display_end_date|date:'M j' }}</a>{% empty %}<span>Create an income schedule to generate paycheck periods.</span>{% endfor %}</div>
+    {% else %}
+      <p>Choose a payoff strategy, an extra amount for each household paycheck period, and a cash cushion. Preview the forecast, then save your shared plan.</p>
+      <a class="secondary-button" href="{% url 'debts:payoff-plan' %}">Build payoff plan</a>
+    {% endif %}
   </section>
 
   <section class="transaction-panel debt-panel" aria-label="Debt accounts">

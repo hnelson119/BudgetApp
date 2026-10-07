@@ -1,0 +1,32 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+{% block title %}Household payoff plan · Household Budget{% endblock %}
+{% block page_title %}Household payoff plan{% endblock %}
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% url 'debts:list' %}">← Back to debts</a>
+    <div class="form-card">
+      <h2>Build your paycheck payoff plan</h2>
+      <p>Pay required amounts on all debts and direct the extra toward your chosen target. Avalanche starts with the highest APR; snowball starts with the smallest balance; custom follows each debt's priority.</p>
+      <form method="post" class="stacked-form">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form %}{% if field.is_hidden %}{{ field }}{% else %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label>{% endif %}{% endfor %}
+        <div class="action-row"><button class="secondary-button" name="action" value="preview">Preview payoff plan</button>{% if preview %}<button class="primary-button" name="action" value="save">Save household plan</button>{% endif %}</div>
+      </form>
+      {% if preview %}
+        <section class="debt-history-section" aria-label="Payoff plan preview">
+          <h3>Payoff forecast</h3>
+          <dl class="detail-grid">
+            <div><dt>Estimated debt-free date</dt><dd>{{ preview.projection.payoff_date|date:'M Y'|default:'Beyond 40-year projection' }}</dd></div>
+            <div><dt>Projected interest</dt><dd>{{ preview.projection.total_interest|money }}</dd></div>
+            <div><dt>Equivalent monthly strategy extra</dt><dd>{{ preview.monthly_extra|money }}</dd></div>
+            <div><dt>Average household period</dt><dd>{{ preview.average_days|floatformat:1 }} days</dd></div>
+          </dl>
+          <p class="muted">This monthly estimate assumes your full extra amount each paycheck period and no new borrowing. Actual recommendations also account for the period's budget, the next three periods, and your cushion. Saving a plan leaves your budget unchanged.</p>
+          <div class="budget-table-scroll"><table class="budget-table"><thead><tr><th>Debt</th><th>Payoff estimate</th><th>Projected interest</th><th>Remaining at horizon</th></tr></thead><tbody>{% for debt in preview.projection.debts %}<tr><td>{{ debt.name }}</td><td>{{ debt.payoff_date|date:'M Y'|default:'Beyond horizon' }}</td><td>{{ debt.total_interest|money }}</td><td>{{ debt.remaining_balance|money }}</td></tr>{% endfor %}</tbody></table></div>
+        </section>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}
