@@ -1,0 +1,33 @@
+{% extends 'core/app_base.html' %}
+{% load budget_tags %}
+{% block title %}Extra debt payment · Household Budget{% endblock %}
+{% block page_title %}Plan an extra debt payment{% endblock %}
+{% block content %}
+  <section class="form-page wide-form-page">
+    <a class="back-link" href="{% url 'debts:list' %}">← Back to debts</a>
+    <div class="form-card">
+      <h2>{{ period.start_date|date:'M j' }}–{{ period.display_end_date|date:'M j, Y' }}</h2>
+      {% if error_message %}<p class="form-alert">{{ error_message }}</p>{% endif %}
+      {% if preview %}
+        <dl class="detail-grid">
+          <div><dt>Target debt</dt><dd>{{ preview.debt.name }}</dd></div>
+          <div><dt>Extra payment to add</dt><dd>{{ preview.amount|money }}</dd></div>
+          <div><dt>Available after cushion and future deficits</dt><dd>{{ preview.available|money }}</dd></div>
+          <div><dt>Cash cushion</dt><dd>{{ preview.plan.cash_cushion|money }}</dd></div>
+          <div><dt>Rolled over from paid-off debts</dt><dd>{{ preview.rollover_extra|money }}</dd></div>
+          <div><dt>Planned income</dt><dd>{{ preview.summary.planned_income|money }}</dd></div>
+          <div><dt>Already planned debt payments</dt><dd>{{ preview.summary.planned_debt_payments|money }}</dd></div>
+          <div><dt>Fixed expenses</dt><dd>{{ preview.summary.planned_fixed_expenses|money }}</dd></div>
+          <div><dt>Category budgets</dt><dd>{{ preview.summary.variable_spending_budget|money }}</dd></div>
+          <div><dt>Goal contributions</dt><dd>{{ preview.summary.planned_goal_contributions|money }}</dd></div>
+        </dl>
+        <p class="muted">Based on expected income and the next three periods' budgets. Keep bills, spending, and received income up to date before making a payment. The extra is capped at your plan amount and the target's remaining balance after this period's planned payments.</p>
+        {% if preview.amount > 0 %}
+          <form method="post" class="stacked-form">{% csrf_token %}{{ form.preview_fingerprint }}{% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}<label>{{ form.confirm }} {{ form.confirm.label }}{% for error in form.confirm.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label><button class="primary-button">Add extra payment to Budget</button></form>
+          <p class="muted">This creates a planned row for this period. Record the actual payment after paying your lender.</p>
+        {% else %}<p>Your current budget, cash cushion, or remaining debt balance leaves no room for an extra payment.</p>{% endif %}
+      {% endif %}
+      <div class="action-row"><a class="secondary-button" href="{% url 'budgets:detail' period.pk %}">Open this Budget</a><a class="secondary-button" href="{% url 'debts:payoff-period' period.pk %}">Refresh preview</a><a class="secondary-button" href="{% url 'debts:payoff-plan' %}">Review payoff plan</a></div>
+    </div>
+  </section>
+{% endblock %}

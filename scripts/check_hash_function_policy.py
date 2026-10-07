@@ -45,6 +45,7 @@ EXPECTED_PYTHON_OPERATIONS = {
     "budgets/views.py": Counter(
         {"django.signing.dumps:sha256": 1, "django.signing.loads:sha256": 1}
     ),
+    "debts/services/planner.py": Counter({"hashlib.sha256": 1}),
     "debts/services/mortgages.py": Counter({"hashlib.sha256": 1}),
     "deploy/pentest/authenticate-sessions.py": Counter({"hmac.new:sha1": 1}),
     "deploy/pentest/run-csv-security.py": Counter({"hashlib.sha256": 1}),
@@ -95,6 +96,7 @@ SHA256_ARTIFACT_CLASSES = {
     "verification_only",
 }
 EXPECTED_SHA256_ENTRY_CLASSES = {
+    "payoff-planner-fingerprint": ("debts/services/planner.py", "persisted_versioned"),
     "historical-checkpoint-mac": ("audit/checkpoints.py", "persisted_versioned"),
     "audit-event-chain": ("audit/services.py", "persisted_versioned"),
     "variable-budget-concurrency-token": ("budgets/views.py", "bounded_lifetime"),

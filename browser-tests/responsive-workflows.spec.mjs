@@ -11,6 +11,31 @@ async function selectOptionContaining(control, visibleText) {
   await control.selectOption(value);
 }
 
+test("household payoff plans preview before saving and fit the viewport", async ({ page }, testInfo) => {
+  const signals = monitorPage(page);
+  const response = await page.goto("/debts/plan/");
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("heading", { name: "Household payoff plan", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save household plan", exact: true })).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+  if (testInfo.project.name.endsWith("-desktop")) {
+    await page.getByLabel("Strategy").selectOption("avalanche");
+    await page.getByLabel("Extra per household paycheck period").fill("0.00");
+    await page.getByLabel("Cash cushion to keep unallocated").fill("25.00");
+    await page.getByRole("button", { name: "Preview payoff plan", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Payoff forecast", exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.getByRole("button", { name: "Save household plan", exact: true }).click();
+    await expect(page).toHaveURL(/\/debts\/$/u);
+    await expect(page.getByRole("region", { name: "Household payoff plan" })).toContainText("Avalanche");
+    await page.getByRole("link", { name: /^Plan extra:/u }).first().click();
+    await expect(page.getByRole("heading", { name: "Plan an extra debt payment", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add extra payment to Budget", exact: true })).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+  }
+  expectCleanPage(signals);
+});
+
 test("income schedules can be edited after creation", async ({ page }, testInfo) => {
   const signals = monitorPage(page);
   const sourceName = `Editable paycheck ${testInfo.project.name}`;

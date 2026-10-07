@@ -25,11 +25,11 @@ def test_context_sanitization_accepts_complete_boundary() -> None:
 
     runtime_count = validate_context_sanitization(policy, today=date(2026, 9, 13))
 
-    assert runtime_count == 232
+    assert runtime_count == 235
     assert {item["id"] for item in policy["contexts"]} == EXPECTED_CONTEXT_IDS
     assert policy["summary"] == {
         "contexts": 11,
-        "sql_calls": 41,
+        "sql_calls": 43,
         "required_boundary_checks": 9,
         "source_assertions": 6,
     }
@@ -52,7 +52,7 @@ def test_context_sanitization_rejects_catalog_tampering() -> None:
         validate_context_sanitization(missing_context, today=date(2026, 9, 13))
 
     changed_sql = copy.deepcopy(policy)
-    changed_sql["sql_calls"][0]["count"] = 2
+    changed_sql["sql_calls"][0]["count"] += 1
     with pytest.raises(ValueError, match="documented SQL call inventory changed"):
         validate_context_sanitization(changed_sql, today=date(2026, 9, 13))
 

@@ -27,7 +27,8 @@ from schedules.services.sources import (
 
 def is_debt_payment_revision(revision: SourceRevision) -> bool:
     return (
-        revision.configuration.get("cash_flow_component") == "debt_monthly_payment"
+        revision.configuration.get("cash_flow_component")
+        in ("debt_monthly_payment", "strategy_extra_payment")
         and revision.source.kind == RecurringSource.Kind.DEBT_PAYMENT
     )
 
@@ -45,7 +46,11 @@ def debt_payment_window(revision: SourceRevision) -> tuple[date, date]:
     today = timezone.localdate(timezone=ZoneInfo(debt.household.time_zone))
     if not debt.is_active or debt.current_balance == 0 or revision.expected_amount == 0:
         return today, today - timedelta(days=1)
-    split = MortgagePlanRevision.objects.filter(plan__debt=debt).order_by("effective_from").first()
+    split = (
+        MortgagePlanRevision.objects.filter(plan__debt=debt).order_by("effective_from").first()
+        if revision.configuration.get("cash_flow_component") == "debt_monthly_payment"
+        else None
+    )
     return today, split.effective_from - timedelta(days=1) if split else date.max
 
 
@@ -121,8 +126,21 @@ def synchronize_debt_payment(
                 reason="Synchronize revised debt terms with monthly budget payments.",
             )
     if source is not None:
+        source_ids = tuple(
+            RecurringSource.objects.filter(
+                household=locked.household,
+                kind=RecurringSource.Kind.DEBT_PAYMENT,
+                revisions__configuration__debt_account_id=str(locked.pk),
+                revisions__configuration__cash_flow_component__in=(
+                    "debt_monthly_payment",
+                    "strategy_extra_payment",
+                ),
+            )
+            .values_list("pk", flat=True)
+            .distinct()
+        )
         synchronize_debt_periods(
-            household=locked.household, actor=actor, source_ids=(source.pk,), request_id=request_id
+            household=locked.household, actor=actor, source_ids=source_ids, request_id=request_id
         )
     return source
 

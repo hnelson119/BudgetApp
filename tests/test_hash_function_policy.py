@@ -42,8 +42,8 @@ def test_hash_function_policy_is_complete_and_in_both_gates() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert "28 files, 38 operations, 6 bounded SHA-1" in completed.stdout
-    assert "31 SHA-256 agility operations" in completed.stdout
+    assert "29 files, 39 operations, 6 bounded SHA-1" in completed.stdout
+    assert "32 SHA-256 agility operations" in completed.stdout
     assert "scripts\\check_hash_function_policy.py" in (
         PROJECT_ROOT / "scripts/check.ps1"
     ).read_text(encoding="utf-8")
@@ -55,7 +55,7 @@ def test_hash_function_policy_is_complete_and_in_both_gates() -> None:
 def test_hash_operation_inventory_is_source_derived() -> None:
     assert discover_python_hash_operations() == EXPECTED_PYTHON_OPERATIONS
     assert discover_non_python_hash_operations() == EXPECTED_NON_PYTHON_OPERATIONS
-    assert sum(sum(items.values()) for items in EXPECTED_PYTHON_OPERATIONS.values()) == 35
+    assert sum(sum(items.values()) for items in EXPECTED_PYTHON_OPERATIONS.values()) == 36
     assert sum(sum(items.values()) for items in EXPECTED_NON_PYTHON_OPERATIONS.values()) == 3
 
 
@@ -64,12 +64,12 @@ def test_sha256_agility_registry_exhaustively_classifies_discovered_operations()
     validate_sha256_agility_registry(registry, today=date(2026, 9, 27))
 
     assert registry["summary"] == {
-        "files": 25,
-        "entries": 26,
-        "operations": 31,
+        "files": 26,
+        "entries": 27,
+        "operations": 32,
         "persisted_unversioned_entries": 0,
     }
-    assert sum(sum(operations.values()) for operations in EXPECTED_SHA256_OPERATIONS.values()) == 31
+    assert sum(sum(operations.values()) for operations in EXPECTED_SHA256_OPERATIONS.values()) == 32
 
     missing_entry = copy.deepcopy(registry)
     missing_entry["entries"] = missing_entry["entries"][1:]
@@ -85,7 +85,7 @@ def test_sha256_agility_registry_exhaustively_classifies_discovered_operations()
         validate_sha256_agility_registry(missing_version_marker, today=date(2026, 9, 27))
 
     changed_classification = copy.deepcopy(registry)
-    changed_classification["entries"][3]["artifact_class"] = "verification_only"
+    changed_classification["entries"][4]["artifact_class"] = "verification_only"
     with pytest.raises(ValueError, match="SHA-256 agility classification inventory changed"):
         validate_sha256_agility_registry(changed_classification, today=date(2026, 9, 27))
 

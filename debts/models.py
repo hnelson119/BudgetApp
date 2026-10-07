@@ -12,6 +12,7 @@ from django.db.models.functions import Lower
 
 from households.models import Household
 from ledger.models import FinancialAccount
+from periods.models import PayPeriod
 from schedules.models import RecurringSource
 
 _ModelT = TypeVar("_ModelT", bound=models.Model)
@@ -81,6 +82,82 @@ class ImmutableDebtRecord(DebtManagedModel):
         if not self._state.adding:
             raise ValidationError("Historical debt records cannot be updated.")
         super().save(*args, force_insert=True, **kwargs)
+
+
+class DebtPayoffPlan(ImmutableDebtRecord):
+    class Strategy(models.TextChoices):
+        AVALANCHE = "avalanche", "Avalanche — highest APR first"
+        SNOWBALL = "snowball", "Snowball — smallest balance first"
+        CUSTOM = "custom", "Custom debt priority"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    household = models.ForeignKey(Household, on_delete=models.PROTECT, related_name="payoff_plans")
+    revision_number = models.PositiveIntegerField()
+    strategy = models.CharField(max_length=16, choices=Strategy.choices)
+    extra_per_period = models.DecimalField(max_digits=18, decimal_places=2)
+    cash_cushion = models.DecimalField(max_digits=18, decimal_places=2)
+    forecast = models.JSONField(default=dict)
+    snapshot_fingerprint = models.CharField(max_length=71)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    objects = DebtServiceManager["DebtPayoffPlan"]()
+
+    class Meta:
+        ordering = ("household_id", "-revision_number")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("household", "revision_number"), name="debts_payoff_plan_revision_unique"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(extra_per_period__gte=0), name="debts_payoff_extra_nonnegative"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(cash_cushion__gte=0), name="debts_payoff_cushion_nonnegative"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Payoff plan {self.revision_number}"
+
+
+class DebtPayoffAllocation(ImmutableDebtRecord):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plan = models.ForeignKey(DebtPayoffPlan, on_delete=models.PROTECT, related_name="allocations")
+    pay_period = models.OneToOneField(
+        PayPeriod, on_delete=models.PROTECT, related_name="payoff_allocation"
+    )
+    debt = models.ForeignKey(
+        "DebtAccount", on_delete=models.PROTECT, related_name="payoff_allocations"
+    )
+    occurrence = models.OneToOneField("schedules.Occurrence", on_delete=models.PROTECT)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    objects = DebtServiceManager["DebtPayoffAllocation"]()
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0), name="debts_payoff_allocation_positive"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"Payoff allocation {self.pk}"
+
+    def clean(self) -> None:
+        household_id = self.plan.household_id
+        if any(
+            value != household_id
+            for value in (
+                self.pay_period.household_id,
+                self.debt.household_id,
+                self.occurrence.source.household_id,
+            )
+        ):
+            raise ValidationError("Payoff allocations must belong to one household.")
+        if self.occurrence.pay_period_id != self.pay_period_id:
+            raise ValidationError("The payoff payment must belong to the selected period.")
 
 
 class DebtAccount(DebtManagedModel):
