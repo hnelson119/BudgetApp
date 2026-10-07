@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from audit.services import append_event
 from debts.models import DebtAccount, DebtStatement, DebtTermsRevision
+from debts.services.payments import synchronize_debt_payment
 from households.models import Household
 from households.services.access import require_household_membership
 from identity.models import User
@@ -184,6 +185,7 @@ def create_debt_account(
     notes: str = "",
 ) -> tuple[DebtAccount, DebtTermsRevision]:
     require_household_membership(actor, household)
+    Household.objects.select_for_update().get(pk=household.pk)
     if debt_type not in DebtAccount.DebtType.values:
         raise ValidationError("Debt type is invalid.")
     if terms.effective_from > timezone.localdate(timezone=ZoneInfo(household.time_zone)):
@@ -219,6 +221,7 @@ def create_debt_account(
             "terms": _terms_payload(revision),
         },
     )
+    synchronize_debt_payment(debt=debt, actor=actor, request_id=request_id)
     return debt, revision
 
 
@@ -231,6 +234,7 @@ def revise_debt_terms(
     request_id: str,
     reason: str,
 ) -> DebtTermsRevision:
+    Household.objects.select_for_update().get(pk=debt.household_id)
     locked = DebtAccount.objects.select_for_update().select_related("household").get(pk=debt.pk)
     require_household_membership(actor, locked.household)
     if not locked.is_active:
@@ -264,6 +268,7 @@ def revise_debt_terms(
         after=_terms_payload(revision),
         reason=reason.strip(),
     )
+    synchronize_debt_payment(debt=locked, actor=actor, request_id=request_id)
     return revision
 
 
@@ -279,6 +284,7 @@ def update_debt_account(
     request_id: str,
     reason: str,
 ) -> DebtAccount:
+    Household.objects.select_for_update().get(pk=debt.household_id)
     locked = (
         DebtAccount.objects.select_for_update()
         .select_related("household", "financial_account")
@@ -328,6 +334,7 @@ def update_debt_account(
         },
         reason=reason.strip(),
     )
+    synchronize_debt_payment(debt=locked, actor=actor, request_id=request_id)
     return locked
 
 
@@ -360,6 +367,7 @@ def reconcile_debt_statement(
     supersedes: DebtStatement | None = None,
     reason: str = "",
 ) -> DebtStatement:
+    Household.objects.select_for_update().get(pk=debt.household_id)
     locked = DebtAccount.objects.select_for_update().select_related("household").get(pk=debt.pk)
     require_household_membership(actor, locked.household)
     if locked.status == DebtAccount.Status.ARCHIVED:
@@ -468,6 +476,8 @@ def reconcile_debt_statement(
         },
         reason=reason.strip(),
     )
+    if updates_current_balance:
+        synchronize_debt_payment(debt=locked, actor=actor, request_id=request_id)
     return record
 
 
@@ -480,6 +490,7 @@ def change_debt_status(
     request_id: str,
     reason: str,
 ) -> DebtAccount:
+    Household.objects.select_for_update().get(pk=debt.household_id)
     locked = DebtAccount.objects.select_for_update().select_related("household").get(pk=debt.pk)
     require_household_membership(actor, locked.household)
     if status not in DebtAccount.Status.values:
@@ -506,4 +517,5 @@ def change_debt_status(
         after={"status": locked.status},
         reason=reason.strip(),
     )
+    synchronize_debt_payment(debt=locked, actor=actor, request_id=request_id)
     return locked

@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 
 from audit.services import append_event
 from debts.models import (
@@ -338,6 +339,9 @@ def create_mortgage_plan(
     expected_preview_fingerprint: str,
     request_id: str,
 ) -> MortgagePlanMutation:
+    from households.models import Household
+
+    Household.objects.select_for_update().get(pk=debt.household_id)
     locked_debt = (
         DebtAccount.objects.select_for_update().select_related("household").get(pk=debt.pk)
     )
@@ -350,6 +354,22 @@ def create_mortgage_plan(
         raise ValidationError("The mortgage debt already has a payment plan.")
     normalized = _validated_spec(spec)
     preview = _preview_for_plan_id(normalized, "new")
+    if (
+        Occurrence.objects.filter(
+            source__household=locked_debt.household,
+            source_revision__configuration__cash_flow_component="debt_monthly_payment",
+            source_revision__configuration__debt_account_id=str(locked_debt.pk),
+            expected_date__gte=normalized.effective_from,
+        )
+        .filter(
+            ~Q(status__in=(Occurrence.Status.SCHEDULED, Occurrence.Status.SUPERSEDED))
+            | Q(pay_period__status=PayPeriod.Status.CLOSED)
+        )
+        .exists()
+    ):
+        raise ValidationError(
+            "Choose a split-plan change date after protected monthly debt payments."
+        )
     if preview.fingerprint != expected_preview_fingerprint:
         raise ValidationError("The mortgage preview is stale; preview it again before saving.")
     plan = MortgagePaymentPlan(debt=locked_debt, created_by=actor)
@@ -413,6 +433,9 @@ def revise_mortgage_plan(
     request_id: str,
     reason: str,
 ) -> MortgagePlanMutation:
+    from households.models import Household
+
+    Household.objects.select_for_update().get(pk=plan.debt.household_id)
     locked = (
         MortgagePaymentPlan.objects.select_for_update()
         .select_related("debt", "debt__household")

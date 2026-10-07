@@ -40,7 +40,14 @@ verifies audit integrity, streams without temporary files, preserves numeric amo
 spreadsheet-formula text, and records the export scope in protected audit history. Milestone 7 adds
 household-scoped debt accounts, immutable effective-dated APR and
 payment terms, append-only lender-statement reconciliation and correction, and exact-Decimal
-minimum-only, snowball, avalanche, and custom payoff comparisons. Its completed split-mortgage
+minimum-only, snowball, avalanche, and custom payoff comparisons. Active debts automatically add
+their monthly minimum plus recurring extra to the budget period containing the due date, without
+requiring a linked ledger account or posting a transaction. Short months use their last day;
+closed periods and recorded or overridden payments remain protected. Existing debts can be repaired
+with `python manage.py sync_debt_payments` (read-only preview), followed by
+`python manage.py sync_debt_payments --apply` after a protected backup. The repair is idempotent,
+prints counts only, and requires active household membership for each debt's original creator.
+Its completed split-mortgage
 workflow stores protected effective-dated payment components, enforces exactly two monthly
 installments, assigns each installment to the paycheck period containing its due date, and supports
 period-only moves, edits, and extra-principal overrides without changing future schedules. Mortgage

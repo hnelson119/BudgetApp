@@ -136,7 +136,7 @@ def test_golden_h_plan_creates_two_due_date_assigned_installments_and_components
         RecurringSource.objects.filter(
             household=household, kind=RecurringSource.Kind.DEBT_PAYMENT
         ).count()
-        == 2
+        == 3
     )
     september = tuple(
         Occurrence.objects.filter(

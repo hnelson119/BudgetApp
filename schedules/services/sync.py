@@ -3,9 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
+from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from audit.services import append_event
 from households.models import Household
@@ -46,7 +49,10 @@ def _planned_occurrences(
     *,
     window_start: date,
     window_end: date,
+    source_ids: tuple[UUID, ...] | None = None,
 ) -> tuple[PlannedOccurrence, ...]:
+    from debts.services.payments import debt_payment_window, is_debt_payment_revision
+
     periods = list(
         PayPeriod.objects.filter(
             household=household,
@@ -57,10 +63,15 @@ def _planned_occurrences(
     if not periods:
         raise ValidationError("Generate paycheck periods before generating occurrences.")
     sources = RecurringSource.objects.filter(household=household).prefetch_related("revisions")
+    if source_ids is not None:
+        sources = sources.filter(pk__in=source_ids)
     planned: list[PlannedOccurrence] = []
     for source in sources:
         revisions = list(source.revisions.order_by("effective_from", "revision_number"))
         for index, revision in enumerate(revisions):
+            payment_window = (
+                debt_payment_window(revision) if is_debt_payment_revision(revision) else None
+            )
             next_effective = (
                 revisions[index + 1].effective_from if index + 1 < len(revisions) else None
             )
@@ -112,6 +123,11 @@ def _planned_occurrences(
                     raise ValidationError(
                         f"No paycheck period contains occurrence date {item.expected_date}."
                     )
+                if payment_window is not None and (
+                    not payment_window[0] <= item.expected_date <= payment_window[1]
+                    or pay_period.status == PayPeriod.Status.CLOSED
+                ):
+                    continue
                 planned.append(
                     PlannedOccurrence(
                         source,
@@ -133,7 +149,10 @@ def synchronize_occurrences(
     window_start: date,
     window_end: date,
     request_id: str,
+    source_ids: tuple[UUID, ...] | None = None,
 ) -> OccurrenceSyncResult:
+    from debts.services.payments import is_debt_payment_revision
+
     require_household_membership(actor, household)
     if window_end < window_start:
         raise ValidationError("Occurrence generation end cannot precede its start.")
@@ -144,26 +163,48 @@ def synchronize_occurrences(
         household,
         window_start=window_start,
         window_end=window_end,
+        source_ids=source_ids,
     )
     desired = {(item.revision.pk, item.nominal_date): item for item in planned}
-    existing = list(
+    existing_query = (
         Occurrence.objects.select_for_update(of=("self",))
         .filter(
             source__household=household,
             nominal_date__gte=window_start - timedelta(days=367),
             nominal_date__lte=window_end + timedelta(days=367),
         )
-        .select_related("source_revision")
+        .select_related("source_revision__source", "pay_period")
     )
+    if source_ids is not None:
+        existing_query = existing_query.filter(source_id__in=source_ids)
+    existing = list(existing_query)
     existing_by_key = {(item.source_revision_id, item.nominal_date): item for item in existing}
     created_count = 0
     refreshed_count = 0
     superseded_count = 0
     protected_count = 0
+    today = timezone.localdate(timezone=ZoneInfo(household.time_zone))
+    protected_debt_months = {
+        (item.source_id, item.nominal_date.year, item.nominal_date.month)
+        for item in existing
+        if is_debt_payment_revision(item.source_revision)
+        and item.status not in (Occurrence.Status.SCHEDULED, Occurrence.Status.SUPERSEDED)
+    }
 
     for key, planned_item in desired.items():
         occurrence = existing_by_key.get(key)
         if occurrence is None:
+            if (
+                is_debt_payment_revision(planned_item.revision)
+                and (
+                    planned_item.source.pk,
+                    planned_item.nominal_date.year,
+                    planned_item.nominal_date.month,
+                )
+                in protected_debt_months
+            ):
+                protected_count += 1
+                continue
             occurrence = Occurrence(
                 source=planned_item.source,
                 source_revision=planned_item.revision,
@@ -213,6 +254,13 @@ def synchronize_occurrences(
     for occurrence in existing:
         key = (occurrence.source_revision_id, occurrence.nominal_date)
         if key in desired_keys:
+            continue
+        if is_debt_payment_revision(occurrence.source_revision) and (
+            occurrence.expected_date < today
+            or not window_start <= occurrence.expected_date <= window_end
+            or (occurrence.pay_period and occurrence.pay_period.status == PayPeriod.Status.CLOSED)
+        ):
+            protected_count += 1
             continue
         if occurrence.status != Occurrence.Status.SCHEDULED:
             protected_count += 1
