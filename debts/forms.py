@@ -99,7 +99,13 @@ class DebtAccountCreateForm(DebtIdentityFields):
         decimal_places=2,
         initial=Decimal("0.00"),
     )
-    due_day = forms.IntegerField(min_value=1, max_value=31, initial=1)
+    due_day = forms.IntegerField(
+        min_value=1,
+        max_value=31,
+        initial=1,
+        help_text="The monthly minimum plus recurring extra is added to Budget on this day. "
+        "Shorter months use their last day. Split mortgage plans use their installment dates.",
+    )
     custom_priority = forms.IntegerField(
         min_value=1,
         initial=100,
