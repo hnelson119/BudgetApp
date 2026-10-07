@@ -112,6 +112,17 @@ class DebtProjectionResult:
 
 
 @dataclass(frozen=True, slots=True)
+class PaymentInterestWarning:
+    debt_identifier: str
+    name: str
+    payment_date: date
+    payment: Decimal
+    interest: Decimal
+    shortfall: Decimal
+    deferred_interest: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class PayoffProjection:
     strategy: PayoffStrategy
     start_date: date
@@ -122,6 +133,30 @@ class PayoffProjection:
     paid_off: bool
     debts: tuple[DebtProjectionResult, ...]
     cycles: tuple[ProjectionCycle, ...]
+
+    @property
+    def payment_warnings(self) -> tuple[PaymentInterestWarning, ...]:
+        """Report the first non-reducing interest-bearing cycle for each debt."""
+        names = {debt.debt_identifier: debt.name for debt in self.debts}
+        warnings: dict[str, PaymentInterestWarning] = {}
+        for cycle in self.cycles:
+            for payment in cycle.payments:
+                if (
+                    payment.debt_identifier not in warnings
+                    and payment.closing_balance > 0
+                    and payment.interest > 0
+                    and payment.total_payment <= payment.interest
+                ):
+                    warnings[payment.debt_identifier] = PaymentInterestWarning(
+                        debt_identifier=payment.debt_identifier,
+                        name=names[payment.debt_identifier],
+                        payment_date=cycle.payment_date,
+                        payment=payment.total_payment,
+                        interest=payment.interest,
+                        shortfall=money(payment.interest - payment.total_payment),
+                        deferred_interest=payment.deferred_interest,
+                    )
+        return tuple(warnings.values())
 
 
 @dataclass(frozen=True, slots=True)

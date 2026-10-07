@@ -565,6 +565,39 @@ def test_payoff_comparison_renders_all_strategies_for_active_household_debts(
 
 
 @pytest.mark.django_db
+def test_comparison_explains_insufficient_payment_and_unavailable_savings(client, debt_ui_context):
+    context = debt_ui_context
+    create_debt_account(
+        household=context.household,
+        actor=context.user,
+        name="Underpaid card",
+        debt_type=DebtAccount.DebtType.CREDIT_CARD,
+        opening_balance=Decimal("1200.00"),
+        terms=DebtTermsSpec(
+            effective_from=date(2020, 1, 1),
+            annual_percentage_rate=Decimal("12.0000"),
+            interest_method=DebtTermsRevision.InterestMethod.MONTHLY,
+            day_count_basis=DebtTermsRevision.DayCountBasis.ACTUAL_365,
+            minimum_payment=Decimal("5.00"),
+        ),
+        request_id="debt-ui-underpayment",
+    )
+    _mfa_ready(context.user)
+    client.force_login(context.user)
+    response = client.get(
+        reverse("debts:payoff-comparison"),
+        {"monthly_extra": "100.00", "start_date": "2026-01-01", "maximum_years": "100"},
+    )
+    assert response.status_code == 200
+    assert b"Minimum payments only: payments do not reduce some balances" in response.content
+    assert b"payment $5.00, interest $12.00" in response.content
+    assert b"Balance grows by $7.00" in response.content
+    assert b"Snowball: payments do not reduce some balances" not in response.content
+    assert b"An exact lifetime comparison requires a completed baseline" in response.content
+    assert b"Increasing the horizon does not fix an insufficient payment" in response.content
+
+
+@pytest.mark.django_db
 def test_comparison_selection_excludes_mortgage_and_preserves_selected_scope(
     client, debt_ui_context
 ):

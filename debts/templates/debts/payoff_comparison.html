@@ -29,6 +29,20 @@
       <article><span class="metric-icon goals-icon" aria-hidden="true">↗</span><div><p>Scenario extra</p><strong>{{ form.cleaned_data.monthly_extra|money }}</strong><small>Directed by each payoff strategy</small></div></article>
       <article><span class="metric-icon spend-icon" aria-hidden="true">≈</span><div><p>Projection status</p><strong>Estimate</strong><small>Recorded lender statements control historical actuals</small></div></article>
     </section>
+    {% for row in comparison_rows %}
+      {% with warnings=row.comparison.projection.payment_warnings %}
+        {% if warnings %}
+          <section class="form-card" aria-label="{{ row.label }} payment warnings">
+            <h3>{{ row.label }}: payments do not reduce some balances</h3>
+            <p>In the modeled months below, payments are at or below accrued interest. Unpaid interest is added to the balance. If this continues, the balance grows even while you make payments.</p>
+            <ul>{% for warning in warnings %}
+              <li><strong>{{ warning.name }}</strong> — {{ warning.payment_date|date:'M Y' }}: payment {{ warning.payment|money }}, interest {{ warning.interest|money }}. {% if warning.shortfall %}Balance grows by {{ warning.shortfall|money }}.{% else %}The payment covers interest only; the balance does not decrease.{% endif %}{% if warning.deferred_interest %} Interest includes a one-time deferred-interest charge of {{ warning.deferred_interest|money }}.{% endif %}</li>
+            {% endfor %}</ul>
+            <p class="muted">These are the first affected months for each debt, including all modeled extra payments. Later rate changes, payments, or rollover may still allow payoff. To reduce a balance in a given month, its payment must exceed that month's interest.</p>
+          </section>
+        {% endif %}
+      {% endwith %}
+    {% endfor %}
     <section class="transaction-panel debt-panel">
       <div class="budget-table-scroll">
         <table class="budget-table projection-table">
@@ -50,6 +64,8 @@
         </table>
       </div>
       <p class="table-note">Snowball targets the lowest balance, avalanche targets the highest APR, and custom uses the configured priority. A paid-off debt's scheduled payment rolls into the next target beginning the following modeled month.</p>
+      <p class="table-note">Scheduled payments stay fixed unless a recorded terms change updates them; lender minimums may change as balances change. For debts not paid within the horizon, totals show only that horizon, not lifetime costs. Long horizons with unpaid interest can produce extremely large balances and interest totals. Increasing the horizon does not fix an insufficient payment.</p>
+      {% if not comparison.baseline.paid_off %}<p class="table-note">Interest saved and time saved are unavailable because minimum payments do not pay off all selected debts within this horizon. An exact lifetime comparison requires a completed baseline.</p>{% endif %}
       <p class="table-note">Rate changes and one-off payments use their effective dates. Interest includes estimated deferred charges when a modeled balance survives its deadline. Those estimates use lender-reported accrued interest plus simple accrual; daily compounding, future fees, and lender payment allocation can differ. Reconcile expired promotions before relying on their forecasts.</p>
     </section>
     <a class="secondary-button" href="{% url 'debts:payoff-plan' %}">Build a saved paycheck payoff plan</a>
