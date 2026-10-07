@@ -42,6 +42,7 @@ from debts.models import (
 from debts.services import (
     DebtProjectionResult,
     PayoffComparison,
+    ProjectionDebt,
     ProjectionPayment,
     StrategyComparison,
     change_debt_status,
@@ -1215,20 +1216,35 @@ def payoff_comparison(request: HttpRequest) -> HttpResponse:
             )
             return rate_limit_response
     today = _today(household)
+    eligible_debts = DebtAccount.objects.filter(
+        household=household, status=DebtAccount.Status.ACTIVE, current_balance__gt=0
+    ).order_by("name")
+    scenario_data = request.GET.copy() if request.GET else None
+    # Existing comparison links predate explicit selection; new forms always submit the marker.
+    if (
+        scenario_data is not None
+        and "debt_selection" not in scenario_data
+        and "debts" not in scenario_data
+    ):
+        scenario_data.setlist("debts", [str(debt.pk) for debt in eligible_debts])
     form = PayoffScenarioForm(
-        request.GET or None,
-        initial={"monthly_extra": Decimal("0.00"), "start_date": today, "maximum_years": 40},
+        scenario_data,
+        household=household,
+        initial={
+            "monthly_extra": Decimal("0.00"),
+            "start_date": today,
+            "maximum_years": 40,
+            "debts": list(eligible_debts.values_list("pk", flat=True)),
+        },
     )
-    debts = tuple(
-        DebtAccount.objects.filter(household=household, status=DebtAccount.Status.ACTIVE)
-        .prefetch_related("terms_revisions")
-        .order_by("name")
-    )
-    projection_debts = projection_debts_from_accounts(debts)
+    projection_debts: tuple[ProjectionDebt, ...] = ()
     comparison: PayoffComparison | None = None
     comparison_rows: tuple[ComparisonRow, ...] = ()
     if request.GET and form.is_valid():
         try:
+            projection_debts = projection_debts_from_accounts(
+                tuple(form.cleaned_data["debts"].prefetch_related("terms_revisions"))
+            )
             comparison = compare_payoff_strategies(
                 projection_debts,
                 monthly_extra=form.cleaned_data["monthly_extra"],
@@ -1248,7 +1264,8 @@ def payoff_comparison(request: HttpRequest) -> HttpResponse:
         {
             "household": household,
             "form": form,
-            "has_debts": bool(projection_debts),
+            "has_debts": eligible_debts.exists(),
+            "selected_debts": projection_debts,
             "total_balance": sum(
                 (debt.opening_balance for debt in projection_debts),
                 Decimal("0.00"),

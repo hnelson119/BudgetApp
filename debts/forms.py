@@ -493,7 +493,18 @@ class PayoffPaymentForm(forms.Form):
     confirm = forms.BooleanField(label="Add this extra payment to Budget for this period only.")
 
 
-class PayoffScenarioForm(forms.Form):
+class DebtSelectionChoiceField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj: DebtAccount) -> str:
+        return f"{obj.name} ({obj.get_debt_type_display()})"
+
+
+class PayoffScenarioForm(HouseholdForm):
+    debts = DebtSelectionChoiceField(
+        label="Debts to include",
+        queryset=DebtAccount.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        error_messages={"required": "Select at least one debt to compare."},
+    )
     monthly_extra = forms.DecimalField(
         label="Monthly strategy extra",
         min_value=Decimal("0.00"),
@@ -508,6 +519,12 @@ class PayoffScenarioForm(forms.Form):
         initial=40,
         help_text="Projections stop at this horizon if a payment is too low to pay off a debt.",
     )
+
+    def __init__(self, *args: Any, household: Household, **kwargs: Any) -> None:
+        super().__init__(*args, household=household, **kwargs)
+        cast(DebtSelectionChoiceField, self.fields["debts"]).queryset = DebtAccount.objects.filter(
+            household=household, status=DebtAccount.Status.ACTIVE, current_balance__gt=0
+        ).order_by("name")
 
 
 class DebtStatusConfirmationForm(forms.Form):

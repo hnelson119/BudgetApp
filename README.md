@@ -63,6 +63,9 @@ Forecasts split interest at effective rate dates and apply one-off extras on the
 Deferred charges combine recorded accrued interest and estimated simple accrual, are waived for
 modeled full payoff by the deadline, and are not added again for already-expired promotions.
 Reconcile expired promotions with the lender and refresh stored plans when promotional terms change.
+The payoff comparison lets members select active debts with balances; excluded debts contribute
+no balance, interest, payment rollover, or payoff dates to that scenario. This supports comparing
+cards and other debts separately from a mortgage without changing the household's saved plan.
 The debt-free target calculator searches bounded extra amounts per household paycheck period
 to reach a chosen date, using current scheduled payments, effective rates and payment rollover.
 Offer comparisons include percentage/fixed fees, financed versus upfront fees, promotional expiry,
