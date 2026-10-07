@@ -90,6 +90,7 @@ def test_deferred_deadline_adds_recorded_and_estimated_interest_once():
     result = _projection(kind="deferred", accrued="100.00")
     assert result.debts[0].deferred_interest == Decimal("115.00")
     assert result.cycles[0].payments[0].deferred_interest == Decimal("115.00")
+    assert result.payment_warnings[0].deferred_interest == Decimal("115.00")
     assert result.total_interest == Decimal("132.84")
     assert result.debts[0].remaining_balance == Decimal("1132.84")
 

@@ -72,6 +72,68 @@ def test_monthly_projection_posts_interest_before_payment() -> None:
     assert projection.cycles[0].total_payment == Decimal("112.00")
 
 
+@pytest.mark.parametrize(
+    ("minimum", "extra", "strategy_extra", "warning", "shortfall"),
+    [
+        ("5.00", "0.00", "0.00", True, "7.00"),
+        ("12.00", "0.00", "0.00", True, "0.00"),
+        ("13.00", "0.00", "0.00", False, "0.00"),
+        ("5.00", "8.00", "0.00", False, "0.00"),
+        ("5.00", "0.00", "8.00", False, "0.00"),
+    ],
+)
+def test_payment_warnings_use_all_payments_and_detect_interest_only(
+    minimum, extra, strategy_extra, warning, shortfall
+) -> None:
+    projection = project_debt_payoff(
+        (_debt("card", "Card", "1200.00", _terms(apr="12", minimum=minimum, extra=extra)),),
+        strategy=PayoffStrategy.AVALANCHE,
+        monthly_extra=Decimal(strategy_extra),
+        start_date=date(2026, 1, 1),
+        max_months=3,
+    )
+    assert bool(projection.payment_warnings) is warning
+    if warning:
+        assert len(projection.payment_warnings) == 1
+        item = projection.payment_warnings[0]
+        assert item.name == "Card"
+        assert item.payment_date == date(2026, 2, 1)
+        assert item.interest == Decimal("12.00")
+        assert item.shortfall == Decimal(shortfall)
+
+
+def test_warning_does_not_stop_forecast_before_future_payment_rescues_debt() -> None:
+    projection = project_debt_payoff(
+        (
+            _debt(
+                "card",
+                "Card",
+                "1200.00",
+                _terms(apr="12", minimum="5.00"),
+                _terms(effective_from=date(2026, 3, 1), apr="12", minimum="1300.00"),
+            ),
+        ),
+        strategy=PayoffStrategy.MINIMUM_ONLY,
+        monthly_extra=Decimal("0.00"),
+        start_date=date(2026, 1, 1),
+        max_months=1200,
+    )
+    assert projection.paid_off
+    assert projection.months == 2
+    assert len(projection.payment_warnings) == 1
+
+
+def test_zero_interest_and_zero_payment_is_not_an_interest_warning() -> None:
+    projection = project_debt_payoff(
+        (_debt("card", "Card", "1200.00", _terms(minimum="0.00")),),
+        strategy=PayoffStrategy.MINIMUM_ONLY,
+        monthly_extra=Decimal("0.00"),
+        start_date=date(2026, 1, 1),
+        max_months=1,
+    )
+    assert projection.payment_warnings == ()
+
+
 def test_daily_projection_uses_actual_days_and_configured_basis() -> None:
     projection = project_debt_payoff(
         (
@@ -95,6 +157,7 @@ def test_daily_projection_uses_actual_days_and_configured_basis() -> None:
     assert projection.cycles[0].payment_date == date(2026, 2, 1)
     assert projection.cycles[0].payments[0].interest == Decimal("31.00")
     assert projection.debts[0].remaining_balance == Decimal("1031.00")
+    assert projection.payment_warnings[0].interest == Decimal("31.00")
 
 
 def test_daily_actual_360_and_month_end_dates_are_deterministic() -> None:
