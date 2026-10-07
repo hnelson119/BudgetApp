@@ -515,6 +515,19 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .import-summary-grid article strong { font-size: 1.7rem; }
 .debt-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .debt-panel { margin-top: 22px; }
+.debt-workspace > :is(.summary-grid, .form-card, .transaction-panel) { margin-top: 24px; }
+.debt-workspace .form-page > :is(.form-card, .transaction-panel) + :is(.form-card, .transaction-panel) { margin-top: 24px; }
+.debt-panel > .section-title { padding: 20px 24px; margin: 0; }
+.debt-panel > .section-title h2 { margin: 0; line-height: 1.35; }
+.debt-panel > details > summary { padding: 20px 24px; cursor: pointer; font-weight: 750; line-height: 1.5; }
+.debt-panel > .detail-grid { margin: 24px; }
+.debt-panel > .form-alert { margin: 20px 24px; }
+.debt-workspace :is(.budget-table, .audit-table) :is(th, td) { line-height: 1.5; }
+.debt-workspace :is(.budget-table, .audit-table) td > small { display: block; margin-top: 6px; color: var(--muted); font-size: .75rem; line-height: 1.5; }
+.debt-workspace :is(.budget-table, .audit-table) td > small + .row-actions { margin-top: 10px; }
+.debt-workspace .detail-grid :is(dt, dd), .debt-workspace .form-card :is(p, li) { overflow-wrap: anywhere; line-height: 1.6; }
+.debt-workspace .form-card li + li { margin-top: 8px; }
+.debt-workspace .table-note { line-height: 1.6; }
 .debt-table { min-width: 980px; }
 .debt-table td:first-child small, .debt-history-table small { display: block; margin-top: 5px; color: var(--muted); font-size: .7rem; }
 .debt-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
