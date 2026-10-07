@@ -19,7 +19,7 @@ test("household payoff plans preview before saving and fit the viewport", async 
   await expect(page.getByRole("button", { name: "Save household plan", exact: true })).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   if (testInfo.project.name.endsWith("-desktop")) {
-    await page.getByLabel("Strategy", { exact: true }).selectOption("avalanche");
+    await page.getByLabel("Strategy").selectOption("avalanche");
     await page.getByLabel("Extra per household paycheck period").fill("0.00");
     await page.getByLabel("Cash cushion to keep unallocated").fill("25.00");
     await page.getByRole("button", { name: "Preview payoff plan", exact: true }).click();
