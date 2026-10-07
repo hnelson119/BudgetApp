@@ -410,6 +410,84 @@ class PayoffPlanForm(forms.Form):
     preview_fingerprint = forms.CharField(required=False, widget=forms.HiddenInput())
 
 
+class PayoffTargetForm(forms.Form):
+    strategy = forms.ChoiceField(choices=DebtPayoffPlan.Strategy.choices, initial="avalanche")
+    target_date = forms.DateField(label="Debt-free target date", widget=html_date_input())
+    maximum_extra = forms.DecimalField(
+        label="Maximum extra per household paycheck period",
+        min_value=Decimal("0.00"),
+        max_value=Decimal("1000000.00"),
+        max_digits=18,
+        decimal_places=2,
+        initial=Decimal("500.00"),
+        help_text="Search ceiling, not a budget allocation. Targets support up to ten years.",
+    )
+
+
+class DebtOfferForm(forms.Form):
+    annual_percentage_rate = forms.DecimalField(
+        label="Offer annual interest rate (%)",
+        help_text=(
+            "For a loan, use the contractual interest rate, not an APR that already includes fees. "
+            "Enter fees separately below. For cards, use the offer's interest APR."
+        ),
+        min_value=Decimal("0"),
+        max_value=Decimal("999.9999"),
+        max_digits=7,
+        decimal_places=4,
+    )
+    monthly_payment = forms.DecimalField(
+        label="Offer monthly payment toward principal and interest",
+        min_value=Decimal("0.01"),
+        max_value=Decimal("1000000.00"),
+        max_digits=18,
+        decimal_places=2,
+    )
+    fee_percent = forms.DecimalField(
+        label="Transfer / origination fee (%)",
+        help_text=(
+            "Applied to the current debt balance. For fees based on a different amount, "
+            "enter the lender's dollar quote under other fees instead."
+        ),
+        min_value=Decimal("0"),
+        max_value=Decimal("999.9999"),
+        max_digits=7,
+        decimal_places=4,
+        initial=Decimal("0"),
+    )
+    fixed_fee = forms.DecimalField(
+        label="Other upfront fees / closing costs",
+        min_value=Decimal("0.00"),
+        max_value=Decimal("1000000.00"),
+        max_digits=18,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+    )
+    finance_fees = forms.BooleanField(label="Add fees to the new balance", required=False)
+    expires_on = forms.DateField(
+        label="Last promotional APR day (optional)", widget=html_date_input(), required=False
+    )
+    regular_apr = forms.DecimalField(
+        label="Annual interest rate after promotion (%)",
+        min_value=Decimal("0"),
+        max_value=Decimal("999.9999"),
+        max_digits=7,
+        decimal_places=4,
+        required=False,
+    )
+    maximum_months = forms.IntegerField(
+        label="Comparison horizon in months", min_value=1, max_value=480, initial=120
+    )
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean() or {}
+        if bool(cleaned.get("expires_on")) != (cleaned.get("regular_apr") is not None):
+            raise ValidationError(
+                "Enter both the promotional deadline and the APR afterward, or leave both blank."
+            )
+        return cleaned
+
+
 class PayoffPaymentForm(forms.Form):
     preview_fingerprint = forms.CharField(widget=forms.HiddenInput())
     confirm = forms.BooleanField(label="Add this extra payment to Budget for this period only.")

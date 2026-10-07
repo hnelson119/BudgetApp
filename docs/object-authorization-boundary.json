@@ -49,6 +49,7 @@
     }
   ],
   "identifier_routes": [
+    {"id": "debts:offer", "template": "/debts/{debt_id}/offer/", "methods": ["GET"]},
     {"id": "debts:promotion", "template": "/debts/{debt_id}/promotion/", "methods": ["GET", "POST"]},
     {"id": "debts:payoff-period", "template": "/debts/period/{pay_period_id}/payoff/", "methods": ["GET", "POST"]},
     {"id": "spending:income-schedule-edit", "template": "/spending/income/schedules/{recurring_source_id}/edit/", "methods": ["GET", "POST"]},
@@ -103,13 +104,13 @@
     "evidence_location": "docs/release-evidence.json"
   },
   "summary": {
-    "identifier_routes": 42,
-    "route_operations": 73,
+    "identifier_routes": 43,
+    "route_operations": 74,
     "relationship_operations": 6,
-    "probe_operations": 79,
-    "household_direction_checks": 158,
+    "probe_operations": 80,
+    "household_direction_checks": 160,
     "recipient_checks": 2,
-    "bounded_checks": 160,
+    "bounded_checks": 162,
     "release_pending": 1
   }
 }

@@ -18,6 +18,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 from debts.forms import (
     DebtAccountCreateForm,
     DebtMetadataForm,
+    DebtOfferForm,
     DebtPromotionForm,
     DebtStatementCorrectionForm,
     DebtStatementForm,
@@ -28,6 +29,7 @@ from debts.forms import (
     PayoffPaymentForm,
     PayoffPlanForm,
     PayoffScenarioForm,
+    PayoffTargetForm,
 )
 from debts.models import (
     DebtAccount,
@@ -72,6 +74,7 @@ from debts.services.promotions import (
     promotion_summary,
     save_promotion,
 )
+from debts.services.tools import OfferSpec, compare_offer, debt_progress, solve_payoff_target
 from households.models import Household
 from households.services.access import get_active_household
 from identity.models import User
@@ -250,6 +253,7 @@ def debt_list(request: HttpRequest) -> HttpResponse:
                 if (summary := promotion_summary(row.debt, today=today)) is not None
             ),
             "current_nav": "debts",
+            "progress_rows": debt_progress(household, today=today),
         },
     )
 
@@ -1112,6 +1116,83 @@ def debt_promotion(request: HttpRequest, debt_id: str) -> HttpResponse:
         request,
         "debts/promotion_form.html",
         {"household": household, "debt": debt, "form": form, "current_nav": "debts"},
+    )
+
+
+@login_required
+@require_GET
+def payoff_target_date(request: HttpRequest) -> HttpResponse:
+    household = get_active_household(request)
+    form = PayoffTargetForm(request.GET or None)
+    result = None
+    if request.GET:
+        limited = _planner_limit(request)
+        if limited is not None:
+            return limited
+        if form.is_valid():
+            try:
+                _, average_days = planner_snapshot(household)
+                debts = tuple(
+                    DebtAccount.objects.filter(
+                        household=household, status=DebtAccount.Status.ACTIVE, current_balance__gt=0
+                    )
+                )
+                result = solve_payoff_target(
+                    projection_debts_from_accounts(debts),
+                    start_date=_today(household),
+                    average_days=average_days,
+                    **form.cleaned_data,
+                )
+            except ValidationError as error:
+                form.add_error(None, error)
+    return render(
+        request,
+        "debts/payoff_target.html",
+        {"household": household, "form": form, "result": result, "current_nav": "debts"},
+    )
+
+
+@login_required
+@require_GET
+def debt_offer(request: HttpRequest, debt_id: str) -> HttpResponse:
+    household = get_active_household(request)
+    debt = _debt(household, debt_id)
+    if not debt.is_active or debt.current_balance <= 0:
+        raise Http404
+    today = _today(household)
+    projected = projection_debts_from_accounts((debt,))
+    terms = tuple(value for value in projected[0].terms if value.effective_from <= today)[-1]
+    form = DebtOfferForm(
+        request.GET or None,
+        initial={
+            "annual_percentage_rate": effective_apr(debt, on_date=today)
+            if debt.debt_type == DebtAccount.DebtType.CREDIT_CARD
+            else None,
+            "monthly_payment": terms.minimum_payment + terms.recurring_extra_payment,
+        },
+    )
+    result = None
+    if request.GET:
+        limited = _planner_limit(request)
+        if limited is not None:
+            return limited
+        if form.is_valid():
+            try:
+                result = compare_offer(
+                    projected[0], start_date=today, spec=OfferSpec(**form.cleaned_data)
+                )
+            except ValidationError as error:
+                form.add_error(None, error)
+    return render(
+        request,
+        "debts/debt_offer.html",
+        {
+            "household": household,
+            "debt": debt,
+            "form": form,
+            "result": result,
+            "current_nav": "debts",
+        },
     )
 
 

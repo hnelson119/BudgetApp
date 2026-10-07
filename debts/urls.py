@@ -8,11 +8,13 @@ urlpatterns = [
     path("", views.debt_list, name="list"),
     path("add/", views.debt_create, name="create"),
     path("projections/", views.payoff_comparison, name="payoff-comparison"),
+    path("target/", views.payoff_target_date, name="payoff-target"),
     path("plan/", views.payoff_plan, name="payoff-plan"),
     path("period/<uuid:period_id>/payoff/", views.payoff_period, name="payoff-period"),
     path("<uuid:debt_id>/", views.debt_detail, name="detail"),
     path("<uuid:debt_id>/edit/", views.debt_edit, name="edit"),
     path("<uuid:debt_id>/promotion/", views.debt_promotion, name="promotion"),
+    path("<uuid:debt_id>/offer/", views.debt_offer, name="offer"),
     path("<uuid:debt_id>/terms/add/", views.debt_terms_create, name="terms-create"),
     path(
         "<uuid:debt_id>/mortgage-plan/add/",

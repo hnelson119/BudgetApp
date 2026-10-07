@@ -36,6 +36,8 @@ EXPECTED_FORM_REGISTRY = {
         "DebtIdentityFields",
         "DebtMetadataForm",
         "DebtPromotionForm",
+        "DebtOfferForm",
+        "PayoffTargetForm",
         "DebtStatementCorrectionForm",
         "DebtStatementForm",
         "DebtStatusConfirmationForm",

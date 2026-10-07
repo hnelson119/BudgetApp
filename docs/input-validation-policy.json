@@ -46,6 +46,8 @@
         "DebtIdentityFields",
         "DebtMetadataForm",
         "DebtPromotionForm",
+        "DebtOfferForm",
+        "PayoffTargetForm",
         "DebtStatementCorrectionForm",
         "DebtStatementForm",
         "DebtStatusConfirmationForm",
@@ -267,8 +269,8 @@
     {
       "id": "debt-projection-limits",
       "data_items": ["debt count", "projection horizon", "scenario years"],
-      "validation": "A projection accepts at most 100 unique debts and 1,200 months; the interactive scenario horizon is 1-100 years.",
-      "evidence": ["debts/forms.py", "debts/services/projections.py", "tests/test_debt_projections.py"]
+      "validation": "A projection accepts at most 100 unique debts and 1,200 months; the interactive scenario horizon is 1-100 years. Target-date search is limited to 120 months and $1,000,000.00 extra per period, using bounded cent binary search. Offer comparisons stop at 480 months and cap entered payment and fixed fees at $1,000,000.00.",
+      "evidence": ["debts/forms.py", "debts/services/projections.py", "debts/services/tools.py", "tests/test_debt_projections.py", "tests/test_debt_tools.py"]
     },
     {
       "id": "authenticated-session-limits",
@@ -467,7 +469,7 @@
   ],
   "summary": {
     "form_modules": 8,
-    "form_classes": 53,
+    "form_classes": 55,
     "structure_rules": 10,
     "context_rules": 10,
     "business_limits": 11,

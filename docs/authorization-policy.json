@@ -80,6 +80,8 @@
             "payoff-plan",
             "payoff-period",
           "promotion",
+            "offer",
+            "payoff-target",
             "statement-correct",
           "statement-create",
           "status",
@@ -374,7 +376,7 @@
   "summary": {
     "consumer_states": 4,
     "route_namespaces": 9,
-    "routes": 84,
+    "routes": 86,
     "function_rules": 11,
     "field_rules": 10,
     "source_assertions": 8,
