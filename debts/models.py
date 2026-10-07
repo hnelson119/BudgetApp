@@ -260,6 +260,86 @@ class DebtAccount(DebtManagedModel):
                 raise ValidationError("A credit-card debt must link to a credit-card account.")
 
 
+class DebtPromotionRevision(ImmutableDebtRecord):
+    class Kind(models.TextChoices):
+        NONE = "none", "No promotion / end tracking"
+        INTRODUCTORY = "introductory", "Temporary promotional APR"
+        DEFERRED = "deferred", "Deferred interest if not paid in full"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    debt = models.ForeignKey(
+        DebtAccount, on_delete=models.PROTECT, related_name="promotion_revisions"
+    )
+    revision_number = models.PositiveIntegerField()
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    as_of = models.DateField()
+    expires_on = models.DateField(null=True, blank=True)
+    promotional_apr = models.DecimalField(max_digits=7, decimal_places=4, null=True, blank=True)
+    regular_apr = models.DecimalField(max_digits=7, decimal_places=4, null=True, blank=True)
+    accrued_interest = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    objects = DebtServiceManager["DebtPromotionRevision"]()
+
+    class Meta:
+        ordering = ("debt_id", "-revision_number")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("debt", "revision_number"), name="debts_promotion_revision_unique"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(expires_on__isnull=True)
+                | models.Q(expires_on__gte=models.F("as_of")),
+                name="debts_promotion_date_order",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(promotional_apr__isnull=True)
+                | models.Q(promotional_apr__gte=0, promotional_apr__lt=1000),
+                name="debts_promotion_apr_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(regular_apr__isnull=True)
+                | models.Q(regular_apr__gte=0, regular_apr__lt=1000),
+                name="debts_promotion_regular_apr_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(accrued_interest__isnull=True)
+                | models.Q(accrued_interest__gte=0),
+                name="debts_promotion_interest_nonnegative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Promotion revision {self.revision_number}"
+
+    def clean(self) -> None:
+        super().clean()
+        if self.kind == self.Kind.NONE:
+            if any(
+                value is not None
+                for value in (
+                    self.expires_on,
+                    self.promotional_apr,
+                    self.regular_apr,
+                    self.accrued_interest,
+                )
+            ):
+                raise ValidationError("Ending promotion tracking cannot retain promotional terms.")
+        elif self.expires_on is None or self.promotional_apr is None or self.regular_apr is None:
+            raise ValidationError("Promotions require a deadline and both APRs.")
+        if self.kind == self.Kind.DEFERRED and (
+            self.promotional_apr != 0 or self.accrued_interest is None
+        ):
+            raise ValidationError(
+                "Deferred interest requires a zero promotional APR "
+                "and lender-reported accrued interest."
+            )
+        if self.kind != self.Kind.DEFERRED and self.accrued_interest is not None:
+            raise ValidationError(
+                "Accrued deferred interest applies only to deferred-interest promotions."
+            )
+
+
 class DebtTermsRevision(ImmutableDebtRecord):
     class InterestMethod(models.TextChoices):
         MONTHLY = "monthly", "Monthly APR / 12"

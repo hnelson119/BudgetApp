@@ -11,9 +11,10 @@ from django.db.models import Q
 from django.utils import timezone
 
 from core.forms import html_date_input
-from debts.models import DebtAccount, DebtPayoffPlan, DebtTermsRevision
+from debts.models import DebtAccount, DebtPayoffPlan, DebtPromotionRevision, DebtTermsRevision
 from debts.services.accounts import DebtStatementSpec, DebtTermsSpec
 from debts.services.mortgages import MortgageInstallmentSpec, MortgagePlanSpec
+from debts.services.promotions import PromotionSpec
 from households.models import Household
 from ledger.models import FinancialAccount
 from schedules.recurrence import BusinessDayAdjustment
@@ -156,6 +157,89 @@ class DebtAccountCreateForm(DebtIdentityFields):
             due_day=int(self.cleaned_data["due_day"]),
             custom_priority=int(self.cleaned_data["custom_priority"]),
             projection_notes=str(self.cleaned_data["projection_notes"]),
+        )
+
+
+class DebtPromotionForm(HouseholdForm):
+    kind = forms.ChoiceField(label="Promotion type", choices=DebtPromotionRevision.Kind.choices)
+    as_of = forms.DateField(label="Lender values as of", widget=html_date_input())
+    expires_on = forms.DateField(
+        label="Pay-in-full deadline / last promotional day",
+        required=False,
+        widget=html_date_input(),
+    )
+    promotional_apr = forms.DecimalField(
+        label="Promotional APR (%)",
+        required=False,
+        min_value=0,
+        max_value=Decimal("999.9999"),
+        max_digits=7,
+        decimal_places=4,
+    )
+    regular_apr = forms.DecimalField(
+        label="APR after promotion / deferred-interest APR (%)",
+        required=False,
+        min_value=0,
+        max_value=Decimal("999.9999"),
+        max_digits=7,
+        decimal_places=4,
+    )
+    accrued_interest = forms.DecimalField(
+        label="Lender-reported accrued deferred interest",
+        required=False,
+        min_value=0,
+        max_digits=18,
+        decimal_places=2,
+        help_text="For deferred interest, copy the accrued amount from your lender as of the date "
+        "above. Enter 0.00 only when the lender reports zero.",
+    )
+    confirm_entire_balance = forms.BooleanField(
+        required=False, label="This promotion covers the entire balance of this tracked debt."
+    )
+    confirm = forms.BooleanField(
+        label="I reviewed these lender terms and want to save this revision."
+    )
+    expected_revision = forms.IntegerField(min_value=0, widget=forms.HiddenInput())
+    expected_balance = forms.DecimalField(
+        min_value=0, max_digits=18, decimal_places=2, widget=forms.HiddenInput()
+    )
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean() or {}
+        kind = cleaned.get("kind")
+        if kind == DebtPromotionRevision.Kind.NONE:
+            for field in ("expires_on", "promotional_apr", "regular_apr", "accrued_interest"):
+                cleaned[field] = None
+        else:
+            for field in ("expires_on", "promotional_apr", "regular_apr"):
+                if cleaned.get(field) is None:
+                    self.add_error(field, "Required for promotion tracking.")
+            if not cleaned.get("confirm_entire_balance"):
+                self.add_error(
+                    "confirm_entire_balance",
+                    "Confirm the full-balance scope. Track mixed promotional balances separately.",
+                )
+            if kind == DebtPromotionRevision.Kind.DEFERRED:
+                if cleaned.get("promotional_apr") != 0:
+                    self.add_error("promotional_apr", "Use 0.00 for deferred interest.")
+                if cleaned.get("accrued_interest") is None:
+                    self.add_error("accrued_interest", "Copy the lender-reported accrued interest.")
+            elif cleaned.get("accrued_interest") is not None:
+                self.add_error(
+                    "accrued_interest", "Only deferred-interest promotions use this field."
+                )
+        return cleaned
+
+    def promotion_spec(self) -> PromotionSpec:
+        if not self.is_valid():
+            raise ValidationError("Correct the promotional terms before saving.")
+        return PromotionSpec(
+            kind=self.cleaned_data["kind"],
+            as_of=self.cleaned_data["as_of"],
+            expires_on=self.cleaned_data["expires_on"],
+            promotional_apr=self.cleaned_data["promotional_apr"],
+            regular_apr=self.cleaned_data["regular_apr"],
+            accrued_interest=self.cleaned_data["accrued_interest"],
         )
 
 

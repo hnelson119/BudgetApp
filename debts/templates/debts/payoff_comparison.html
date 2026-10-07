@@ -47,6 +47,7 @@
         </table>
       </div>
       <p class="table-note">Snowball targets the lowest balance, avalanche targets the highest APR, and custom uses the configured priority. A paid-off debt's scheduled payment rolls into the next target beginning the following modeled month.</p>
+      <p class="table-note">Rate changes and one-off payments use their effective dates. Interest includes estimated deferred charges when a modeled balance survives its deadline. Those estimates use lender-reported accrued interest plus simple accrual; daily compounding, future fees, and lender payment allocation can differ. Reconcile expired promotions before relying on their forecasts.</p>
     </section>
     <a class="secondary-button" href="{% url 'debts:payoff-plan' %}">Build a saved paycheck payoff plan</a>
     {% for row in comparison_rows %}

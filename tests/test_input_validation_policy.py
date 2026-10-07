@@ -31,7 +31,7 @@ def test_input_validation_policy_accepts_complete_inventory() -> None:
 
     assert policy["summary"] == {
         "form_modules": 8,
-        "form_classes": 52,
+        "form_classes": 53,
         "structure_rules": 10,
         "context_rules": 10,
         "business_limits": 11,

@@ -35,6 +35,7 @@ EXPECTED_FORM_REGISTRY = {
         "DebtAccountCreateForm",
         "DebtIdentityFields",
         "DebtMetadataForm",
+        "DebtPromotionForm",
         "DebtStatementCorrectionForm",
         "DebtStatementForm",
         "DebtStatusConfirmationForm",
@@ -179,7 +180,7 @@ EXPECTED_GAP_IDS = {
 EXPECTED_SOURCE_ASSERTIONS = {
     "amount-field-contract": (
         "scripts/check_managed_runtime_safety.py",
-        ("ALLOWED_DECIMAL_SPECS = {(7, 4), (18, 2)}", "if len(decimal_fields) != 41"),
+        ("ALLOWED_DECIMAL_SPECS = {(7, 4), (18, 2)}", "if len(decimal_fields) != 44"),
     ),
     "household-membership-contract": (
         "households/services/access.py",

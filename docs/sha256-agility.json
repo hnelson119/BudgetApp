@@ -12,7 +12,7 @@
       },
       "artifact_class": "persisted_versioned",
       "artifact": "Saved forecast snapshots and ephemeral payoff confirmation previews",
-      "format_marker": "sha256$ stored-value prefix and debt-payoff-preview-v1 canonical format",
+      "format_marker": "sha256$ stored-value prefix and debt-payoff-preview-v2 canonical format; historical v1 forecasts are refreshed without rewriting protected records",
       "reader_or_verifier": "Planner recomputes snapshots to mark saved forecasts stale and verifies previews before writes",
       "replacement_boundary": "Introduce a new prefix and invalidate previews; mark historical forecasts stale without rewriting immutable plans"
     },

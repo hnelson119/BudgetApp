@@ -36,6 +36,34 @@ test("household payoff plans preview before saving and fit the viewport", async 
   expectCleanPage(signals);
 });
 
+test("promotional lender terms can be saved with a visible deadline", async ({ page }, testInfo) => {
+  const signals = monitorPage(page);
+  await page.goto("/debts/");
+  await page.locator(".debt-table").getByRole("link", { name: "View", exact: true }).first().click();
+  await page.getByRole("link", { name: "Track promotional terms", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Promotional debt terms", exact: true })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  if (testInfo.project.name.endsWith("-desktop")) {
+    await page.getByLabel("Promotion type").selectOption("introductory");
+    const today = new Date();
+    const expiry = new Date(today);
+    expiry.setUTCDate(expiry.getUTCDate() + 90);
+    await page.getByLabel("Pay-in-full deadline / last promotional day").fill(expiry.toISOString().slice(0, 10));
+    await page.getByLabel("Promotional APR (%)").fill("0.00");
+    await page.getByLabel("APR after promotion / deferred-interest APR (%)").fill("24.99");
+    await page.getByLabel("Lender-reported accrued deferred interest").fill("");
+    await page.getByLabel("This promotion covers the entire balance").check();
+    await page.getByLabel("I reviewed these lender terms").check();
+    await page.getByRole("button", { name: "Save promotional terms", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Promotional payoff target" })).toContainText("24.9900%");
+    await expectNoHorizontalOverflow(page);
+    await page.goto("/debts/");
+    await expect(page.getByRole("region", { name: "Promotion deadlines" })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  }
+  expectCleanPage(signals);
+});
+
 test("income schedules can be edited after creation", async ({ page }, testInfo) => {
   const signals = monitorPage(page);
   const sourceName = `Editable paycheck ${testInfo.project.name}`;

@@ -23,8 +23,8 @@
             <div><dt>Equivalent monthly strategy extra</dt><dd>{{ preview.monthly_extra|money }}</dd></div>
             <div><dt>Average household period</dt><dd>{{ preview.average_days|floatformat:1 }} days</dd></div>
           </dl>
-          <p class="muted">This monthly estimate assumes your full extra amount each paycheck period and no new borrowing. Actual recommendations also account for the period's budget, the next three periods, and your cushion. Saving a plan leaves your budget unchanged.</p>
-          <div class="budget-table-scroll"><table class="budget-table"><thead><tr><th>Debt</th><th>Payoff estimate</th><th>Projected interest</th><th>Remaining at horizon</th></tr></thead><tbody>{% for debt in preview.projection.debts %}<tr><td>{{ debt.name }}</td><td>{{ debt.payoff_date|date:'M Y'|default:'Beyond horizon' }}</td><td>{{ debt.total_interest|money }}</td><td>{{ debt.remaining_balance|money }}</td></tr>{% endfor %}</tbody></table></div>
+          <p class="muted">This monthly estimate assumes your full extra amount each paycheck period and no new borrowing. Rate changes and one-off payments use their effective dates. Deferred-interest charges are estimated from your recorded lender amount plus simple accrual; daily compounding, lender payment allocation, and future fees can differ. Expired promotions require statement reconciliation. Actual recommendations also account for the period's budget, the next three periods, and your cushion. Saving a plan leaves your budget unchanged.</p>
+          <div class="budget-table-scroll"><table class="budget-table"><thead><tr><th>Debt</th><th>Payoff estimate</th><th>Projected interest</th><th>Of which deferred charge</th><th>Remaining at horizon</th></tr></thead><tbody>{% for debt in preview.projection.debts %}<tr><td>{{ debt.name }}</td><td>{{ debt.payoff_date|date:'M Y'|default:'Beyond horizon' }}</td><td>{{ debt.total_interest|money }}</td><td>{{ debt.deferred_interest|money }}</td><td>{{ debt.remaining_balance|money }}</td></tr>{% endfor %}</tbody></table></div>
         </section>
       {% endif %}
     </div>

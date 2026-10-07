@@ -219,7 +219,7 @@ def validate_numeric_models() -> tuple[int, int]:
         if isinstance(field, models.DecimalField)
     ]
     decimal_specs = {(field.max_digits, field.decimal_places) for field in decimal_fields}
-    if len(decimal_fields) != 41 or decimal_specs != ALLOWED_DECIMAL_SPECS:
+    if len(decimal_fields) != 44 or decimal_specs != ALLOWED_DECIMAL_SPECS:
         _fail("bounded decimal-field inventory changed")
     integer_fields = [
         field
@@ -228,7 +228,7 @@ def validate_numeric_models() -> tuple[int, int]:
         if isinstance(field, models.IntegerField) and not isinstance(field, models.AutoField)
     ]
     integer_types = {type(field).__name__ for field in integer_fields}
-    if len(integer_fields) != 40 or integer_types != ALLOWED_INTEGER_FIELD_TYPES:
+    if len(integer_fields) != 41 or integer_types != ALLOWED_INTEGER_FIELD_TYPES:
         _fail("bounded integer-field inventory changed")
     return len(decimal_fields), len(integer_fields)
 

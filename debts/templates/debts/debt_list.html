@@ -40,6 +40,13 @@
     {% endif %}
   </section>
 
+  {% if promotions %}
+    <section class="transaction-panel debt-panel" aria-label="Promotion deadlines">
+      <div class="section-title"><h2>Promotion deadlines</h2></div>
+      <div class="budget-table-scroll"><table class="budget-table"><thead><tr><th>Debt</th><th>Promotion</th><th>Deadline</th><th>APR afterward</th><th>Extra per period to clear</th><th>Action</th></tr></thead><tbody>{% for promotion in promotions %}<tr><td>{{ promotion.debt.name }}</td><td>{{ promotion.revision.get_kind_display }}</td><td>{{ promotion.revision.expires_on|date:'M j, Y' }}{% if promotion.expired %}<small>Expired — reconcile lender statement</small>{% endif %}</td><td>{{ promotion.revision.regular_apr }}%</td><td>{% if promotion.periods_remaining %}{{ promotion.extra_per_period|money }}<small>{{ promotion.periods_remaining }} remaining periods; existing planned payments counted</small>{% else %}No remaining paycheck period{% endif %}</td><td><a href="{% url 'debts:detail' promotion.debt.pk %}">Review</a></td></tr>{% endfor %}</tbody></table></div>
+      <p class="table-note">Deadline targets are estimates, not budget allocations. Check available cash and your lender's payment processing time before scheduling payments.</p>
+    </section>
+  {% endif %}
   <section class="transaction-panel debt-panel" aria-label="Debt accounts">
     {% if rows %}
       <div class="budget-table-scroll">
@@ -51,7 +58,7 @@
                 <td><strong>{{ row.debt.name }}</strong><small>{% if row.debt.financial_account %}Linked to {{ row.debt.financial_account.name }}{% else %}No linked ledger account{% endif %}</small></td>
                 <td>{{ row.debt.get_debt_type_display }}</td>
                 <td>{{ row.debt.current_balance|money }}</td>
-                <td>{{ row.terms.annual_percentage_rate }}%</td>
+                <td>{{ row.effective_apr }}%</td>
                 <td>{{ row.scheduled_payment|money }}</td>
                 <td>Day {{ row.terms.due_day }}</td>
                 <td><span class="row-status status-{{ row.debt.status|slugify }}">{{ row.debt.get_status_display }}</span></td>

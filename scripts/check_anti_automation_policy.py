@@ -33,7 +33,7 @@ EXPECTED_ROUTE_FILES = (
 )
 EXPECTED_FAMILY_COUNTS = {
     "identity-failure-throttles": 8,
-    "authenticated-mutations": 47,
+    "authenticated-mutations": 48,
     "security-termination-actions": 3,
     "protected-data-exports": 2,
     "csv-import-intake": 1,
@@ -42,7 +42,7 @@ EXPECTED_FAMILY_COUNTS = {
     "operational-health": 2,
 }
 EXPECTED_ROUTE_ASSIGNMENT_SHA256 = (
-    "67cb14a9e39b9e98710899ff2051399770d5fb567c9fbef70b7eeed4ac107c5b"  # pragma: allowlist secret
+    "169ac7b4609c27d5881abfbf42465d040ab01219174a999792cbb5c09d10df76"  # pragma: allowlist secret
 )
 EXPECTED_SOURCE_ASSERTIONS = {
     "configured-budgets": (
@@ -106,7 +106,7 @@ EXPECTED_RUNTIME_TESTS = {
 }
 EXPECTED_SUMMARY = {
     "route_families": 8,
-    "named_routes": 83,
+    "named_routes": 84,
     "source_assertions": 8,
     "runtime_tests": 8,
     "residual_risks": 2,

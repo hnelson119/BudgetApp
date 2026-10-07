@@ -28,7 +28,7 @@
   "summary": {
     "layers": 14,
     "event_groups": 5,
-    "event_entries": 196,
+    "event_entries": 198,
     "known_gaps": 2
   },
   "layers": [
@@ -520,6 +520,7 @@
         "debt.edit_rejected",
         "debt.payoff_payment_rejected",
         "debt.payoff_plan_rejected",
+        "debt.promotion_rejected",
         "debt.statement_correction_rejected",
         "debt.statement_rejected",
         "debt.status_rejected",
@@ -605,6 +606,7 @@
         "debt.account_updated",
         "debt.payoff_extra_allocated",
         "debt.payoff_plan_saved",
+        "debt.promotion_saved",
         "debt.statement_corrected",
         "debt.statement_reconciled",
         "debt.status_changed",
