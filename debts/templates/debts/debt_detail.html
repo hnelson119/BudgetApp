@@ -76,7 +76,7 @@
                     <td>{{ statement.interest_charged|money }}</td>
                     <td>{{ statement.escrow_paid|money }} / {{ statement.pmi_paid|money }} / {{ statement.fees_charged|money }}</td>
                     <td>{% if statement.supersedes %}<span class="row-status status-corrected">Correction</span>{% elif statement.superseded_by %}<span class="row-status status-superseded">Superseded</span>{% else %}<span class="row-status status-committed">Current</span>{% endif %}</td>
-                    <td class="row-actions">{% if not statement.supersedes and not statement.superseded_by %}<a href="{% url 'debts:statement-correct' debt.pk statement.pk %}">Correct</a>{% endif %}</td>
+                    <td><div class="row-actions">{% if not statement.supersedes and not statement.superseded_by %}<a href="{% url 'debts:statement-correct' debt.pk statement.pk %}">Correct</a>{% endif %}</div></td>
                   </tr>
                 {% endfor %}
               </tbody>
