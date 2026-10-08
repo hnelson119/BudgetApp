@@ -29,7 +29,12 @@ from budgets.forms import (
 )
 from budgets.models import VariableBudget
 from budgets.services.reconciliation import reconcile_occurrence
-from budgets.services.summary import build_period_summary, period_occurrences
+from budgets.services.summary import (
+    build_month_balance,
+    build_period_summary,
+    period_occurrences,
+    validate_month_balance_move,
+)
 from budgets.services.variable_budgets import delete_variable_budget, set_variable_budget
 from households.models import Category, Household
 from households.services.access import get_active_household
@@ -187,6 +192,11 @@ def detail(request: HttpRequest, period_id: str) -> HttpResponse:
         "filters": {"q": query, "kind": kind, "status": status, "category": category_id},
         "today": today,
         "current_nav": "budget",
+        "month_balance": build_month_balance(
+            household=household, month=period.start_date, today=today
+        )
+        if request.GET.get("balance_month") == "1"
+        else None,
         **_period_context(household, period),
     }
     return render(request, "budgets/detail.html", context)
@@ -498,17 +508,36 @@ def occurrence_move_view(request: HttpRequest, occurrence_id: str) -> HttpRespon
         request.POST or None,
         household=household,
         occurrence=occurrence,
+        initial={
+            "target_period": request.GET.get("target_period", ""),
+            "balance_month": request.GET.get("balance_month", ""),
+            "reason": "Balance monthly expenses across paycheck periods"
+            if request.GET.get("balance_month")
+            else "",
+        },
     )
     if request.method == "POST" and form.is_valid():
         old_period = occurrence.pay_period
         try:
-            move_occurrence(
-                occurrence=occurrence,
-                target_period=form.cleaned_data["target_period"],
-                actor=_actor(request),
-                request_id=_request_id(request),
-                reason=form.cleaned_data["reason"],
-            )
+            with transaction.atomic():
+                if form.cleaned_data["balance_month"]:
+                    Household.objects.select_for_update().get(pk=household.pk)
+                    Occurrence.objects.select_for_update().get(pk=occurrence.pk)
+                    occurrence = _occurrence_for_household(household, occurrence_id)
+                    validate_month_balance_move(
+                        household=household,
+                        month=form.cleaned_data["balance_month"],
+                        today=_today(household),
+                        occurrence=occurrence,
+                        target=form.cleaned_data["target_period"],
+                    )
+                move_occurrence(
+                    occurrence=occurrence,
+                    target_period=form.cleaned_data["target_period"],
+                    actor=_actor(request),
+                    request_id=_request_id(request),
+                    reason=form.cleaned_data["reason"],
+                )
         except ValidationError as error:
             security_logger.warning(
                 "Occurrence move rejected.",

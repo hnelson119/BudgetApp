@@ -13,10 +13,25 @@
 
   <div class="dashboard-heading budget-heading">
     <div><p class="eyebrow">Paycheck-to-paycheck plan</p><h2>{{ summary.unallocated_excess|money }} unallocated</h2><p class="muted">Changes to generated rows affect this pay period only.</p></div>
-    <div class="action-row"><a class="secondary-button" href="{% url 'budgets:variable-create' period.pk %}">Add category budget</a><a class="primary-link" href="{% url 'budgets:fixed-create' period.pk %}">Add fixed expense</a></div>
+    <div class="action-row"><a class="secondary-button" href="?balance_month=1#monthly-balance">Balance this month</a><a class="secondary-button" href="{% url 'budgets:variable-create' period.pk %}">Add category budget</a><a class="primary-link" href="{% url 'budgets:fixed-create' period.pk %}">Add fixed expense</a></div>
   </div>
 
   {% if period.status == 'closed' %}<div class="notice-card">This period is closed. Reopen it before changing planned amounts or reconciliation.</div>{% endif %}
+
+  {% if month_balance %}
+    <section class="transaction-panel monthly-balance" id="monthly-balance" aria-label="Monthly budget balance">
+      <div class="monthly-balance-heading"><p class="eyebrow">Preview · {{ month_balance.month|date:'F Y' }}</p><h2>Balance expenses across paychecks</h2><p>Compare every paycheck period that overlaps this month, using all household income sources. Suggested moves reserve money in an earlier, lighter period while keeping the bill's due date.</p></div>
+      {% if month_balance.message %}<p class="table-note">{{ month_balance.message }}</p>{% endif %}
+      {% if month_balance.rows %}
+        <div class="budget-table-scroll"><table class="budget-table"><thead><tr><th>Paycheck period</th><th>Planned income</th><th>Required bills / debt</th><th>Headroom now</th><th>After all suggestions</th><th>Period status</th></tr></thead><tbody>{% for row in month_balance.rows %}<tr><td>{{ row.summary.period.start_date|date:'M j' }}–{{ row.summary.period.display_end_date|date:'M j' }}</td><td>{{ row.summary.planned_income|money }}</td><td>{{ row.summary.planned_required|money }}</td><td>{{ row.before|money }}</td><td>{{ row.after|money }}</td><td>{{ row.summary.period.get_status_display }}</td></tr>{% endfor %}</tbody></table></div>
+      {% endif %}
+      {% if month_balance.moves %}
+        <div class="budget-table-scroll"><table class="budget-table"><thead><tr><th>Suggested order</th><th>Item</th><th>Amount</th><th>From period</th><th>Fund in period</th><th>Due date unchanged</th><th>Action</th></tr></thead><tbody>{% for move in month_balance.moves %}<tr><td>{{ forloop.counter }}</td><td>{{ move.occurrence.source.name }}</td><td>{{ move.occurrence.planned_amount|money }}</td><td>{{ move.occurrence.pay_period.start_date|date:'M j' }}</td><td>{{ move.target.start_date|date:'M j' }}–{{ move.target.display_end_date|date:'M j' }}</td><td>{{ move.occurrence.expected_date|date:'M j, Y' }}</td><td><a class="text-link" href="{% url 'budgets:occurrence-move' move.occurrence.pk %}?target_period={{ move.target.pk }}&amp;balance_month={{ month_balance.month|date:'Y-m-d' }}">Review move</a></td></tr>{% endfor %}</tbody></table></div>
+        <p class="table-note">Apply suggestions in order, one at a time, then run this preview again. Each move is rechecked before saving and affects only that occurrence.</p>
+      {% else %}<p class="table-note">No safe whole-item moves improve this month's balance. A bill in the earliest usable period may need a different lender due date or money set aside in a previous month; moving it later could make it late.</p>{% endif %}
+      <p class="table-note">No payments are sent and no recurring schedule or due date changes. Headroom reserves category budgets, goal contributions, and recorded spending above plan. Completed income shortfalls reduce available funding. Suggestions do not draw on household or card-payment reserves. Closed or past periods, paid or previously moved items, and split mortgage installments are excluded. This is a funding plan, not a bank balance; confirm cash availability and lender processing time before paying early. Any remaining negative headroom still needs funding; timing changes alone cannot fix a monthly shortfall.</p>
+    </section>
+  {% endif %}
 
   <form class="filter-bar" method="get">
     <label><span>Search</span><input type="search" name="q" value="{{ filters.q }}" maxlength="120" placeholder="Name"></label>

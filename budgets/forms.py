@@ -63,6 +63,7 @@ class OccurrenceOverrideForm(forms.Form):
 
 
 class OccurrenceMoveForm(HouseholdForm):
+    balance_month = forms.DateField(required=False, widget=forms.HiddenInput)
     target_period = forms.ModelChoiceField(queryset=PayPeriod.objects.none())
     reason = forms.CharField(max_length=500, widget=forms.Textarea(attrs={"rows": 3}))
 

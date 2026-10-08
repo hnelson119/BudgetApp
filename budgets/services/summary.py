@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, time
 from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from django.core.exceptions import ValidationError
 from django.db.models import QuerySet, Sum
 
 from budgets.models import OccurrenceReconciliation, VariableBudget
@@ -70,6 +71,177 @@ class PeriodBudgetSummary:
     @property
     def variable_progress_value(self) -> Decimal:
         return max(self.actual_variable_spending, ZERO)
+
+
+@dataclass(frozen=True, slots=True)
+class MonthBalanceRow:
+    summary: PeriodBudgetSummary
+    before: Decimal
+    after: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class MonthBalanceMove:
+    occurrence: Occurrence
+    target: PayPeriod
+
+
+@dataclass(frozen=True, slots=True)
+class MonthBalancePreview:
+    month: date
+    rows: tuple[MonthBalanceRow, ...]
+    moves: tuple[MonthBalanceMove, ...]
+    message: str = ""
+
+
+def _balance_eligible(
+    item: Occurrence, source: PeriodBudgetSummary, target: PayPeriod, today: date
+) -> bool:
+    available = max(target.start_date, today)
+    unspent = (
+        source.planned_fixed_expenses - source.actual_fixed_expenses
+        if item.source.kind == RecurringSource.Kind.FIXED_EXPENSE
+        else source.planned_debt_payments - source.actual_debt_payments
+    )
+    return (
+        item.source.kind in (RecurringSource.Kind.FIXED_EXPENSE, RecurringSource.Kind.DEBT_PAYMENT)
+        and item.status in (Occurrence.Status.SCHEDULED, Occurrence.Status.OVERRIDDEN)
+        and item.original_pay_period_id is None
+        and item.actual_amount is None
+        and item.planned_amount > ZERO
+        and unspent >= item.planned_amount
+        and not item.source.is_archived
+        and not item.source_revision.configuration.get("mortgage_plan_id")
+        and source.period.status not in (PayPeriod.Status.CLOSED, PayPeriod.Status.CLOSING_REVIEW)
+        and target.status not in (PayPeriod.Status.CLOSED, PayPeriod.Status.CLOSING_REVIEW)
+        and target.pk != source.period.pk
+        and target.next_start_date > today
+        and source.period.next_start_date > today
+        and available < item.expected_date
+        and target.next_start_date <= item.expected_date
+    )
+
+
+def build_month_balance(
+    *, household: Household, month: date, today: date, lock_periods: bool = False
+) -> MonthBalancePreview:
+    """Preview bounded, whole-item funding moves without changing any due dates."""
+    month = month.replace(day=1)
+    if month.year > 9998:
+        return MonthBalancePreview(month, (), (), "Choose a month before year 9999.")
+    end = date(month.year + 1, 1, 1) if month.month == 12 else date(month.year, month.month + 1, 1)
+    period_query = PayPeriod.objects.filter(
+        household=household, start_date__lt=end, next_start_date__gt=month
+    ).order_by("start_date", "pk")
+    if lock_periods:
+        period_query = period_query.select_for_update()
+    periods = list(period_query[:33])
+    if len(periods) > 32:
+        return MonthBalancePreview(
+            month, (), (), "This month has too many periods to preview safely."
+        )
+    items = list(
+        Occurrence.objects.filter(source__household=household, pay_period__in=periods)
+        .select_related("source", "source_revision")
+        .order_by("expected_date", "pk")[:501]
+    )
+    if len(items) > 500:
+        return MonthBalancePreview(
+            month,
+            (),
+            (),
+            "This month has more than 500 items; balancing suggestions are unavailable.",
+        )
+    summaries = {
+        period.pk: build_period_summary(household=household, period=period, today=today)
+        for period in periods
+    }
+    balances: dict[UUID, Decimal] = {}
+    for period in periods:
+        summary = summaries[period.pk]
+        completed_income = sum(
+            (
+                item.planned_amount
+                for item in items
+                if item.pay_period_id == period.pk
+                and item.source.kind == RecurringSource.Kind.INCOME
+                and item.status in (Occurrence.Status.COMPLETED, Occurrence.Status.CORRECTED)
+            ),
+            ZERO,
+        )
+        balances[period.pk] = money(
+            max(summary.planned_income, summary.actual_income)
+            - max(completed_income - summary.actual_income, ZERO)
+            - max(summary.planned_fixed_expenses, summary.actual_fixed_expenses)
+            - max(summary.planned_debt_payments, summary.actual_debt_payments)
+            - max(summary.planned_goal_contributions, summary.actual_goal_contributions)
+            - max(summary.variable_spending_budget, summary.actual_variable_spending)
+        )
+    before = balances.copy()
+    eligible_summaries = summaries.copy()
+    moves: list[MonthBalanceMove] = []
+    used: set[UUID] = set()
+    for _ in range(10):
+        best: tuple[Occurrence, PayPeriod] | None = None
+        best_gain = ZERO
+        for item in items:
+            period_id = item.pay_period_id
+            if item.pk in used or period_id is None or period_id not in summaries:
+                continue
+            source = eligible_summaries[period_id]
+            for target in periods:
+                if not _balance_eligible(item, source, target, today):
+                    continue
+                amount = item.planned_amount
+                gap = balances[target.pk] - balances[source.period.pk]
+                gain = amount * (gap - amount)
+                if balances[target.pk] >= amount and gain > best_gain:
+                    best = (item, target)
+                    best_gain = gain
+        if best is None:
+            break
+        item, target = best
+        source_id = item.pay_period_id
+        if source_id is None:
+            raise ValidationError("A suggested item no longer has a paycheck period.")
+        balances[source_id] += item.planned_amount
+        balances[target.pk] -= item.planned_amount
+        source = eligible_summaries[source_id]
+        if item.source.kind == RecurringSource.Kind.FIXED_EXPENSE:
+            eligible_summaries[source_id] = replace(
+                source, planned_fixed_expenses=source.planned_fixed_expenses - item.planned_amount
+            )
+        else:
+            eligible_summaries[source_id] = replace(
+                source, planned_debt_payments=source.planned_debt_payments - item.planned_amount
+            )
+        moves.append(MonthBalanceMove(item, target))
+        used.add(item.pk)
+    rows = tuple(
+        MonthBalanceRow(summaries[period.pk], before[period.pk], balances[period.pk])
+        for period in periods
+    )
+    return MonthBalancePreview(month, rows, tuple(moves))
+
+
+def validate_month_balance_move(
+    *, household: Household, month: date, today: date, occurrence: Occurrence, target: PayPeriod
+) -> None:
+    preview = build_month_balance(household=household, month=month, today=today, lock_periods=True)
+    rows = {row.summary.period.pk: row for row in preview.rows}
+    source = rows.get(occurrence.pay_period_id) if occurrence.pay_period_id is not None else None
+    destination = rows.get(target.pk)
+    if (
+        occurrence.source.household_id != household.pk
+        or source is None
+        or destination is None
+        or not _balance_eligible(occurrence, source.summary, target, today)
+        or destination.before < occurrence.planned_amount
+        or destination.before - source.before <= occurrence.planned_amount
+    ):
+        raise ValidationError(
+            "The budget or item changed. Run Balance this month again before moving it."
+        )
 
 
 def period_occurrences(
