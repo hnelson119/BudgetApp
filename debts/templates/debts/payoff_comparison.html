@@ -10,15 +10,13 @@
     <a class="secondary-button" href="{% url 'debts:list' %}">Back to debts</a>
   </div>
 
-  <section class="form-card payoff-scenario-card">
-    <form class="filter-bar payoff-filter-bar" method="get">
-      <input type="hidden" name="debt_selection" value="1">
-      {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
-      <fieldset class="payoff-debt-selection"><legend>{{ form.debts.label }}</legend><p class="muted">Uncheck your mortgage to focus on cards and other debts. Only selected debts contribute payments, interest, payoff dates, and rollover to this comparison.</p>{{ form.debts }}{% for error in form.debts.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</fieldset>
-      {% for field in form.visible_fields %}{% if field.name != 'debts' %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label>{% endif %}{% endfor %}
-      <button class="primary-button" type="submit">Run comparison</button>
-    </form>
-  </section>
+  <form class="filter-bar payoff-filter-bar payoff-scenario-card" method="get">
+    <input type="hidden" name="debt_selection" value="1">
+    {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
+    <fieldset class="payoff-debt-selection"><legend>{{ form.debts.label }}</legend><p class="muted">Uncheck your mortgage to focus on cards and other debts. Only selected debts contribute payments, interest, payoff dates, and rollover to this comparison.</p>{{ form.debts }}{% for error in form.debts.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</fieldset>
+    {% for field in form.visible_fields %}{% if field.name != 'debts' %}<label>{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</label>{% endif %}{% endfor %}
+    <button class="primary-button" type="submit">Run comparison</button>
+  </form>
 
   {% if not has_debts %}
     <div class="empty-panel"><strong>No active balances to project</strong><span>Add an active debt with current terms before running a payoff comparison.</span></div>
@@ -68,7 +66,7 @@
       {% if not comparison.baseline.paid_off %}<p class="table-note">Interest saved and time saved are unavailable because minimum payments do not pay off all selected debts within this horizon. An exact lifetime comparison requires a completed baseline.</p>{% endif %}
       <p class="table-note">Rate changes and one-off payments use their effective dates. Interest includes estimated deferred charges when a modeled balance survives its deadline. Those estimates use lender-reported accrued interest plus simple accrual; daily compounding, future fees, and lender payment allocation can differ. Reconcile expired promotions before relying on their forecasts.</p>
     </section>
-    <a class="secondary-button" href="{% url 'debts:payoff-plan' %}">Build a saved paycheck payoff plan</a>
+    <a class="secondary-button payoff-plan-link" href="{% url 'debts:payoff-plan' %}">Build a saved paycheck payoff plan</a>
     {% for row in comparison_rows %}
       <section class="transaction-panel debt-panel">
         <details><summary>{{ row.label }} — payoff milestones and first 12 modeled months</summary>

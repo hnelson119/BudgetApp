@@ -144,6 +144,7 @@ test("payoff comparisons can focus on a selected debt", async ({ page }, testInf
   const choices = page.locator("#id_debts input[type=checkbox]");
   expect(await choices.count()).toBeGreaterThan(0);
   await expect(choices.first()).toBeChecked();
+  await expect(page.locator(".form-card .payoff-filter-bar")).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   if (testInfo.project.name.endsWith("-desktop")) {
     const count = await choices.count();
@@ -153,6 +154,11 @@ test("payoff comparisons can focus on a selected debt", async ({ page }, testInf
     await expect(page.getByText(/^Comparing 1 selected debt:/u)).toBeVisible();
     await expect(page.locator("#id_debts input[type=checkbox]:checked")).toHaveCount(1);
     await expectDebtSpacing(page);
+    const planLink = page.getByRole("link", { name: "Build a saved paycheck payoff plan", exact: true });
+    const linkGap = await planLink.evaluate((link) =>
+      link.getBoundingClientRect().top - link.previousElementSibling.getBoundingClientRect().bottom,
+    );
+    expect(linkGap).toBeGreaterThanOrEqual(20);
     await expectNoHorizontalOverflow(page);
   }
   expectCleanPage(signals);
