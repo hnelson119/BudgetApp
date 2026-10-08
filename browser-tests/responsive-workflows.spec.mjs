@@ -46,6 +46,18 @@ async function expectDebtSpacing(page) {
   expect(collisions).toEqual([]);
 }
 
+test("monthly budget balancing previews household periods without changing the plan", async ({ page }) => {
+  const signals = monitorPage(page);
+  await page.goto("/budget/");
+  await page.getByRole("link", { name: "Balance this month", exact: true }).click();
+  const preview = page.getByRole("region", { name: "Monthly budget balance", exact: true });
+  await expect(preview).toBeVisible();
+  await expect(preview.getByRole("columnheader", { name: "Headroom now", exact: true })).toBeVisible();
+  await expect(preview).toContainText("No payments are sent");
+  await expectNoHorizontalOverflow(page);
+  expectCleanPage(signals);
+});
+
 test("household payoff plans preview before saving and fit the viewport", async ({ page }, testInfo) => {
   const signals = monitorPage(page);
   const response = await page.goto("/debts/plan/");

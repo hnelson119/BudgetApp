@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
@@ -23,6 +23,7 @@ from budgets.services import (
     set_variable_budget,
 )
 from budgets.services.reconciliation import _positive_money
+from budgets.services.summary import _balance_eligible, build_month_balance
 from budgets.services.variable_budgets import _money as _budget_money
 from budgets.templatetags.budget_tags import money as display_money
 from budgets.templatetags.budget_tags import occurrence_status
@@ -158,6 +159,172 @@ def _mfa_ready(user: User) -> None:
     assert confirm_enrollment(user, totp_code(enrollment.secret)) is not None
     assert confirm_recovery_codes_saved(user) is True
     user.refresh_from_db()
+
+
+def _month_fixture(context):
+    later = PayPeriod.objects.create(
+        household=context.household,
+        start_date=date(2026, 8, 27),
+        next_start_date=date(2026, 9, 3),
+        status=PayPeriod.Status.PROJECTED,
+        created_by=context.user,
+    )
+    late_context = replace(context, period=later)
+    for current in (context, late_context):
+        _source_occurrence(
+            current,
+            kind=RecurringSource.Kind.INCOME,
+            name=f"Paycheck {current.period.start_date}",
+            amount="1000.00",
+            expected_date=current.period.start_date,
+        )
+    bills = tuple(
+        _source_occurrence(
+            late_context,
+            kind=RecurringSource.Kind.FIXED_EXPENSE,
+            name=f"Bill {amount}",
+            amount=amount,
+            expected_date=date(2026, 8, 29),
+            category=context.category,
+        )
+        for amount in ("600.00", "500.00")
+    )
+    return later, bills
+
+
+@pytest.mark.django_db
+def test_month_balance_reduces_uneven_headroom_without_mutating_or_changing_due_dates(
+    budget_context,
+):
+    context = budget_context
+    later, bills = _month_fixture(context)
+    events = AuditEvent.objects.count()
+    preview = build_month_balance(
+        household=context.household, month=date(2026, 8, 1), today=date(2026, 8, 20)
+    )
+    assert len(preview.moves) == 1
+    assert preview.moves[0].target == context.period
+    assert sum((row.before for row in preview.rows), Decimal("0")) == sum(
+        (row.after for row in preview.rows), Decimal("0")
+    )
+    assert max(row.after for row in preview.rows) - min(
+        row.after for row in preview.rows
+    ) == Decimal("100.00")
+    assert all(row.after >= 0 for row in preview.rows)
+    assert AuditEvent.objects.count() == events
+    for bill in bills:
+        bill.refresh_from_db()
+        assert bill.pay_period == later
+        assert bill.expected_date == date(2026, 8, 29)
+
+
+@pytest.mark.django_db
+def test_month_balance_reserves_variable_and_goal_budgets_and_income_shortfalls(budget_context):
+    context = budget_context
+    _month_fixture(context)
+    set_variable_budget(
+        pay_period=context.period,
+        category=context.category,
+        planned_amount=Decimal("300.00"),
+        actor=context.user,
+        request_id="balance-variable",
+    )
+    _source_occurrence(
+        context, kind=RecurringSource.Kind.GOAL_CONTRIBUTION, name="Savings", amount="300.00"
+    )
+    preview = build_month_balance(
+        household=context.household, month=date(2026, 8, 1), today=date(2026, 8, 20)
+    )
+    assert preview.rows[0].before == Decimal("400.00")
+    assert preview.moves == ()
+    income = Occurrence.objects.get(
+        pay_period=context.period, source__kind=RecurringSource.Kind.INCOME
+    )
+    _complete(context, income, "700.00")
+    preview = build_month_balance(
+        household=context.household, month=date(2026, 8, 1), today=date(2026, 8, 20)
+    )
+    assert preview.rows[0].before == Decimal("100.00")
+    assert preview.moves == ()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("blocked", ["closed", "paid", "moved", "mortgage", "late", "past"])
+def test_month_balance_excludes_unsafe_moves(budget_context, blocked):
+    context = budget_context
+    later, bills = _month_fixture(context)
+    bill = bills[0]
+    source = build_period_summary(
+        household=context.household, period=later, today=date(2026, 8, 20)
+    )
+    target = context.period
+    today = date(2026, 8, 20)
+    if blocked == "closed":
+        target.status = PayPeriod.Status.CLOSED
+    elif blocked == "paid":
+        bill.status = Occurrence.Status.COMPLETED
+    elif blocked == "moved":
+        bill.original_pay_period = context.period
+    elif blocked == "mortgage":
+        bill.source_revision.configuration = {"mortgage_plan_id": "tracked"}
+    elif blocked == "late":
+        bill.expected_date = date(2026, 8, 21)
+    else:
+        today = date(2026, 8, 30)
+    assert not _balance_eligible(bill, source, target, today)
+
+
+@pytest.mark.django_db
+def test_month_balance_preview_move_and_stale_rejection_are_scoped_and_audited(
+    client, budget_context
+):
+    context = budget_context
+    later, _bills = _month_fixture(context)
+    _mfa_ready(context.user)
+    client.force_login(context.user)
+    with patch("budgets.views._today", return_value=date(2026, 8, 20)):
+        response = client.get(reverse("budgets:detail", args=(later.pk,)), {"balance_month": "1"})
+        assert response.status_code == 200
+        assert b"Monthly budget balance" in response.content
+        assert b"Review move" in response.content
+        move = response.context["month_balance"].moves[0]
+        url = reverse("budgets:occurrence-move", args=(move.occurrence.pk,))
+        initial = client.get(
+            url, {"target_period": str(context.period.pk), "balance_month": "2026-08-01"}
+        )
+        assert str(initial.context["form"].initial["target_period"]) == str(context.period.pk)
+        set_variable_budget(
+            pay_period=context.period,
+            category=context.category,
+            planned_amount=Decimal("950.00"),
+            actor=context.user,
+            request_id="balance-stale",
+        )
+        payload = {
+            "target_period": str(context.period.pk),
+            "balance_month": "2026-08-01",
+            "reason": "Balance month",
+        }
+        rejected = client.post(url, payload)
+        assert rejected.status_code == 200
+        assert b"Run Balance this month again" in rejected.content
+        move.occurrence.refresh_from_db()
+        assert move.occurrence.pay_period == later
+        set_variable_budget(
+            pay_period=context.period,
+            category=context.category,
+            planned_amount=Decimal("0.00"),
+            actor=context.user,
+            request_id="balance-fresh",
+        )
+        saved = client.post(url, payload)
+        assert saved.status_code == 302
+        move.occurrence.refresh_from_db()
+        assert move.occurrence.pay_period == context.period
+        assert move.occurrence.expected_date == date(2026, 8, 29)
+        assert AuditEvent.objects.filter(
+            action="schedule.occurrence_moved", entity_id=str(move.occurrence.pk)
+        ).exists()
 
 
 @pytest.mark.django_db

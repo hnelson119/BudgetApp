@@ -14,6 +14,7 @@
       <p class="notice-card">Changes here affect this pay period only. The source schedule remains unchanged unless you choose “this and all future occurrences.”</p>
       <form class="app-form" method="post">
         {% csrf_token %}
+        {% for field in form.hidden_fields %}{{ field }}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}{% endfor %}
         {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
         {% for field in form.visible_fields %}
           <div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">{{ field.label_tag }}{{ field }}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>
