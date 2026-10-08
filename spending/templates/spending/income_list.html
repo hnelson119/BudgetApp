@@ -11,6 +11,7 @@
       <a class="secondary-button" href="{% url 'spending:account-create' %}?return_to=income">Add account</a>
     </div>
   </div>
+  <div class="income-schedule-list">
   {% for source in sources %}
     <section class="form-card">
       <h2>{{ source.name }}</h2>
@@ -24,4 +25,5 @@
   {% empty %}
     <section class="blank-slate"><h2>Add your first income schedule</h2><p>Choose your take-home amount, first payday, and how often you are paid. Enable budget periods for each regular paycheck, including your partner's.</p><a class="primary-link" href="{% url 'spending:income-schedule-create' %}">Add income schedule</a></section>
   {% endfor %}
+  </div>
 {% endblock %}

@@ -251,6 +251,15 @@ test("income schedules can be edited after creation", async ({ page }, testInfo)
   await expect(page.locator(".form-card").filter({
     has: page.getByRole("heading", { name: sourceName, exact: true }),
   })).toContainText("Starts household budget periods");
+  const incomeGaps = await page.locator(".income-schedule-list").evaluate((list) => {
+    const cards = [...list.children];
+    const heading = list.previousElementSibling.getBoundingClientRect();
+    return cards.map((card, index) => card.getBoundingClientRect().top
+      - (index ? cards[index - 1].getBoundingClientRect().bottom : heading.bottom));
+  });
+  expect(incomeGaps.length).toBeGreaterThan(1);
+  for (const gap of incomeGaps) expect(gap).toBeGreaterThanOrEqual(20);
+  await expectNoHorizontalOverflow(page);
   await page.goto("/");
   await expectNoHorizontalOverflow(page);
   expectCleanPage(signals);
