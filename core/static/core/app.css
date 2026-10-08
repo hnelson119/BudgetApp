@@ -452,6 +452,8 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .form-card { padding: clamp(24px, 5vw, 38px); border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
 .form-card h2 { font-size: clamp(1.6rem, 4vw, 2.35rem); }
 .form-card > p:not(.eyebrow):not(.notice-card) { color: var(--muted); line-height: 1.6; }
+.income-schedule-list { display: grid; gap: 24px; margin-top: 24px; }
+.income-schedule-list .form-card { min-width: 0; overflow-wrap: anywhere; }
 .app-form { display: grid; margin-top: 26px; gap: 18px; }
 .app-form .form-field { display: grid; gap: 8px; }
 .app-form .form-field > label { font-size: .82rem; font-weight: 750; }
