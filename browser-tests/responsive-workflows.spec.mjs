@@ -71,6 +71,46 @@ test("household payoff plans preview before saving and fit the viewport", async 
   expectCleanPage(signals);
 });
 
+test("debt details can be edited and saved against PostgreSQL", async ({ page }, testInfo) => {
+  const signals = monitorPage(page);
+  await page.goto("/debts/");
+  await page.locator(".debt-table").getByRole("link", { name: "View", exact: true }).first().click();
+  const debtUrl = page.url();
+  await page.getByRole("link", { name: "Edit details", exact: true }).click();
+  await expectNoHorizontalOverflow(page);
+  if (testInfo.project.name.endsWith("-desktop")) {
+    const originalName = await page.getByLabel("Name").inputValue();
+    const originalNotes = await page.getByLabel("Notes").inputValue();
+    const originalAccount = await page.getByLabel("Financial account").inputValue();
+    const renamed = `Edited ${testInfo.project.name}`;
+    await page.getByLabel("Name").fill(renamed);
+    await page.getByLabel("Notes").fill("Browser-tested metadata update");
+    await page.getByLabel("Reason").fill("Verify debt editing saves successfully");
+    const saved = page.waitForResponse((response) =>
+      response.request().method() === "POST" && response.url().endsWith("/edit/"),
+    );
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    expect((await saved).status()).toBe(302);
+    await expect(page).toHaveURL(debtUrl);
+    await page.getByRole("link", { name: "Edit details", exact: true }).click();
+    await expect(page.getByLabel("Name")).toHaveValue(renamed);
+    await expect(page.getByLabel("Notes")).toHaveValue("Browser-tested metadata update");
+    await page.getByLabel("Financial account").selectOption("");
+    await page.getByLabel("Reason").fill("Verify optional ledger account can be removed");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page).toHaveURL(debtUrl);
+    await page.getByRole("link", { name: "Edit details", exact: true }).click();
+    await expect(page.getByLabel("Financial account")).toHaveValue("");
+    await page.getByLabel("Name").fill(originalName);
+    await page.getByLabel("Notes").fill(originalNotes);
+    await page.getByLabel("Financial account").selectOption(originalAccount);
+    await page.getByLabel("Reason").fill("Restore disposable fixture details");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page).toHaveURL(debtUrl);
+  }
+  expectCleanPage(signals);
+});
+
 test("promotional lender terms can be saved with a visible deadline", async ({ page }, testInfo) => {
   const signals = monitorPage(page);
   await page.goto("/debts/");

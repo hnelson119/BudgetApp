@@ -285,11 +285,7 @@ def update_debt_account(
     reason: str,
 ) -> DebtAccount:
     Household.objects.select_for_update().get(pk=debt.household_id)
-    locked = (
-        DebtAccount.objects.select_for_update()
-        .select_related("household", "financial_account")
-        .get(pk=debt.pk)
-    )
+    locked = DebtAccount.objects.select_for_update().select_related("household").get(pk=debt.pk)
     require_household_membership(actor, locked.household)
     if debt_type not in DebtAccount.DebtType.values:
         raise ValidationError("Debt type is invalid.")
