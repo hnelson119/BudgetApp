@@ -538,7 +538,8 @@ h1 { margin-bottom: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); }
 .mortgage-preview-grid > div { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
 .mortgage-preview-grid ol { margin-bottom: 0; }
 .mortgage-history-table { min-width: 1050px; }
-.payoff-scenario-card { width: 100%; margin-top: 22px; }
+.payoff-scenario-card { width: 100%; margin: 24px 0; }
+.payoff-plan-link { margin-top: 24px; }
 .payoff-filter-bar { grid-template-columns: repeat(3, minmax(160px, 1fr)) auto; }
 .payoff-filter-bar > .form-alert { grid-column: 1 / -1; }
 .payoff-debt-selection { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
