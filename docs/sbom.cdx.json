@@ -2,7 +2,7 @@
   "$schema": "https://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:032b84ac-7794-576c-8a6a-1e3d7cbc05ef",
+  "serialNumber": "urn:uuid:4934581a-a58d-5022-963c-bf89c56ad670",
   "version": 1,
   "metadata": {
     "component": {
@@ -15,7 +15,7 @@
     "properties": [
       {
         "name": "budget:inventory-fingerprint-sha256",
-        "value": "7fd59dffb2810c44dd610e3e4ee77102c815bb20a66510b3f7fd18db68b18e73"
+        "value": "94e1ef26dfd72897c7a3c28397b5408d6909e5638f1d3b0da164bd540bfc2d7d"
       },
       {
         "name": "budget:maintenance-procedure",
@@ -486,10 +486,10 @@
     },
     {
       "type": "container",
-      "bom-ref": "pkg:oci/golang@1.26.6-alpine3.24",
+      "bom-ref": "pkg:oci/golang@1.26.9-alpine3.24",
       "name": "golang",
-      "version": "1.26.6-alpine3.24",
-      "purl": "pkg:oci/golang@1.26.6-alpine3.24",
+      "version": "1.26.9-alpine3.24",
+      "purl": "pkg:oci/golang@1.26.9-alpine3.24",
       "properties": [
         {
           "name": "budget:source-files",
@@ -507,7 +507,7 @@
       "hashes": [
         {
           "alg": "SHA-256",
-          "content": "3889b425f035be855a72fb4755265311293b6d414521f0a519d819df32222d83"
+          "content": "cdfd4fe2da6b225d8b40c6b7a105736e548e83ff56d5d8f9394446eeb5eb84e0"
         }
       ]
     },
@@ -2065,7 +2065,7 @@
         "pkg:npm/playwright@1.62.1",
         "pkg:oci/alpine@3.24.1",
         "pkg:oci/aquasec/trivy@0.70.0",
-        "pkg:oci/golang@1.26.6-alpine3.24",
+        "pkg:oci/golang@1.26.9-alpine3.24",
         "pkg:oci/mcr.microsoft.com/playwright@v1.62.1-noble",
         "pkg:oci/nginx@1.30.4-alpine",
         "pkg:oci/postgres@17-alpine",

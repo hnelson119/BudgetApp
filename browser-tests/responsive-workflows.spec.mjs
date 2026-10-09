@@ -46,6 +46,36 @@ async function expectDebtSpacing(page) {
   expect(collisions).toEqual([]);
 }
 
+test("bill cadence date inputs stay compact and clear of weekday choices", async ({ page }) => {
+  const signals = monitorPage(page);
+  await page.goto("/budget/");
+  await page.getByRole("link", { name: "Add fixed expense", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Describe the bill cadence", exact: true })).toBeVisible();
+  await selectOptionContaining(page.getByLabel("Frequency"), "Weekly / every N weeks");
+  for (const dateValue of ["", "2027-12-31"]) {
+    await page.locator("#id_end_date").fill(dateValue);
+    const problems = await page.locator(".schedule-form").evaluate((form) => {
+      const failures = [];
+      const weekdays = form.querySelector("#id_weekdays").getBoundingClientRect();
+      for (const input of form.querySelectorAll('input[type="date"]')) {
+        const rect = input.getBoundingClientRect();
+        const field = input.closest(".form-field").getBoundingClientRect();
+        if (rect.height < 44 || rect.height > 48) failures.push("Date input height");
+        if (rect.left < field.left - 1 || rect.right > field.right + 1) failures.push("Date input width");
+        if (rect.left < weekdays.right && rect.right > weekdays.left
+          && rect.top < weekdays.bottom && rect.bottom > weekdays.top) failures.push("Date overlaps weekdays");
+      }
+      return failures;
+    });
+    expect(problems).toEqual([]);
+    await expectNoHorizontalOverflow(page);
+  }
+  const monday = page.getByLabel("Monday", { exact: true });
+  await monday.check();
+  await expect(monday).toBeChecked();
+  expectCleanPage(signals);
+});
+
 test("monthly budget balancing previews household periods without changing the plan", async ({ page }) => {
   const signals = monitorPage(page);
   await page.goto("/budget/");
