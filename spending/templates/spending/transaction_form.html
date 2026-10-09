@@ -5,7 +5,7 @@
 
 {% block content %}
   <section class="form-page">
-    {% if income_entry %}<a class="back-link" href="{% url 'spending:income-list' %}">← Back to income</a>{% else %}<a class="back-link" href="{% url 'spending:transaction-list' %}">← Back to transactions</a>{% endif %}
+    {% if return_paycheck %}<a class="back-link" href="{% url 'budgets:occurrence-reconcile' return_paycheck.pk %}?record=1">← Back to paycheck</a>{% elif income_entry %}<a class="back-link" href="{% url 'spending:income-list' %}">← Back to income</a>{% else %}<a class="back-link" href="{% url 'spending:transaction-list' %}">← Back to transactions</a>{% endif %}
     <div class="form-card">
       <p class="eyebrow">{{ eyebrow }}</p>
       <h2>{{ title }}</h2>

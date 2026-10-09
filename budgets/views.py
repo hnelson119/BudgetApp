@@ -28,7 +28,7 @@ from budgets.forms import (
     VariableBudgetForm,
 )
 from budgets.models import VariableBudget
-from budgets.services.reconciliation import reconcile_occurrence
+from budgets.services.reconciliation import reconcile_occurrence, record_received_paycheck
 from budgets.services.summary import (
     build_month_balance,
     build_period_summary,
@@ -52,6 +52,7 @@ from schedules.services import (
     preview_revision,
     synchronize_occurrences,
 )
+from spending.forms import IncomeForm
 
 _VARIABLE_BUDGET_VERSION_SALT = "budgets.variable-create-versions.v1"
 security_logger = logging.getLogger("security")
@@ -638,21 +639,46 @@ def occurrence_cancel_view(request: HttpRequest, occurrence_id: str) -> HttpResp
 def occurrence_reconcile(request: HttpRequest, occurrence_id: str) -> HttpResponse:
     household = get_active_household(request)
     occurrence = _occurrence_for_household(household, occurrence_id)
-    form = ReconciliationForm(
-        request.POST or None,
-        household=household,
-        occurrence=occurrence,
-        initial={"amount": occurrence.planned_amount},
+    recording_income = (
+        occurrence.source.kind == RecurringSource.Kind.INCOME and request.GET.get("record") == "1"
+    )
+    form: IncomeForm | ReconciliationForm
+    form = (
+        IncomeForm(
+            request.POST or None,
+            household=household,
+            initial={"description": occurrence.source.name, "amount": occurrence.planned_amount},
+        )
+        if recording_income
+        else ReconciliationForm(
+            request.POST or None,
+            household=household,
+            occurrence=occurrence,
+            initial={"amount": occurrence.planned_amount},
+        )
     )
     if request.method == "POST" and form.is_valid():
         try:
-            reconcile_occurrence(
-                occurrence=occurrence,
-                journal_entry=form.cleaned_data["journal_entry"],
-                amount=form.cleaned_data["amount"],
-                actor=_actor(request),
-                request_id=_request_id(request),
-            )
+            if isinstance(form, IncomeForm):
+                record_received_paycheck(
+                    occurrence=occurrence,
+                    destination=form.cleaned_data["destination"],
+                    amount=form.cleaned_data["amount"],
+                    effective_at=form.effective_at(),
+                    description=form.cleaned_data["description"],
+                    note=form.cleaned_data["note"],
+                    idempotency_key=form.idempotency_key(),
+                    actor=_actor(request),
+                    request_id=_request_id(request),
+                )
+            else:
+                reconcile_occurrence(
+                    occurrence=occurrence,
+                    journal_entry=form.cleaned_data["journal_entry"],
+                    amount=form.cleaned_data["amount"],
+                    actor=_actor(request),
+                    request_id=_request_id(request),
+                )
         except ValidationError as error:
             security_logger.warning(
                 "Occurrence reconciliation rejected.",
@@ -664,7 +690,12 @@ def occurrence_reconcile(request: HttpRequest, occurrence_id: str) -> HttpRespon
             )
             _add_domain_error(form, error)
         else:
-            messages.success(request, "Actual transaction linked to the planned item.")
+            messages.success(
+                request,
+                "Paycheck recorded and marked received."
+                if recording_income
+                else "Actual transaction linked to the planned item.",
+            )
             return redirect(_budget_url(occurrence.pay_period))
     elif request.method == "POST":
         security_logger.warning(
@@ -683,7 +714,14 @@ def occurrence_reconcile(request: HttpRequest, occurrence_id: str) -> HttpRespon
             "period": occurrence.pay_period,
             "occurrence": occurrence,
             "form": form,
-            "action": "Reconcile actual transaction",
+            "action": "Record received paycheck"
+            if recording_income
+            else "Reconcile actual transaction",
+            "recording_income": recording_income,
+            "income_reconciliation": occurrence.source.kind == RecurringSource.Kind.INCOME
+            and not recording_income,
+            "no_journal_entries": isinstance(form, ReconciliationForm)
+            and not form.has_journal_entries,
             "current_nav": "budget",
         },
     )
