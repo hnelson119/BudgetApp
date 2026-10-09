@@ -473,7 +473,7 @@ def test_backup_streams_into_encrypted_repository_and_restore_refuses_live_targe
     assert "RESTIC_SHA256=" in backup_dockerfile
     assert "ADD --checksum=sha256:" in backup_dockerfile
     assert "apk upgrade --no-cache" in backup_dockerfile
-    assert "golang:1.26.6-alpine3.24@sha256:" in backup_dockerfile
+    assert "golang:1.26.9-alpine3.24@sha256:" in backup_dockerfile
     assert "alpine:3.24.1@sha256:" in backup_dockerfile
     assert "postgresql17-client" in backup_dockerfile
     assert "/nonexistent:/sbin/nologin" in backup_dockerfile
