@@ -51,6 +51,7 @@ test("bill cadence date inputs stay compact and clear of weekday choices", async
   await page.goto("/budget/");
   await page.getByRole("link", { name: "Add fixed expense", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Describe the bill cadence", exact: true })).toBeVisible();
+  await selectOptionContaining(page.getByLabel("Frequency"), "Weekly / every N weeks");
   for (const dateValue of ["", "2027-12-31"]) {
     await page.locator("#id_end_date").fill(dateValue);
     const problems = await page.locator(".schedule-form").evaluate((form) => {
