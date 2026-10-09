@@ -122,6 +122,7 @@ class ReconciliationForm(HouseholdForm):
         cast(forms.ModelChoiceField, self.fields["journal_entry"]).queryset = entries.order_by(
             "-effective_at"
         )
+        self.has_journal_entries = entries.exists()
 
 
 class ReserveAllocationForm(forms.Form):

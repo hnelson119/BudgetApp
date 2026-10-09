@@ -34,7 +34,7 @@ from ledger.services import create_financial_account, record_income
 from periods.models import PayPeriod
 from periods.services import apply_period_sync, preview_period_sync
 from reserves.models import CardPaymentReserveEntry
-from schedules.models import RecurringSource
+from schedules.models import Occurrence, RecurringSource
 from schedules.recurrence import BusinessDayAdjustment, project_occurrences
 from schedules.services import (
     create_recurring_source,
@@ -555,9 +555,21 @@ def income_create(request: HttpRequest) -> HttpResponse:
 def account_create(request: HttpRequest) -> HttpResponse:
     household = get_active_household(request)
     return_to = request.GET.get("return_to", "")
+    return_paycheck = None
+    if return_to == "paycheck":
+        try:
+            paycheck_id = UUID(request.GET.get("paycheck", ""))
+        except ValueError as error:
+            raise Http404("Paycheck not found.") from error
+        return_paycheck = get_object_or_404(
+            Occurrence,
+            pk=paycheck_id,
+            source__household=household,
+            source__kind=RecurringSource.Kind.INCOME,
+        )
     form = FinancialAccountForm(
         request.POST or None,
-        deposit_only=return_to in ("income", "income-entry"),
+        deposit_only=return_to in ("income", "income-entry", "paycheck"),
     )
     if request.method == "POST" and form.is_valid():
         account_type, classification = form.account_type_and_classification()
@@ -584,6 +596,11 @@ def account_create(request: HttpRequest) -> HttpResponse:
             form.add_error(None, error)
         else:
             messages.success(request, "Financial account added.")
+            if return_paycheck is not None:
+                return redirect(
+                    reverse("budgets:occurrence-reconcile", args=(return_paycheck.pk,))
+                    + "?record=1"
+                )
             if return_to == "income":
                 return redirect("spending:income-list")
             if return_to == "income-entry":
@@ -605,6 +622,7 @@ def account_create(request: HttpRequest) -> HttpResponse:
             "household": household,
             "form": form,
             "title": "Add financial account",
+            "return_paycheck": return_paycheck,
             "eyebrow": "Account setup",
             "help_text": (
                 "Store only a nickname and optional last four digits—never a full account or "

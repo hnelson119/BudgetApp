@@ -295,6 +295,38 @@ test("income schedules can be edited after creation", async ({ page }, testInfo)
   expectCleanPage(signals);
 });
 
+test("a scheduled paycheck can be recorded as received without an existing journal entry", async ({ page }, testInfo) => {
+  const signals = monitorPage(page);
+  const sourceName = `Received paycheck ${testInfo.project.name}`;
+  await page.goto("/spending/income/schedules/add/");
+  await page.getByLabel("Income source").fill(sourceName);
+  await page.getByLabel("Expected take-home amount").fill("100.00");
+  await page.getByLabel("Frequency").selectOption("weekly");
+  const today = await page.evaluate(() => new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date()));
+  await page.getByLabel("First payday").fill(today);
+  await page.getByLabel("Start a budget period on each payday").uncheck();
+  await page.getByRole("button", { name: "Preview paydays", exact: true }).click();
+  await page.getByRole("button", { name: "Create income schedule", exact: true }).click();
+  await page.goto("/budget/");
+  const paycheck = page.getByRole("row").filter({ has: page.getByText(sourceName, { exact: true }) });
+  await paycheck.getByRole("link", { name: "Record received", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Record received paycheck", exact: true, level: 1 })).toBeVisible();
+  await expect(page.getByLabel("Description")).toHaveValue(sourceName);
+  await expect(page.getByLabel("Amount", { exact: false })).toHaveValue("100.00");
+  await expect(page.locator("#id_journal_entry")).toHaveCount(0);
+  await page.getByLabel("Amount", { exact: false }).fill("95.00");
+  await selectOptionContaining(page.getByLabel("Deposit account"), "Synthetic Checking");
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole("button", { name: "Record received paycheck", exact: true }).click();
+  await expect(page.getByText("Paycheck recorded and marked received.", { exact: true })).toBeVisible();
+  await expect(paycheck).toContainText("$95.00");
+  await expect(paycheck.getByRole("link", { name: "Record received", exact: true })).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+  expectCleanPage(signals);
+});
+
 test("navigation, theme, and layouts work at the configured viewport", async ({ page }, testInfo) => {
   const signals = monitorPage(page);
   await page.goto("/");

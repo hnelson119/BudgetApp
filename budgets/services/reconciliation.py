@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
@@ -12,7 +13,8 @@ from audit.services import append_event
 from budgets.models import OccurrenceReconciliation
 from households.services.access import require_household_membership
 from identity.models import User
-from ledger.models import JournalEntry, JournalPosting
+from ledger.models import FinancialAccount, JournalEntry, JournalPosting
+from ledger.services import record_income
 from periods.models import PayPeriod
 from reserves.models import CardPaymentReserveEntry
 from schedules.models import Occurrence, RecurringSource
@@ -30,6 +32,58 @@ _COMPATIBLE_ENTRY_TYPES: dict[str, set[str]] = {
         JournalEntry.EntryType.DEBT_PAYMENT,
     },
 }
+
+
+@transaction.atomic
+def record_received_paycheck(
+    *,
+    occurrence: Occurrence,
+    destination: FinancialAccount,
+    amount: Decimal,
+    effective_at: datetime,
+    description: str,
+    note: str,
+    idempotency_key: str,
+    actor: User,
+    request_id: str,
+) -> OccurrenceReconciliation:
+    locked = (
+        Occurrence.objects.select_for_update(of=("self",))
+        .select_related("source", "source__household")
+        .get(pk=occurrence.pk)
+    )
+    require_household_membership(actor, locked.source.household)
+    if locked.source.kind != RecurringSource.Kind.INCOME:
+        raise ValidationError("Only scheduled income can be recorded as a received paycheck.")
+    if locked.status not in (
+        Occurrence.Status.SCHEDULED,
+        Occurrence.Status.OVERRIDDEN,
+        Occurrence.Status.MOVED,
+    ):
+        raise ValidationError("This paycheck is already received or is no longer scheduled.")
+    if locked.pay_period_id is None:
+        raise ValidationError("Assign the paycheck to a budget period before recording it.")
+    period = PayPeriod.objects.select_for_update().get(pk=locked.pay_period_id)
+    if period.status == PayPeriod.Status.CLOSED:
+        raise ValidationError("Reopen the closed paycheck period before recording income.")
+    entry = record_income(
+        household=locked.source.household,
+        actor=actor,
+        destination=destination,
+        amount=amount,
+        effective_at=effective_at,
+        description=description,
+        note=note,
+        idempotency_key=idempotency_key,
+        request_id=request_id,
+    )
+    return reconcile_occurrence(
+        occurrence=locked,
+        journal_entry=entry,
+        amount=amount,
+        actor=actor,
+        request_id=request_id,
+    )
 
 
 def _positive_money(value: Decimal) -> Decimal:

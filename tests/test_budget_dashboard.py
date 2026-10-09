@@ -22,7 +22,7 @@ from budgets.services import (
     reconcile_occurrence,
     set_variable_budget,
 )
-from budgets.services.reconciliation import _positive_money
+from budgets.services.reconciliation import _positive_money, record_received_paycheck
 from budgets.services.summary import _balance_eligible, build_month_balance
 from budgets.services.variable_budgets import _money as _budget_money
 from budgets.templatetags.budget_tags import money as display_money
@@ -37,13 +37,15 @@ from identity.services.mfa import (
     confirm_recovery_codes_saved,
     totp_code,
 )
-from ledger.models import FinancialAccount
+from ledger.models import FinancialAccount, JournalEntry
 from ledger.services import (
     create_financial_account,
     record_expense,
     record_income,
     reverse_entry,
 )
+from notifications.models import Notification
+from notifications.services import refresh_household_notifications
 from periods.models import PayPeriod
 from periods.services import close_period
 from reserves.services import _signed_money, allocate_reserve, reserve_balance
@@ -159,6 +161,176 @@ def _mfa_ready(user: User) -> None:
     assert confirm_enrollment(user, totp_code(enrollment.secret)) is not None
     assert confirm_recovery_codes_saved(user) is True
     user.refresh_from_db()
+
+
+def _paycheck_receipt(context, occurrence):
+    return {
+        "occurrence": occurrence,
+        "destination": context.checking,
+        "amount": Decimal("95.00"),
+        "effective_at": datetime(2026, 8, 21, 12, tzinfo=ZoneInfo(context.household.time_zone)),
+        "description": occurrence.source.name,
+        "note": "Actual deposit",
+        "idempotency_key": f"paycheck-{occurrence.pk}",
+        "actor": context.user,
+        "request_id": "paycheck-receipt",
+    }
+
+
+def test_record_paycheck_creates_actual_income_and_resolves_missing_alert(budget_context):
+    context = budget_context
+    paycheck = _source_occurrence(
+        context, kind=RecurringSource.Kind.INCOME, name="Paycheck", amount="100.00"
+    )
+    refresh_household_notifications(household=context.household, today=date(2026, 8, 23))
+    alert = Notification.objects.get(
+        household=context.household, kind=Notification.Kind.MISSING_INCOME
+    )
+    assert alert.resolved_at is None
+    link = record_received_paycheck(**_paycheck_receipt(context, paycheck))
+    paycheck.refresh_from_db()
+    assert paycheck.status == Occurrence.Status.COMPLETED
+    assert paycheck.actual_amount == Decimal("95.00")
+    assert paycheck.actual_date == date(2026, 8, 21)
+    assert link.journal_entry.entry_type == JournalEntry.EntryType.INCOME
+    assert build_period_summary(
+        household=context.household, period=context.period, today=date(2026, 8, 23)
+    ).actual_income == Decimal("95.00")
+    assert AuditEvent.objects.filter(
+        household=context.household, action="budget.occurrence_reconciled"
+    ).exists()
+    refresh_household_notifications(household=context.household, today=date(2026, 8, 23))
+    alert.refresh_from_db()
+    assert alert.resolved_at is not None
+    entries = JournalEntry.objects.count()
+    with pytest.raises(ValidationError, match="already received"):
+        record_received_paycheck(**_paycheck_receipt(context, paycheck))
+    assert JournalEntry.objects.count() == entries
+
+
+@pytest.mark.parametrize(
+    "blocked",
+    [
+        "closed",
+        "cancelled",
+        "superseded",
+        "wrong-kind",
+        "outsider",
+        "foreign-account",
+    ],
+)
+def test_record_paycheck_rejects_unsafe_receipts_without_ledger_writes(budget_context, blocked):
+    context = budget_context
+    paycheck = _source_occurrence(
+        context, kind=RecurringSource.Kind.INCOME, name="Blocked paycheck", amount="100.00"
+    )
+    kwargs = _paycheck_receipt(context, paycheck)
+    if blocked == "closed":
+        context.period.status = PayPeriod.Status.CLOSED
+        context.period.save(update_fields=("status",))
+    elif blocked in ("cancelled", "superseded"):
+        paycheck.status = blocked
+        paycheck.save(update_fields=("status",))
+    elif blocked == "wrong-kind":
+        paycheck = _source_occurrence(
+            context,
+            kind=RecurringSource.Kind.FIXED_EXPENSE,
+            name="Not income",
+            amount="100.00",
+            category=context.category,
+        )
+        kwargs["occurrence"] = paycheck
+    elif blocked == "outsider":
+        kwargs["actor"] = context.outsider
+    else:
+        other = Household.objects.create(name="Foreign deposit household")
+        other_user = User.objects.create_user(
+            email="foreign-deposit@example.com", password=TEST_PASSWORD
+        )
+        HouseholdMembership.objects.create(household=other, user=other_user)
+        kwargs["destination"] = create_financial_account(
+            household=other,
+            actor=other_user,
+            name="Foreign checking",
+            account_type=FinancialAccount.AccountType.CHECKING,
+            classification=FinancialAccount.Classification.ASSET,
+            request_id="foreign-deposit-account",
+        )
+    entries = JournalEntry.objects.count()
+    with pytest.raises((ValidationError, PermissionDenied)):
+        record_received_paycheck(**kwargs)
+    assert JournalEntry.objects.count() == entries
+    assert not OccurrenceReconciliation.objects.filter(occurrence=paycheck).exists()
+
+
+def test_record_paycheck_rolls_back_income_if_linking_fails(budget_context):
+    paycheck = _source_occurrence(
+        budget_context, kind=RecurringSource.Kind.INCOME, name="Atomic paycheck", amount="100.00"
+    )
+    entries, audits = JournalEntry.objects.count(), AuditEvent.objects.count()
+    with patch(
+        "budgets.services.reconciliation.reconcile_occurrence",
+        side_effect=ValidationError("Link rejected"),
+    ):
+        with pytest.raises(ValidationError, match="Link rejected"):
+            record_received_paycheck(**_paycheck_receipt(budget_context, paycheck))
+    assert JournalEntry.objects.count() == entries
+    assert AuditEvent.objects.count() == audits
+    paycheck.refresh_from_db()
+    assert paycheck.status == Occurrence.Status.SCHEDULED
+
+
+def test_paycheck_web_receipt_empty_reconcile_and_account_return(client, budget_context):
+    context = budget_context
+    _mfa_ready(context.user)
+    client.force_login(context.user)
+    paycheck = _source_occurrence(
+        context, kind=RecurringSource.Kind.INCOME, name="Web paycheck", amount="100.00"
+    )
+    reconcile_url = reverse("budgets:occurrence-reconcile", args=(paycheck.pk,))
+    empty = client.get(reconcile_url)
+    assert empty.status_code == 200
+    assert b"No recorded income transactions" in empty.content
+    assert b"Record received paycheck" in empty.content
+    receipt_url = reconcile_url + "?record=1"
+    page = client.get(receipt_url)
+    assert page.context["form"]["amount"].value() == Decimal("100.00")
+    assert b"Journal entry" not in page.content
+    account_url = reverse("spending:account-create") + f"?return_to=paycheck&paycheck={paycheck.pk}"
+    assert client.get(account_url).status_code == 200
+    created = client.post(account_url, {"name": "New deposit account", "kind": "checking"})
+    assert created.status_code == 302
+    assert created.url == receipt_url
+    deposited = FinancialAccount.objects.get(
+        household=context.household, name="New deposit account"
+    )
+    data = {
+        "description": "Web paycheck",
+        "amount": "95.00",
+        "destination": str(deposited.pk),
+        "effective_date": "2026-08-21",
+        "submission_token": page.context["form"]["submission_token"].value(),
+    }
+    saved = client.post(receipt_url, data)
+    assert saved.status_code == 302
+    paycheck.refresh_from_db()
+    assert paycheck.actual_amount == Decimal("95.00")
+    assert paycheck.status == Occurrence.Status.COMPLETED
+    assert client.post(receipt_url, data).status_code == 200
+    assert OccurrenceReconciliation.objects.filter(occurrence=paycheck).count() == 1
+    assert JournalEntry.objects.filter(description="Web paycheck").count() == 1
+    assert (
+        client.get(
+            reverse("spending:account-create") + "?return_to=paycheck&paycheck=invalid"
+        ).status_code
+        == 404
+    )
+    other_household = Household.objects.create(name="Other receipt household")
+    HouseholdMembership.objects.create(household=other_household, user=context.outsider)
+    _mfa_ready(context.outsider)
+    client.force_login(context.outsider)
+    assert client.get(receipt_url).status_code in (403, 404)
+    assert client.get(account_url).status_code in (403, 404)
 
 
 def _month_fixture(context):
