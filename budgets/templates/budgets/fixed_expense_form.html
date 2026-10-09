@@ -12,7 +12,7 @@
       <form class="app-form schedule-form" method="post">
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="form-alert">{{ form.non_field_errors }}</div>{% endif %}
-        {% for field in form.visible_fields %}<div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
+        {% for field in form.visible_fields %}<div class="form-field{% if field.field.widget.input_type == 'checkbox' %} checkbox-field{% endif %}{% if field.name == 'weekdays' %} weekday-field{% endif %}">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>{% endfor %}
         {% if preview %}<input type="hidden" name="preview_fingerprint" value="{{ preview.fingerprint }}">{% else %}{{ form.preview_fingerprint }}{% endif %}
         {% if preview %}
           <section class="preview-card" aria-live="polite">
